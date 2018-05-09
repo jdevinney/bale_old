@@ -1,0 +1,11 @@
+#!/bin/sh -e
+# -f0 means it's ok for the twohop constructor to fail
+export MPP_INIT_QUIET=1
+$LAUNCH ./alltoall? -- <<EOF
+-f0 -c10 -w10 -t4      twohop 100 16
+-f0 -c10 -w10 -t4 -g   twohop 100
+-f0 -c10 -w10 -t6 -d   twohop 100 56
+-f0 -c10 -w10 -t8 -p   twohop 100 16
+-f0 -c10 -w10 -t4 -dpy twohop 100 16
+EOF
+exit 0

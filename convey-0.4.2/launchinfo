@@ -1,0 +1,12 @@
+#!/bin/sh
+cat <<EOF
+To run this test, LAUNCH must be set to a command prefix for launching a
+parallel job.  You can set LAUNCH as an environment variable or as an
+argument to make, like this:
+
+   make check LAUNCH="srun -n96"
+
+The test requires that the number of processes (SHMEM PEs, MPI ranks, or
+UPC threads) be a multiple of 96.
+EOF
+exit 1

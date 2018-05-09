@@ -1,0 +1,15 @@
+#!/bin/sh -e
+export MPP_INIT_QUIET=1
+$LAUNCH ./alltoall? -- <<EOF
+-b1 -c10 -w10        vector 100 16
+-b1 -c10 -w10 -t8 -d matrix 100 40
+-b2 -c10 -w10 -t6 -g matrix 100
+-b1 -c10 -w10 -t4    tensor 100 24
+-b2 -c10 -w10 -t4 -d tensor 100 20
+-b2 -c10 -w10 -t4 -g tensor 100
+-b4 -c10 -w10 -t3    tensor 100 16
+-b2 -c10 -w10     -dpy vector 100 32
+-b4 -c10 -w10 -t8 -py  matrix 100 36
+-b1 -c10 -w10 -t4 -dpy tensor 100 28
+EOF
+exit 0
