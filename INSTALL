@@ -1,0 +1,81 @@
+#  Copyright 2014, Institute for Defense Analyses
+#  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+#  This material may be reproduced by or for the US Government
+#  pursuant to the copyright license under the clauses at DFARS
+#  252.227-7013 and 252.227-7014.
+# 
+# POC: Bale <bale@super.org>
+# Please contact the POC before disseminating this code.
+
+#
+# Bale is a collection of libraries and application used to experiment with different 
+# buffered communications models.
+#
+#The main components are :
+#  INSTALL       # This file
+#  libgetput     # parallel programming utility lib
+#  exstack       # the exstack and exstack2 libraries
+#  convey-0.4.3b # directory containing the conveyor buffering model
+#  spmat         # the sparse matrix library
+#  apps          # the applications directory, includes histogram, indexgather, toposort, and others
+#  install.sh    # an install script
+#  Doxyfile      
+#  mainpage.h
+#
+# The codes are in C and all except conveyors use the libgetput library for a parallel API.
+# Everything can be built on UPC or SHMEM. We have tested Cray UPC, Cray SHMEM, 
+# Berkeley UPC (with GNU UPC compiler) and OpenShmem.
+#
+#  The models used are:
+#  agi      : standard PGAS model that uses puts, gets, and atomics
+#  exstack  : a bulk synchronous buffering model
+#  exstack2 : a asynchronous variant of exstack
+#  conveyors: a asynchronous model that is independent of exstack and exstack2. 
+#             The user interface is similar to exstack2.             
+#
+# ENVIRONMENT CONFIGURATION ###########################################
+#
+# For this document, let BALEDIR = the directory containing this file.
+# We handle building on multiple architectures by setting an environment variable PLATFORM and then
+# building in the directory BALEDIR/build_$PLATFORM.
+# If you don't set this, your platform will be set to "unknown".
+#
+# You can build bale on top of UPC or SHMEM. 
+#
+# UPC:   You should set the UPC environment variable to point to the UPC compiler and 
+#          the UPCFLAGS variable to whatever options you pass to the compiler (for example:
+#          UPCFLAGS="-gupc -network=ibv".
+# SHMEM: If you are using openshmem, set CC=oshcc (the openshmem compiler).
+#
+
+# BUILD AND INSTALL ###################################################
+#
+# bale uses autotools. To make building and
+# installing easier, we have included the install.sh script. Simply run
+# the install.sh script. This script visits each subpackage in bale and
+# runs configure, make, and make install. You could of course do this
+# yourself. The default build and install directory is
+# $BALEDIR/build_$PLATFORM. There are several important options for the
+# script...
+
+# -u OR -s : specify you would like to build libgetput on top of UPC or SHMEM. default: UPC
+# -p : specify an alternate install dir
+# -f : run autoreconf steps also
+# -c : specify options to configure step
+
+# We use a separate build directory for each architecture. 
+# The configure process creates architecture depend files (e.g. Makefile)
+# it also creates symbolic links back to the source. This allows us to
+# rename files to satisfy various compilers (e.g. 
+# some compilers require that UPC programs end in .upc)
+#
+# DOCUMENTATION #####################################################
+#
+# Bale is documented using Doxygen. To generate the html documentation you must have 
+# doxygen on your system (I recommend version 1.8.6). To generate the docs, simply change
+# to the $BALEDIR directory and type:
+#
+# doxygen
+#
+# Then navigate your browser to $BALEDIR/html/index.html.
+

@@ -1,0 +1,21 @@
+#  Copyright 2014, Institute for Defense Analyses
+#  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+#  This material may be reproduced by or for the US Government
+#  pursuant to the copyright license under the clauses at DFARS
+#  252.227-7013 and 252.227-7014.
+# 
+# POC: Bale <bale@super.org>
+# Please contact the POC before disseminating this code.
+
+#
+# Bale is a collection of libraries and application used to experiment with different 
+# buffered communications models.
+#
+
+# See the INSTALL file for a description of the components and instructions
+# for building this package
+
+#CHANGE HISTORY:
+# Initial Release  May 2018
+
+
