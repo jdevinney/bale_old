@@ -1,3 +1,40 @@
+/******************************************************************
+//
+//
+//  Copyright(C) 2018, Institute for Defense Analyses
+//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+//  This material may be reproduced by or for the US Government
+//  pursuant to the copyright license under the clauses at DFARS
+//  252.227-7013 and 252.227-7014.
+// 
+//
+//  All rights reserved.
+//  
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//    * Neither the name of the copyright holder nor the
+//      names of its contributors may be used to endorse or promote products
+//      derived from this software without specific prior written permission.
+// 
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+//  OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
+ *****************************************************************/ 
 /*!
  * \defgroup libgetputgrp Libgetput library (libgetput)
  * This is a simple parallel macro library that exposes very few
@@ -17,66 +54,113 @@
  *
  ******************************************************************************************
  
- The bale archive is a summary of work that has been done on programming models
-  that help the programmers trade latency for bandwidth.
-  
-  The bale archive contains some library packages and an applications package.
+ \section IntroToBale Why bale?  
+ The bale effort is, first and
+ foremost, <b> a vehicle for discussion</b>.  Central to bale is a
+ directory of "apps" that exhibit interesting communication patterns
+ and programming demands. They allow us to test and exchange ideas
+ with others. We hope the bale discussion can lead to improved
+ programmer productivity (including existing and/or new programming
+ models) and performance.
 
-  Libraries
-  - \ref libgetputgrp simple parallel programming language that can be built on UPC or SHMEM. Supports
-  basic PGAS functions (like get and put) as well as some atomics.
-  - \ref exstackgrp Our first attempt at a buffered communications library was called exstack. exstack required bulk-synchronous programming. Our second attempt was exstack2, which allowed for more asynchronous programming. Both models are included in this library.
-  - \b convey: The successor to the exstack libraries. Conveyors should offer better performance and more flexibility.
-  - \ref spmatgrp A parallel sparse matrix library
+ - Part of bale is to keep revisiting the question of ``How would
+ we \e like to write this code?''.
+ 
+ - We think all of us want to write programs that are simple, elegant,
+ and look like the algorithms they are implementing. In bale, we call
+ this (obviously subjective) ideal the AGI model (``As God
+ Intended''). For each app, we have included our current best effort
+ at an AGI implementation -- this usually makes heavy use of single
+ word gets and puts.
+ 
+ - We want something worthy of being called AGI, but with an
+ acceptable fraction of the ``gold standard'' (highest possible
+ performing) implementation. bale purposely does not define
+ "acceptable" or "performance". We want to shrink the gap and
+ explore the continuim between high productivity and high
+ performance. <b>bale is not meant to be a benchmark</b>.
+ 
+ bale is released under the 3-clause BSD license to try to
+ encourage others to join this discussion. Please send correspondence to bale@super.org.
+ 
+ 
+\section WhatsInBale What is in bale?
+  The bale archive is a collection of applications and support libraries that have been
+  written to study programming models for HPC system as applied to irregular problems.
+
+  The bale archive currently contains the following libraries and applications packages.
 
   Apps
-  - \subpage histogram_page
-  - \subpage indexgather_page
-  - \subpage toposort_page 
-  
-  ******************************************************************************************
-  \page histogram_page Histogram
-  
-  The histogram application is a simple parallel histogram. Each
-  processor has a list of updates which are actually just indicies 0 -
-  M-1. The job of histogram is to count the number of occurances of
-  each index across all PEs. We can accomplish this task by creating a
-  distributed array T with length M and initializing it to zero. Then
-  each PE can run through its list and increment the appropriate count
-  in the array T. As described, this technique could lead to a race
-  condition where two or more processors simultaneaously update the
-  same entry in T. This can be by forcing all updates to be done with
-  atomic increments.
+  - \subpage histogram_page simple random puts (remote writes)
+  - \subpage indexgather_page simple random gets (remote reads)
+  - \subpage toposort_page a bfs algorithm to re-order the rows and columns of  "morally" upper triangular matrix
+  - \subpage transpose_matrix_page sparse matrix manipulation that is interesting in it own right
+  - \subpage permute_matrix_page sparse matrix manipulation that is interesting in it own right
+  - \subpage randperm_page a parallel algorithm to find a large permutation in parallel
+  - \subpage triangles_page counting triangles in a graph
+  - \subpage write_sparse_matrix_page Write a sparse matrix in a binary form.
 
-  As described, histogram is extremely latency tolerant. That means we
-  could buffer up our remote updates and send whole buffers instead of
-  one update at a time. This is exactly what exstacks and conveyors
-  help us do (so we don't have to go to the trouble of creating
-  buffers and figuring out the right addresses every time we want to
-  do something like this).
+  Libraries
+  - \ref libgetputgrp a set of macros and functions that can be built on UPC or SHMEM
+   to supports basic PGAS functions (like get and put) as well as some atomic operations.  
+   It allows for basic PGAS programming in a UPC vs SHMEM agnostic way.
+  - \ref exstackgrp Our first attempt at a buffered communications library was called exstack.  
+  It uses barriers and forces one to write in a bulk-synchronous programming style. 
+  Our second attempt was exstack2, which allowed for more asynchronous programming. 
+    Both models are included in this library.
+  - \b convey: The successor to the exstack libraries. Conveyors should offer better performance and more flexibility.
+  It can be used in either a bulk-synchronous or asynchronous style.
+  - \ref spmatgrp A parallel sparse matrix library that supports the creation and manipulation of {0,1}-matrices,
+  often call "positional" matrices.
+  
+  Also
+  - INSTALL: Instructions on how to get bale up and running.
+  - runall.sh: A bash script that runs all the applications with "standard" options.
+
+  \subsection History History
+
+  A number of irregular problems have a natural PGAS description.
+  However, this model often requires the use of fine-grain,
+  low-latency, and sometimes atomic, references to remote memory.
+  Most current and anticipated HPC platform achieve their optimal
+  global communication bandwidth only by sending large packages.  This
+  work began with the development of a library (exstack) to help
+  relieve the programming burden of managing remote memory operation
+  using buffered communication.
+  
+  Exstack uses a bulk synchronous model: All threads fill their
+  outgoing buffers, then barrier and exchange the buffers, then
+  barrier and empty their incoming buffers.  Using exstack did greatly
+  increase performance---sometimes achieving near optimal network
+  injection bandwidth.  However, asynchronous PGAS code with inserted
+  blocks of bulk synchronization code is ugly, hard to follow and hard
+  to maintain.  We also believe that programs with an irregular
+  program flow, like toposort, incur a performance penalty if they are
+  not asynchronous.
+
+  We hoped we could improve exstack by making the process of
+  exchanging the buffers asynchronous. This resulted in two separate
+  and simultaneous efforts: exstack2 and conveyors (conveyors unifies
+  the APIs for, and adds many features to, exstack and exstack2).  The
+  results were interesting because they led to more questions than
+  answers. Fairly quickly it became clear that conveyors were superior
+  to exstack2 from a features perspective and we stopped development
+  of exstack2. We include it in bale for historical purposes -- its
+  performance can be quite good in some applications but there are
+  some applications (especially in SHMEM) where it performs terribly
+  and we have not put the energy into finding out why yet. There are
+  also applications (such as randperm and write_sparse_matrix) which
+  are hard to implement in exstack2. Features like steady-mode and
+  giant-messages in coveyors makes some applications easier to program
+  in conveyors than exstack/2.
+
+  As the example applications in bale demonstrate, the
+  use of such libraries is an unacceptable solution to the problem of
+  programming irregular problems on future HPC systems because of the
+  burden it places on the programmer.
 
   ******************************************************************************************
-  \page indexgather_page Indexgather
-  
-  If histogram is like a "put", then indexgather is like a "get". Each
-  processor has a list of read indices into a distributed table T. The
-  would like to read those indices from T and write the results
-  somewhere locally. We can do this quite simply with libgetput's \ref
-  lgp_get_int64() function. As described, the indexgather problem is
-  also very latency tolerant and a fine candidate for buffered
-  communications.
-
-  ******************************************************************************************
-  \page toposort_page Toposort
-  
-  The toposort algorithm is more complicated than histogram and
-  indexgather. There will be a paper the more fully describes toposort. For now...
-  
-  Consider an upper-triangular matrix T with nonzero diagonal. Now
-  randomly permute the rows and columns of T to get a matrix T'. The
-  goal of toposort is to create row and column permutations (not
-  necessarily the original permutations) such that when applied to T',
-  forms an upper triangular matrix with nonzero diagonal.
+ 
 
  */
 

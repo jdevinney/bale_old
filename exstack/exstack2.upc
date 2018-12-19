@@ -1,12 +1,39 @@
 /******************************************************************
- * Copyright 2014, Institute for Defense Analyses
- * 4850 Mark Center Drive, Alexandria, VA; 703-845-2500
- * This material may be reproduced by or for the US Government
- * pursuant to the copyright license under the clauses at DFARS
- * 252.227-7013 and 252.227-7014.
- *
- * POC: Bale <bale@super.org>
- * Please contact the POC before disseminating this code.
+//
+//
+//  Copyright(C) 2018, Institute for Defense Analyses
+//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+//  This material may be reproduced by or for the US Government
+//  pursuant to the copyright license under the clauses at DFARS
+//  252.227-7013 and 252.227-7014.
+// 
+//
+//  All rights reserved.
+//  
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//    * Neither the name of the copyright holder nor the
+//      names of its contributors may be used to endorse or promote products
+//      derived from this software without specific prior written permission.
+// 
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+//  OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
  *****************************************************************/ 
 /*! \file exstack2.upc
  * \brief A library to do asynchronous buffered communications in parallel programs.
@@ -42,17 +69,17 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   XS2->s_rcv_buffer = lgp_all_alloc (buffer_bytes*(size_t)THREADS*(size_t)THREADS, sizeof(char));
   if(XS2->s_rcv_buffer  == NULL) return(NULL);
 
-  XS2->l_snd_buffer  = calloc(THREADS, sizeof(SHARED char*));  
+  XS2->l_snd_buffer  = calloc(THREADS, sizeof(char*));  
   if(XS2->l_snd_buffer == NULL) return(NULL);
 
-  XS2->l_rcv_buffer  = calloc(THREADS, sizeof(SHARED char*));
+  XS2->l_rcv_buffer  = calloc(THREADS, sizeof(char*));
   if(XS2->l_rcv_buffer == NULL) return(NULL);
   
   XS2->l_snd_buffer[0] = lgp_local_part(char, XS2->s_snd_buffer);
   XS2->l_rcv_buffer[0] = lgp_local_part(char, XS2->s_rcv_buffer);
   for(int64_t th=1; th<THREADS; th++) {
     XS2->l_snd_buffer[th] = XS2->l_snd_buffer[th-1] + buffer_bytes;
-    XS2->l_rcv_buffer[th] = XS2->l_rcv_buffer[th-1] + buffer_bytes;
+    XS2->l_rcv_buffer[th] = XS2->l_rcv_buffer[th-1] + buffer_bytes;    
   }
     
   // the message queue is a circular buffer, indices into the queue are ever increasing 
@@ -284,14 +311,13 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
 {
   uint64_t pos;
 
-  //lgp_poll();
   if(Xstk2->l_can_send[pe] == 0L) // not safe to send ... return 1 
       return(0);
   if(Xstk2->push_cnt[pe] > 0L){      // flushing might call send with an empty buffer
     lgp_memput(Xstk2->s_rcv_buffer,
-                (const void * restrict)Xstk2->l_snd_buffer[pe],
-                Xstk2->push_cnt[pe]*Xstk2->pkg_size,
-                ((size_t)THREADS*MYTHREAD*(Xstk2->pkg_size*Xstk2->buf_cnt) + pe)
+               (const void * restrict)Xstk2->l_snd_buffer[pe],
+               Xstk2->push_cnt[pe]*Xstk2->pkg_size,
+               ((size_t)THREADS*MYTHREAD*(Xstk2->pkg_size*Xstk2->buf_cnt) + pe)
                );
   }
   
@@ -299,15 +325,16 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
   // this may have to be done with atomics...
   //_amo_aadd((volatile int64_t *)&Xstk2->l_can_send[pe], -1L); 
   Xstk2->l_can_send[pe] = 0L;
-
+  
+  lgp_fence();
+  
   // send a message to the receiver pe, that a buffer has been delivered
   //#pragma pgas defer_sync
-  //pos = _amo_afadd((SHARED int64_t *)&Xstk2->s_num_msgs[pe], 1L);  //get local index on remote pe for this message
+  //pos = _amo_afadd((SHARED int64_t *)&Xstk2->s_num_msgs[pe], 1L);  //get local index on remote pe for this message  
   pos = lgp_fetch_and_inc(Xstk2->s_num_msgs, pe);
   pos = pos & Xstk2->msg_Q_mask;
   //Xstk2->s_msg_queue[pos*THREADS + pe] = msg_pack( Xstk2->push_cnt[pe], islast );
   lgp_put_int64(Xstk2->s_msg_queue, pos*THREADS + pe, msg_pack( Xstk2->push_cnt[pe], islast ));
-
 
   // reset the buffer to continue pushing to it
   Xstk2->push_cnt[pe] = 0L;
@@ -331,9 +358,9 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
 int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
 {
   int64_t msg_index, msg, pe, cnt;
-#if __BERKELEY_UPC_RUNTIME__  
+
   lgp_poll();
-#endif
+
   int64_t s2l_num_msgs = Xstk2->l_num_msgs[0];
 
   if(Xstk2->all_done){
@@ -371,7 +398,7 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
       Xstk2->pop_pe = -1L;
     }
   }
-  
+
   //   Use this opportunity to activate new messages
   while(Xstk2->num_made_active < s2l_num_msgs){
     msg_index = (Xstk2->num_made_active & Xstk2->msg_Q_mask);
@@ -385,7 +412,7 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
       assert(Xstk2->pop_cnt[pe] == 0L);
       assert(cnt > 0);
       Xstk2->pop_cnt[pe] = cnt;
-      //Xstk2->pop_ptr[pe] = Xstk2->l_rcv_buffer[pe] + (cnt-1)*Xstk2->pkg_size;
+      lgp_poll();
       Xstk2->pop_ptr[pe] = Xstk2->l_rcv_buffer[pe];
     }
     Xstk2->active_buffer_queue[Xstk2->num_active_buffers] = pe;
@@ -431,9 +458,9 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
 {
   void *ret;
   int64_t msg_index, msg, pe, cnt;
-#if __BERKELEY_UPC_RUNTIME__  
+
   lgp_poll();
-#endif
+
   int64_t s2l_num_msgs = Xstk2->l_num_msgs[0];
 
   if(Xstk2->all_done){
@@ -483,6 +510,7 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
     if( msg_islast(msg) ) 
       Xstk2->num_done_sending++;
     if( cnt ){        // this is not an empty "I'm done sending" message
+      lgp_poll();
       assert(Xstk2->pop_cnt[pe] == 0L);
       assert(cnt > 0);
       Xstk2->pop_cnt[pe] = cnt;

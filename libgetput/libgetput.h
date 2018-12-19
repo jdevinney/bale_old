@@ -1,12 +1,39 @@
 /******************************************************************
- * Copyright 2014, Institute for Defense Analyses
- * 4850 Mark Center Drive, Alexandria, VA; 703-845-2500
- * This material may be reproduced by or for the US Government
- * pursuant to the copyright license under the clauses at DFARS
- * 252.227-7013 and 252.227-7014.
- *
- * POC: Bale <bale@super.org>
- * Please contact the POC before disseminating this code.
+//
+//
+//  Copyright(C) 2018, Institute for Defense Analyses
+//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+//  This material may be reproduced by or for the US Government
+//  pursuant to the copyright license under the clauses at DFARS
+//  252.227-7013 and 252.227-7014.
+// 
+//
+//  All rights reserved.
+//  
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//    * Neither the name of the copyright holder nor the
+//      names of its contributors may be used to endorse or promote products
+//      derived from this software without specific prior written permission.
+// 
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+//  OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
  *****************************************************************/ 
 
 /*! \file libgetput.h
@@ -27,6 +54,7 @@
 #include <time.h>
 #include <locale.h>
 #include <sys/time.h>
+#include <assert.h>
 
 #if HAVE_CONFIG_H
 #include "config.h"
@@ -40,21 +68,23 @@
 
 # if !HAVE_SHMEM_FREE
 // Fall back to old-style names
-# define shmem_free shfree
-# define shmem_malloc shmalloc
-# define shmem_align shmemalign
-# define shmem_global_exit exit
+# define shmem_free shfree      /*!< old style names for shmem */
+# define shmem_malloc shmalloc  /*!< old style names for shmem */
+# define shmem_align shmemalign /*!< old style names for shmem */
+# define shmem_global_exit exit /*!< old style names for shmem */
 # endif
 
 /* defines to support the different models of global and buffered references */
-#define AGI_Model 1L      /*!< the Atomic or Generic Interface (straight UPC/SHMEM) */
-#define EXSTACK_Model 2L  /*!< the exstack bulk synchronous buffering model */
-#define EXSTACK2_Model 4L /*!< the exstack2 asynchronous buffering model */
-#define CONVEYOR_Model 8L /*!< the conveyor buffering model */
+#define AGI_Model        1L /*!< the Atomic or Generic Interface (straight UPC/SHMEM) */
+#define EXSTACK_Model    2L /*!< the exstack bulk synchronous buffering model */
+#define EXSTACK2_Model   4L /*!< the exstack2 asynchronous buffering model */
+#define CONVEYOR_Model   8L /*!< the conveyor buffering model */
+#define ALTERNATE_Model 16L /*!< an alternate model (meant for user supplied code) */
+#define ALL_Models      15L /*!< default for running all models */
 
 /*! \struct minavgmaxL_t 
- * \brief A structure to return the global stats computed by lgp_min_avg_max_l
- */
+* \brief A structure to return the global stats computed by lgp_min_avg_max_l
+*/
 typedef struct minavgmaxL_t{  
   int64_t min;    /*!< int64_t to hold the min. */ 
   int64_t avg;    /*!< int64_t to hold the average. */ 
@@ -93,6 +123,8 @@ typedef struct minavgmaxD_t{
 #define lgp_all_free(p) (upc_all_free(p)) /*!< wrapper for a free of global memory */
 /*! \ingroup libgetputgrp */
 #define lgp_memput(dst,src,n,index) (upc_memput( (dst) + (index), (src), (n) ))  /*!< wrapper for upc_memput */
+#define lgp_memget(dst,src,n,index) (upc_memget( (dst), (src) + (index), (n) ))  /*!< wrapper for upc_memget */
+
 /*! \ingroup libgetputgrp */
 #define lgp_put_int64(array,index,val) (((shared int64_t*)(array))[index]=(val)) /*!< wraps a shared write to be compatible with shmem */
 /*! \ingroup libgetputgrp */
@@ -100,8 +132,11 @@ typedef struct minavgmaxD_t{
 /*! \ingroup libgetputgrp */
 #define lgp_global_exit(i) upc_global_exit(i) /*! wrapper for global exit */ 
 /*! \ingroup libgetputgrp */
+#if __BERKELEY_UPC_RUNTIME__
 #define lgp_poll() upc_poll() /*! wrapper for poll which makes sure the network doesn't live lock */
-
+#else
+#define lgp_poll()
+#endif
 
 
 #else
@@ -132,13 +167,24 @@ typedef struct minavgmaxD_t{
   ( (n)==0 ? (void)(0) :                                                \
     (n)%16==0 ? shmem_put128((dst),(src),(n)/16,(pe)) :                 \
     (n)%8==0 ? shmem_put64((dst),(src),(n)/8,(pe)) :                    \
-    (n)%4==0 ? shmem_put32((dst),(src),(n)/4,(pe)) :                    \
+    (n)%4==0 ? shmem_put32((dst),(src),(n)/4,(pe)) :                  \
     shmem_putmem((dst),(src),(n),(pe)) )                                      /*!< macro magic */
-#define lgp_memput_bytes_by_pe(dst,src,n,local_offset,pe)              \
+
+#define lgp_memput_bytes_by_pe(dst,src,n,local_offset,pe)               \
   (lgp_memput_shmemwrap( ((char*)(dst))+(local_offset), (src), (n), (pe) ) ) /*!< macro magic */
 #define lgp_memput(dst,src,n,index)                                    \
   lgp_memput_bytes_by_pe( (dst), (src), (n),  sizeof(*(dst))*(((size_t)(index))/shmem_n_pes()), (index)%shmem_n_pes() )    /*!< macro magic */
 
+#define lgp_memget_shmemwrap(dst,src,n,pe) (	      \
+  (n)==0 ? (void)(0) :	\
+  (n)%16==0 ? shmem_get128((dst),(src),(n)/16,(pe)) : \
+  (n)%8==0 ? shmem_get64((dst),(src),(n)/8,(pe)) :   \
+  (n)%4==0 ? shmem_get32((dst),(src),(n)/4,(pe)) :   \
+  shmem_getmem((dst),(src),(n),(pe)) )
+#define lgp_memget_bytes_by_pe(dst,src,n,local_offset,pe) \
+  (lgp_memget_shmemwrap( (dst), ((char*)(src))+(local_offset), (n), (pe) ) )
+#define lgp_memget(dst,src,n,index) \
+  lgp_memget_bytes_by_pe( (dst), (src), (n),  sizeof(*(src))*(((size_t)(index))/THREADS), (index)%THREADS )
 
 void    lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t blocksize, int64_t val); /*!< macro magic */
 int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index, size_t blocksize); /*!< macro magic */
@@ -161,7 +207,8 @@ int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index,
 #define T0_printf if(MYTHREAD==0) printf /*!< only execute the printf from thread 0 */
 #define T0_fprintf if(MYTHREAD==0) fprintf /*!< only execute the fprintf from thread 0 */
 
-void lgp_init(); /*!< function to do initialization if the programming model needs it */
+void lgp_init(int argc, char *argv[]); /*!< function to print a banner and to do initialization if the programming model needs it */
+void lgp_finalize(); /*!< function to do shutdown functions if the programming model needs it */
 
 //////////////////////////
 // COLLECTIVES
@@ -186,14 +233,12 @@ int64_t lgp_min_avg_max_d(minavgmaxD_t * s, double myval, int64_t dem);  /*!< co
 ///////////////////////////
 
 void       lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value); /*!< wrapper of atomic add */
+void lgp_atomic_add_async(SHARED int64_t * ptr, int64_t index, int64_t value); /*!< wrapper for non-blocking atomic add */
 int64_t lgp_fetch_and_inc(SHARED int64_t * ptr, int64_t index); /*!< wrapper of atomic fetch and inc */
 int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value); /*!< wrapper of atomic fetch and add */
 int64_t  lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, int64_t swap_val); /*!< wrapper of atomic compare and swap */
 
-//Xvoid dump_header();
-//Xvoid dump_defines();
-
-double wall_seconds(); /*!< timer */
+double wall_seconds(); /*!< wall time timer using gettimeofday */
 
 #define libgetput_INCLUDED  /*!< std trick */
 #endif

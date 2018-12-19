@@ -1,12 +1,39 @@
 /******************************************************************
- * Copyright 2014, Institute for Defense Analyses
- * 4850 Mark Center Drive, Alexandria, VA; 703-845-2500
- * This material may be reproduced by or for the US Government
- * pursuant to the copyright license under the clauses at DFARS
- * 252.227-7013 and 252.227-7014.
- *
- * POC: Bale <bale@super.org>
- * Please contact the POC before disseminating this code.
+//
+//
+//  Copyright(C) 2018, Institute for Defense Analyses
+//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+//  This material may be reproduced by or for the US Government
+//  pursuant to the copyright license under the clauses at DFARS
+//  252.227-7013 and 252.227-7014.
+// 
+//
+//  All rights reserved.
+//  
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//    * Neither the name of the copyright holder nor the
+//      names of its contributors may be used to endorse or promote products
+//      derived from this software without specific prior written permission.
+// 
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+//  OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
  *****************************************************************/ 
 
 /*! \file toposort_conveyor.upc
@@ -23,8 +50,7 @@
  * \return average run time
  */
 
-double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat)
-{
+double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) {
   
   typedef struct pkg_topo_t{
     int64_t row;    
@@ -35,10 +61,7 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
     int64_t pos;
     int64_t col;
   }pkg_cperm_t;
-  size_t n_local = 1; //set to cores/socket
-  char *number = getenv("CONVEY_NLOCAL");
-  if(number)
-    n_local = atoi(number);
+
 
   //T0_printf("Running Toposort with conveyors ...");
   int64_t nr = mat->numrows;
@@ -59,7 +82,7 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
   int64_t * level      = calloc(lnr, sizeof(int64_t));
   int64_t * matched_col= calloc(lnr, sizeof(int64_t));
 
-  convey_t * conv = convey_new(sizeof(pkg_topo_t), SIZE_MAX, n_local, NULL, convey_opt_PROGRESS);
+  convey_t * conv = convey_new(sizeof(pkg_topo_t), SIZE_MAX, 0, NULL, convey_opt_PROGRESS);
   if(conv == NULL){return(-1);}
 
   if(convey_begin( conv ) != convey_OK){return(-1);}
@@ -180,7 +203,8 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
     lrperm[i] = (nr - 1) - level_start[level[i]]++;
   }
   
-  convey_t * conv2 = convey_new(sizeof(pkg_cperm_t), SIZE_MAX, n_local, NULL, 0);
+  //convey_t * conv2 = convey_new(sizeof(pkg_cperm_t), SIZE_MAX, n_local, NULL, 0);
+  convey_t * conv2 = convey_new(sizeof(pkg_cperm_t), SIZE_MAX, 0, NULL, 0); // don't know where to get n_local 
   convey_begin( conv2 );
   if(conv == NULL){return(-1);}
   pkg_cperm_t pkg2, pkg2_ptr;

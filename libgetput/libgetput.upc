@@ -1,12 +1,39 @@
 /******************************************************************
- * Copyright 2014, Institute for Defense Analyses
- * 4850 Mark Center Drive, Alexandria, VA; 703-845-2500
- * This material may be reproduced by or for the US Government
- * pursuant to the copyright license under the clauses at DFARS
- * 252.227-7013 and 252.227-7014.
- *
- * POC: Bale <bale@super.org>
- * Please contact the POC before disseminating this code.
+//
+//
+//  Copyright(C) 2018, Institute for Defense Analyses
+//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+//  This material may be reproduced by or for the US Government
+//  pursuant to the copyright license under the clauses at DFARS
+//  252.227-7013 and 252.227-7014.
+// 
+//
+//  All rights reserved.
+//  
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//    * Neither the name of the copyright holder nor the
+//      names of its contributors may be used to endorse or promote products
+//      derived from this software without specific prior written permission.
+// 
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+//  OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
  *****************************************************************/ 
 /*! \file libgetput.upc
  * \brief some standard parallel programming support functions
@@ -18,8 +45,7 @@
  * \brief Wrapper for atomic add to help with ifdef noise
  * \ingroup libgetputgrp
  */
-void lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value)
-{
+void lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   long ret;
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
@@ -31,15 +57,32 @@ void lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value)
 #elif __BERKELEY_UPC_RUNTIME__
   ret = bupc_atomicI64_fetchadd_relaxed(&ptr[index], value);
 #endif
+}
 
+/*!
+ * \brief Wrapper for non-blocking atomic add to help with ifdef noise
+ * \ingroup libgetputgrp
+ */
+void lgp_atomic_add_async(SHARED int64_t * ptr, int64_t index, int64_t value){
+  long ret;
+#if USE_SHMEM
+  long lindex = index/shmem_n_pes();
+  long pe = index % shmem_n_pes();
+  shmem_long_add(&ptr[lindex], value, pe);
+  //printf("atomic_add  %ld, to %ld %ld %ld\n", MYTHREAD, pe,  lindex, value);                                                                                                                   
+#elif _CRAYC
+#pragma pgas defer_sync
+  _amo_aadd_upc(&ptr[index], value);
+#elif __BERKELEY_UPC_RUNTIME__
+  ret = bupc_atomicI64_fetchadd_relaxed(&ptr[index], value);
+#endif
 }
 
 /*!
  * \brief Wrapper for atomic fetch and inc to help with ifdef noise
  * \ingroup libgetputgrp
  */
-int64_t lgp_fetch_and_inc(SHARED int64_t * ptr, int64_t index)
-{
+int64_t lgp_fetch_and_inc(SHARED int64_t * ptr, int64_t index) {
   long ret;
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
@@ -57,8 +100,7 @@ int64_t lgp_fetch_and_inc(SHARED int64_t * ptr, int64_t index)
  * \brief Wrapper for atomic fetch and inc to help with ifdef noise
  * \ingroup libgetputgrp
  */
-int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value)
-{
+int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   long ret;
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
@@ -74,11 +116,11 @@ int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value)
 }
 
 /*!
- * \brief Wrapper for atomic fetch and inc to help with ifdef noise
+ * \brief Wrapper for atomic compare and swap to help with ifdef noise
+ * \return the old value
  * \ingroup libgetputgrp
  */
- int64_t lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, int64_t swap_val)
-{
+int64_t lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, int64_t swap_val) {
   long ret;
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
@@ -98,8 +140,37 @@ int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value)
 /******************************************************************************************/
 #if __UPC__
 
-void lgp_init(){
+/*!
+ * \brief function to print a banner and do initialization if needed.
+ * \param argc  from main
+ * \param argv  from main
+ * \return the old value
+ * \ingroup libgetputgrp
+ */
+void lgp_init(int argc, char *argv[]) {
+  time_t now = time(NULL);
+  struct tm *date = localtime(&now);
+
+  T0_fprintf(stderr,"Bale Version 2.0 (UPC): %04d-%02d-%02d.%02d:%02d\n",
+     date->tm_year+1990, date->tm_mon, date->tm_mday, date->tm_hour, date->tm_min);
+
+  int i;
+
+  T0_fprintf(stderr,"Command:");
+  for(i=0; i<argc;i++){
+    T0_fprintf(stderr," %s", argv[i]);
+  }
+  T0_fprintf(stderr,"\n");
+
   setlocale(LC_NUMERIC,"");
+}
+
+/*!
+ * \brief function to shutdown a model if needed
+ * \ingroup libgetputgrp
+ */
+void lgp_finalize(){
+  return;
 }
 
 #define Define_Reducer( NAME, XTYPE, STYPE, RED_FUNC, UPC_FUNC)         \
@@ -132,15 +203,31 @@ Define_Reducer(lgp_reduce_max_d, double, double, upc_all_reduceD, UPC_MAX)
 /******************************************************************************************/
 #elif USE_SHMEM
 
-void lgp_init(){
+void lgp_init(int argc, char *argv[]) {
   shmem_init();
+  
+  time_t now = time(NULL);
+  struct tm *date = localtime(&now);
+ 
+  T0_fprintf(stderr,"Bale Version 2.0 (on Shmem): %04d-%02d-%02d.%02d:%02d\n",
+     date->tm_year+1990, date->tm_mon+1, date->tm_mday, date->tm_hour, date->tm_min); 
+  int i;
+
+  T0_fprintf(stderr,"Command:");
+  for(i=0; i<argc;i++){
+    T0_fprintf(stderr," %s", argv[i]);
+  }
+  T0_fprintf(stderr,"\n");
+
   //THREADS = shmem_n_pes();
   //MYTHREAD = shmem_my_pe();
   setlocale(LC_NUMERIC,"");
 }
 
-static void *setup_shmem_reduce_workdata(long **psync, size_t xsize)
-{
+void lgp_finalize(){
+  shmem_finalize();
+}
+static void *setup_shmem_reduce_workdata(long **psync, size_t xsize) {
   int *work;
   int i;
   
@@ -192,8 +279,7 @@ Define_Reducer(lgp_reduce_or_int, int, int, shmem_int_or_to_all)
 /*!
 * \ingroup libgetputgrp
 */
-void lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t blocksize, int64_t val)
-{
+void lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t blocksize, int64_t val) {
   int pe;
   size_t local_index;
   int64_t *local_ptr;
@@ -207,11 +293,11 @@ void lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t 
 
   shmem_int64_p ( local_ptr, val, pe );
 }
+
 /*!
 * \ingroup libgetputgrp
 */
-int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index, size_t blocksize)
-{
+int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index, size_t blocksize) {
   int pe;
   size_t local_index;
   int64_t *local_ptr;
@@ -232,9 +318,14 @@ int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index,
 /******************************************************************************************/
 
 /*!
+  \brief Compute partial sums across threads.  
+  In the formulas below, \a m represents <tt>MYTHREAD</tt>.
+  \note This function must be called on all threads.
+  \param x input value \f$x_m\f$
+  \return \f$\sum_{i<=m} x_i\f$ 
 * \ingroup libgetputgrp
 */
-int64_t lgp_partial_add_l(int64_t x){
+int64_t lgp_partial_add_l(int64_t x) {
 
   SHARED int64_t * tmp = lgp_all_alloc(THREADS, sizeof(int64_t));
   int64_t out = 0;
@@ -253,250 +344,17 @@ int64_t lgp_partial_add_l(int64_t x){
 }
 
 /*! 
-  \brief Compute partial sums across threads.  
+  \brief Compute prior partial sums (not including this value) across threads.  
   In the formulas below, \a m represents <tt>MYTHREAD</tt>.
   \note This function must be called on all threads.
   \param x input value \f$x_m\f$
   \return \f$\sum_{i<m} x_i\f$ 
   * \ingroup libgetputgrp
   */
-int64_t lgp_prior_add_l(int64_t x)
-{
+int64_t lgp_prior_add_l(int64_t x) {
   return lgp_partial_add_l(x) - x;
 }
 
-
-#if 0
-/*! \brief This routine gets the sum of myval (int) across all PEs
- *
- * This routine is collective and its return is single valued.
- *
- * \param myval The local value to be or'ed into the collection.
- * \return The or of myval across all PEs.
- *
- * \ingroup libgetputgrp
- */
-
-int lgp_reduce_or_int(int myval )
-{
-  int ret;
-  shared int * result = upc_all_alloc(THREADS, sizeof(int));
-  shared int * tmp = upc_all_alloc(THREADS, sizeof(int));  
-  tmp[MYTHREAD] = myval;
-  upc_barrier;
-  upc_all_reduceL(result, tmp, UPC_OR, THREADS, 1, NULL, UPC_IN_NOSYNC || UPC_OUT_NOSYNC);
-  ret = result[0];
-  upc_barrier;
-  upc_all_free(result);
-  upc_all_free(tmp);
-  return(ret);
-}
-
-/*! \brief This routine gets the sum of myval across all PEs
- *
- * This routine is collective and its return is single valued.
- *
- * \param myval The local value to add to the collective sum
- * \return The sum of myval across all PEs
- *
- */
-long lgp_reduce_add_l(long myval){
-  long ret;
-  shared long * result = upc_all_alloc(THREADS, sizeof(long));
-  shared long * tmp = upc_all_alloc(THREADS, sizeof(long));  
-  tmp[MYTHREAD] = myval;
-  upc_barrier;
-  upc_all_reduceL(result, tmp, UPC_ADD, THREADS, 1, NULL, UPC_IN_NOSYNC || UPC_OUT_NOSYNC);
-  ret = result[0];
-  upc_barrier;
-  upc_all_free(result);
-  upc_all_free(tmp);
-  return(ret);
-}
-long lgp_reduce_max_l(long myval){
-  long ret;
-  shared long * result = upc_all_alloc(THREADS, sizeof(long));
-  shared long * tmp = upc_all_alloc(THREADS, sizeof(long));  
-  tmp[MYTHREAD] = myval;
-  upc_barrier;
-  upc_all_reduceL(result, tmp, UPC_MAX, THREADS, 1, NULL, UPC_IN_NOSYNC || UPC_OUT_NOSYNC);
-  ret = result[0];
-  upc_barrier;
-  upc_all_free(result);
-  upc_all_free(tmp);
-  return(ret);
-}
-long lgp_reduce_min_l(long myval){
-  long ret;
-  shared long * result = upc_all_alloc(THREADS, sizeof(long));
-  shared long * tmp = upc_all_alloc(THREADS, sizeof(long));  
-  tmp[MYTHREAD] = myval;
-  upc_barrier;
-  upc_all_reduceL(result, tmp, UPC_MIN, THREADS, 1, NULL, UPC_IN_NOSYNC || UPC_OUT_NOSYNC);
-  ret = result[0];
-  upc_barrier;
-  upc_all_free(result);
-  upc_all_free(tmp);
-  return(ret);
-}
-
-double lgp_reduce_add_d(double myval){
-  double ret;
-  shared double * result = upc_all_alloc(THREADS, sizeof(double));
-  shared double * tmp = upc_all_alloc(THREADS, sizeof(double));  
-  tmp[MYTHREAD] = myval;
-  upc_barrier;
-  upc_all_reduceD(result, tmp, UPC_ADD, THREADS, 1, NULL, UPC_IN_NOSYNC || UPC_OUT_NOSYNC);
-  ret = result[0];
-  upc_barrier;
-  upc_all_free(result);
-  upc_all_free(tmp);
-  return(ret);
-}
-double lgp_reduce_max_d(double myval){
-  double ret;
-  shared double * result = upc_all_alloc(THREADS, sizeof(double));
-  shared double * tmp = upc_all_alloc(THREADS, sizeof(double));  
-  tmp[MYTHREAD] = myval;
-  upc_barrier;
-  upc_all_reduceD(result, tmp, UPC_MAX, THREADS, 1, NULL, UPC_IN_NOSYNC || UPC_OUT_NOSYNC);
-  ret = result[0];
-  upc_barrier;
-  upc_all_free(result);
-  upc_all_free(tmp);
-  return(ret);
-}
-double lgp_reduce_min_d(double myval){
-  double ret;
-  shared double * result = upc_all_alloc(THREADS, sizeof(double));
-  shared double * tmp = upc_all_alloc(THREADS, sizeof(double));  
-  tmp[MYTHREAD] = myval;
-  upc_barrier;
-  upc_all_reduceD(result, tmp, UPC_MIN, THREADS, 1, NULL, UPC_IN_NOSYNC || UPC_OUT_NOSYNC);
-  ret = result[0];
-  upc_barrier;
-  upc_all_free(result);
-  upc_all_free(tmp);
-  return(ret);
-}
-#endif
-#if 0
-long upc_all_rdc_add_l(long myval )
-{
-  int t;
-  static shared long urdr64[THREADS];
-  long retval=0;
-  
-  upc_barrier(__LINE__);
-  urdr64[MYTHREAD] = myval;
-  upc_barrier(__LINE__);
-  
-  for (t = MYTHREAD; t < MYTHREAD + THREADS; t++)
-    retval += urdr64[t % THREADS];
-  upc_barrier(__LINE__);
-  
-  return( retval );
-}
-/*!
- * \brief This routine finds the min of myval (long) across all threads
- *
- * This routine is collective and its return is single valued.
- *
- * \param myval The value to compare
- * \return The minimum value of myval across all threads
- *
- */
-int64_t lgp_reduce_min_l(int64_t myval )
-{
-    int t;
-    static shared long urdr64[THREADS];
-    long retval=0;
-
-    urdr64[MYTHREAD] = myval;
-    upc_barrier(__LINE__);
-    
-    retval = myval;
-    for (t = MYTHREAD; t < MYTHREAD + THREADS; t++){
-        if( retval > urdr64[t % THREADS] )
-            retval = urdr64[t % THREADS];
-    }
-    upc_barrier(__LINE__);
-
-    return( retval );
-}
-
-/*!
- * \brief This routine finds the max of myval (long) across all threads
- *
- * This routine is collective and its return is single valued.
- *
- * \param myval The value to compare
- * \return The maximum value of myval across all threads
- *
- */
-int64_t upc_all_rdc_max_l(int64_t myval ){
-  int t;
-  static shared long urdr64[THREADS];
-  long retval=0;
-  
-  urdr64[MYTHREAD] = myval;
-  upc_barrier(__LINE__);
-  
-  retval = myval;
-  for (t = MYTHREAD; t < MYTHREAD + THREADS; t++){
-    if( retval < urdr64[t % THREADS] )
-      retval = urdr64[t % THREADS];
-  }
-  upc_barrier(__LINE__);
-  
-  return( retval );
-}
-#endif
-
-#if __UPC__
-/*! \brief Compute partial sums across threads.   (sometimes called SCAN)
-    In the formulas below, \a m represents <tt>MYTHREAD</tt>.
-  \note This function is a collective on all threads.
-  \param x input value \f$x_m\f$
-  \return \f$\sum_{i=0}^m x_i\f$ 
-  * \ingroup libgetputgrp
-*/
-long upc_partial_add_l(long x)
-{
-  static shared long in[THREADS];
-  static shared long out[THREADS];
-
-  in[MYTHREAD] = x;
-
-  upc_barrier(__LINE__);
-  if (MYTHREAD == 0) {
-    long t = 0;
-
-    for (int i = 0; i < THREADS; i++) {
-      out[i] = t += in[i];
-    }
-  }
-  upc_barrier(__LINE__);
-
-  return out[MYTHREAD];
-}
-
-
-/*! 
-  \brief Compute partial sums across threads.  
-  In the formulas below, \a m represents <tt>MYTHREAD</tt>.
-  \note This function must be called on all threads.
-  \param x input value \f$x_m\f$
-  \return \f$\sum_{i<m} x_i\f$ 
-  * \ingroup libgetputgrp
-*/
-
-long upc_prior_add_l(long x)
-{
-  return upc_partial_add_l(x) - x;
-}
-
-#endif
 
 /*!
  * \brief This routine finds the min average and max of a collection 
@@ -512,8 +370,7 @@ long upc_prior_add_l(long x)
  * \ingroup libgetputgrp
  *
  */
-int64_t lgp_min_avg_max_l(minavgmaxL_t *s, int64_t myval, int64_t dem)
-{
+int64_t lgp_min_avg_max_l(minavgmaxL_t *s, int64_t myval, int64_t dem) {
     long retval=0;
 
     s->min = lgp_reduce_min_l(myval);
@@ -521,6 +378,7 @@ int64_t lgp_min_avg_max_l(minavgmaxL_t *s, int64_t myval, int64_t dem)
     s->avg = lgp_reduce_add_l(myval) / dem;
     return( retval );
 }
+
 /*!
  * \brief This routine finds the min average and max of a collection 
  *  of myval's (int64_t's) across all threads
@@ -543,12 +401,9 @@ int64_t lgp_min_avg_max_d(minavgmaxD_t * s, double myval, int64_t dem){
 }
 
 
-
 #if 0
-
 /* utility to print some basic stats about a run */
-void dump_header(int argc, char *argv[])
-{
+void dump_header(int argc, char *argv[]) {
   int i;
   char datestr[64];
   time_t dattmp;
@@ -570,8 +425,11 @@ void dump_header(int argc, char *argv[])
 }
 #endif
 
-/* A gettimeofday routine to give access to the wall
-   clock timer on most UNIX-like systems.  */
+/*! 
+ * \brief This routine uses gettimeofday routine to give access 
+ *  to the wall clock timer on most UNIX-like systems.
+ * \ingroup libgetputgrp
+*/
 double wall_seconds() {
   struct timeval tp;
   int retVal = gettimeofday(&tp,NULL);
