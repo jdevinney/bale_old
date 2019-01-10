@@ -113,6 +113,8 @@ sparsemat_t * transpose_matrix(sparsemat_t *omat) {
   //A = transpose_matrix_exstack2(omat, 1024);
   //A = transpose_matrix_conveyor(omat);
 
+  if(!A) 
+     exit(1);
   sort_nonzeros(A);
   return(A);
 }
