@@ -1,7 +1,7 @@
 #/******************************************************************
 #
 #
-#  Copyright(C) 2018, Institute for Defense Analyses
+#  Copyright(C) 2019, Institute for Defense Analyses
 #  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 #  This material may be reproduced by or for the US Government
 #  pursuant to the copyright license under the clauses at DFARS
@@ -38,8 +38,9 @@
 
 AC_PREREQ([2.60])     #Require Minimum Autotools version 2.60
 
-AC_INIT([spmat],   [2.0.0],   [bale@super.org])
+AC_INIT([spmat],   [2.1.0],   [bale@super.org])
 AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
+LT_INIT ## enable libtool
 
 AC_CONFIG_HEADERS([config.h])
 #AC_CONFIG_MACRO_DIR([.common_link/m4])

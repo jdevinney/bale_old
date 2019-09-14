@@ -401,8 +401,8 @@ int main(int argc, char * argv[]) {
 
     case ALTERNATE_Model:
       T0_fprintf(stderr,"ALTERNATE: ");      
-      laptime = triangle_agi_opt1(&tri_cnt, &sh_refs, L, U, alg);
-
+      laptime = triangle_agi_iter(&tri_cnt, &sh_refs, L, U, alg);
+      break;
     case 0:
       continue;
     }

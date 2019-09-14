@@ -38,6 +38,8 @@
 
 bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix#unionfind
 
+#BDEBUG = -g -O0
+BDEBUG = 
 ###################################################################
 include_HEADERS = histo_src/histo.h 
 
@@ -53,7 +55,7 @@ histo_sources += histo_src/alternates/histo_exstack_function.upc
 
 #@(info $$histo_sources is [${histo_sources}])
 
-histo_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/histo_src 
+histo_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/histo_src 
 histo_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
@@ -64,7 +66,7 @@ endif
 if BUILD_SHMEM
 histo_SOURCES = $(histo_sources:.upc=__c.c)
 histo_CPPFLAGS += -DUSE_SHMEM
-histo_LINK = $(LINK)
+histo_LINK = $(LINK) $(BDEBUG)
 endif
 
 ###################################################################
@@ -79,7 +81,7 @@ ig_sources += ig_src/alternates/ig_exstack2_goto.upc
 ig_sources += ig_src/alternates/ig_exstack_function.upc
 ig_sources += ig_src/alternates/ig_exstack_pkg.upc
 
-ig_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/ig_src
+ig_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/ig_src
 ig_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
@@ -90,7 +92,7 @@ endif
 if BUILD_SHMEM
 ig_SOURCES = $(ig_sources:.upc=__c.c)
 ig_CPPFLAGS += -DUSE_SHMEM
-ig_LINK=$(LINK)
+ig_LINK=$(LINK) $(BDEBUG)
 endif
 ###################################################################
 topo_sources = topo_src/toposort.h
@@ -100,9 +102,10 @@ topo_sources += topo_src/toposort_exstack.upc
 topo_sources += topo_src/toposort_exstack2.upc
 topo_sources += topo_src/toposort_conveyor.upc
 topo_sources += topo_src/alternates/toposort_agi_oo.upc
+topo_sources += topo_src/alternates/toposort_cooler.upc
 topo_sources += topo_src/alternates/toposort_exstack_orig.upc
 
-topo_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/topo_src
+topo_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/topo_src
 topo_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
@@ -113,7 +116,7 @@ endif
 if BUILD_SHMEM
 topo_SOURCES = $(topo_sources:.upc=__c.c)
 topo_CPPFLAGS += -DUSE_SHMEM
-topo_LINK=$(LINK)
+topo_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
@@ -121,7 +124,7 @@ include_HEADERS += randperm_src/randperm_alternates.h
 randperm_sources = randperm_src/randperm.upc
 randperm_sources += randperm_src/alternates/randperm_agi_opt.upc
 
-randperm_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/randperm_src
+randperm_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/randperm_src
 randperm_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
@@ -131,12 +134,12 @@ endif
 if BUILD_SHMEM
 randperm_SOURCES = $(randperm_sources:.upc=__c.c)
 randperm_CPPFLAGS += -DUSE_SHMEM
-randperm_LINK=$(LINK)
+randperm_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
 permute_matrix_sources = permute_matrix_src/permute_matrix.upc
-permute_matrix_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/permute_matrix_src
+permute_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/permute_matrix_src
 permute_matrix_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
@@ -146,12 +149,12 @@ endif
 if BUILD_SHMEM
 permute_matrix_SOURCES = $(permute_matrix_sources:.upc=__c.c)
 permute_matrix_CPPFLAGS += -DUSE_SHMEM
-permute_matrix_LINK=$(LINK)
+permute_matrix_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
 transpose_matrix_sources = transpose_matrix_src/transpose_matrix.upc
-transpose_matrix_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/transpose_matrix_src
+transpose_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/transpose_matrix_src
 transpose_matrix_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
@@ -161,7 +164,7 @@ endif
 if BUILD_SHMEM
 transpose_matrix_SOURCES = $(transpose_matrix_sources:.upc=__c.c)
 transpose_matrix_CPPFLAGS += -DUSE_SHMEM
-transpose_matrix_LINK=$(LINK)
+transpose_matrix_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
@@ -173,9 +176,10 @@ triangles_sources += triangle_src/triangle_exstack2.upc
 triangles_sources += triangle_src/triangle_conveyor.upc
 triangles_sources += triangle_src/alternates/triangle_agi_opt1.upc
 triangles_sources += triangle_src/alternates/triangle_agi_opt2.upc
+triangles_sources += triangle_src/alternates/triangle_agi_iter.upc
 #triangles_sources += triangle_src/alternates/triangle_agi_oo.upc
 
-triangles_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/triangle_src
+triangles_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/triangle_src
 triangles_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
@@ -185,14 +189,14 @@ endif
 if BUILD_SHMEM
 triangles_SOURCES = $(triangles_sources:.upc=__c.c)
 triangles_CPPFLAGS += -DUSE_SHMEM
-triangles_LINK=$(LINK)
+triangles_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
 #include_HEADERS += write_sparse_matrix_src/write_sparse_matrix.h
 write_sparse_matrix_sources = write_sparse_matrix_src/write_sparse_matrix.upc
 
-write_sparse_matrix_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/write_sparse_matrix_src
+write_sparse_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/write_sparse_matrix_src
 write_sparse_matrix_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
@@ -202,7 +206,7 @@ endif
 if BUILD_SHMEM
 write_sparse_matrix_SOURCES = $(write_sparse_matrix_sources:.upc=__c.c)
 write_sparse_matrix_CPPFLAGS += -DUSE_SHMEM
-write_sparse_matrix_LINK=$(LINK)
+write_sparse_matrix_LINK=$(LINK) $(BDEBUG)
 endif
 
 

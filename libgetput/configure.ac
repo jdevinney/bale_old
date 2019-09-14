@@ -41,9 +41,9 @@ AC_PREREQ([2.60])     #Require Minimum Autoconf version 2.60
 AC_INIT([libgetput],   [1.0.0],   [bale@super.org])
 
 AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
+LT_INIT ## enable libtool
 
 AC_CONFIG_HEADERS([config.h])
-#AC_CONFIG_MACRO_DIR([.common_link/m4])
 
 AC_ARG_WITH([upc],
             AS_HELP_STRING([--with-upc], [build a UPC version]),

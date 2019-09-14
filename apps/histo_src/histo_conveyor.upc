@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2019, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -60,10 +60,10 @@ double histo_conveyor(int64_t *pckindx, int64_t T,  int64_t *lcounts) {
   minavgmaxD_t stat[1];
 
   int status = EXIT_FAILURE;
-  convey_t* conveyor = convey_new(sizeof(long), SIZE_MAX, 0, NULL, convey_opt_SCATTER);
+  convey_t* conveyor = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
   if(!conveyor){printf("ERROR: histo_conveyor: convey_new failed!\n"); return(-1.0);}
   
-  ret = convey_begin(conveyor);
+  ret = convey_begin(conveyor, sizeof(int64_t));
   if(ret < 0){printf("ERROR: histo_conveyor: begin failed!\n"); return(-1.0);}
 
   lgp_barrier();  

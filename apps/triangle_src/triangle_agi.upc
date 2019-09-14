@@ -75,11 +75,13 @@ double triangle_agi(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * 
         assert( L_j < L_i );
 
         // NOW: get L[L_j,:] and count intersections with L[L_i,:]
-        numpulled+=2;  // to get the offsets in their shared form
         int64_t start = L->loffset[l_i];
-        for( kk = lgp_get_int64(L->offset,L_j); kk < lgp_get_int64(L->offset, L_j + THREADS); kk++){
-          numpulled++;
+        int64_t kbegin = lgp_get_int64(L->offset,L_j); 
+        int64_t kend   = lgp_get_int64(L->offset, L_j + THREADS);
+        numpulled+=2;
+        for( kk = kbegin; kk < kend; kk++){
           w = lgp_get_int64(L->nonzero, L_j%THREADS + kk*THREADS);
+          numpulled++;
           assert( w < L_j );
           for(ii = start; ii < L->loffset[l_i + 1]; ii++) {
             if( w ==  L->lnonzero[ii] ){ 
@@ -106,12 +108,15 @@ double triangle_agi(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * 
         assert( L_j < L_i );
         
         // NOW: get U[L_j,:] and count intersections with U[L_i,:]
-        numpulled+=2;  // to get the offsets in their shared form
         int64_t start = U->loffset[l_i + 1] - 1;
-        for( kk = lgp_get_int64(U->offset, L_j + THREADS) - 1; kk >= lgp_get_int64(U->offset,L_j); kk--){
-          numpulled++;
+        int64_t smallest_col_in_row_i = U->lnonzero[U->loffset[l_i]];
+        numpulled+=2;
+        int64_t kbegin = lgp_get_int64(U->offset, L_j + THREADS) - 1;
+        int64_t kend   = lgp_get_int64(U->offset,L_j);
+        for( kk = kbegin; kk >= kend; kk--){
           w = lgp_get_int64(U->nonzero, L_j%THREADS + kk*THREADS);
-          if (w < L_i) break; // there can't be any more intersections in these rows
+          numpulled++;
+          if (w < smallest_col_in_row_i) break; // there can't be any more intersections in these rows
           assert( w >= L_j );
           for(ii = start; ii >= U->loffset[l_i]; ii--) {
             if( w ==  U->lnonzero[ii] ){ 

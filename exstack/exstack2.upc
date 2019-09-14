@@ -599,7 +599,12 @@ void exstack2_clear(exstack2_t * Xstk2)
   free(Xstk2->l_snd_buffer);
   free(Xstk2->l_rcv_buffer);
   free(Xstk2->push_cnt);
+  free(Xstk2->pop_cnt);
   free(Xstk2->push_ptr);
+  free(Xstk2->pop_ptr);
+  free(Xstk2->active_buffer_queue);
+  free(Xstk2->flush_order);
+  free(Xstk2->flush_perm);
   lgp_barrier();
 }
 

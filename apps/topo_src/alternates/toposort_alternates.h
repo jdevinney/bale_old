@@ -41,6 +41,7 @@
  */
 
 double toposort_matrix_oo(SHARED int64_t *tri_rperm, SHARED int64_t *tri_cperm, sparsemat_t *mat, sparsemat_t *tmat);
+double toposort_matrix_cooler(SHARED int64_t *tri_rperm, SHARED int64_t *tri_cperm, sparsemat_t *mat, sparsemat_t *tmat);
 double toposort_matrix_exstack_orig(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat);
 
 

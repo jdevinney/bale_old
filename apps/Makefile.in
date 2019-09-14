@@ -232,11 +232,13 @@ am__topo_SOURCES_DIST = topo_src/toposort.h topo_src/toposort__c.c \
 	topo_src/toposort_exstack2__c.c \
 	topo_src/toposort_conveyor__c.c \
 	topo_src/alternates/toposort_agi_oo__c.c \
+	topo_src/alternates/toposort_cooler__c.c \
 	topo_src/alternates/toposort_exstack_orig__c.c \
 	topo_src/toposort.upc topo_src/toposort_agi.upc \
 	topo_src/toposort_exstack.upc topo_src/toposort_exstack2.upc \
 	topo_src/toposort_conveyor.upc \
 	topo_src/alternates/toposort_agi_oo.upc \
+	topo_src/alternates/toposort_cooler.upc \
 	topo_src/alternates/toposort_exstack_orig.upc
 am__objects_9 = topo-toposort__c.$(OBJEXT) \
 	topo-toposort_agi__c.$(OBJEXT) \
@@ -244,12 +246,13 @@ am__objects_9 = topo-toposort__c.$(OBJEXT) \
 	topo-toposort_exstack2__c.$(OBJEXT) \
 	topo-toposort_conveyor__c.$(OBJEXT) \
 	topo-toposort_agi_oo__c.$(OBJEXT) \
+	topo-toposort_cooler__c.$(OBJEXT) \
 	topo-toposort_exstack_orig__c.$(OBJEXT)
 am__objects_10 = topo-toposort.$(OBJEXT) topo-toposort_agi.$(OBJEXT) \
 	topo-toposort_exstack.$(OBJEXT) \
 	topo-toposort_exstack2.$(OBJEXT) \
 	topo-toposort_conveyor.$(OBJEXT) \
-	topo-toposort_agi_oo.$(OBJEXT) \
+	topo-toposort_agi_oo.$(OBJEXT) topo-toposort_cooler.$(OBJEXT) \
 	topo-toposort_exstack_orig.$(OBJEXT)
 @BUILD_SHMEM_FALSE@@BUILD_UPC_TRUE@am_topo_OBJECTS =  \
 @BUILD_SHMEM_FALSE@@BUILD_UPC_TRUE@	$(am__objects_10)
@@ -273,26 +276,30 @@ am__triangles_SOURCES_DIST = triangle_src/triangle__c.c \
 	triangle_src/triangle_conveyor__c.c \
 	triangle_src/alternates/triangle_agi_opt1__c.c \
 	triangle_src/alternates/triangle_agi_opt2__c.c \
+	triangle_src/alternates/triangle_agi_iter__c.c \
 	triangle_src/triangle.upc triangle_src/triangle_agi.upc \
 	triangle_src/triangle_exstack.upc \
 	triangle_src/triangle_exstack2.upc \
 	triangle_src/triangle_conveyor.upc \
 	triangle_src/alternates/triangle_agi_opt1.upc \
-	triangle_src/alternates/triangle_agi_opt2.upc
+	triangle_src/alternates/triangle_agi_opt2.upc \
+	triangle_src/alternates/triangle_agi_iter.upc
 am__objects_13 = triangles-triangle__c.$(OBJEXT) \
 	triangles-triangle_agi__c.$(OBJEXT) \
 	triangles-triangle_exstack__c.$(OBJEXT) \
 	triangles-triangle_exstack2__c.$(OBJEXT) \
 	triangles-triangle_conveyor__c.$(OBJEXT) \
 	triangles-triangle_agi_opt1__c.$(OBJEXT) \
-	triangles-triangle_agi_opt2__c.$(OBJEXT)
+	triangles-triangle_agi_opt2__c.$(OBJEXT) \
+	triangles-triangle_agi_iter__c.$(OBJEXT)
 am__objects_14 = triangles-triangle.$(OBJEXT) \
 	triangles-triangle_agi.$(OBJEXT) \
 	triangles-triangle_exstack.$(OBJEXT) \
 	triangles-triangle_exstack2.$(OBJEXT) \
 	triangles-triangle_conveyor.$(OBJEXT) \
 	triangles-triangle_agi_opt1.$(OBJEXT) \
-	triangles-triangle_agi_opt2.$(OBJEXT)
+	triangles-triangle_agi_opt2.$(OBJEXT) \
+	triangles-triangle_agi_iter.$(OBJEXT)
 @BUILD_SHMEM_FALSE@@BUILD_UPC_TRUE@am_triangles_OBJECTS =  \
 @BUILD_SHMEM_FALSE@@BUILD_UPC_TRUE@	$(am__objects_14)
 @BUILD_SHMEM_TRUE@am_triangles_OBJECTS = $(am__objects_13)
@@ -528,6 +535,8 @@ top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 
+#BDEBUG = -g -O0
+BDEBUG = 
 ###################################################################
 
 ###################################################################
@@ -544,12 +553,12 @@ histo_sources = histo_src/histo.upc histo_src/histo_agi.upc \
 	histo_src/alternates/histo_exstack_function.upc
 
 #@(info $$histo_sources is [${histo_sources}])
-histo_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/histo_src \
+histo_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/histo_src \
 	$(am__append_1)
 histo_LDADD = @libdeps_LIBS@ -lm
 @BUILD_SHMEM_TRUE@histo_SOURCES = $(histo_sources:.upc=__c.c)
 @BUILD_UPC_TRUE@histo_SOURCES = $(histo_sources)
-@BUILD_SHMEM_TRUE@histo_LINK = $(LINK)
+@BUILD_SHMEM_TRUE@histo_LINK = $(LINK) $(BDEBUG)
 @BUILD_UPC_TRUE@histo_LINK = $(UPCLINK)
 
 ###################################################################
@@ -560,53 +569,55 @@ ig_sources = ig_src/ig.h ig_src/ig.upc ig_src/ig_agi.upc \
 	ig_src/alternates/ig_exstack2_goto.upc \
 	ig_src/alternates/ig_exstack_function.upc \
 	ig_src/alternates/ig_exstack_pkg.upc
-ig_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/ig_src $(am__append_2)
+ig_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/ig_src \
+	$(am__append_2)
 ig_LDADD = @libdeps_LIBS@ -lm
 @BUILD_SHMEM_TRUE@ig_SOURCES = $(ig_sources:.upc=__c.c)
 @BUILD_UPC_TRUE@ig_SOURCES = $(ig_sources)
-@BUILD_SHMEM_TRUE@ig_LINK = $(LINK)
+@BUILD_SHMEM_TRUE@ig_LINK = $(LINK) $(BDEBUG)
 @BUILD_UPC_TRUE@ig_LINK = $(UPCLINK)
 ###################################################################
 topo_sources = topo_src/toposort.h topo_src/toposort.upc \
 	topo_src/toposort_agi.upc topo_src/toposort_exstack.upc \
 	topo_src/toposort_exstack2.upc topo_src/toposort_conveyor.upc \
 	topo_src/alternates/toposort_agi_oo.upc \
+	topo_src/alternates/toposort_cooler.upc \
 	topo_src/alternates/toposort_exstack_orig.upc
-topo_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/topo_src \
+topo_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/topo_src \
 	$(am__append_3)
 topo_LDADD = @libdeps_LIBS@ -lm
 @BUILD_SHMEM_TRUE@topo_SOURCES = $(topo_sources:.upc=__c.c)
 @BUILD_UPC_TRUE@topo_SOURCES = $(topo_sources)
-@BUILD_SHMEM_TRUE@topo_LINK = $(LINK)
+@BUILD_SHMEM_TRUE@topo_LINK = $(LINK) $(BDEBUG)
 @BUILD_UPC_TRUE@topo_LINK = $(UPCLINK)
 randperm_sources = randperm_src/randperm.upc \
 	randperm_src/alternates/randperm_agi_opt.upc
-randperm_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/randperm_src \
-	$(am__append_4)
+randperm_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ \
+	-I$(top_srcdir)/randperm_src $(am__append_4)
 randperm_LDADD = @libdeps_LIBS@ -lm
 @BUILD_SHMEM_TRUE@randperm_SOURCES = $(randperm_sources:.upc=__c.c)
 @BUILD_UPC_TRUE@randperm_SOURCES = $(randperm_sources)
-@BUILD_SHMEM_TRUE@randperm_LINK = $(LINK)
+@BUILD_SHMEM_TRUE@randperm_LINK = $(LINK) $(BDEBUG)
 @BUILD_UPC_TRUE@randperm_LINK = $(UPCLINK)
 
 ###################################################################
 permute_matrix_sources = permute_matrix_src/permute_matrix.upc
-permute_matrix_CPPFLAGS = @libdeps_CFLAGS@ \
+permute_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ \
 	-I$(top_srcdir)/permute_matrix_src $(am__append_5)
 permute_matrix_LDADD = @libdeps_LIBS@ -lm
 @BUILD_SHMEM_TRUE@permute_matrix_SOURCES = $(permute_matrix_sources:.upc=__c.c)
 @BUILD_UPC_TRUE@permute_matrix_SOURCES = $(permute_matrix_sources)
-@BUILD_SHMEM_TRUE@permute_matrix_LINK = $(LINK)
+@BUILD_SHMEM_TRUE@permute_matrix_LINK = $(LINK) $(BDEBUG)
 @BUILD_UPC_TRUE@permute_matrix_LINK = $(UPCLINK)
 
 ###################################################################
 transpose_matrix_sources = transpose_matrix_src/transpose_matrix.upc
-transpose_matrix_CPPFLAGS = @libdeps_CFLAGS@ \
+transpose_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ \
 	-I$(top_srcdir)/transpose_matrix_src $(am__append_6)
 transpose_matrix_LDADD = @libdeps_LIBS@ -lm
 @BUILD_SHMEM_TRUE@transpose_matrix_SOURCES = $(transpose_matrix_sources:.upc=__c.c)
 @BUILD_UPC_TRUE@transpose_matrix_SOURCES = $(transpose_matrix_sources)
-@BUILD_SHMEM_TRUE@transpose_matrix_LINK = $(LINK)
+@BUILD_SHMEM_TRUE@transpose_matrix_LINK = $(LINK) $(BDEBUG)
 @BUILD_UPC_TRUE@transpose_matrix_LINK = $(UPCLINK)
 triangles_sources = triangle_src/triangle.upc \
 	triangle_src/triangle_agi.upc \
@@ -614,25 +625,26 @@ triangles_sources = triangle_src/triangle.upc \
 	triangle_src/triangle_exstack2.upc \
 	triangle_src/triangle_conveyor.upc \
 	triangle_src/alternates/triangle_agi_opt1.upc \
-	triangle_src/alternates/triangle_agi_opt2.upc
+	triangle_src/alternates/triangle_agi_opt2.upc \
+	triangle_src/alternates/triangle_agi_iter.upc
 #triangles_sources += triangle_src/alternates/triangle_agi_oo.upc
-triangles_CPPFLAGS = @libdeps_CFLAGS@ -I$(top_srcdir)/triangle_src \
-	$(am__append_7)
+triangles_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ \
+	-I$(top_srcdir)/triangle_src $(am__append_7)
 triangles_LDADD = @libdeps_LIBS@ -lm
 @BUILD_SHMEM_TRUE@triangles_SOURCES = $(triangles_sources:.upc=__c.c)
 @BUILD_UPC_TRUE@triangles_SOURCES = $(triangles_sources)
-@BUILD_SHMEM_TRUE@triangles_LINK = $(LINK)
+@BUILD_SHMEM_TRUE@triangles_LINK = $(LINK) $(BDEBUG)
 @BUILD_UPC_TRUE@triangles_LINK = $(UPCLINK)
 
 ###################################################################
 #include_HEADERS += write_sparse_matrix_src/write_sparse_matrix.h
 write_sparse_matrix_sources = write_sparse_matrix_src/write_sparse_matrix.upc
-write_sparse_matrix_CPPFLAGS = @libdeps_CFLAGS@ \
+write_sparse_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ \
 	-I$(top_srcdir)/write_sparse_matrix_src $(am__append_8)
 write_sparse_matrix_LDADD = @libdeps_LIBS@ -lm
 @BUILD_SHMEM_TRUE@write_sparse_matrix_SOURCES = $(write_sparse_matrix_sources:.upc=__c.c)
 @BUILD_UPC_TRUE@write_sparse_matrix_SOURCES = $(write_sparse_matrix_sources)
-@BUILD_SHMEM_TRUE@write_sparse_matrix_LINK = $(LINK)
+@BUILD_SHMEM_TRUE@write_sparse_matrix_LINK = $(LINK) $(BDEBUG)
 @BUILD_UPC_TRUE@write_sparse_matrix_LINK = $(UPCLINK)
 all: all-am
 
@@ -803,6 +815,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/topo-toposort_agi_oo__c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/topo-toposort_conveyor.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/topo-toposort_conveyor__c.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/topo-toposort_cooler.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/topo-toposort_cooler__c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/topo-toposort_exstack.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/topo-toposort_exstack2.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/topo-toposort_exstack2__c.Po@am__quote@
@@ -815,6 +829,8 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/triangles-triangle__c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/triangles-triangle_agi.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/triangles-triangle_agi__c.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/triangles-triangle_agi_iter.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/triangles-triangle_agi_iter__c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/triangles-triangle_agi_opt1.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/triangles-triangle_agi_opt1__c.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/triangles-triangle_agi_opt2.Po@am__quote@
@@ -1220,6 +1236,20 @@ topo-toposort_agi_oo__c.obj: topo_src/alternates/toposort_agi_oo__c.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o topo-toposort_agi_oo__c.obj `if test -f 'topo_src/alternates/toposort_agi_oo__c.c'; then $(CYGPATH_W) 'topo_src/alternates/toposort_agi_oo__c.c'; else $(CYGPATH_W) '$(srcdir)/topo_src/alternates/toposort_agi_oo__c.c'; fi`
 
+topo-toposort_cooler__c.o: topo_src/alternates/toposort_cooler__c.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT topo-toposort_cooler__c.o -MD -MP -MF $(DEPDIR)/topo-toposort_cooler__c.Tpo -c -o topo-toposort_cooler__c.o `test -f 'topo_src/alternates/toposort_cooler__c.c' || echo '$(srcdir)/'`topo_src/alternates/toposort_cooler__c.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/topo-toposort_cooler__c.Tpo $(DEPDIR)/topo-toposort_cooler__c.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='topo_src/alternates/toposort_cooler__c.c' object='topo-toposort_cooler__c.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o topo-toposort_cooler__c.o `test -f 'topo_src/alternates/toposort_cooler__c.c' || echo '$(srcdir)/'`topo_src/alternates/toposort_cooler__c.c
+
+topo-toposort_cooler__c.obj: topo_src/alternates/toposort_cooler__c.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT topo-toposort_cooler__c.obj -MD -MP -MF $(DEPDIR)/topo-toposort_cooler__c.Tpo -c -o topo-toposort_cooler__c.obj `if test -f 'topo_src/alternates/toposort_cooler__c.c'; then $(CYGPATH_W) 'topo_src/alternates/toposort_cooler__c.c'; else $(CYGPATH_W) '$(srcdir)/topo_src/alternates/toposort_cooler__c.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/topo-toposort_cooler__c.Tpo $(DEPDIR)/topo-toposort_cooler__c.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='topo_src/alternates/toposort_cooler__c.c' object='topo-toposort_cooler__c.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o topo-toposort_cooler__c.obj `if test -f 'topo_src/alternates/toposort_cooler__c.c'; then $(CYGPATH_W) 'topo_src/alternates/toposort_cooler__c.c'; else $(CYGPATH_W) '$(srcdir)/topo_src/alternates/toposort_cooler__c.c'; fi`
+
 topo-toposort_exstack_orig__c.o: topo_src/alternates/toposort_exstack_orig__c.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT topo-toposort_exstack_orig__c.o -MD -MP -MF $(DEPDIR)/topo-toposort_exstack_orig__c.Tpo -c -o topo-toposort_exstack_orig__c.o `test -f 'topo_src/alternates/toposort_exstack_orig__c.c' || echo '$(srcdir)/'`topo_src/alternates/toposort_exstack_orig__c.c
 @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/topo-toposort_exstack_orig__c.Tpo $(DEPDIR)/topo-toposort_exstack_orig__c.Po
@@ -1345,6 +1375,20 @@ triangles-triangle_agi_opt2__c.obj: triangle_src/alternates/triangle_agi_opt2__c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='triangle_src/alternates/triangle_agi_opt2__c.c' object='triangles-triangle_agi_opt2__c.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o triangles-triangle_agi_opt2__c.obj `if test -f 'triangle_src/alternates/triangle_agi_opt2__c.c'; then $(CYGPATH_W) 'triangle_src/alternates/triangle_agi_opt2__c.c'; else $(CYGPATH_W) '$(srcdir)/triangle_src/alternates/triangle_agi_opt2__c.c'; fi`
+
+triangles-triangle_agi_iter__c.o: triangle_src/alternates/triangle_agi_iter__c.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT triangles-triangle_agi_iter__c.o -MD -MP -MF $(DEPDIR)/triangles-triangle_agi_iter__c.Tpo -c -o triangles-triangle_agi_iter__c.o `test -f 'triangle_src/alternates/triangle_agi_iter__c.c' || echo '$(srcdir)/'`triangle_src/alternates/triangle_agi_iter__c.c
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/triangles-triangle_agi_iter__c.Tpo $(DEPDIR)/triangles-triangle_agi_iter__c.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='triangle_src/alternates/triangle_agi_iter__c.c' object='triangles-triangle_agi_iter__c.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o triangles-triangle_agi_iter__c.o `test -f 'triangle_src/alternates/triangle_agi_iter__c.c' || echo '$(srcdir)/'`triangle_src/alternates/triangle_agi_iter__c.c
+
+triangles-triangle_agi_iter__c.obj: triangle_src/alternates/triangle_agi_iter__c.c
+@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT triangles-triangle_agi_iter__c.obj -MD -MP -MF $(DEPDIR)/triangles-triangle_agi_iter__c.Tpo -c -o triangles-triangle_agi_iter__c.obj `if test -f 'triangle_src/alternates/triangle_agi_iter__c.c'; then $(CYGPATH_W) 'triangle_src/alternates/triangle_agi_iter__c.c'; else $(CYGPATH_W) '$(srcdir)/triangle_src/alternates/triangle_agi_iter__c.c'; fi`
+@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/triangles-triangle_agi_iter__c.Tpo $(DEPDIR)/triangles-triangle_agi_iter__c.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='triangle_src/alternates/triangle_agi_iter__c.c' object='triangles-triangle_agi_iter__c.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o triangles-triangle_agi_iter__c.obj `if test -f 'triangle_src/alternates/triangle_agi_iter__c.c'; then $(CYGPATH_W) 'triangle_src/alternates/triangle_agi_iter__c.c'; else $(CYGPATH_W) '$(srcdir)/triangle_src/alternates/triangle_agi_iter__c.c'; fi`
 
 write_sparse_matrix-write_sparse_matrix__c.o: write_sparse_matrix_src/write_sparse_matrix__c.c
 @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(write_sparse_matrix_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT write_sparse_matrix-write_sparse_matrix__c.o -MD -MP -MF $(DEPDIR)/write_sparse_matrix-write_sparse_matrix__c.Tpo -c -o write_sparse_matrix-write_sparse_matrix__c.o `test -f 'write_sparse_matrix_src/write_sparse_matrix__c.c' || echo '$(srcdir)/'`write_sparse_matrix_src/write_sparse_matrix__c.c
@@ -1752,6 +1796,20 @@ topo-toposort_agi_oo.obj: topo_src/alternates/toposort_agi_oo.upc
 @AMDEP_TRUE@@am__fastdepUPC_FALSE@	DEPDIR=$(DEPDIR) $(UPCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepUPC_FALSE@	$(AM_V_UPC@am__nodep@)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -c -o topo-toposort_agi_oo.obj `if test -f 'topo_src/alternates/toposort_agi_oo.upc'; then $(CYGPATH_W) 'topo_src/alternates/toposort_agi_oo.upc'; else $(CYGPATH_W) '$(srcdir)/topo_src/alternates/toposort_agi_oo.upc'; fi`
 
+topo-toposort_cooler.o: topo_src/alternates/toposort_cooler.upc
+@am__fastdepUPC_TRUE@	$(AM_V_UPC)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -MT topo-toposort_cooler.o -MD -MP -MF $(DEPDIR)/topo-toposort_cooler.Tpo -c -o topo-toposort_cooler.o `test -f 'topo_src/alternates/toposort_cooler.upc' || echo '$(srcdir)/'`topo_src/alternates/toposort_cooler.upc
+@am__fastdepUPC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/topo-toposort_cooler.Tpo $(DEPDIR)/topo-toposort_cooler.Po
+@AMDEP_TRUE@@am__fastdepUPC_FALSE@	$(AM_V_UPC)source='topo_src/alternates/toposort_cooler.upc' object='topo-toposort_cooler.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepUPC_FALSE@	DEPDIR=$(DEPDIR) $(UPCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepUPC_FALSE@	$(AM_V_UPC@am__nodep@)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -c -o topo-toposort_cooler.o `test -f 'topo_src/alternates/toposort_cooler.upc' || echo '$(srcdir)/'`topo_src/alternates/toposort_cooler.upc
+
+topo-toposort_cooler.obj: topo_src/alternates/toposort_cooler.upc
+@am__fastdepUPC_TRUE@	$(AM_V_UPC)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -MT topo-toposort_cooler.obj -MD -MP -MF $(DEPDIR)/topo-toposort_cooler.Tpo -c -o topo-toposort_cooler.obj `if test -f 'topo_src/alternates/toposort_cooler.upc'; then $(CYGPATH_W) 'topo_src/alternates/toposort_cooler.upc'; else $(CYGPATH_W) '$(srcdir)/topo_src/alternates/toposort_cooler.upc'; fi`
+@am__fastdepUPC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/topo-toposort_cooler.Tpo $(DEPDIR)/topo-toposort_cooler.Po
+@AMDEP_TRUE@@am__fastdepUPC_FALSE@	$(AM_V_UPC)source='topo_src/alternates/toposort_cooler.upc' object='topo-toposort_cooler.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepUPC_FALSE@	DEPDIR=$(DEPDIR) $(UPCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepUPC_FALSE@	$(AM_V_UPC@am__nodep@)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -c -o topo-toposort_cooler.obj `if test -f 'topo_src/alternates/toposort_cooler.upc'; then $(CYGPATH_W) 'topo_src/alternates/toposort_cooler.upc'; else $(CYGPATH_W) '$(srcdir)/topo_src/alternates/toposort_cooler.upc'; fi`
+
 topo-toposort_exstack_orig.o: topo_src/alternates/toposort_exstack_orig.upc
 @am__fastdepUPC_TRUE@	$(AM_V_UPC)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(topo_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -MT topo-toposort_exstack_orig.o -MD -MP -MF $(DEPDIR)/topo-toposort_exstack_orig.Tpo -c -o topo-toposort_exstack_orig.o `test -f 'topo_src/alternates/toposort_exstack_orig.upc' || echo '$(srcdir)/'`topo_src/alternates/toposort_exstack_orig.upc
 @am__fastdepUPC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/topo-toposort_exstack_orig.Tpo $(DEPDIR)/topo-toposort_exstack_orig.Po
@@ -1877,6 +1935,20 @@ triangles-triangle_agi_opt2.obj: triangle_src/alternates/triangle_agi_opt2.upc
 @AMDEP_TRUE@@am__fastdepUPC_FALSE@	$(AM_V_UPC)source='triangle_src/alternates/triangle_agi_opt2.upc' object='triangles-triangle_agi_opt2.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepUPC_FALSE@	DEPDIR=$(DEPDIR) $(UPCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepUPC_FALSE@	$(AM_V_UPC@am__nodep@)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -c -o triangles-triangle_agi_opt2.obj `if test -f 'triangle_src/alternates/triangle_agi_opt2.upc'; then $(CYGPATH_W) 'triangle_src/alternates/triangle_agi_opt2.upc'; else $(CYGPATH_W) '$(srcdir)/triangle_src/alternates/triangle_agi_opt2.upc'; fi`
+
+triangles-triangle_agi_iter.o: triangle_src/alternates/triangle_agi_iter.upc
+@am__fastdepUPC_TRUE@	$(AM_V_UPC)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -MT triangles-triangle_agi_iter.o -MD -MP -MF $(DEPDIR)/triangles-triangle_agi_iter.Tpo -c -o triangles-triangle_agi_iter.o `test -f 'triangle_src/alternates/triangle_agi_iter.upc' || echo '$(srcdir)/'`triangle_src/alternates/triangle_agi_iter.upc
+@am__fastdepUPC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/triangles-triangle_agi_iter.Tpo $(DEPDIR)/triangles-triangle_agi_iter.Po
+@AMDEP_TRUE@@am__fastdepUPC_FALSE@	$(AM_V_UPC)source='triangle_src/alternates/triangle_agi_iter.upc' object='triangles-triangle_agi_iter.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepUPC_FALSE@	DEPDIR=$(DEPDIR) $(UPCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepUPC_FALSE@	$(AM_V_UPC@am__nodep@)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -c -o triangles-triangle_agi_iter.o `test -f 'triangle_src/alternates/triangle_agi_iter.upc' || echo '$(srcdir)/'`triangle_src/alternates/triangle_agi_iter.upc
+
+triangles-triangle_agi_iter.obj: triangle_src/alternates/triangle_agi_iter.upc
+@am__fastdepUPC_TRUE@	$(AM_V_UPC)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -MT triangles-triangle_agi_iter.obj -MD -MP -MF $(DEPDIR)/triangles-triangle_agi_iter.Tpo -c -o triangles-triangle_agi_iter.obj `if test -f 'triangle_src/alternates/triangle_agi_iter.upc'; then $(CYGPATH_W) 'triangle_src/alternates/triangle_agi_iter.upc'; else $(CYGPATH_W) '$(srcdir)/triangle_src/alternates/triangle_agi_iter.upc'; fi`
+@am__fastdepUPC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/triangles-triangle_agi_iter.Tpo $(DEPDIR)/triangles-triangle_agi_iter.Po
+@AMDEP_TRUE@@am__fastdepUPC_FALSE@	$(AM_V_UPC)source='triangle_src/alternates/triangle_agi_iter.upc' object='triangles-triangle_agi_iter.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepUPC_FALSE@	DEPDIR=$(DEPDIR) $(UPCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepUPC_FALSE@	$(AM_V_UPC@am__nodep@)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(triangles_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -c -o triangles-triangle_agi_iter.obj `if test -f 'triangle_src/alternates/triangle_agi_iter.upc'; then $(CYGPATH_W) 'triangle_src/alternates/triangle_agi_iter.upc'; else $(CYGPATH_W) '$(srcdir)/triangle_src/alternates/triangle_agi_iter.upc'; fi`
 
 write_sparse_matrix-write_sparse_matrix.o: write_sparse_matrix_src/write_sparse_matrix.upc
 @am__fastdepUPC_TRUE@	$(AM_V_UPC)$(UPC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(write_sparse_matrix_CPPFLAGS) $(CPPFLAGS) $(AM_UPCFLAGS) $(UPCFLAGS) -MT write_sparse_matrix-write_sparse_matrix.o -MD -MP -MF $(DEPDIR)/write_sparse_matrix-write_sparse_matrix.Tpo -c -o write_sparse_matrix-write_sparse_matrix.o `test -f 'write_sparse_matrix_src/write_sparse_matrix.upc' || echo '$(srcdir)/'`write_sparse_matrix_src/write_sparse_matrix.upc

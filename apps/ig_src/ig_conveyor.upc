@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2019, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -64,13 +64,13 @@ double ig_conveyor(int64_t *tgt, int64_t *pckindx, int64_t l_num_req,  int64_t *
   pkg_t pkg;
   pkg_t *ptr = calloc(1, sizeof(pkg_t));
   
-  convey_t* requests = convey_new(sizeof(pkg_t), SIZE_MAX, 0, NULL, convey_opt_SCATTER);
+  convey_t* requests = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
   assert( requests != NULL );
-  convey_t* replies = convey_new(sizeof(pkg_t), SIZE_MAX, 0, NULL, 0);
+  convey_t* replies = convey_new(SIZE_MAX, 0, NULL, 0);
   assert( replies != NULL );
 
-  convey_begin(requests);
-  convey_begin(replies);
+  convey_begin(requests, sizeof(pkg_t));
+  convey_begin(replies, sizeof(pkg_t));
   lgp_barrier();
   
   tm = wall_seconds();

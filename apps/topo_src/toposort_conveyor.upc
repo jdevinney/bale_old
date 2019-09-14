@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2019, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -82,10 +82,10 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
   int64_t * level      = calloc(lnr, sizeof(int64_t));
   int64_t * matched_col= calloc(lnr, sizeof(int64_t));
 
-  convey_t * conv = convey_new(sizeof(pkg_topo_t), SIZE_MAX, 0, NULL, convey_opt_PROGRESS);
+  convey_t * conv = convey_new(SIZE_MAX, 0, NULL, convey_opt_PROGRESS);
   if(conv == NULL){return(-1);}
 
-  if(convey_begin( conv ) != convey_OK){return(-1);}
+  if(convey_begin( conv, sizeof(pkg_topo_t) ) != convey_OK){return(-1);}
   
   /* initialize rowsum, rowcnt, and queue (queue holds degree one rows) */
   int64_t rownext, rowlast;
@@ -203,9 +203,8 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
     lrperm[i] = (nr - 1) - level_start[level[i]]++;
   }
   
-  //convey_t * conv2 = convey_new(sizeof(pkg_cperm_t), SIZE_MAX, n_local, NULL, 0);
-  convey_t * conv2 = convey_new(sizeof(pkg_cperm_t), SIZE_MAX, 0, NULL, 0); // don't know where to get n_local 
-  convey_begin( conv2 );
+  convey_t * conv2 = convey_new(SIZE_MAX, 0, NULL, 0);
+  convey_begin( conv2, sizeof(pkg_cperm_t) );
   if(conv == NULL){return(-1);}
   pkg_cperm_t pkg2, pkg2_ptr;
 

@@ -40,6 +40,7 @@ AC_PREREQ([2.60])     #Require Minimum Autotools version 2.60
 
 AC_INIT([exstack],   [1.0.0],   [bale@super.org])
 AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
+LT_INIT ## enable libtool
 
 AC_CONFIG_HEADERS([config.h])
 
@@ -54,6 +55,7 @@ AC_ARG_WITH([shmem],
 AC_PROG_RANLIB
 AC_PROG_CC
 AC_PROG_CC_C99
+
 mpp_use_shmem=no
 if test "x$with_shmem" = xyes; then
    with_upc=no

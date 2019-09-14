@@ -112,7 +112,8 @@ sparsemat_t * transpose_matrix(sparsemat_t *omat) {
   A = transpose_matrix_exstack(omat, 1024);
   //A = transpose_matrix_exstack2(omat, 1024);
   //A = transpose_matrix_conveyor(omat);
-  if(!A){T0_printf("ERROR: transpose_matrix: transpose routine failed!\n"); return(NULL);}
+  if(!A){return(NULL);}
+  
   sort_nonzeros(A);
   return(A);
 }
@@ -568,7 +569,7 @@ sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int
   case 3:
     /* generate to separate halves and add together */
     U = gen_erdos_renyi_graph_triangle_dist(n, p, unit_diag, 0, seed);
-    L = gen_erdos_renyi_graph_triangle_dist(n, p, unit_diag, 1, rand());
+    L = gen_erdos_renyi_graph_triangle_dist(n, p, unit_diag, 1, rand());    
   }
 
   int64_t i, j;
