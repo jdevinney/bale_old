@@ -3,7 +3,6 @@
 # Ignore files created by autoconf
 aclocal.m4
 autom4te.cache/
-m4/
 compile
 config.guess
 config.h.in
