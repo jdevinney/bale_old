@@ -52,6 +52,7 @@ liblibgetput_la_SOURCES = $(common_sources:.c=__upc.upc)
 endif
 
 if BUILD_SHMEM
+liblibgetput_la_LINK = $(LINK)
 liblibgetput_la_SOURCES = $(common_sources:.upc=__c.c)
 liblibgetput_la_CFLAGS += -DUSE_SHMEM
 endif

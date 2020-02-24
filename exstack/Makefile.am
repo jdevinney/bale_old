@@ -53,6 +53,7 @@ libexstack_la_SOURCES = $(common_sources:.c=__upc.upc)
 endif
 
 if BUILD_SHMEM
+libexstack_la_LINK = $(LINK)
 libexstack_la_SOURCES = $(common_sources:.upc=__c.c)
 libexstack_la_CPPFLAGS += -DUSE_SHMEM
 endif
