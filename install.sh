@@ -81,7 +81,7 @@ done
 shift $(($OPTIND - 1))
 
 if [ $justmake -eq 1 ]; then
-    $fromscratch = 0
+    fromscratch=0
 fi
 
 export PKG_CONFIG_PATH=$INSTALLDIR/lib/pkgconfig/:$PKG_CONFIG_PATH
