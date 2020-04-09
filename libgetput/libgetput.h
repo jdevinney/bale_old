@@ -66,7 +66,9 @@
 #define _rtc() 0  /*!< the realtime clock */
 #endif
 
+#if __UPC__
 extern upc_atomicdomain_t * lgp_atomic_domain;
+#endif
 
 # if !HAVE_SHMEM_FREE
 // Fall back to old-style names

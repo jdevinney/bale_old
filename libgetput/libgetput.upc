@@ -41,9 +41,11 @@
 
 #include "libgetput.h"
 #if __UPC_ATOMIC__
+// this is relevant for BUPC or GUPC
 #include <upc_atomic.h>
-#endif
 upc_atomicdomain_t * lgp_atomic_domain;
+#endif
+
 
 /*!
  * \brief Wrapper for atomic add to help with ifdef noise
