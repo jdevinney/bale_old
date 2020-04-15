@@ -57,7 +57,7 @@ void lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
-  shmem_long_add(&ptr[lindex], value, pe);
+  shmem_int64_atomic_add(&ptr[lindex], value, pe);
   //printf("atomic_add  %ld, to %ld %ld %ld\n", MYTHREAD, pe,  lindex, value);
 #elif _CRAYC 
   _amo_aadd(&ptr[index], value);
@@ -77,7 +77,7 @@ void lgp_atomic_add_async(SHARED int64_t * ptr, int64_t index, int64_t value){
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
-  shmem_long_add(&ptr[lindex], value, pe);
+  shmem_int64_atomic_add(&ptr[lindex], value, pe);
   //printf("atomic_add  %ld, to %ld %ld %ld\n", MYTHREAD, pe,  lindex, value);                                                                                                                   
 #elif _CRAYC
 #pragma pgas defer_sync
@@ -96,7 +96,7 @@ int64_t lgp_fetch_and_inc(SHARED int64_t * ptr, int64_t index) {
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
-  ret = shmem_long_finc(&ptr[lindex], pe);
+  ret = shmem_int64_atomic_fetch_inc(&ptr[lindex], pe);
 #elif _CRAYC
   ret = _amo_afadd(&ptr[index], 1L);
 #elif __BERKELEY_UPC_RUNTIME__
@@ -116,7 +116,7 @@ int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
-  ret = shmem_long_fadd(&ptr[lindex], value, pe);
+  ret = shmem_int64_atomic_fetch_add(&ptr[lindex], value, pe);
   //printf("atomic_add  %ld, to %ld %ld %ld was %ld\n", MYTHREAD, pe,  lindex, value, ret);
 #elif _CRAYC
   ret = _amo_afadd(&ptr[index], value);
@@ -138,7 +138,7 @@ int64_t lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, i
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
-  ret = shmem_long_cswap(&ptr[lindex], cmp_val, swap_val, pe);
+  ret = shmem_int64_atomic_compare_swap(&ptr[lindex], cmp_val, swap_val, pe);
 #elif _CRAYC
   ret = _amo_acswap_upc(&ptr[index], cmp_val, swap_val);
 #elif __BERKELEY_UPC_RUNTIME__
@@ -284,9 +284,9 @@ long lgp_reduce_add_l(long myval){
   return buff[1];
 }
 */
-Define_Reducer(lgp_reduce_add_l, long, long, shmem_long_sum_to_all)
-Define_Reducer(lgp_reduce_min_l, long, long, shmem_long_min_to_all)
-Define_Reducer(lgp_reduce_max_l, long, long, shmem_long_max_to_all)
+Define_Reducer(lgp_reduce_add_l, long long, long long, shmem_longlong_sum_to_all)
+Define_Reducer(lgp_reduce_min_l, long long, long long, shmem_longlong_min_to_all)
+Define_Reducer(lgp_reduce_max_l, long long, long long, shmem_longlong_max_to_all)
 
 Define_Reducer(lgp_reduce_add_d, double, double, shmem_double_sum_to_all)
 Define_Reducer(lgp_reduce_min_d, double, double, shmem_double_min_to_all)
