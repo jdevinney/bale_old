@@ -52,7 +52,7 @@
 void histo_exstack2_service( exstack2_t *ex2, int64_t *lcounts, int64_t done_pushing) {
   int64_t *l_idx;
   do {
-    while( l_idx = exstack2_pull(ex2, NULL) )
+    while((l_idx = exstack2_pull(ex2, NULL)) != 0)
       lcounts[*l_idx]++;
   } while( done_pushing && exstack2_proceed(ex2, done_pushing) );
 }

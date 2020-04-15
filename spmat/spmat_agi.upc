@@ -39,7 +39,7 @@
  * \brief Sparse matrix support functions implemented with global addresses and atomics
  */
 #include <spmat.h>
-
+#include <sys/stat.h>   // for mkdir()
 /******************************************************************************/
 /*! \brief create a global int64_t array with a uniform random permutation
  * \param N the length of the global array

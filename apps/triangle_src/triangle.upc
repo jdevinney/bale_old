@@ -147,9 +147,9 @@ have few triangles.
 sparsemat_t * generate_kronecker_graph(int64_t * B_spec, int64_t B_num, int64_t * C_spec, int64_t C_num, int mode){
 
   T0_fprintf(stderr,"Generating Mode %d Kronecker Product graph (A = B X C) with parameters:  ", mode);
-  for(int i = 0; i < B_num; i++) T0_fprintf(stderr,"%ld ", B_spec[i]);
+  for(int i = 0; i < B_num; i++) T0_fprintf(stderr,"%"PRId64" ", B_spec[i]);
   T0_fprintf(stderr,"X ");
-  for(int i = 0; i < C_num; i++) T0_fprintf(stderr,"%ld ", C_spec[i]);   
+  for(int i = 0; i < C_num; i++) T0_fprintf(stderr,"%"PRId64" ", C_spec[i]);   
   T0_fprintf(stderr,"\n");
 
   sparsemat_t * B = gen_local_mat_from_stars(B_num, B_spec, mode);
@@ -158,8 +158,8 @@ sparsemat_t * generate_kronecker_graph(int64_t * B_spec, int64_t B_num, int64_t 
     T0_fprintf(stderr,"ERROR: triangles: error generating input!\n"); lgp_global_exit(1);
   }
   
-  T0_fprintf(stderr,"B has %ld rows/cols and %ld nnz\n", B->numrows, B->lnnz);
-  T0_fprintf(stderr,"C has %ld rows/cols and %ld nnz\n", C->numrows, C->lnnz);
+  T0_fprintf(stderr,"B has %"PRId64" rows/cols and %"PRId64" nnz\n", B->numrows, B->lnnz);
+  T0_fprintf(stderr,"C has %"PRId64" rows/cols and %"PRId64" nnz\n", C->numrows, C->lnnz);
   
   sparsemat_t * A = kron_prod_dist(B, C, 1);
   
@@ -191,13 +191,13 @@ int main(int argc, char * argv[]) {
   while( (opt = getopt(argc, argv, "hb:c:M:n:f:a:e:K:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%ld", &buf_cnt);  break;
-    case 'c': sscanf(optarg,"%ld" ,&cores_per_node); break;
-    case 'M': sscanf(optarg,"%ld", &models_mask);  break;
-    case 'n': sscanf(optarg,"%ld", &l_numrows); break;
+    case 'b': sscanf(optarg,"%"PRId64"", &buf_cnt);  break;
+    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
+    case 'M': sscanf(optarg,"%"PRId64"", &models_mask);  break;
+    case 'n': sscanf(optarg,"%"PRId64"", &l_numrows); break;
     case 'f': read_graph = 1; sscanf(optarg,"%s", filename); break;
 
-    case 'a': sscanf(optarg,"%ld", &alg); break;
+    case 'a': sscanf(optarg,"%"PRId64"", &alg); break;
     case 'e': sscanf(optarg,"%lg", &erdos_renyi_prob); break;
     case 'K': gen_kron_graph = 1; kron_graph_string = optarg; break;
     default:  break;
@@ -216,11 +216,11 @@ int main(int argc, char * argv[]) {
   
   T0_fprintf(stderr,"Running triangle on %d threads\n", THREADS);
   if(!read_graph && !gen_kron_graph){
-    T0_fprintf(stderr,"Number of rows per thread   (-N)   %ld\n", l_numrows);
+    T0_fprintf(stderr,"Number of rows per thread   (-N)   %"PRId64"\n", l_numrows);
     T0_fprintf(stderr,"Erdos Renyi prob (-e)   %g\n", erdos_renyi_prob);
   }
-  T0_fprintf(stderr,"Model mask (M) = %ld (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);  
-  T0_fprintf(stderr,"algorithm (a) = %ld (0 for L & L*U, 1 for L & U*L)\n", alg);
+  T0_fprintf(stderr,"Model mask (M) = %"PRId64" (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);  
+  T0_fprintf(stderr,"algorithm (a) = %"PRId64" (0 for L & L*U, 1 for L & U*L)\n", alg);
   
   if( printhelp )
     lgp_global_exit(0);
@@ -236,7 +236,7 @@ int main(int argc, char * argv[]) {
     if(!A)
       lgp_global_exit(1);
     T0_fprintf(stderr,"Reading file %s...\n", filename);
-    T0_fprintf(stderr, "A has %ld rows/cols and %ld nonzeros.\n", A->numrows, A->nnz);
+    T0_fprintf(stderr, "A has %"PRId64" rows/cols and %"PRId64" nonzeros.\n", A->numrows, A->nnz);
 
     // we should check that A is symmetric!
     
@@ -292,7 +292,7 @@ int main(int argc, char * argv[]) {
     }
 
     correct_answer = round(correct_answer);
-    T0_fprintf(stderr, "Pre-calculated answer = %ld\n", (int64_t)correct_answer);
+    T0_fprintf(stderr, "Pre-calculated answer = %"PRId64"\n", (int64_t)correct_answer);
     
     int64_t half = num_ints/2;
     
@@ -308,7 +308,7 @@ int main(int argc, char * argv[]) {
 
   lgp_barrier();
 
-  T0_fprintf(stderr,"L has %ld rows/cols and %ld nonzeros.\n", L->numrows, L->nnz);
+  T0_fprintf(stderr,"L has %"PRId64" rows/cols and %"PRId64" nonzeros.\n", L->numrows, L->nnz);
   
   if(!is_lower_triangular(L, 0)){
     T0_fprintf(stderr,"ERROR: L is not lower triangular!\n");
@@ -366,7 +366,7 @@ int main(int argc, char * argv[]) {
 
   lgp_all_free(cc);
   
-  T0_fprintf(stderr,"Calculated: Pulls = %ld\n            Pushes = %ld\n\n",pulls_calc, pushes_calc);
+  T0_fprintf(stderr,"Calculated: Pulls = %"PRId64"\n            Pushes = %"PRId64"\n\n",pulls_calc, pushes_calc);
   
   int64_t use_model;
   double laptime = 0.0;
@@ -410,8 +410,8 @@ int main(int argc, char * argv[]) {
     lgp_barrier();
     total_tri_cnt = lgp_reduce_add_l(tri_cnt);
     total_sh_refs = lgp_reduce_add_l(sh_refs);
-    T0_fprintf(stderr,"  %8.3lf seconds: %16ld triangles", laptime, total_tri_cnt);
-    T0_fprintf(stderr,"%16ld shared refs\n", total_sh_refs);
+    T0_fprintf(stderr,"  %8.3lf seconds: %16"PRId64" triangles", laptime, total_tri_cnt);
+    T0_fprintf(stderr,"%16"PRId64" shared refs\n", total_sh_refs);
     if((correct_answer >= 0) && (total_tri_cnt != (int64_t)correct_answer)){
       T0_fprintf(stderr, "ERROR: Wrong answer!\n");
     }

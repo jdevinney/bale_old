@@ -190,7 +190,7 @@ double toposort_matrix_oo(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsema
   int64_t mypivs, n_pivs; // number of pivots on my queue, all queues (done when n_pivs == 0)
   int64_t pivs_found = 0; // total pivots found so far
   int64_t pos;
-  while( n_pivs = grab_swlrQ(sq, &mypivs) ) {  // getting a local copy of the queue defines a level
+  while( (n_pivs = grab_swlrQ(sq, &mypivs)) != 0 ) {  // getting a local copy of the queue defines a level
 
     pos = pivs_found + lgp_prior_add_l(mypivs); // pivots in this level and thread start here
     while( de_swlrQ(sq, &l_row) ) {
@@ -218,7 +218,7 @@ double toposort_matrix_oo(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsema
   lgp_min_avg_max_d( stat, t1, THREADS );
   
   if(pivs_found != nr){
-    printf("ERROR! toposort_matrix_upc_oo: found %ld pivots but expected %ld!\n", pivs_found, nr);
+    printf("ERROR! toposort_matrix_upc_oo: found %"PRId64" pivots but expected %"PRId64"!\n", pivs_found, nr);
     exit(1);
   }
 

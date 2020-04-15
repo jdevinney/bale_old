@@ -148,7 +148,7 @@ double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsem
   
   
   if(lgp_get_int64(pivots,0) != nr){
-    printf("ERROR! toposort_matrix_upc_orig: found %ld pivots but expected %ld!\n", pivots[0], nr);
+    printf("ERROR! toposort_matrix_upc_orig: found %"PRId64" pivots but expected %"PRId64"!\n", pivots[0], nr);
     exit(1);
   }
   lgp_all_free(queue);

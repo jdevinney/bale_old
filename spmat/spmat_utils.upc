@@ -130,7 +130,7 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
     FILE * fp = fopen(name, "w");
     /* write the banner */
     fprintf(fp,"%%%%MatrixMarket matrix coordinate pattern\n");
-    fprintf(fp,"%ld %ld %ld\n", A->numrows, A->numcols, A->nnz);
+    fprintf(fp,"%"PRId64" %"PRId64" %"PRId64"\n", A->numrows, A->numcols, A->nnz);
     fclose(fp);
   }
   
@@ -141,7 +141,7 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
       for(i = 0; i < A->lnumrows; i++){
         row = i*THREADS + MYTHREAD;
         for(j = A->loffset[i]; j < A->loffset[i+1]; j++){
-          fprintf(fp, "%ld %ld\n", row + 1, A->lnonzero[j] + 1);
+          fprintf(fp, "%"PRId64" %"PRId64"\n", row + 1, A->lnonzero[j] + 1);
         }
       }
       fclose(fp);
@@ -163,10 +163,10 @@ int64_t read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, 
     char fname[64];
     sprintf(fname, "%s/metadata", dirname);
     FILE * fp = fopen(fname, "r");
-    ret += fscanf(fp, "%ld\n", nr);
-    ret += fscanf(fp, "%ld\n", nc);
-    ret += fscanf(fp, "%ld\n", nnz);
-    ret += fscanf(fp, "%ld\n", nwriters);
+    ret += fscanf(fp, "%"PRId64"\n", nr);
+    ret += fscanf(fp, "%"PRId64"\n", nc);
+    ret += fscanf(fp, "%"PRId64"\n", nnz);
+    ret += fscanf(fp, "%"PRId64"\n", nwriters);
     if(ret != 4){
       fprintf(stderr,"ERROR: read_sparse_matrix_metadata\n");      
     }
@@ -199,7 +199,7 @@ int64_t write_sparse_matrix_metadata(char * dirname, sparsemat_t * A){
     char fname[64];
     sprintf(fname, "%s/metadata", dirname);
     FILE * fp = fopen(fname, "w");
-    fprintf(fp, "%ld\n%ld\n%ld\n%ld\n", A->numrows, A->numcols, A->nnz,THREADS);
+    fprintf(fp, "%"PRId64"\n%"PRId64"\n%"PRId64"\n%d\n", A->numrows, A->numcols, A->nnz,THREADS);
     fclose(fp);
   }
   return(0);
@@ -254,7 +254,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
       for(i = 0; i < THREADS; i++) lgp_put_int64(sh_data, i, -1);
     }
     
-    fscanf(fp,"%ld %ld %ld\n", &nr, &nc, &nnz);
+    fscanf(fp,"%"PRId64" %"PRId64" %"PRId64"\n", &nr, &nc, &nnz);
     Is = calloc(nnz, sizeof(int64_t));
     Js = calloc(nnz, sizeof(int64_t));
     rowcount = calloc(nr, sizeof(int64_t));
@@ -265,7 +265,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
     }
     int64_t row, col, val, pos = 0;
     if(!strcmp(field, "pattern")){
-      while(fscanf(fp,"%ld %ld\n", &row, &col) != EOF){
+      while(fscanf(fp,"%"PRId64" %"PRId64"\n", &row, &col) != EOF){
         row--;
         col--;
         Is[pos] = row;
@@ -274,7 +274,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
         rowcount[row]++;
       }
     }else{
-      while(fscanf(fp,"%ld %ld %ld\n", &row, &col, &val) != EOF){
+      while(fscanf(fp,"%"PRId64" %"PRId64" %"PRId64"\n", &row, &col, &val) != EOF){
         row--;
         col--;
         Is[pos] = row;
@@ -286,7 +286,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
     
     fclose(fp);
     if(nnz != pos){
-      T0_printf("ERROR: read_matrix_mm_to_dist: nnz (%ld) != pos (%ld)\n", nnz, pos);
+      T0_printf("ERROR: read_matrix_mm_to_dist: nnz (%"PRId64") != pos (%"PRId64")\n", nnz, pos);
       for(i = 0; i < THREADS; i++) lgp_put_int64(sh_data, i, -1);
       break;
     }
@@ -398,7 +398,7 @@ int is_lower_triangular(sparsemat_t *A, int64_t unit_diagonal) {
   err = lgp_reduce_add_l(err);
   err2 = (unit_diagonal ? lgp_reduce_add_l(err2) : 0);
   if( err || err2 ){
-    //if(!MYTHREAD)printf("\nThere are %ld nz above diag. and %ld missing pivots in lower.\n", err, err2);
+    //if(!MYTHREAD)printf("\nThere are %"PRId64" nz above diag. and %"PRId64" missing pivots in lower.\n", err, err2);
     fflush(0);
   }
 
@@ -437,7 +437,7 @@ int is_upper_triangular(sparsemat_t *A, int64_t unit_diagonal) {
   err = lgp_reduce_add_l(err);
   err2 = (unit_diagonal ? lgp_reduce_add_l(err2) : 0);
   if( err || err2 ){
-    //if(!MYTHREAD)printf("\nThere are %ld nz below diag. and %ld missing pivots in upper.\n", err, err2);
+    //if(!MYTHREAD)printf("\nThere are %"PRId64" nz below diag. and %"PRId64" missing pivots in upper.\n", err, err2);
     fflush(0);
   }
 
@@ -683,7 +683,7 @@ sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_
   }
   
   if(lnnz != lnnz_orig){
-    printf("ERROR: lnnz (%ld) != lnnz_orig (%ld)\n", lnnz, lnnz_orig);
+    printf("ERROR: lnnz (%"PRId64") != lnnz_orig (%"PRId64")\n", lnnz, lnnz_orig);
     return(NULL);
   }
 
@@ -766,7 +766,7 @@ sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_dia
     }
   }
   if(lnnz != lnnz_orig){
-    printf("ERROR: lnnz (%ld) != lnnz_orig (%ld)\n", lnnz, lnnz_orig);
+    printf("ERROR: lnnz (%"PRId64") != lnnz_orig (%"PRId64")\n", lnnz, lnnz_orig);
     return(NULL);
   }
 
@@ -829,7 +829,7 @@ sparsemat_t * kron_prod_dist(sparsemat_t * B, sparsemat_t * C, int64_t lower) {
   
   sparsemat_t * A = init_matrix(n, n, lnnz);
   if(A == NULL){
-    printf("ERROR: kron_prod_dist: init_matrix returned NULL with inputs %ld %ld %ld\n", n, n, lnnz);
+    printf("ERROR: kron_prod_dist: init_matrix returned NULL with inputs %"PRId64" %"PRId64" %"PRId64"\n", n, n, lnnz);
     return(NULL);
   }
   row = MYTHREAD;
@@ -859,7 +859,7 @@ sparsemat_t * kron_prod_dist(sparsemat_t * B, sparsemat_t * C, int64_t lower) {
     rowC = row % C->lnumrows;
   }
   //if(pos != lnnz){
-  //printf("ERROR: kron_prod_dist: pos (%ld) != lnnz (%ld)\n", pos, lnnz);
+  //printf("ERROR: kron_prod_dist: pos (%"PRId64") != lnnz (%"PRId64")\n", pos, lnnz);
   //return(NULL);
   //}
   lgp_barrier();
@@ -874,7 +874,7 @@ sparsemat_t * kron_prod_dist(sparsemat_t * B, sparsemat_t * C, int64_t lower) {
   
   /* remove the self loop */
   if(!MYTHREAD){
-    fprintf(stderr,"%ld %ld %ld\n", A->lnonzero[A->loffset[0]], A->loffset[0], A->loffset[1]);
+    fprintf(stderr,"%"PRId64" %"PRId64" %"PRId64"\n", A->lnonzero[A->loffset[0]], A->loffset[0], A->loffset[1]);
     if(A->lnonzero[A->loffset[0]] == 0 && A->loffset[1] != A->loffset[0]){
       fprintf(stderr,"Removing A[0,0]!\n");
       /* set A(0,0) = 0*/
@@ -1071,31 +1071,31 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
   int i,j;
 
   if( lmat->numrows != rmat->numrows ){
-    if(!MYTHREAD)printf("(lmat->numrows = %ld)  != (rmat->numrows = %ld)", lmat->numrows, rmat->numrows );
+    if(!MYTHREAD)printf("(lmat->numrows = %"PRId64")  != (rmat->numrows = %"PRId64")", lmat->numrows, rmat->numrows );
     return(1);
   }
   if( lmat->lnumrows != rmat->lnumrows ){
-    fprintf(stderr,"THREAD %03d: (lmat->lnumrows = %ld)  != (rmat->lnumrows = %ld)", 
+    fprintf(stderr,"THREAD %03d: (lmat->lnumrows = %"PRId64")  != (rmat->lnumrows = %"PRId64")", 
             MYTHREAD, lmat->lnumrows, rmat->lnumrows );
     return(1);
   }
   if( lmat->numcols != rmat->numcols ){
-    if(!MYTHREAD)printf("(lmat->numcols = %ld)  != (rmat->numcols = %ld)", lmat->numcols, rmat->numcols );
+    if(!MYTHREAD)printf("(lmat->numcols = %"PRId64")  != (rmat->numcols = %"PRId64")", lmat->numcols, rmat->numcols );
     return(1);
   }
   if( lmat->nnz != rmat->nnz ){
-    if(!MYTHREAD)printf("(lmat->nnz = %ld)  != (rmat->nnz = %ld)", lmat->nnz, rmat->nnz );
+    if(!MYTHREAD)printf("(lmat->nnz = %"PRId64")  != (rmat->nnz = %"PRId64")", lmat->nnz, rmat->nnz );
     return(1);
   }
   if( lmat->lnnz != rmat->lnnz ){
-    fprintf(stderr,"THREAD %03d: (lmat->lnnz = %ld)  != (rmat->lnnz = %ld)", 
+    fprintf(stderr,"THREAD %03d: (lmat->lnnz = %"PRId64")  != (rmat->lnnz = %"PRId64")", 
             MYTHREAD, lmat->lnnz, rmat->lnnz );
     return(1);
   }
 
   if( lmat->loffset[0] != 0 || rmat->loffset[0] != 0 
     || (lmat->loffset[0] != rmat->loffset[0] ) ){
-    if(!MYTHREAD)printf("THREAD %03d: (lmat->loffset[0] = %ld)  != (rmat->loffset[0] = %ld)", 
+    if(!MYTHREAD)printf("THREAD %03d: (lmat->loffset[0] = %"PRId64")  != (rmat->loffset[0] = %"PRId64")", 
        MYTHREAD, lmat->loffset[0], rmat->loffset[0] );
     return(1);
   }
@@ -1103,7 +1103,7 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
   
   for(i = 0; i < lmat->lnumrows; i++){
     if( lmat->loffset[i+1] != rmat->loffset[i+1] ){
-       if(!MYTHREAD)printf("THREAD %03d: (lmat->loffset[%d] = %ld)  != (rmat->loffset[%d] = %ld)", 
+       if(!MYTHREAD)printf("THREAD %03d: (lmat->loffset[%d] = %"PRId64")  != (rmat->loffset[%d] = %"PRId64")", 
           MYTHREAD, i+1, lmat->loffset[i+1], i+1, rmat->loffset[i+1] );
        return(1);
     }
@@ -1111,7 +1111,7 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
   
   for(j=0; j< lmat->lnnz; j++) {
     if( lmat->lnonzero[j] != rmat->lnonzero[j] ){
-      if(!MYTHREAD)printf("THREAD %03d: (lmat->lnonzero[%d] = %ld)  != (rmat->lnonzero[%d] = %ld)", 
+      if(!MYTHREAD)printf("THREAD %03d: (lmat->lnonzero[%d] = %"PRId64")  != (rmat->lnonzero[%d] = %"PRId64")", 
                 MYTHREAD, j, lmat->lnonzero[j], j, rmat->lnonzero[j] );
       return(1);
     }
@@ -1158,7 +1158,7 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   mat->numcols  = numcols;  
   mat->offset   = lgp_all_alloc(mat->numrows + THREADS, sizeof(int64_t));
   if(mat->offset == NULL){
-    T0_printf("ERROR: init_matrix: could not allocate %ld bytes for offset array\n", mat->numrows*8);
+    T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for offset array\n", mat->numrows*8);
     return(NULL);
   }
   mat->loffset  =  lgp_local_part(int64_t, mat->offset);
@@ -1166,7 +1166,7 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   int64_t total = lgp_reduce_add_l(nnz_this_thread);
   mat->nonzero = lgp_all_alloc(max*THREADS, sizeof(int64_t));
   if(mat->nonzero == NULL){
-    T0_printf("ERROR: init_matrix: could not allocate %ld bytes for nonzero array (max = %ld)\n", max*THREADS*8, max);
+    T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for nonzero array (max = %"PRId64")\n", max*THREADS*8, max);
     return(NULL);
   }
   mat->lnonzero = lgp_local_part(int64_t, mat->nonzero);

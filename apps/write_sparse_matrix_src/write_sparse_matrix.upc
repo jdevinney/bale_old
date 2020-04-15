@@ -125,13 +125,13 @@ int main(int argc, char * argv[])
   while( (opt = getopt(argc, argv, "hb:c:e:n:M:s:Z:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%ld", &buf_cnt);  break;
-    case 'c': sscanf(optarg,"%ld" ,&cores_per_node); break;
+    case 'b': sscanf(optarg,"%"PRId64"", &buf_cnt);  break;
+    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
     case 'e': sscanf(optarg,"%lf", &erdos_renyi_prob);  break;
-    case 'n': sscanf(optarg,"%ld", &l_numrows);   break;
-    case 'M': sscanf(optarg,"%ld", &models_mask);  break;
-    case 's': sscanf(optarg,"%ld", &seed); break;
-    case 'Z': sscanf(optarg,"%ld", &nz_per_row);  break;
+    case 'n': sscanf(optarg,"%"PRId64"", &l_numrows);   break;
+    case 'M': sscanf(optarg,"%"PRId64"", &models_mask);  break;
+    case 's': sscanf(optarg,"%"PRId64"", &seed); break;
+    case 'Z': sscanf(optarg,"%"PRId64"", &nz_per_row);  break;
     default:  break;
     }
   }
@@ -150,12 +150,12 @@ int main(int argc, char * argv[])
     erdos_renyi_prob = 1.0;
 
   T0_fprintf(stderr,"Running write_sparse_matrix on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (stack size)        (-b) = %ld\n", buf_cnt);
+  T0_fprintf(stderr,"buf_cnt (stack size)        (-b) = %"PRId64"\n", buf_cnt);
   T0_fprintf(stderr,"Erdos-Renyi edge probability(-e) = %lf\n", erdos_renyi_prob);
-  T0_fprintf(stderr,"rows per PE (-n)                 = %ld\n", l_numrows);
-  T0_fprintf(stderr,"models_mask (-M)                 = %ld or one of 1,2,4,8,16 for gets,classic,exstack2,conveyor,alternate\n", models_mask);
-  T0_fprintf(stderr,"seed (-s)                        = %ld\n", seed);
-  T0_fprintf(stderr,"Avg # of nonzeros per row   (-Z) = %ld\n", nz_per_row);
+  T0_fprintf(stderr,"rows per PE (-n)                 = %"PRId64"\n", l_numrows);
+  T0_fprintf(stderr,"models_mask (-M)                 = %"PRId64" or one of 1,2,4,8,16 for gets,classic,exstack2,conveyor,alternate\n", models_mask);
+  T0_fprintf(stderr,"seed (-s)                        = %"PRId64"\n", seed);
+  T0_fprintf(stderr,"Avg # of nonzeros per row   (-Z) = %"PRId64"\n", nz_per_row);
 
 
   double t1;

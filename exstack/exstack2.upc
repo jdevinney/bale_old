@@ -331,10 +331,10 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
   // send a message to the receiver pe, that a buffer has been delivered
   //#pragma pgas defer_sync
   //pos = _amo_afadd((SHARED int64_t *)&Xstk2->s_num_msgs[pe], 1L);  //get local index on remote pe for this message  
-  pos = lgp_fetch_and_inc(Xstk2->s_num_msgs, pe);
+  pos = lgp_fetch_and_inc((SHARED int64_t *)Xstk2->s_num_msgs, pe);
   pos = pos & Xstk2->msg_Q_mask;
   //Xstk2->s_msg_queue[pos*THREADS + pe] = msg_pack( Xstk2->push_cnt[pe], islast );
-  lgp_put_int64(Xstk2->s_msg_queue, pos*THREADS + pe, msg_pack( Xstk2->push_cnt[pe], islast ));
+  lgp_put_int64((SHARED int64_t *)Xstk2->s_msg_queue, pos*THREADS + pe, msg_pack( Xstk2->push_cnt[pe], islast ));
 
   // reset the buffer to continue pushing to it
   Xstk2->push_cnt[pe] = 0L;
@@ -385,7 +385,7 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
       // tell whoever sent this buffer, it is safe to start send again 
 #pragma pgas defer_sync
       //_amo_aadd((SHARED uint64_t *)&Xstk2->s_can_send[MYTHREAD*THREADS + Xstk2->curr_pop_pe], 1L);
-      lgp_put_int64(Xstk2->s_can_send, (MYTHREAD*THREADS + Xstk2->pop_pe), 1L);
+      lgp_put_int64((SHARED int64_t *)Xstk2->s_can_send, (MYTHREAD*THREADS + Xstk2->pop_pe), 1L);
       //Xstk2->s_can_send[MYTHREAD*THREADS + Xstk2->pop_pe] = 1L;
       lgp_fence();  // Necessary?, Harmful
       
@@ -487,7 +487,7 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
 #pragma pgas defer_sync
       //_amo_aadd((SHARED uint64_t *)&Xstk2->s_can_send[MYTHREAD*THREADS + Xstk2->curr_pop_pe], 1L);
       //Xstk2->s_can_send[MYTHREAD*THREADS + Xstk2->pop_pe] = 1L;
-      lgp_put_int64(Xstk2->s_can_send, MYTHREAD*THREADS + Xstk2->pop_pe, 1L);
+      lgp_put_int64((SHARED int64_t *)Xstk2->s_can_send, MYTHREAD*THREADS + Xstk2->pop_pe, 1L);
       lgp_fence(); //Necessary?, Harmful?
       
       Xstk2->num_popped++;

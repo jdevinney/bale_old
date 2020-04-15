@@ -151,7 +151,7 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
   t1 = wall_seconds() - t1;
   //T0_printf("phase 1 t1 = %8.3lf\n", t1);
   //rejects = lgp_reduce_add_l(rejects);
-  //T0_printf("rejects = %ld\n", rejects);
+  //T0_printf("rejects = %"PRId64"\n", rejects);
 
   convey_free(conv_throw);
   convey_reset(conv_reply);
@@ -169,7 +169,7 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
   /* sanity check */
   int64_t total = lgp_reduce_add_l(cnt);
   if(total != N){
-    T0_printf("ERROR: rand_permp_convey: total = %ld should be %ld\n", total, N);
+    T0_printf("ERROR: rand_permp_convey: total = %"PRId64" should be %"PRId64"\n", total, N);
     return(NULL);
   }
 
@@ -192,7 +192,7 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
 
   pos = lgp_reduce_add_l(pos);
   if(pos != N){
-    printf("ERROR! in rand_permp_convey! sum of pos = %ld lN = %ld\n", pos, N);
+    printf("ERROR! in rand_permp_convey! sum of pos = %"PRId64" lN = %"PRId64"\n", pos, N);
     return(NULL);
   }
   lgp_barrier();
@@ -306,8 +306,8 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
   /* sanity check */
   int64_t error = 0L;
   for(i = 0; i < Ap->lnumrows; i++)
-    if(wrkoff[i] != tmprowcnts[i]){printf("w[%ld] = %ld trc[%ld] = %ld\n", i, wrkoff[i], i, tmprowcnts[i]);error++;}
-  if(error){printf("ERROR! permute_matrix_conveyor: error = %ld\n", error);}
+    if(wrkoff[i] != tmprowcnts[i]){printf("w[%"PRId64"] = %"PRId64" trc[%"PRId64"] = %"PRId64"\n", i, wrkoff[i], i, tmprowcnts[i]);error++;}
+  if(error){printf("ERROR! permute_matrix_conveyor: error = %"PRId64"\n", error);}
 
   free(wrkoff);
   free(tmprowcnts);
@@ -436,14 +436,14 @@ sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
 
   numtimespop = lgp_reduce_add_l(numtimespop);
   if(numtimespop != A->nnz ){
-    printf("ERROR: numtimespop %ld \n", numtimespop);
-    printf("%d wrkoff %ld\n", MYTHREAD, wrkoff[0]);
+    printf("ERROR: numtimespop %"PRId64" \n", numtimespop);
+    printf("%d wrkoff %"PRId64"\n", MYTHREAD, wrkoff[0]);
     return(NULL);
   }
 
   for(i = 0; i < At->lnumrows; i++){
     if(wrkoff[i] != lcounts[i] ) {
-      printf("ERROR: %d wrkoff[%ld] = %ld !=  %ld = lcounts[%ld]\n", MYTHREAD, i, wrkoff[i],lcounts[i],i);
+      printf("ERROR: %d wrkoff[%"PRId64"] = %"PRId64" !=  %"PRId64" = lcounts[%"PRId64"]\n", MYTHREAD, i, wrkoff[i],lcounts[i],i);
       return(NULL);
     }
   }

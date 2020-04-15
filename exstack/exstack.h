@@ -47,7 +47,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-#include <malloc.h>
+//#include <malloc.h>
 #include <string.h>
 #include <math.h>
 #include <float.h>

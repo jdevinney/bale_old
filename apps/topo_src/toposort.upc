@@ -245,10 +245,10 @@ int main(int argc, char * argv[]) {
   while( (opt = getopt(argc, argv, "hb:c:M:n:f:Z:p:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%ld" , &buf_cnt);  break;
-    case 'c': sscanf(optarg,"%ld" ,&cores_per_node); break;
-    case 'M': sscanf(optarg,"%ld" , &models_mask);  break;
-    case 'n': sscanf(optarg,"%ld" , &l_numrows);  break;
+    case 'b': sscanf(optarg,"%"PRId64"" , &buf_cnt);  break;
+    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
+    case 'M': sscanf(optarg,"%"PRId64"" , &models_mask);  break;
+    case 'n': sscanf(optarg,"%"PRId64"" , &l_numrows);  break;
     case 'f': read_graph = 1; sscanf(optarg,"%s", filename); break;
 
     case 'Z': sscanf(optarg,"%lf" , &nz_per_row);  break;
@@ -270,16 +270,16 @@ int main(int argc, char * argv[]) {
   }
 
   T0_fprintf(stderr,"Running toposort on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (stack size)           (-b)   %ld\n", buf_cnt);
-  T0_fprintf(stderr,"Number of rows per thread      (-n)   %ld\n", l_numrows);
+  T0_fprintf(stderr,"buf_cnt (stack size)           (-b)   %"PRId64"\n", buf_cnt);
+  T0_fprintf(stderr,"Number of rows per thread      (-n)   %"PRId64"\n", l_numrows);
   T0_fprintf(stderr,"Avg # of nonzeros per row      (-Z)   %2.2lf\n", nz_per_row);
   T0_fprintf(stderr,"Erdos-Renyi edge probability   (-e)   %lf\n", erdos_renyi_prob);
-  T0_fprintf(stderr,"task mask (M) = %ld (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);
+  T0_fprintf(stderr,"task mask (M) = %"PRId64" (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);
   
   sparsemat_t * mat = generate_toposort_input(numrows, erdos_renyi_prob, rand_seed);
   if(!mat){T0_printf("ERROR: mat is NULL!\n"); exit(1);}
 
-  T0_printf("Input matrix has %ld rows and %ld nonzeros\n", mat->numrows, mat->nnz);
+  T0_printf("Input matrix has %"PRId64" rows and %"PRId64" nonzeros\n", mat->numrows, mat->nnz);
   
   sparsemat_t * tmat = transpose_matrix(mat);
   if(!tmat){T0_printf("ERROR: tmat is NULL!\n"); exit(1);}

@@ -99,11 +99,11 @@ int main(int argc, char * argv[]) {
   while( (opt = getopt(argc, argv, "c:hn:M:s:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%ld",&buf_cnt);  break;
-    case 'c': sscanf(optarg,"%ld" ,&cores_per_node); break;
-    case 'n': sscanf(optarg,"%ld",&l_numrows);   break;
-    case 'M': sscanf(optarg,"%ld",&models_mask);  break;
-    case 's': sscanf(optarg,"%ld", &seed); break;      
+    case 'b': sscanf(optarg,"%"PRId64"",&buf_cnt);  break;
+    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
+    case 'n': sscanf(optarg,"%"PRId64"",&l_numrows);   break;
+    case 'M': sscanf(optarg,"%"PRId64"",&models_mask);  break;
+    case 's': sscanf(optarg,"%"PRId64"", &seed); break;      
     default:  break;
     }
   }
@@ -111,9 +111,9 @@ int main(int argc, char * argv[]) {
   T0_fprintf(stderr,"Running randperm on %d threads\n", THREADS);
   T0_fprintf(stderr,"This is a demo program that runs various implementations of the randperm kernel.\n");
   T0_fprintf(stderr,"Usage:\n");
-  T0_fprintf(stderr,"Permutation size per thread (-n) = %ld\n", l_numrows);
-  T0_fprintf(stderr,"models_mask (-M)                 = %ld or of 1,2,4,8 for atomics,classic,exstack2,conveyor\n", models_mask);
-  T0_fprintf(stderr,"seed (-s)                        = %ld\n", seed);
+  T0_fprintf(stderr,"Permutation size per thread (-n) = %"PRId64"\n", l_numrows);
+  T0_fprintf(stderr,"models_mask (-M)                 = %"PRId64" or of 1,2,4,8 for atomics,classic,exstack2,conveyor\n", models_mask);
+  T0_fprintf(stderr,"seed (-s)                        = %"PRId64"\n", seed);
 
 
   numrows = l_numrows * THREADS;
@@ -163,7 +163,7 @@ int main(int argc, char * argv[]) {
     T0_fprintf(stderr,"%8.3lf\n", stat->avg);
     if(!is_perm(out, numrows)){
       error++;
-      T0_printf("\nERROR: rand_permp_%ld failed!\n\n", use_model & models_mask);
+      T0_printf("\nERROR: rand_permp_%"PRId64" failed!\n\n", use_model & models_mask);
     }
     lgp_all_free(out);
   }

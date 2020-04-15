@@ -37,6 +37,7 @@
  *****************************************************************/ 
 #include <spmat.h>
 #include <exstack.h>
+#include <sys/stat.h> // for mkdir()
 
 /*! \file spmat_exstack.upc
  * \brief spmat routines written using exstack
@@ -138,7 +139,7 @@ SHARED int64_t * rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt) {
   t1 = wall_seconds() - t1;
   //T0_printf("phase 1 t1 = %8.3lf\n", t1);
   //rejects = lgp_reduce_add_l(rejects);
-  //T0_printf("rejects = %ld\n", rejects);
+  //T0_printf("rejects = %"PRId64"\n", rejects);
 
   exstack_clear(ex);
   free(ex);
@@ -155,7 +156,7 @@ SHARED int64_t * rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt) {
   /* sanity check */
   int64_t total = lgp_reduce_add_l(cnt);
   if(total != N){
-    T0_printf("ERROR: rand_permp_exstack: total = %ld should be %ld\n", total, N);
+    T0_printf("ERROR: rand_permp_exstack: total = %"PRId64" should be %"PRId64"\n", total, N);
     return(NULL);
   }
 
@@ -183,7 +184,7 @@ SHARED int64_t * rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt) {
   
   pos = lgp_reduce_add_l(pos);
   if(pos != N){
-    printf("ERROR! in rand_permp! sum of pos = %ld lN = %ld\n", pos, N);
+    printf("ERROR! in rand_permp! sum of pos = %"PRId64" lN = %"PRId64"\n", pos, N);
     return(NULL);
   }
   lgp_barrier();
@@ -286,7 +287,7 @@ sparsemat_t * permute_matrix_exstack(sparsemat_t * A, SHARED int64_t * rperminv,
         row++;
       pkg_nz.row = lrperminv[row] / THREADS;
       pkg_nz.col = A->lnonzero[i];
-      //printf("th %d: pushing (%ld, %ld) to pe %ld\n", MYTHREAD, lrperminv[row], pkg_nz.col, lrperminv[row] % THREADS);
+      //printf("th %d: pushing (%"PRId64", %"PRId64") to pe %"PRId64"\n", MYTHREAD, lrperminv[row], pkg_nz.col, lrperminv[row] % THREADS);
       if( !exstack_push(ex1, &pkg_nz, lrperminv[row] % THREADS ) )        
         break;
       i++;
@@ -294,7 +295,7 @@ sparsemat_t * permute_matrix_exstack(sparsemat_t * A, SHARED int64_t * rperminv,
     exstack_exchange(ex1);
 
     while(exstack_pop(ex1, &pkg_nz, &fromth)) {
-      //printf("th %d: rcv %ld %ld\n", MYTHREAD, pkg_nz.row, pkg_nz.col);
+      //printf("th %d: rcv %"PRId64" %"PRId64"\n", MYTHREAD, pkg_nz.row, pkg_nz.col);
       Ap->lnonzero[ Ap->loffset[pkg_nz.row] + wrkoff[pkg_nz.row] ] = pkg_nz.col;
       wrkoff[pkg_nz.row]++;
     }
@@ -304,9 +305,9 @@ sparsemat_t * permute_matrix_exstack(sparsemat_t * A, SHARED int64_t * rperminv,
   /* sanity check */
   int64_t error = 0L;
   for(i = 0; i < Ap->lnumrows; i++){
-    if(wrkoff[i] != tmprowcnts[i]){printf("T%d: w[%ld] = %ld trc[%ld] = %ld\n", MYTHREAD, i, wrkoff[i], i, tmprowcnts[i]);error++;}
+    if(wrkoff[i] != tmprowcnts[i]){printf("T%d: w[%"PRId64"] = %"PRId64" trc[%"PRId64"] = %"PRId64"\n", MYTHREAD, i, wrkoff[i], i, tmprowcnts[i]);error++;}
   }
-  if(error){printf("ERROR! permute_matrix_exstack: error = %ld\n", error);}
+  if(error){printf("ERROR! permute_matrix_exstack: error = %"PRId64"\n", error);}
 
   free(wrkoff);
   free(tmprowcnts);
@@ -457,14 +458,14 @@ sparsemat_t * transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt) {
 
   numtimespop = lgp_reduce_add_l(numtimespop);
   if(numtimespop != A->nnz ){
-    printf("ERROR: numtimespop %ld \n", numtimespop);
-    printf("%d wrkoff %ld\n", MYTHREAD, wrkoff[0]);
+    printf("ERROR: numtimespop %"PRId64" \n", numtimespop);
+    printf("%d wrkoff %"PRId64"\n", MYTHREAD, wrkoff[0]);
     return(NULL);
   }
 
   for(i = 0; i < At->lnumrows; i++){
     if(wrkoff[i] != lcounts[i] ) {
-      printf("ERROR: %d wrkoff[%ld] = %ld !=  %ld = lcounts[%ld]\n", MYTHREAD, i, wrkoff[i],lcounts[i],i);
+      printf("ERROR: %d wrkoff[%"PRId64"] = %"PRId64" !=  %"PRId64" = lcounts[%"PRId64"]\n", MYTHREAD, i, wrkoff[i],lcounts[i],i);
       return(NULL);
     }
   }
@@ -526,7 +527,7 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
     buf_cnt *= 2;
     rows_per_pass = buf_cnt/(max+1);
   }
-  //T0_fprintf("rows_per_pass = %ld, max = %lu\n", rows_per_pass, max);
+  //T0_fprintf("rows_per_pass = %"PRId64", max = %lu\n", rows_per_pass, max);
   
   /* allocate space */
   rowcnt_buf         = calloc(THREADS, sizeof(int64_t));  
@@ -558,7 +559,7 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
   last_row[THREADS - 1] = mat->numrows;
 
   //for(i = 0; i < THREADS; i++)
-    //T0_fprintf("%d first_pe = %ld last_row[%d]= %ld current_row_to_th[%ld] = %ld\n", MYTHREAD, first_pe, i, last_row[i], i, current_row_to_th[i]);
+    //T0_fprintf("%d first_pe = %"PRId64" last_row[%d]= %"PRId64" current_row_to_th[%"PRId64"] = %"PRId64"\n", MYTHREAD, first_pe, i, last_row[i], i, current_row_to_th[i]);
   
   
   /* make the directory */  
@@ -584,7 +585,7 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
   int64_t room;
   num_passes = (nr + THREADS - 1)/THREADS;
   num_passes /= (rows_per_pass * THREADS);
-  //T0_fprintf(stderr,"num_passes = %ld\n", num_passes);
+  //T0_fprintf(stderr,"num_passes = %"PRId64"\n", num_passes);
   
   error = 0;
   int imdone = 0;
@@ -644,7 +645,7 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
       recs_written =  fwrite(rowcnt_buf, sizeof(int64_t), rc_pos, rcfp);
       if(recs_written != rc_pos){
         error = 1;
-        fprintf(stderr, "write_sparse_matrix_exstack: recs_written != numrows %ld %ld on PE %d\n", recs_written, rc_pos, MYTHREAD);
+        fprintf(stderr, "write_sparse_matrix_exstack: recs_written != numrows %"PRId64" %"PRId64" on PE %d\n", recs_written, rc_pos, MYTHREAD);
       }
         
       /* count up the number of nonzeros to be written */
@@ -656,7 +657,7 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
       recs_written = fwrite(nz_buf, sizeof(int64_t), nz_pos, nzfp);
       if(recs_written != nz_pos){
         error = 1;
-        fprintf(stderr, "write_sparse_matrix_exstack: recs_written != nnz %ld %ld on PE %d\n", recs_written, nz_pos, MYTHREAD);
+        fprintf(stderr, "write_sparse_matrix_exstack: recs_written != nnz %"PRId64" %"PRId64" on PE %d\n", recs_written, nz_pos, MYTHREAD);
       }
     }
     lgp_barrier();

@@ -106,21 +106,21 @@ int main(int argc, char * argv[]) {
   while( (opt = getopt(argc, argv, "hb:M:n:c:T:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%ld" ,&buf_cnt);  break;
-    case 'M': sscanf(optarg,"%ld" ,&models_mask);  break;
-    case 'n': sscanf(optarg,"%ld" ,&l_num_ups);  break;
-    case 'T': sscanf(optarg,"%ld" ,&lnum_counts);  break;
-    case 'c': sscanf(optarg,"%ld" ,&cores_per_node); break;
+    case 'b': sscanf(optarg,"%"PRId64"" ,&buf_cnt);  break;
+    case 'M': sscanf(optarg,"%"PRId64"" ,&models_mask);  break;
+    case 'n': sscanf(optarg,"%"PRId64"" ,&l_num_ups);  break;
+    case 'T': sscanf(optarg,"%"PRId64"" ,&lnum_counts);  break;
+    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
     default:  break;
     }
   }
   if( printhelp ) usage(); 
 
   T0_fprintf(stderr,"Running histo on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %ld\n", buf_cnt);
-  T0_fprintf(stderr,"Number updates / thread              (-n)= %ld\n", l_num_ups);
-  T0_fprintf(stderr,"Table size / thread                  (-T)= %ld\n", lnum_counts);
-  T0_fprintf(stderr,"models_mask                          (-M)= %ld\n", models_mask);
+  T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %"PRId64"\n", buf_cnt);
+  T0_fprintf(stderr,"Number updates / thread              (-n)= %"PRId64"\n", l_num_ups);
+  T0_fprintf(stderr,"Table size / thread                  (-T)= %"PRId64"\n", lnum_counts);
+  T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", models_mask);
   fflush(stderr);
 
 
@@ -163,25 +163,25 @@ int main(int argc, char * argv[]) {
     switch( use_model & models_mask ) {
     case AGI_Model:
       T0_fprintf(stderr,"      AGI: ");
-      laptime = histo_agi(index, l_num_ups, counts);
+      laptime = histo_agi(index, l_num_ups, (int64_t *)counts);
       num_models++;
       break;
     
     case EXSTACK_Model:
       T0_fprintf(stderr,"  Exstack: ");
-      laptime = histo_exstack(pckindx, l_num_ups, lcounts, buf_cnt);
+      laptime = histo_exstack(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
       num_models++;
       break;
 
     case EXSTACK2_Model:
       T0_fprintf(stderr," Exstack2: ");
-      laptime = histo_exstack2(pckindx, l_num_ups, lcounts, buf_cnt);
+      laptime = histo_exstack2(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
       num_models++;
       break;
 
     case CONVEYOR_Model:
       T0_fprintf(stderr,"Conveyors: ");
-      laptime = histo_conveyor(pckindx, l_num_ups, lcounts);
+      laptime = histo_conveyor(pckindx, l_num_ups, (int64_t *)lcounts);
       num_models++;
       break;
 
@@ -209,7 +209,7 @@ int main(int argc, char * argv[]) {
   // Assume that the atomic add version will correctly zero out the counts array
   for(i = 0; i < l_num_ups; i++) {
 #pragma pgas defer_sync
-    lgp_atomic_add(counts, index[i], -num_models);
+    lgp_atomic_add((int64_t *)counts, index[i], -num_models);
   }
   lgp_barrier();
 
@@ -218,15 +218,15 @@ int main(int argc, char * argv[]) {
     if(lcounts[i] != 0L) {
       num_errors++;
       if(num_errors < 5)  // print first five errors, report number of errors below
-        fprintf(stderr,"ERROR: Thread %d error at %ld (= %ld)\n", MYTHREAD, i, lcounts[i]);
+        fprintf(stderr,"ERROR: Thread %d error at %"PRId64" (= %"PRId64")\n", MYTHREAD, i, lcounts[i]);
     }
   }
   totalerrors = lgp_reduce_add_l(num_errors);
   if(totalerrors) {
-     T0_fprintf(stderr,"FAILED!!!! total errors = %ld\n", totalerrors);   
+     T0_fprintf(stderr,"FAILED!!!! total errors = %"PRId64"\n", totalerrors);   
   }
   
-  lgp_all_free(counts);
+  lgp_all_free((int64_t *)counts);
   free(index);
   free(pckindx);
   lgp_finalize();

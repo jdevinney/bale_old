@@ -101,14 +101,14 @@ int64_t ig_check_and_zero(int64_t use_model, int64_t *tgt, int64_t *index, int64
     if(tgt[i] != (-1)*(index[i] + 1)){
       errors++;
       if(errors < 5)  // print first five errors, report all the errors
-        fprintf(stderr,"ERROR: model %ld: Thread %d: tgt[%ld] = %ld != %ld)\n",
+        fprintf(stderr,"ERROR: model %"PRId64": Thread %d: tgt[%"PRId64"] = %"PRId64" != %"PRId64")\n",
                 use_model,  MYTHREAD, i, tgt[i], (-1)*(index[i] + 1));
                //use_model,  MYTHREAD, i, tgt[i],(-1)*(i*THREADS+MYTHREAD + 1) );
     }
     tgt[i] = 0;
   }
   if( errors > 0 )
-    fprintf(stderr,"ERROR: %ld: %ld total errors on thread %d\n", use_model, errors, MYTHREAD);
+    fprintf(stderr,"ERROR: %"PRId64": %"PRId64" total errors on thread %d\n", use_model, errors, MYTHREAD);
   lgp_barrier();
   return(errors);
 }
@@ -130,11 +130,11 @@ int main(int argc, char * argv[]) {
   while( (opt = getopt(argc, argv, "hb:M:n:c:T:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%ld" ,&buf_cnt);   break;
-    case 'M': sscanf(optarg,"%ld" ,&models_mask);  break;
-    case 'n': sscanf(optarg,"%ld" ,&l_num_req);   break;
-    case 'T': sscanf(optarg,"%ld" ,&ltab_siz);   break;
-    case 'c': sscanf(optarg,"%ld" ,&cores_per_node); break;
+    case 'b': sscanf(optarg,"%"PRId64"" ,&buf_cnt);   break;
+    case 'M': sscanf(optarg,"%"PRId64"" ,&models_mask);  break;
+    case 'n': sscanf(optarg,"%"PRId64"" ,&l_num_req);   break;
+    case 'T': sscanf(optarg,"%"PRId64"" ,&ltab_siz);   break;
+    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
     default:  break;
     }
   }
@@ -142,10 +142,10 @@ int main(int argc, char * argv[]) {
   if(printhelp) usage();
 
   T0_fprintf(stderr,"Running ig on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %ld\n", buf_cnt);
-  T0_fprintf(stderr,"Number of Request / thread           (-n)= %ld\n", l_num_req );
-  T0_fprintf(stderr,"Table size / thread                  (-T)= %ld\n", ltab_siz);
-  T0_fprintf(stderr,"models_mask                          (-M)= %ld\n", models_mask);
+  T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %"PRId64"\n", buf_cnt);
+  T0_fprintf(stderr,"Number of Request / thread           (-n)= %"PRId64"\n", l_num_req );
+  T0_fprintf(stderr,"Table size / thread                  (-T)= %"PRId64"\n", ltab_siz);
+  T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", models_mask);
   T0_fprintf(stderr,"models_mask is or of 1,2,4,8,16 for agi,exstack,exstack2,conveyor,alternate)\n");
 
   

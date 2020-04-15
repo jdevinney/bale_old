@@ -116,9 +116,9 @@ SHARED int64_t * rand_permp_agi_opt(int64_t N, int seed) {
   
   
   if(pos != total_local_darts){
-    fprintf(stderr,"ERROR: randperm_agi_opt: pos != total_local_darts (%ld %ld)\n", pos, total_local_darts);return(NULL);}
+    fprintf(stderr,"ERROR: randperm_agi_opt: pos != total_local_darts (%"PRId64" %"PRId64")\n", pos, total_local_darts);return(NULL);}
   pos = lgp_reduce_add_l(pos);
-  if(pos != N){fprintf(stderr,"ERROR: randperm_agi_opt: total_darts != N (%ld %ld)\n", pos, N);return(NULL);}
+  if(pos != N){fprintf(stderr,"ERROR: randperm_agi_opt: total_darts != N (%"PRId64" %"PRId64")\n", pos, N);return(NULL);}
 
   //T0_fprintf(stderr,"time phase 2: %lf\n", wall_seconds() - t1);
   //t1 = wall_seconds();

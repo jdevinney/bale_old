@@ -154,7 +154,7 @@ SHARED int64_t * rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt) {
       else
         hits++;
     }
-    fprintf(stderr,"MYTHREAD = %ld hits = %ld\n", MYTHREAD, hits);
+    fprintf(stderr,"MYTHREAD = %"PRId64" hits = %"PRId64"\n", MYTHREAD, hits);
     more = exstack2_proceed(ex_throw, (hits == lN));
   }
   
@@ -177,7 +177,7 @@ SHARED int64_t * rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt) {
   /* sanity check */
   int64_t total = lgp_reduce_add_l(cnt);
   if(total != N){
-    T0_printf("ERROR: rand_permp_exstack2: total = %ld should be %ld\n", total, N);
+    T0_printf("ERROR: rand_permp_exstack2: total = %"PRId64" should be %"PRId64"\n", total, N);
     return(NULL);
   }
   
@@ -200,7 +200,7 @@ SHARED int64_t * rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt) {
 
   pos = lgp_reduce_add_l(pos);
   if(pos != N){
-    printf("ERROR! in rand_permp_exstack2! sum of pos = %ld lN = %ld\n", pos, N);
+    printf("ERROR! in rand_permp_exstack2! sum of pos = %"PRId64" lN = %"PRId64"\n", pos, N);
     return(NULL);
   }
   lgp_barrier();
@@ -302,14 +302,14 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
         row++; 
       pkg_nz.row = lrperminv[row] / THREADS;
       pkg_nz.col = A->lnonzero[i];
-      //printf("th %d: pushing (%ld, %ld) to pe %ld\n", MYTHREAD, lrperminv[row], pkg_nz.col, lrperminv[row] % THREADS);
+      //printf("th %d: pushing (%"PRId64", %"PRId64") to pe %"PRId64"\n", MYTHREAD, lrperminv[row], pkg_nz.col, lrperminv[row] % THREADS);
       if( !exstack2_push(exr, &pkg_nz, lrperminv[row] % THREADS ) )
         break;
       i++;
     }
 
     while(exstack2_pop(exr, &pkg_nz, &fromth)) {
-      //printf("th %d: rcv %ld %ld\n", MYTHREAD, pkg_nz.row, pkg_nz.col);
+      //printf("th %d: rcv %"PRId64" %"PRId64"\n", MYTHREAD, pkg_nz.row, pkg_nz.col);
       Ap->lnonzero[ Ap->loffset[pkg_nz.row] + wrkoff[pkg_nz.row] ] = pkg_nz.col;
       wrkoff[pkg_nz.row]++;
     }
@@ -319,8 +319,8 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
   /* sanity check */
   int64_t error = 0L;
   for(i = 0; i < Ap->lnumrows; i++)
-    if(wrkoff[i] != tmprowcnts[i]){printf("w[%ld] = %ld trc[%ld] = %ld\n", i, wrkoff[i], i, tmprowcnts[i]);error++;}
-  if(error){printf("ERROR! permute_matrix_exstack: error = %ld\n", error);}
+    if(wrkoff[i] != tmprowcnts[i]){printf("w[%"PRId64"] = %"PRId64" trc[%"PRId64"] = %"PRId64"\n", i, wrkoff[i], i, tmprowcnts[i]);error++;}
+  if(error){printf("ERROR! permute_matrix_exstack: error = %"PRId64"\n", error);}
 
   free(wrkoff);
   free(tmprowcnts);
@@ -462,14 +462,14 @@ sparsemat_t * transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt) {
 
   numtimespop = lgp_reduce_add_l(numtimespop);
   if(numtimespop != A->nnz ){
-    printf("ERROR: numtimespop %ld \n", numtimespop);
-    printf("%d wrkoff %ld\n", MYTHREAD, wrkoff[0]);
+    printf("ERROR: numtimespop %"PRId64" \n", numtimespop);
+    printf("%d wrkoff %"PRId64"\n", MYTHREAD, wrkoff[0]);
     return(NULL);
   }
 
   for(i = 0; i < At->lnumrows; i++){
     if(wrkoff[i] != lcounts[i] ) {
-      printf("ERROR: %d wrkoff[%ld] = %ld !=  %ld = lcounts[%ld]\n", MYTHREAD, i, wrkoff[i],lcounts[i],i);
+      printf("ERROR: %d wrkoff[%"PRId64"] = %"PRId64" !=  %"PRId64" = lcounts[%"PRId64"]\n", MYTHREAD, i, wrkoff[i],lcounts[i],i);
       return(NULL);
     }
   }
