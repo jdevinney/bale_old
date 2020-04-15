@@ -98,7 +98,6 @@ int64_t col_iter_init( col_iter_t *citer, sparsemat_t *mat, int64_t Row)
       citer->l_row = Row / THREADS;
       citer->ntg = 0;
       citer->c_idx = 0;
-#pragma unroll 0
       for(int k=0; k<2;k++)
         citer->idx_range[k] = mat->offset[ Row + k*THREADS ]; // pattern match to get both?
 
