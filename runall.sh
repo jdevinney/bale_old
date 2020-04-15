@@ -67,8 +67,11 @@ fi
 if [ -x "$(command -v aprun)" ]; then
    LAUNCHER='aprun'
 fi
+if [ -x "$(command -v oshrun)" ]; then
+   LAUNCHER='oshrun'
+fi
 if [ -z $LAUNCHER ]; then
-    echo "Can't find srun or aprun!"
+    echo "Can't find oshrun, srun, or aprun!"
     exit 1
 fi
 
@@ -87,10 +90,10 @@ do
     # just run the command with -h
     echo;echo; echo XXXXXXXXXXXX $app XXXXXXXXXXXXXXX
     echo;
-    $LAUNCHER -n1 $BALEDIR/build_$PLATFORM/apps/$app -h
+    $LAUNCHER -n 1 $BALEDIR/build_$PLATFORM/apps/$app -h
     echo;
     
-    for i in `seq 0 2 4`
+    for i in `seq 0 2`
     do
         echo;
         nodes=$((2**i))
