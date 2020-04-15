@@ -45,24 +45,24 @@ pkconfigdir=@libdir@/pkgconfig
 
 include_HEADERS=spmat.h
 
-lib_LIBRARIES = 
-lib_LTLIBRARIES = libspmat.la
+#lib_LIBRARIES = 
+lib_LIBRARIES = libspmat.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc
-libspmat_la_CPPFLAGS = -g -O2
-#libspmat_la_CPPFLAGS = -g -O0
+libspmat_a_CPPFLAGS = -g -O2
+#libspmat_a_CPPFLAGS = -g -O0
 
 if BUILD_UPC
-libspmat_la_SOURCES = $(common_sources:.c=__upc.upc)
+libspmat_a_SOURCES = $(common_sources:.c=__upc.upc)
 endif
 
 if BUILD_SHMEM
-#libspmat_la_LINK = $(LINK)
-libspmat_la_SOURCES = $(common_sources:.upc=__c.c)
-libspmat_la_CPPFLAGS += -DUSE_SHMEM
+#libspmat_a_LINK = $(LINK)
+libspmat_a_SOURCES = $(common_sources:.upc=__c.c)
+libspmat_a_CPPFLAGS += -DUSE_SHMEM
 endif
 
-libspmat_la_CPPFLAGS += @CPPFLAGS@ @libdeps_CFLAGS@
+libspmat_a_CPPFLAGS += @CPPFLAGS@ @libdeps_CFLAGS@
 
 # Automatic linking as needed to create C copies of UPC files.               #
 %__c.c: %.upc

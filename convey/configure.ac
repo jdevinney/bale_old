@@ -38,7 +38,7 @@ AC_INIT([convey], [0.5.1], [bale@super.org])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([simple.c])
 AC_CONFIG_HEADERS([config.h])
-AM_INIT_AUTOMAKE([foreign])
+AM_INIT_AUTOMAKE([foreign subdir-objects])
 
 # Configure options and variables
 AC_ARG_VAR([PERL], [Perl interpreter])

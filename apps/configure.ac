@@ -40,7 +40,7 @@ AC_PREREQ([2.60])                   #Require Minimum Autotools version 2.60
 
 AC_INIT([apps],   [2.1.0],   [bale@super.org])
 
-AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
+AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar subdir-objects])
 
 AC_ARG_WITH([upc],
             AS_HELP_STRING([--with-upc], [build a UPC version]),
@@ -77,6 +77,18 @@ PKG_CHECK_MODULES([libdeps],
 
 AM_CONDITIONAL(BUILD_UPC, [test "x$with_upc" = xyes])
 AM_CONDITIONAL(BUILD_SHMEM, [test "x$mpp_use_shmem" = xyes])
+
+
+AS_IF([test "x$mpp_use_shmem" = xyes],
+[AC_SEARCH_LIBS([shmemx_alltoallv], [],
+    [AC_DEFINE([HAVE_SHMEMX_ALLTOALLV], [1], [Define if shmem_alltoallv exists.])])
+AC_SEARCH_LIBS([shmemx_team_alltoallv], [],
+    [AC_DEFINE([HAVE_SHMEMX_TEAM_ALLTOALLV], [1], [Define if shmem_team_alltoallv exists.])])
+AC_SEARCH_LIBS([shmemx_putmem_signal], [],
+    [AC_DEFINE([HAVE_SHMEMX_PUTMEM_SIGNAL], [1], [Define if shmem_putmem_signal exists.])])
+AC_SEARCH_LIBS([shmem_free], [],
+    [AC_DEFINE([HAVE_SHMEM_FREE], [1], [Define if shmem_free exists.])])
+])
 
 # config files
 AC_CONFIG_FILES([
