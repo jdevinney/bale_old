@@ -93,7 +93,7 @@ do
     $LAUNCHER -n 1 $BALEDIR/build_$PLATFORM/apps/$app -h
     echo;
     
-    for i in `seq 0 2`
+    for i in `seq 0 2 4`
     do
         echo;
         nodes=$((2**i))
