@@ -78,7 +78,8 @@ typedef struct sparsemat_t{
   int64_t numcols;       //!< the nonzeros have values between 0 and numcols
   int64_t nnz;           //!< total number of nonzeros in the matrix
   int64_t * offset;      //!< the row offsets into the array of nonzeros
-  int64_t * nonzero;     //!< the global array of nonzeros
+  int64_t * nonzero;     //!< the global array of column indices for nonzeros
+  double * value;       //!< the global array of nonzero values
 }sparsemat_t;
 
 /*! \brief struct to hold the state used to iterate across the row of a sparse matrix.
@@ -123,11 +124,15 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat);
 
 sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz);
 enum ER_TRIANGLE {ER_TRI_L = 0, ER_TRI_U = 1, ER_TRI_LWD = 2, ER_TRI_UWD = 3};
-sparsemat_t * erdos_renyi_tri(int numrows, double p, enum ER_TRIANGLE mode, int64_t seed) ;
-sparsemat_t * naive_erdos_renyi_tri(int numrows, double p, enum ER_TRIANGLE mode, int64_t seed) ;
 
-enum ER_GRAPH {ER_GRAPH_SIMPLE = 0, ER_GRAPH_DIRECT = 1};
-sparsemat_t * erdos_renyi_graph(int64_t numrows, double p, enum ER_GRAPH mode, int64_t seed) ;
+sparsemat_t * random_graph(int64_t n, graph_gen mode, edge_type type, self_loops loops,
+			   double edge_density, int64_t seed);
+
+sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_loops loops, int64_t seed);
+sparsemat_t * erdos_renyi_random_graph(int n, double p, edge_type type, self_loops loops, int64_t seed);
+sparsemat_t * naive_erdos_random_graph(int n, double p, edge_type type, self_loops loops, int64_t seed);
+
+
 void clear_matrix(sparsemat_t * mat);
 
 #define spmat_INCLUDED
