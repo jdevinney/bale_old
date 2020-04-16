@@ -198,8 +198,8 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
 	fprint(fp," %9.5f\n",A->value[j]);
       else
 	fprintf(fp,"\n");
+    }
   }
-
   fclose(fp);
   return(0);
 }
@@ -209,8 +209,7 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
  * \param name the filename to written to
  * \return 0 on success, non-0 on error.
  */
-int64_t write_matrix_mm(sparsemat_t *A, char * name) 
-{
+int64_t write_matrix_mm(sparsemat_t *A, char * name) {
   int64_t i,j;
 
   FILE * fp = fopen(name, "w");       // FIXME error
@@ -231,15 +230,6 @@ int64_t write_matrix_mm(sparsemat_t *A, char * name)
   return(0);
 }
 
-
-/*! \struct element_t 
- * \brief structure used while reading and writing the MatrixMarket format.
- * We only handle {0,1} matrices, so we don't need triples.
- */
-typedef struct element_t { 
-  int64_t row; //!< row
-  int64_t col; //!< col
-} element_t;
 
 /*! \brief the compare function for qsort called while reading 
  * a MatrixMarket format.
@@ -307,7 +297,7 @@ sparsemat_t  *read_matrix_mm(char * name)
   }
   qsort( elts, nnz, sizeof(element_t), elt_comp);
 
-  sparsemat_t *ret = init_matrix( nr, nc, nnz );
+  sparsemat_t *ret = init_matrix( nr, nc, nnz ,0);//TODO: values??????
   if( ret == NULL ) {
     fprintf(stderr,"read_matrix_mm: sparsemat calloc failed\n");
     exit(1);
@@ -465,14 +455,11 @@ int nz_comp(const void *a, const void *b)
   return( *(uint64_t *)a - *(uint64_t *)b );
 }
 
- typedef struct col_val_t{
-   int64_t col;
-   double value;
- }col_val_t;
-
- int cv_comp(const void *a, const void *b)
+/*! \brief comparison function for qsort in sort_nonzeros in a matrix with values
+ */
+int cv_comp(const void *a, const void *b)
  {
-   return(*((col_val_t*)a->col) - *((col_val_t*)b->col));
+   return(((int64_t)((col_val_t*)a)->col) - ((int64_t)((col_val_t*)b)->col));
  }
  
 /*! \brief sort the  non-zeros in each row of a sparse matrix so that their column indices
@@ -488,7 +475,7 @@ int64_t sort_nonzeros( sparsemat_t *mat)
     // we have to create an array of stucts that holds col,val pairs for a row
     // sort that array according to the col keys
     // and then overwrite the row data
-    int64_t max = 0
+    int64_t max = 0;
     for(i = 0; i < mat->numrows; i++)
       if(mat->offset[i+1] - mat->offset[i] > max) max = mat->offset[i+1] - mat->offset[i];
 
@@ -499,13 +486,13 @@ int64_t sort_nonzeros( sparsemat_t *mat)
       int64_t pos = 0;
       for(j = mat->offset[i]; j < mat->offset[i+1]; j++){
 	tmparr[pos].col = mat->nonzero[j];
-	tmparr[pos++].val = mat->value[j];
+	tmparr[pos++].value = mat->value[j];
       }
-      qsort(tmaarr, mat->offset[i+1] - mat->offset[i], sizeof(col_val_t), cv_comp );
+      qsort(tmparr, mat->offset[i+1] - mat->offset[i], sizeof(col_val_t), cv_comp );
       pos = 0;
       for(j = mat->offset[i]; j < mat->offset[i+1]; j++){
 	mat->nonzero[j] = tmparr[pos].col;
-	mat->value[j] = tmparr[pos++].val;
+	mat->value[j] = tmparr[pos++].value;
       }
     }
     free(tmparr);
@@ -526,7 +513,7 @@ int64_t sort_nonzeros( sparsemat_t *mat)
 int64_t compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) 
 {
   int64_t i,j;
-  int value;
+  int values;
 
   if( lmat->value == NULL && rmat->value == NULL){
     values = 0;
@@ -534,7 +521,7 @@ int64_t compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat)
     printf("Only one matrix has values!\n");
     return(1);    
   }else{
-    value = 1;
+    values = 1;
   }
   
   if( lmat->numrows != rmat->numrows ){
@@ -640,9 +627,6 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
  /*************************************************************************************/
  /*                               RANDOM MATRICES                                     */
  /*************************************************************************************/
- enum graph_gen {ER, GEO};
- enum edge_type {DIR, UNDIR, DIR_WEIGHTED, UNDIR_WEIGHTED};
- enum self_loops {LOOPS, NOLOOPS};
 
  /* 
   * What kinds of methods should we have to generate "random" sparse matrices?
@@ -664,19 +648,19 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
  /*! \brief A routine to generate the adjacency matrix of a random graph.
   * 
   * \param n The number of vertices in the graph.
-  * \param mode ER (erdos-renyi) or GEO (geometric)
-  * \param type See edge_type.
-  * \param loops see self_loops
+  * \param mode ER (erdos-renyi) or GEO (geometric). See graph_gen enum.
+  * \param type See edge_type enum.
+  * \param loops see self_loops enum
   * \param edge_density: d in [0, 1), target fraction of edges present.
   * \param seed: RNG seed.
   */
  //
- sparsemat_t * random_graph(int64_t n, graph_gen mode, edge_type type, self_loops loops,
+ sparsemat_t * random_graph(int64_t n, int64_t mode, int64_t edge_type, int64_t loops,
 			    double edge_density, int64_t seed){
 
    if(mode == ER){
      
-     return(naive_erdos_renyi_random_graph(n, edge_density, type, loops, seed));
+     return(erdos_renyi_random_graph(n, edge_density, edge_type, loops, seed));
      
    }else if(mode == GEO){
      double r;
@@ -685,13 +669,13 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
      // for undirected d = E/(n choose 2)
      // for directed   d = E/(n^2 - n)
      if (edge_type == UNDIR || edge_type == UNDIR_WEIGHTED){
-       r = sqrt(2*(n-1)*edge_density/pi);
+       r = sqrt(2*(n-1)*edge_density/M_PI);
      }else{
        printf("ERROR: directed geometric graphs are not supported yet.\n");
        return(NULL);
      }
 
-     return(geometric_random_graph(n, r, seed));
+     return(geometric_random_graph(n, r, edge_type, loops, seed));
      
    }else{
      printf("ERROR: random_graph: Unknown type!\n");
@@ -716,7 +700,7 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
    int64_t i, j, r;
    int64_t row, col;
    double lM = log(RAND_MAX);
-   double D  = log(1 - p);
+   double D  = log(1 - density);
    int64_t nnz = 0;
    
    // first loop to count the number of nonzeros
@@ -736,7 +720,7 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
    
    sparsemat_t * A = init_matrix(nrows, ncols, nnz, values);
 
-   //second pass: regenerate same random string and populate the matrix
+   //second pass: regenerate same random sequence and populate the matrix
    srand(seed);
    row = 0;
    nnz = 0;
@@ -756,7 +740,7 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
    // fill in the random values
    if(values){
      for(i = 0; i < nnz; i++){
-       A->values[i] = (double)rand()/RAND_MAX;
+       A->value[i] = (double)rand()/RAND_MAX;
      }
    }
    return(A);
@@ -801,8 +785,8 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
   * \param seed A seed for the RNG.
   * \return An adjacency matrix (or lower portion of in the undirected case).
   */
-sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_loops loops, int64_t seed){
-   int64_t i, j;
+sparsemat_t * geometric_random_graph(int64_t n, double r, int64_t edge_type, int64_t loops, int64_t seed){
+  int64_t i, j, k, l;
    // We break up the unit square into an rxr grid.
    // We generate the points uniformly at random over the unit square.
    // We calculate edges by comparing distances between each point and every other point in
@@ -811,9 +795,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_l
    int64_t nsectors = ceil(1.0/r);
    sector_t ** sectors = calloc(nsectors, sizeof(sector_t*));
    for(i = 0; i < nsectors; i++){
-     sector[i] = calloc(nsectors, sizeof(sector_t));
+     sectors[i] = calloc(nsectors, sizeof(sector_t));
      for(j = 0; j < nsectors; j++)
-       sector[i][j].numpoints = 0;
+       sectors[i][j].numpoints = 0;
    }
    
    // First pass, generate the points and count how many will fall in each sector.
@@ -854,15 +838,15 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_l
    for(i = 0; i < nsectors; i++){
      for(j = 0; j < nsectors; j++){
        
-       sector_t * sec = sector[i][j];
-       int64_t m = sec.numpoints;
+       sector_t * sec = &sectors[i][j];
+       int64_t m = sec->numpoints;
        for(k = 0; k < m; k++){
 
-	 node = sec.points[k].index;
+	 node = sec->points[k].index;
 	 
 	 // count the edges to lower-indexed nodes within this sector
 	 for(l = 0; l < k; l++){
-	   if(dist(sec.points[k], sec.points[l]) < r)
+	   if(dist(sec->points[k], sec->points[l]) < r)
 	     nedges++;
 	 }
 
@@ -870,33 +854,33 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_l
 	 // to do this, we need to look at sectors to the W, NW, N, and NE.
 	 // W
 	 if(j > 0){
-	   sector_t * sec2 = sector[i][j-1];
-	   for(l = 0; l < sec2.numpoints; l++){
-	     if(dist(sec.points[k], sec2.points[l]) < r)
+	   sector_t * sec2 = &sectors[i][j-1];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r)
 	       nedges++;
 	   }
 	 } 
 	 // NW
 	 if(i > 0 && j > 0){
-	   sector_t * sec2 = sector[i-1][j-1];
-	   for(l = 0; l < sec2.numpoints; l++){
-	     if(dist(sec.points[k], sec2.points[l]) < r)
+	   sector_t * sec2 = &sectors[i-1][j-1];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r)
 	       nedges++;
 	   }
 	 } 
 	 // N
 	 if(i > 0){
-	   sector_t * sec2 = sector[i-1][j];
-	   for(l = 0; l < sec2.numpoints; l++){
-	     if(dist(sec.points[k], sec2.points[l]) < r)
+	   sector_t * sec2 = &sectors[i-1][j];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r)
 	       nedges++;
 	   }
 	 }
 	 // NE
 	 if(i > 0 && j < nsectors){
-	   sector_t * sec2 = sector[i-1][j-1];
-	   for(l = 0; l < sec2.numpoints; l++){
-	     if(dist(sec.points[k], sec2.points[l]) < r)
+	   sector_t * sec2 = &sectors[i-1][j-1];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r)
 	       nedges++;
 	   }
 	 } 
@@ -916,23 +900,23 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_l
    for(i = 0; i < nsectors; i++){
      for(j = 0; j < nsectors; j++){
        
-       sector_t * sec = sector[i][j];
-       int64_t m = sec.numpoints;
+       sector_t * sec = &sectors[i][j];
+       int64_t m = sec->numpoints;
        for(k = 0; k < m; k++){
 	 
-	 node = sec.points[k].index;
+	 node = sec->points[k].index;
 
 	 if(loops = LOOPS){
-	   A.nonzero[nedges] = node;
-	   if(weighted) A.values[nedges] = rand()/RAND_MAX;
+	   A->nonzero[nedges] = node;
+	   if(weighted) A->value[nedges] = rand()/RAND_MAX;
 	   nedges++;
 	 }
 	 
 	 // count the edges to lower-indexed nodes within this sector
 	 for(l = 0; l < k; l++){
-	   if(dist(sec.points[k], sec.points[l]) < r){
-	     A.nonzero[nedges] = sec.points[l].index;
-	     if(weighted) A.values[nedges] = rand()/RAND_MAX;
+	   if(dist(sec->points[k], sec->points[l]) < r){
+	     A->nonzero[nedges] = sec->points[l].index;
+	     if(weighted) A->value[nedges] = rand()/RAND_MAX;
 	     nedges++;
 	   }
 	 }
@@ -941,49 +925,49 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_l
 	 // to do this, we need to look at sectors to the W, NW, N, and NE.
 	 // W
 	 if(j > 0){
-	   sector_t * sec2 = sector[i][j-1];
-	   for(l = 0; l < sec2.numpoints; l++){
-	     if(dist(sec.points[k], sec2.points[l]) < r){
-	       A.nonzero[nedges] = sec2.points[l].index;
-	       if(weighted) A.values[nedges] = rand()/RAND_MAX;
+	   sector_t * sec2 = &sectors[i][j-1];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r){
+	       A->nonzero[nedges] = sec2->points[l].index;
+	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
 	       nedges++;
 	     }
 	   }
 	 } 
 	 // NW
 	 if(i > 0 && j > 0){
-	   sector_t * sec2 = sector[i-1][j-1];
-	   for(l = 0; l < sec2.numpoints; l++){
-	     if(dist(sec.points[k], sec2.points[l]) < r){
-	       A.nonzero[nedges] = sec2.points[l].index;
-	       if(weighted) A.values[nedges] = rand()/RAND_MAX;
+	   sector_t * sec2 = &sectors[i-1][j-1];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r){
+	       A->nonzero[nedges] = sec2->points[l].index;
+	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
 	       nedges++;
 	     }
 	   }
 	 } 
 	 // N
 	 if(i > 0){
-	   sector_t * sec2 = sector[i-1][j];
-	   for(l = 0; l < sec2.numpoints; l++){
-	     if(dist(sec.points[k], sec2.points[l]) < r){
-	       A.nonzero[nedges] = sec2.points[l].index;
-	       if(weighted) A.values[nedges] = rand()/RAND_MAX;
+	   sector_t * sec2 = &sectors[i-1][j];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r){
+	       A->nonzero[nedges] = sec2->points[l].index;
+	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
 	       nedges++;
 	     }
 	   }
 	 }
 	 // NE
 	 if(i > 0 && j < nsectors){
-	   sector_t * sec2 = sector[i-1][j-1];
-	   for(l = 0; l < sec2.numpoints; l++){
-	     if(dist(sec.points[k], sec2.points[l]) < r){
-	       A.nonzero[nedges] = sec2.points[l].index;
-	       if(weighted) A.values[nedges] = rand()/RAND_MAX;
+	   sector_t * sec2 = &sectors[i-1][j-1];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r){
+	       A->nonzero[nedges] = sec2->points[l].index;
+	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
 	       nedges++;
 	     }
 	   }
 	 }
-	 A.offset[node+1] = nedges;
+	 A->offset[node+1] = nedges;
 	 node++;
        }
               
@@ -999,20 +983,17 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_l
  * this algorithm generates a sequence of "gaps" between 1s in the upper or lower triangular portion of the 
  * adjancecy matrix using a geometric random variable.
  *
- * \param numrows The total number of vertices in the graph (rows in the matrix).
+ * \param n The total number of vertices in the graph (rows in the matrix).
  * \param p The probability that each non-loop edge is present.
- * \param mode  enum ER_TRIANGLE:
- *              ER_TRI_L, ER_TRI_U, ER_TRI_LWD, ER_TRI_UWD for 
- *              lower triangle, upper triangle, lower with diagonal, upper with diagonal, resp.
+ * \param type See edge_type.
+ * \param loops See self_loops.
  * \param seed A random seed.
  * \return A sparsemat_t
  */
- sparsemat_t * erdos_renyi_random_graph(int n, double p, edge_type type, self_loops loops, int64_t seed) {
-   int64_t row, col;
+sparsemat_t * erdos_renyi_random_graph(int n, double p, int64_t edge_type, int64_t loops, int64_t seed) {
+  int64_t row, col;
   double lM = log(RAND_MAX);
   double D  = log(1 - p);
-
-  int64_t numcols = numrows;
   int64_t nnz;
   int64_t r;
   int64_t lower, diag;
@@ -1026,7 +1007,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_l
   row = 0;
   do { r = rand(); } while(r == RAND_MAX);     
   col += 1 + floor((log(RAND_MAX - r) - lM)/D);
-  while(row < nrows){
+  while(row < n){
     if(edge_type == UNDIR || edge_type == UNDIR_WEIGHTED)
       end = row;
     while(col < end){
@@ -1035,16 +1016,17 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_l
       col += 1 + floor((log(RAND_MAX - r) - lM)/D);     
     }
     row++;
-    col -= ncols;
+    col -= end;
   }
   if(loops == LOOPS) nnz += n;
 
 
-  weighted = (type == UNDIR_WEIGHTED || type == DIR_WEIGHTED);
+  int weighted = (edge_type == UNDIR_WEIGHTED || edge_type == DIR_WEIGHTED);
   sparsemat_t * A = init_matrix(n, n, nnz, weighted);
   if(!A){ printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL); }
 
   // fill in the nonzeros
+  // TODO: this won't be sorted if directed and self_loops = LOOPS
   srand(seed);
   nnz = 0;
   A->offset[0] = 0;
@@ -1060,31 +1042,31 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type type, self_l
     if(loops == LOOPS) A->nonzero[nnz++] = row;
     row++;
     A->offset[row] = nnz;
-    col -= ncols;
+    col -= end;
   }
 
   // fill in weights
   if(weighted){
+    int64_t i;
     for(i = 0; i < nnz; i++){
-      mat->values[i] = (double)rand()/RAND_MAX;
+      mat->value[i] = (double)rand()/RAND_MAX;
     }
   }
   return(A);
 }
 
 /*! \brief Generates the upper or lower half of the adjacency matrix for an Erdos-Renyi random graph. 
- * This is here mostly for illustration cause it is so slow.
- * It flips a coin for each possible edge
- * \param numrows The total number of vertices in the graph (rows in the matrix).
+ * This is here mostly for illustration because it is so slow.
+ * It flips a coin for each possible edge.
+ * \param n The total number of vertices in the graph (rows in the matrix).
  * \param p The probability that each non-loop edge is present.
- * \param mode  enum ER_TRIANGLE:
- *              ER_TRI_L, ER_TRI_U, ER_TRI_LWD, ER_TRI_UWD for 
- *              lower triangle, upper triangle, lower with diagonal, upper with diagonal, resp.
+ * \param type See edge_type.
+ * \param loops See self_loops.
  * \param seed A random seed.
  * \return A sparsemat_t
  */
 
-sparsemat_t * naive_erdos_renyi_random_graph(int n, double p, edge_type type, self_loops loops, int64_t seed){
+sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, int64_t edge_type, int64_t loops, int64_t seed){
   int64_t row, col;
   int64_t P = p*RAND_MAX;
   int64_t pos;
@@ -1095,7 +1077,7 @@ sparsemat_t * naive_erdos_renyi_random_graph(int n, double p, edge_type type, se
   int64_t nnz = 0;
   int64_t end = n;
   for(row = 0; row < n; row++){
-    if(type == UNDIR || type == UNDIR_WEIGHTED)
+    if(edge_type == UNDIR || edge_type == UNDIR_WEIGHTED)
       end = row;    
     for(col = 0; col < end; col++){
       if(col == row) continue;
@@ -1106,16 +1088,16 @@ sparsemat_t * naive_erdos_renyi_random_graph(int n, double p, edge_type type, se
   }
   if(loops = LOOPS) nnz += n;
   
-  weighted = (type == UNDIR_WEIGHTED || type == DIR_WEIGHTED);
+  int weighted = (edge_type == UNDIR_WEIGHTED || edge_type == DIR_WEIGHTED);
   sparsemat_t * mat = init_matrix(n, n, nnz, weighted);
-  if(!mat){ printf("ERROR: naive_erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL); }
+  if(!mat){ printf("ERROR: erdos_renyi_random_graph_naive: init_matrix failed!\n"); return(NULL); }
 
   // fill in the nonzeros
   srand(seed);
   pos = 0;
   mat->offset[0] = 0;
   for(row = 0; row < n; row++){
-    if(type == UNDIR || type == UNDIR_WEIGHTED)
+    if(edge_type == UNDIR || edge_type == UNDIR_WEIGHTED)
       end = row + (loops == LOOPS);
     for(col = 0; col < end; col++){
       if(col == row && loops == LOOPS){
@@ -1130,60 +1112,15 @@ sparsemat_t * naive_erdos_renyi_random_graph(int n, double p, edge_type type, se
   }
   // fill in the weights
   if(weighted){
+    int64_t i;
     for(i = 0; i < pos; i++){
-      mat->values[i] = (double)rand()/RAND_MAX;
+      mat->value[i] = (double)rand()/RAND_MAX;
     }
   }
   
   return( mat);
 }
 
-/*! \brief Generates an Erdos-Renyi random graph
- * Puts together appropriate triangluar matrices created by erdos_renyi_tri
- * \param numrows The total number of vertices in the graph (rows in the matrix).
- * \param p The probability that each non-loop edge is present.
- * \param mode  enum ER_GRAPH:
- *              ER_GRAPH_SIMPLE, ER_GRAPH_DIRECT for a simple (undirected) graph, simple directed graph, resp
- * \param seed A random seed.
- * \return A sparsemat_t
- */
-
-sparsemat_t * erdos_renyi_graph(int64_t numrows, double p, enum ER_GRAPH mode, int64_t seed) 
-{
-  int64_t row, j;
-  int64_t pos;
-  sparsemat_t *mat, *U, *L;
-  
-  assert(numrows > 0);
-  switch(mode){ 
-  case ER_GRAPH_SIMPLE:
-    U = erdos_renyi_tri(numrows, p, ER_TRI_U, seed); 
-    L = transpose_matrix(U);
-    break;
-  case ER_GRAPH_DIRECT: 
-    U = erdos_renyi_tri(numrows, p, ER_TRI_U, seed); 
-    L = erdos_renyi_tri(numrows, p, ER_TRI_L, seed); 
-    break;
-  default: 
-    fprintf(stderr," ERROR: erdos_renyi_graph unknown mode\n"); return(NULL); 
-    break; 
-  }
-  
-  mat = init_matrix(numrows, numrows, U->nnz + L->nnz );
-  if(!mat){ printf("ERROR: gen_erdos_renyi_graph: init_matrix failed!\n"); return(NULL); }
-  
-  pos=0;
-  mat->offset[0] = 0;
-  for(row=0; row<numrows; row++) {
-    for(j=L->offset[row]; j< L->offset[row+1]; j++)
-      mat->nonzero[pos++] = L->nonzero[j];     
-    for(j=U->offset[row]; j< U->offset[row+1]; j++)
-      mat->nonzero[pos++] = U->nonzero[j];     
-    mat->offset[row+1] = pos;
-  }
-  
-  return( mat );
-}
 
 
 /*! \brief prints some stats of a sparse matrix
@@ -1219,4 +1156,5 @@ void clear_matrix(sparsemat_t * mat)
 {
   free(mat->nonzero);
   free(mat->offset);
+  free(mat->value);
 }
