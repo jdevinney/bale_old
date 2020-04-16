@@ -922,7 +922,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	 
 	 node = sec->points[k].index;
 
-	 if(loops = LOOPS){
+	 if(loops == LOOPS){
 	   A->nonzero[nedges] = node;
 	   if(weighted) A->value[nedges] = rand()/RAND_MAX;
 	   nedges++;
@@ -994,6 +994,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
               
      }
    }
+   sort_nonzeros(A);
    return(A);
  }
 
