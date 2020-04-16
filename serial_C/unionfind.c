@@ -55,7 +55,8 @@
  */
 sparsemat_t * generate_concomp_input(int64_t numrows, double edge_prob,  uint32_t seed, int dump_files) 
 {
-  sparsemat_t * mat = erdos_renyi_tri(numrows, edge_prob, ER_TRI_L, seed);
+  //sparsemat_t * mat = erdos_renyi_tri(numrows, edge_prob, ER_TRI_L, seed);
+  sparsemat_t * mat = random_graph(numrows, FLAT, UNDIRECTED, NOLOOPS, edge_prob, seed);
   if(!mat){
     fprintf(stderr, "ERROR: generate_concomp_input: failed!\n");
     return(NULL);
@@ -257,7 +258,6 @@ int main(int argc, char * argv[])
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of union_find\n");
     fprintf(stderr,"number of nodes      (-n) %ld\n", graph->numrows);
-    fprintf(stderr,"random seed          (-s) %d\n", seed);
     fprintf(stderr,"erdos_renyi_prob     (-e)= %lg\n", er_prob);
     fprintf(stderr,"readfile             (-f [%s])\n", filename); 
     fprintf(stderr,"random seed          (-s)= %d\n", seed);

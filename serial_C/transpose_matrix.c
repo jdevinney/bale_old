@@ -53,7 +53,7 @@ double transpose_generic(sparsemat_t *A, int64_t dump_files)
     write_matrix_mm(A, "er_orig.mm");
 
   tm = wall_seconds();
-  sparsemat_t *At = transpose_matrix(A);
+  sparsemat_t * At = transpose_matrix(A);
   tm = wall_seconds() - tm;
 
   if(dump_files)
@@ -66,27 +66,29 @@ int main(int argc, char * argv[])
 {
   #define NUMROWS 10000
   int64_t numrows=NUMROWS;
+  int64_t numcols = -1;
   uint32_t seed = 123456789;
   int64_t readgraph = 0;
   char filename[256]={"filename"};
   sparsemat_t *mat;
   int64_t dump_files=0;
   double laptime = 0.0;
-  double er_prob = 0.1;
+  double edge_prob = 0.1;
   
-  enum MODEL {GENERIC_Model=1, ALL_Models=2};
+  enum FLAVOR {GENERIC=1, ALL=2};
   uint32_t use_model;
-  uint32_t models_mask = ALL_Models - 1;
+  uint32_t models_mask = ALL - 1;
   int printhelp=0;
   int quiet=0;
   
   int opt; 
-  while( (opt = getopt(argc, argv, "hn:s:DM:e:f:q")) != -1 ) {
+  while( (opt = getopt(argc, argv, "hm:n:s:DM:e:f:q")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
     case 'n': sscanf(optarg,"%ld" ,&numrows );  break;
+    case 'm': sscanf(optarg,"%ld" ,&numcols );  break;
     case 's': sscanf(optarg,"%d" ,&seed );  break;
-    case 'e': er_prob = sscanf(optarg,"%lg", &er_prob); break;
+    case 'e': edge_prob = sscanf(optarg,"%lg", &edge_prob); break;
     case 'M': sscanf(optarg,"%d" , &models_mask);  break;
     case 'f': readgraph = 1; sscanf(optarg, "%s", filename); break;
     case 'D': dump_files = 1; break;
@@ -95,19 +97,24 @@ int main(int argc, char * argv[])
     }
   }
   
+  if(numcols == -1)
+    numcols = numrows;
+  
   if( readgraph ) {
-     mat = read_matrix_mm(filename);
+     mat = read_matrix_mm(filename);     
      if(!mat){printf("ERROR: transpose_matrix: read_matrix (%s) failed\n", filename); exit(1);}
   } else {
-     mat = erdos_renyi_graph(numrows, er_prob, ER_GRAPH_DIRECT, seed);
-     if(!mat){printf("ERROR: transpose_matrix: erdos_renyi_graph failed\n"); exit(1);}
+    //mat = erdos_renyi_graph(numrows, edge_prob, ER_GRAPH_DIRECT, seed);
+    mat = random_sparse_matrix(numrows, numcols, edge_prob, 0, seed);
+    if(!mat){printf("ERROR: transpose_matrix: erdos_renyi_graph failed\n"); exit(1);}
   }
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of transpose matrix\n");
-    fprintf(stderr,"Number of rows       (-n) %ld\n", numrows);
+    fprintf(stderr,"Number of rows       (-n) %ld\n", mat->numrows);
+    fprintf(stderr,"Number of cols       (-m) %ld\n", mat->numcols);
     fprintf(stderr,"random seed          (-s)= %d\n", seed);
     fprintf(stderr,"models_mask          (-M)= %d\n", models_mask);
-    fprintf(stderr,"erdos_renyi_prob     (-e)= %lg\n", er_prob);
+    fprintf(stderr,"edge_prob            (-e)= %lg\n", edge_prob);
     fprintf(stderr,"readgraph            (-f [%s])\n", filename); 
     fprintf(stderr,"dump_files           (-D)\n");
     fprintf(stderr,"quiet                (-q)= %d\n", quiet);
@@ -124,7 +131,7 @@ int main(int argc, char * argv[])
   
   for( use_model=1; use_model < 2; use_model *=2 ) {
     switch( use_model & models_mask ) {
-    case GENERIC_Model:
+    case GENERIC:
     if(!quiet) printf("transpose matrix : ");
     laptime = transpose_generic(mat, dump_files);
     break;

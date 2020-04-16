@@ -104,9 +104,9 @@ typedef struct col_val_t{
  }col_val_t;
 
 
-enum graph_gen {ER, GEO};
-enum edge_type {DIR, UNDIR, DIR_WEIGHTED, UNDIR_WEIGHTED};
-enum self_loops {LOOPS, NOLOOPS};
+typedef enum graph_model {FLAT, GEOMETRIC} graph_model;
+typedef enum edge_type {DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED} edge_type;
+typedef enum self_loops {LOOPS, NOLOOPS} self_loops;
 
 next_nz_t * new_nxt_nz( sparsemat_t *mat );
 void init_nxt_l_nz(next_nz_t * nxtnz, int64_t row);
@@ -122,9 +122,9 @@ sparsemat_t *    copy_matrix(sparsemat_t *srcmat);
 int64_t          dump_array(int64_t *A, int64_t len, int64_t maxdisp, char * name);
 int64_t          dump_matrix(sparsemat_t * A, int64_t maxrows, char * name);
 
-sparsemat_t *    erdos_renyi_random_graph(int n, double p, int64_t edge_type, int64_t loops, int64_t seed);
-sparsemat_t *    erdos_renyi_random_graph_naive(int n, double p, int64_t edge_type, int64_t loops, int64_t seed);
-sparsemat_t *    geometric_random_graph(int64_t n, double r, int64_t edge_type, int64_t loops, int64_t seed);
+sparsemat_t *    erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
+sparsemat_t *    erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
+sparsemat_t *    geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed);
 
 sparsemat_t *    init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values);
 
@@ -136,8 +136,8 @@ int              nz_comp(const void *a, const void *b);
 sparsemat_t *    permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cperminv);
 
 int64_t *        rand_perm(int64_t N, int64_t seed);
-sparsemat_t *    random_graph(int64_t n, int64_t mode, int64_t edge_type, int64_t loops,
-			      double edge_density, int64_t seed);
+
+sparsemat_t *    random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops, double edge_density, int64_t seed);
 sparsemat_t *    random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed);
 
 sparsemat_t *    read_matrix_mm(char * name);
@@ -149,11 +149,6 @@ int64_t          write_matrix_mm(sparsemat_t * A, char * name);
 
 
 double wall_seconds();
-
-
-
-
-
 
 
 #define spmat_INCLUDED

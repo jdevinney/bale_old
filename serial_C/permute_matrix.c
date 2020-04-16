@@ -65,7 +65,8 @@ double permute_matrix_generic(sparsemat_t *A, int64_t *rp, int64_t *cp)
 int main(int argc, char * argv[]) 
 {
   int64_t numrows = 10000;
-  double er_prob = 0.05;
+  int64_t numcols = -1;
+  double edge_prob = 0.05;
   int32_t dump_files = 0;
   int32_t readgraph = 0;
   char filename[256]={"filename"};
@@ -73,32 +74,48 @@ int main(int argc, char * argv[])
   uint32_t seed = 101892;
   double laptime = 0.0;
 
-  enum MODEL {GENERIC_Model=1, ALL_Models=2};
+  enum FLAVOR {GENERIC=1, ALL=2};
   uint32_t use_model;
-  uint32_t models_mask = ALL_Models - 1;
+  uint32_t models_mask = ALL - 1;
   int printhelp=0;
   int quiet=0;
 
   int opt; 
-  while( (opt = getopt(argc, argv, "hn:s:M:e:f:Dq")) != -1 ) {
+  while( (opt = getopt(argc, argv, "hn:m:s:M:e:f:Dq")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
     case 'n': sscanf(optarg,"%ld" ,&numrows );  break;
+    case 'm': sscanf(optarg,"%ld" ,&numcols );  break;
     case 's': sscanf(optarg,"%d" ,&seed );  break;
     case 'M': sscanf(optarg,"%d" , &models_mask);  break;
-    case 'e': er_prob = sscanf(optarg,"%lg", &er_prob); break;
+    case 'e': edge_prob = sscanf(optarg,"%lg", &edge_prob); break;
     case 'f': readgraph = 1; sscanf(optarg, "%s", filename); break;
     case 'D': dump_files = 1;  break;
     case 'q': quiet = 1; break;
     default:  break;
     }
   }
+  if(numcols == -1)
+    numcols = numrows;
 
+  sparsemat_t *mat;
+  if( readgraph ) {
+    mat = read_matrix_mm(filename);
+    if(!mat){printf("ERROR: Read graph from %s Failed\n", filename); exit(1);}
+  } else {
+    //mat = erdos_renyi_graph(numrows, er_prob, ER_GRAPH_DIRECT, seed);
+    mat = random_sparse_matrix(numrows, numcols, edge_prob, 0, seed);
+    if(!mat){printf("ERROR: erdos_renyi_graph failed!\n"); exit(1);}
+  }
+  if(dump_files) dump_matrix(mat, 20, "mat.out");
+
+  
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of permute_matrix\n");
     fprintf(stderr,"help                 (-h)\n");
-    fprintf(stderr,"numrows              (-n)= %ld\n", numrows);
-    fprintf(stderr,"erdos_renyi_prob     (-e)= %lg\n", er_prob);
+    fprintf(stderr,"numrows              (-n)= %ld\n", mat->numrows);
+    fprintf(stderr,"numcols              (-n)= %ld\n", mat->numcols);
+    fprintf(stderr,"edge_prob            (-e)= %lg\n", edge_prob);
     fprintf(stderr,"readfile             (-f [%s])\n", filename); 
     fprintf(stderr,"random seed          (-s)= %d\n", seed);
     fprintf(stderr,"models_mask          (-M)= %d\n", models_mask);
@@ -111,19 +128,9 @@ int main(int argc, char * argv[])
   int64_t *rperm = rand_perm(numrows, seed); assert(rperm != NULL);
   int64_t *cperm = rand_perm(numrows, seed); assert(cperm != NULL);
 
-  sparsemat_t *mat;
-  if( readgraph ) {
-    mat = read_matrix_mm(filename);
-    if(!mat){printf("ERROR: Read graph from %s Failed\n", filename); exit(1);}
-  } else {
-    mat = erdos_renyi_graph(numrows, er_prob, ER_GRAPH_DIRECT, seed);
-    if(!mat){printf("ERROR: erdos_renyi_graph failed!\n"); exit(1);}
-  }
-  if(dump_files) dump_matrix(mat, 20, "mat.out");
-
-  for( use_model=1; use_model < ALL_Models; use_model *=2 ) {
+  for( use_model=1; use_model < ALL; use_model *=2 ) {
     switch( use_model & models_mask ) {
-    case GENERIC_Model:
+    case GENERIC:
       if(!quiet) printf("generic permute matrix: ");
       laptime = permute_matrix_generic(mat, rperm, cperm);
     break;
