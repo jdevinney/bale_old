@@ -99,14 +99,16 @@ int64_t col_iter_init( col_iter_t *citer, sparsemat_t *mat, int64_t Row)
       citer->ntg = 0;
       citer->c_idx = 0;
       for(int k=0; k<2;k++)
-        citer->idx_range[k] = mat->offset[ Row + k*THREADS ]; // pattern match to get both?
+	citer->idx_range[k] = lgp_get_int64(mat->offset, Row + k*THREADS);
+	//citer->idx_range[k] = mat->offset[ Row + k*THREADS ]; // pattern match to get both?
 
       if( citer->idx_range[0] < citer->idx_range[1] ){
         citer->ntg = citer->idx_range[1] - citer->idx_range[0];
         citer->ntg = ((citer->ntg) > COL_CACHE_SZ) ? COL_CACHE_SZ : citer->ntg;
         for(int k=0; k<citer->ntg; k++)
-//#pragma pgas defer_sync 
-          citer->cached[k] = mat->nonzero[(citer->idx_range[0] + k) * THREADS + citer->pe];
+	  //#pragma pgas defer_sync
+	  citer->cached[k] = lgp_get_int64(mat->nonzero, (citer->idx_range[0] + k) * THREADS + citer->pe);
+	//citer->cached[k] = mat->nonzero[(citer->idx_range[0] + k) * THREADS + citer->pe];
         citer->idx_range[0] += citer->ntg;
 //        upc_fence;
         return( citer->cached[citer->c_idx] );
@@ -134,8 +136,9 @@ int64_t col_iter_next( col_iter_t *citer)
         citer->ntg = citer->idx_range[1] - citer->idx_range[0];
         citer->ntg = ((citer->ntg) > COL_CACHE_SZ) ? COL_CACHE_SZ : citer->ntg;
         for(int k=0; k<citer->ntg; k++)
-//#pragma pgas defer_sync 
-          citer->cached[k] = citer->mat->nonzero[(citer->idx_range[0] + k) * THREADS + citer->pe];
+	  //#pragma pgas defer_sync
+	  citer->cached[k] = lgp_get_int64(citer->mat->nonzero, (citer->idx_range[0] + k) * THREADS + citer->pe);
+          //citer->cached[k] = citer->mat->nonzero[(citer->idx_range[0] + k) * THREADS + citer->pe];
         citer->idx_range[0] += citer->ntg;
         citer->c_idx = 0;
 //        upc_fence;
