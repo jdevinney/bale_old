@@ -284,9 +284,9 @@ long lgp_reduce_add_l(long myval){
   return buff[1];
 }
 */
-Define_Reducer(lgp_reduce_add_l, long long, long long, shmem_longlong_sum_to_all)
-Define_Reducer(lgp_reduce_min_l, long long, long long, shmem_longlong_min_to_all)
-Define_Reducer(lgp_reduce_max_l, long long, long long, shmem_longlong_max_to_all)
+Define_Reducer(lgp_reduce_add_l, int64_t, int64_t, shmem_longlong_sum_to_all)
+Define_Reducer(lgp_reduce_min_l, int64_t, int64_t, shmem_longlong_min_to_all)
+Define_Reducer(lgp_reduce_max_l, int64_t, int64_t, shmem_longlong_max_to_all)
 
 Define_Reducer(lgp_reduce_add_d, double, double, shmem_double_sum_to_all)
 Define_Reducer(lgp_reduce_min_d, double, double, shmem_double_min_to_all)
