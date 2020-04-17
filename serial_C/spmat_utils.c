@@ -828,12 +828,13 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       sectors[i][j].points = calloc(sectors[i][j].numpoints, sizeof(points_t));
     }
   }
-  
-  // reset numpoints
-  for(i = 0; i < nsectors; i++)
-    for(j = 0; j < nsectors; j++)
-      sectors[i][j].numpoints = 0;
 
+  // reset numpoints
+  for(i = 0; i < nsectors; i++){
+    for(j = 0; j < nsectors; j++){
+      sectors[i][j].numpoints = 0;
+    }
+  }
   // Second pass: generate the points and insert them into the struct
   srand(seed);
   for(i = 0; i < n; i++){
@@ -841,80 +842,79 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     double y = (double)rand()/RAND_MAX;
     int64_t row = floor(y/r);
     int64_t col = floor(x/r);
-    sectors[row][col].points[sectors[row][col].numpoints].x = x;
-    sectors[row][col].points[sectors[row][col].numpoints].y = y;
-    sectors[row][col].points[sectors[row][col].numpoints].index = first_index_this_sector[row][col] + sectors[row][col].numpoints;
+    int64_t li = sectors[row][col].numpoints;
+    sectors[row][col].points[li].x = x;
+    sectors[row][col].points[li].y = y;
+    sectors[row][col].points[li].index = first_index_this_sector[row][col] + li;
     sectors[row][col].numpoints++;
   }
+  
+  
+  // next we will count number of edges
+  int64_t node = 0;
+  int64_t nedges = 0;
+  for(i = 0; i < nsectors; i++){
+    for(j = 0; j < nsectors; j++){
+      
+      sector_t * sec = &sectors[i][j];
+      int64_t m = sec->numpoints;
+      for(k = 0; k < m; k++){
 
-   // next we will count number of edges
-   int64_t node = 0;
-   int64_t nedges = 0;
-   for(i = 0; i < nsectors; i++){
-     for(j = 0; j < nsectors; j++){
-       
-       sector_t * sec = &sectors[i][j];
-       int64_t m = sec->numpoints;
-       for(k = 0; k < m; k++){
+	// count the edges to lower-indexed nodes within this sector
+	for(l = 0; l < k; l++){
+	  if(dist(sec->points[k], sec->points[l]) < r)
+	    nedges++;
+	}
 
-	 node = sec->points[k].index;
-	 
-	 // count the edges to lower-indexed nodes within this sector
-	 for(l = 0; l < k; l++){
-	   if(dist(sec->points[k], sec->points[l]) < r)
-	     nedges++;
-	 }
-
-	 // count the edges to lower-indexed nodes outside the sector
-	 // to do this, we need to look at sectors to the W, NW, N, and NE.
-	 // W
-	 if(j > 0){
-	   sector_t * sec2 = &sectors[i][j-1];
-	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r)
-	       nedges++;
-	   }
-	 } 
-	 // NW
-	 if(i > 0 && j > 0){
-	   sector_t * sec2 = &sectors[i-1][j-1];
-	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r)
-	       nedges++;
-	   }
-	 } 
-	 // N
-	 if(i > 0){
-	   sector_t * sec2 = &sectors[i-1][j];
-	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r)
-	       nedges++;
-	   }
-	 }
-	 // NE
-	 if(i > 0 && j < nsectors){
-	   sector_t * sec2 = &sectors[i-1][j-1];
-	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r)
-	       nedges++;
-	   }
-	 } 
-
-       }
-     }
-   }
-
-   if(loops == LOOPS)
-     nedges += n;
-   printf("nedges = %ld %lf\n", nedges, nedges/((double)n*(n-1)/2.0));
+	// count the edges to lower-indexed nodes outside the sector
+	// to do this, we need to look at sectors to the W, NW, N, and NE.
+	// W
+	if(j > 0){
+	  sector_t * sec2 = &sectors[i][j-1];
+	  for(l = 0; l < sec2->numpoints; l++){
+	    if(dist(sec->points[k], sec2->points[l]) < r)
+	      nedges++;
+	  }
+	} 
+	// NW
+	if(i > 0 && j > 0){
+	  sector_t * sec2 = &sectors[i-1][j-1];
+	  for(l = 0; l < sec2->numpoints; l++){
+	    if(dist(sec->points[k], sec2->points[l]) < r)
+	      nedges++;
+	  }
+	} 
+	// N
+	if(i > 0){
+	  sector_t * sec2 = &sectors[i-1][j];
+	  for(l = 0; l < sec2->numpoints; l++){
+	    if(dist(sec->points[k], sec2->points[l]) < r)
+	      nedges++;
+	  }
+	}
+	// NE
+	if(i > 0 && j < (nsectors-1)){
+	  sector_t * sec2 = &sectors[i-1][j+1];
+	  for(l = 0; l < sec2->numpoints; l++){
+	    if(dist(sec->points[k], sec2->points[l]) < r)
+	      nedges++;
+	  }
+	} 
+      }
+    }
+  }
+  
+  if(loops == LOOPS)
+    nedges += n;
+  printf("nedges = %ld %lf\n", nedges, nedges/((double)n*(n-1)/2.0));
    
-   int weighted = (edge_type == UNDIRECTED_WEIGHTED);
-   sparsemat_t * A = init_matrix(n, n, nedges, weighted);
+  int weighted = (edge_type == UNDIRECTED_WEIGHTED);
+  sparsemat_t * A = init_matrix(n, n, nedges, weighted);
 
-   // go back through the loop and populate the adjacency matrix
-   nedges = 0;
-   for(i = 0; i < nsectors; i++){
-     for(j = 0; j < nsectors; j++){
+  // go back through the loop and populate the adjacency matrix
+  nedges = 0;
+  for(i = 0; i < nsectors; i++){
+    for(j = 0; j < nsectors; j++){
        
        sector_t * sec = &sectors[i][j];
        int64_t m = sec->numpoints;
@@ -977,8 +977,8 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	   }
 	 }
 	 // NE
-	 if(i > 0 && j < nsectors){
-	   sector_t * sec2 = &sectors[i-1][j-1];
+	 if(i > 0 && j < (nsectors-1)){
+	   sector_t * sec2 = &sectors[i-1][j+1];
 	   for(l = 0; l < sec2->numpoints; l++){
 	     if(dist(sec->points[k], sec2->points[l]) < r){
 	       A->nonzero[nedges] = sec2->points[l].index;
