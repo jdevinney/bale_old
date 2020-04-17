@@ -647,11 +647,14 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
  // SSSP: random non-symmetric square with values
 
  /*! \brief A routine to generate the adjacency matrix of a random graph.
+  * If the graph is undirected, this routine only returns a lower-triangular
+  * adjancency matrix (since the adjancency matrix would be symmetric and we don't need
+  * the redundant entries).
   * 
   * \param n The number of vertices in the graph.
-  * \param mode ER (erdos-renyi) or GEO (geometric). See graph_gen enum.
-  * \param type See edge_type enum.
-  * \param loops see self_loops enum
+  * \param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
+  * \param edge_type See edge_type enum. Directed, or not, Weighted or not.
+  * \param loops see self_loops enum. Does every node have a loop or not.
   * \param edge_density: d in [0, 1), target fraction of edges present.
   * \param seed: RNG seed.
   */
@@ -772,16 +775,21 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
    int64_t numpoints;
  }sector_t;
 
- double dist(points_t a, points_t b){
-   return(sqrt((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y)));
- }
+// returns the square of the L2 distance
+double dist(points_t a, points_t b){
+  return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
+}
 
 
  
  /*! \brief Generates the adjacency matrix for a random geometric graph. 
+  * 
   * See https://en.wikipedia.org/wiki/Random_geometric_graph
+  * Each vertex corresponds to a point randomly placed in the unit square. Two vertices
+  * are adjancent if their corresponding points are within distance r of each other.
+  * 
   * \param n The number of vertices
-  * \param r The size of the neighborhood that determines edges.
+  * \param r The size of the neighborhoods that determine edges.
   * \param type See edge_type. If undirected, this routine returns a lower triangular matrix.
   * \param loops See self_loops. Are there self loops?
   * \param seed A seed for the RNG.
@@ -789,6 +797,7 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
   */
 sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed){
   int64_t i, j, k, l;
+  double r2 = r*r;
   // We break up the unit square into chunks that are rxr grid.
   // We generate the points uniformly at random over the unit square.
   // We calculate edges by comparing distances between each point and every other point in
@@ -862,7 +871,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 
 	// count the edges to lower-indexed nodes within this sector
 	for(l = 0; l < k; l++){
-	  if(dist(sec->points[k], sec->points[l]) < r)
+	  if(dist(sec->points[k], sec->points[l]) < r2)
 	    nedges++;
 	}
 
@@ -872,7 +881,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	if(j > 0){
 	  sector_t * sec2 = &sectors[i][j-1];
 	  for(l = 0; l < sec2->numpoints; l++){
-	    if(dist(sec->points[k], sec2->points[l]) < r)
+	    if(dist(sec->points[k], sec2->points[l]) < r2)
 	      nedges++;
 	  }
 	} 
@@ -880,7 +889,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	if(i > 0 && j > 0){
 	  sector_t * sec2 = &sectors[i-1][j-1];
 	  for(l = 0; l < sec2->numpoints; l++){
-	    if(dist(sec->points[k], sec2->points[l]) < r)
+	    if(dist(sec->points[k], sec2->points[l]) < r2)
 	      nedges++;
 	  }
 	} 
@@ -888,7 +897,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	if(i > 0){
 	  sector_t * sec2 = &sectors[i-1][j];
 	  for(l = 0; l < sec2->numpoints; l++){
-	    if(dist(sec->points[k], sec2->points[l]) < r)
+	    if(dist(sec->points[k], sec2->points[l]) < r2)
 	      nedges++;
 	  }
 	}
@@ -896,7 +905,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	if(i > 0 && j < (nsectors-1)){
 	  sector_t * sec2 = &sectors[i-1][j+1];
 	  for(l = 0; l < sec2->numpoints; l++){
-	    if(dist(sec->points[k], sec2->points[l]) < r)
+	    if(dist(sec->points[k], sec2->points[l]) < r2)
 	      nedges++;
 	  }
 	} 
@@ -906,7 +915,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   if(loops == LOOPS)
     nedges += n;
-  printf("nedges = %ld %lf\n", nedges, nedges/((double)n*(n-1)/2.0));
+  //printf("nedges = %ld %lf\n", nedges, nedges/((double)n*(n-1)/2.0));
    
   int weighted = (edge_type == UNDIRECTED_WEIGHTED);
   sparsemat_t * A = init_matrix(n, n, nedges, weighted);
@@ -930,7 +939,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	 
 	 // count the edges to lower-indexed nodes within this sector
 	 for(l = 0; l < k; l++){
-	   if(dist(sec->points[k], sec->points[l]) < r){
+	   if(dist(sec->points[k], sec->points[l]) < r2){
 	     A->nonzero[nedges] = sec->points[l].index;
 	     assert(node >= sec->points[l].index);
 	     if(weighted) A->value[nedges] = rand()/RAND_MAX;
@@ -944,7 +953,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	 if(j > 0){
 	   sector_t * sec2 = &sectors[i][j-1];
 	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r){
+	     if(dist(sec->points[k], sec2->points[l]) < r2){
 	       A->nonzero[nedges] = sec2->points[l].index;
 	       assert(node >= sec2->points[l].index);
 	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
@@ -956,7 +965,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	 if(i > 0 && j > 0){
 	   sector_t * sec2 = &sectors[i-1][j-1];
 	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r){
+	     if(dist(sec->points[k], sec2->points[l]) < r2){
 	       A->nonzero[nedges] = sec2->points[l].index;
 	       assert(node >= sec2->points[l].index);
 	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
@@ -968,7 +977,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	 if(i > 0){
 	   sector_t * sec2 = &sectors[i-1][j];
 	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r){
+	     if(dist(sec->points[k], sec2->points[l]) < r2){
 	       A->nonzero[nedges] = sec2->points[l].index;
 	       assert(node >= sec2->points[l].index);
 	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
@@ -980,7 +989,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	 if(i > 0 && j < (nsectors-1)){
 	   sector_t * sec2 = &sectors[i-1][j+1];
 	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r){
+	     if(dist(sec->points[k], sec2->points[l]) < r2){
 	       A->nonzero[nedges] = sec2->points[l].index;
 	       assert(node >= sec2->points[l].index);
 	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
@@ -1052,7 +1061,6 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
   if(!A){ printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL); }
 
   // fill in the nonzeros
-  // TODO: this won't be sorted if directed and self_loops = LOOPS
   srand(seed);
   nnz = 0;
   row = 0;
@@ -1086,6 +1094,8 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
     }
   }
   assert(A->nnz == nnz);
+  if(loops == LOOPS && (edge_type == DIRECTED || edge_type == DIRECTED_WEIGHTED))
+    sort_nonzeros(A); // to get the diagonal entry sorted correctly
   return(A);
 }
 

@@ -147,7 +147,11 @@ int main(int argc, char * argv[])
     if(printhelp)
       return(0);
   }
-
+  if(!quiet){
+    printf("Input matrix stats:\n");
+    spmat_stats(mat);
+  }
+    
   tmat = transpose_matrix(mat); 
   if(dump_files){
     dump_matrix(mat, 20, "mat.out");
