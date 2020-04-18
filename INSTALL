@@ -45,6 +45,7 @@
 #  runall.sh     # a test script
 #  Doxyfile      # A key to building the documentation with doxygen (see more below).
 #  mainpage.h    # The main documentation page.
+#  clang_upc_run.sh  # a script to add "-fupc-threads-N" as appropriate when using clang-upc
 #
 # The codes are in C and all except conveyors use the libgetput library for a parallel API.
 # Everything can be built on UPC or SHMEM. We have tested with Cray UPC (cce 8.7.3). We have
@@ -108,6 +109,41 @@
 # previously used options) to rebuild everything without reconfiguring.  See
 # also the AUTOTUNING section of convey/INSTALL.
 #
+#
+# Installing on Mac OS X ########################################
+#
+# This is a bit tricky :)
+#
+# 1. install osx compiling environment, bring up the mac app store and install xcode
+#    After installation you need to accept the license:
+#
+# % sudo xcodebuild -license
+#
+# 2. to get autotools, best to use brew (https://brew.sh):
+#
+# % brew install autoconf
+# % brew install automake
+# % brew install libtool
+#
+# 3. to get clang-upc, which seems to run well, go to:
+#     https://clangupc.github.io/clang-upc/install.html
+#    and follow the directions. You will need to do
+#
+# % brew install cmake
+#
+#    to get this to work.  On recent OS X versions (10.15, maybe 10.14) you need
+#    to pass another argument to cmake: -DDEFAULT_SYSROOT:STRING="$(xcrun --show-sdk-path)"
+#
+# 4. to use shmem, SOS openShmem seems best for now.  Go to:
+#     https://github.com/Sandia-OpenSHMEM/SOS/wiki/OFI-Build-Instructions
+#    and follow the directions.  For recent versions OS X (10.15, maybe 10.14) you
+#    need to set an environment variable before runnig anything will work.
+#     export SHMEM_OFI_DOMAIN=lo0
+#    performance is horrid because it only has a socket based implementation
+#
+# 5. when using the runit.sh script with clang, you need to say
+#     ./runit.sh -l $PWD/clang_upc_run.sh -c 2
+#    Note that -c should be small but not less than 2, otherwise some things hang
 #
 # DOCUMENTATION #####################################################
 #

@@ -40,17 +40,24 @@
 # You specify cores_per_node on the command line using the -c option: for example
 # ./runall.sh -c 32
 #
+if [ -z ${PLATFORM+x} ]; then
+    PLATFORM="unknown"
+fi
 cores_per_node=""
 quick_run=0
 mask=31
 path=$HOME/bale/build_$PLATFORM/bin
-while getopts ":c:qM:p:" opt; do
+LAUNCHER=""
+options=""
+while getopts ":c:qM:p:e:o:l:" opt; do
     case $opt in
         c ) cores_per_node=$OPTARG;;
         q ) quick_run=1;;
         M ) mask=$OPTARG;;
         p ) path=$OPTARG;;
-        \? ) echo 'usage: runall [-c cores_per_node] [-M models_mask] [-p PATH_TO_BINARIES] [-q]'
+	o ) options=$OPTARG;;
+	l ) LAUNCHER=$OPTARG;;
+        \? ) echo 'usage: runall -c cores_per_node [-M models_mask] [-p PATH_TO_BINARIES] [-q] [-l LAUNCHER] [-o options]'
              exit 1
     esac
 done
@@ -60,15 +67,16 @@ if [ -z $cores_per_node ]; then
     exit 1
 fi
 
-LAUNCHER=""
-if [ -x "$(command -v srun)" ]; then
-   LAUNCHER='srun'
-fi
-if [ -x "$(command -v aprun)" ]; then
-   LAUNCHER='aprun'
-fi
-if [ -x "$(command -v oshrun)" ]; then
-   LAUNCHER='oshrun'
+if [ -z $LAUNCHER ]; then
+     if [ -x "$(command -v srun)" ]; then
+	 LAUNCHER='srun'
+     fi
+     if [ -x "$(command -v aprun)" ]; then
+	 LAUNCHER='aprun'
+     fi
+     if [ -x "$(command -v oshrun)" ]; then
+	 LAUNCHER='oshrun'
+     fi
 fi
 if [ -z $LAUNCHER ]; then
     echo "Can't find oshrun, srun, or aprun!"
@@ -77,7 +85,7 @@ fi
 
 : ${BALEDIR:=$PWD}
 
-options="-M $mask"
+option += " -M $mask"
 if [ $quick_run == 1 ]; then
     # this makes the tests run a little quicker, if you want to run a longer
     # set of tests, use a second argument (can be anything!)
