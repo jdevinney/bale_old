@@ -23,7 +23,7 @@
 // 
 //  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
 //  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FTNESS
 //  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
 //  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
 //  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
@@ -56,6 +56,7 @@ double wall_seconds()
   int retVal = gettimeofday(&tp,NULL);
   if (retVal == -1) { perror("gettimeofday"); fflush(stderr); }
   return ( (double) tp.tv_sec + (double) tp.tv_usec * 1.e-6 );
+
 }
 
 
@@ -178,18 +179,27 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
   for(i=0; i<stoprow; i++){
     off    = A->offset[i];
     nxtoff = A->offset[i+1];
-    for(j=off; j < nxtoff;j++)
-      fprintf(fp, "%9ld %9ld\n",i, A->nonzero[j] );
+    for(j=off; j < nxtoff;j++){
+      fprintf(fp, "%9ld %9ld",i, A->nonzero[j] );
+      if(A->value)
+	fprintf(fp," %9.5f\n",A->value[j]);
+      else
+	fprintf(fp,"\n");
+    }
   }
   if( stoprow < startrow)
     fprintf(fp, ".\n.\n.\n");
   for(i=startrow; i<A->numrows; i++){
     off    = A->offset[i];
     nxtoff = A->offset[i+1];
-    for(j=off; j < nxtoff;j++)
-      fprintf(fp, "%9ld %9ld\n",i, A->nonzero[j] );
+    for(j=off; j < nxtoff;j++){
+      fprintf(fp, "%9ld %9ld",i, A->nonzero[j] );
+      if(A->value)
+	fprintf(fp," %9.5f\n",A->value[j]);
+      else
+	fprintf(fp,"\n");
+    }
   }
-
   fclose(fp);
   return(0);
 }
@@ -199,31 +209,27 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
  * \param name the filename to written to
  * \return 0 on success, non-0 on error.
  */
-int64_t write_matrix_mm(sparsemat_t *A, char * name) 
-{
+int64_t write_matrix_mm(sparsemat_t *A, char * name) {
   int64_t i,j;
 
   FILE * fp = fopen(name, "w");       // FIXME error
-  fprintf(fp,"%%%%MasterMarket matrix coordinate position\n");
+  if(A->value)
+    fprintf(fp,"%%%%MasterMarket matrix coordinate real\n");
+  else
+    fprintf(fp,"%%%%MasterMarket matrix coordinate pattern\n");
   fprintf(fp, "%ld %ld %ld\n", A->numrows, A->numcols, A->nnz);
 
   for(i=0; i<A->numrows; i++){
     for(j=A->offset[i]; j < A->offset[i+1];j++)
-      fprintf(fp, "%ld %ld\n",i+1, A->nonzero[j]+1);
+      if(A->value)
+	fprintf(fp, "%ld %ld %lf\n",i+1, A->nonzero[j]+1, A->value[j]);
+      else
+	fprintf(fp, "%ld %ld\n",i+1, A->nonzero[j]+1);
   }
   fclose(fp);
   return(0);
 }
 
-
-/*! \struct element_t 
- * \brief structure used while reading and writing the MatrixMarket format.
- * We only handle {0,1} matrices, so we don't need triples.
- */
-typedef struct element_t { 
-  int64_t row; //!< row
-  int64_t col; //!< col
-} element_t;
 
 /*! \brief the compare function for qsort called while reading 
  * a MatrixMarket format.
@@ -244,6 +250,7 @@ int elt_comp(const void *a, const void *b)
 /*! \brief read a sparse matrix from a file in a MasterMarket ASCII format
  * \param name the filename to be read
  * \return a pointer to the sparse matrix or NULL on failure
+ * TODO: get this to work for matrices with real values.
  */
 sparsemat_t  *read_matrix_mm(char * name) 
 {
@@ -290,7 +297,7 @@ sparsemat_t  *read_matrix_mm(char * name)
   }
   qsort( elts, nnz, sizeof(element_t), elt_comp);
 
-  sparsemat_t *ret = init_matrix( nr, nc, nnz );
+  sparsemat_t *ret = init_matrix( nr, nc, nnz ,0);//TODO: values??????
   if( ret == NULL ) {
     fprintf(stderr,"read_matrix_mm: sparsemat calloc failed\n");
     exit(1);
@@ -331,7 +338,7 @@ sparsemat_t * permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cpermin
 {
   int64_t i, j, row, pos;
 
-  sparsemat_t * Ap = init_matrix(A->numrows, A->numcols, A->nnz);
+  sparsemat_t * Ap = init_matrix(A->numrows, A->numcols, A->nnz, (A->value!=NULL));
   if(!Ap){printf("ERROR: permute_matrix: init_matrix failed!\n");return(NULL);}
 
   int64_t * rperm = calloc(A->numrows, sizeof(int64_t));
@@ -344,8 +351,11 @@ sparsemat_t * permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cpermin
   Ap->offset[0] = pos = 0;
   for(i = 0; i < Ap->numrows; i++){
     row = rperm[i];
-    for(j = A->offset[row]; j < A->offset[row+1]; j++)
-      Ap->nonzero[pos++] = cperminv[A->nonzero[j]];
+    for(j = A->offset[row]; j < A->offset[row+1]; j++){
+      Ap->nonzero[pos] = cperminv[A->nonzero[j]];
+      if(A->value) Ap->value[pos] = A->value[j];
+      pos++;      
+    }
     Ap->offset[i+1] = pos;
   }
   
@@ -354,48 +364,51 @@ sparsemat_t * permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cpermin
 }
 
 /*! \brief produce the transpose of a sparse matrix
+ * Since this is serial, we don't have to worry about sorting the nonzero column
+ * indicies (the get populated in the correct order).
+ * 
  * \param A  pointer to the original matrix
- * \return a pointer to the matrix that has been produced or NULL if the model can't be used
+ * \return a pointer to the matrix that has been produced or NULL if error.
  */
 sparsemat_t * transpose_matrix(sparsemat_t *A) 
 {
-  int64_t i, j, row;
+  int64_t i, j, row, col;
   sparsemat_t * At;
   
   // get column counts
-  int64_t * tmp = calloc( A->numcols, sizeof(int64_t)); 
-  if( tmp == NULL ) return(NULL);
+  int64_t * colcnt = calloc( A->numcols, sizeof(int64_t));
+  if( colcnt == NULL ) return(NULL);
+  int64_t * tmpoffset = colcnt;
   
-  // use tmp to hold the column counts
-  // histogram the column counts of A into tmp
+  // histogram the column counts of A into colcnt
   for( i=0; i< A->nnz; i++) {  
     assert( A->nonzero[i] < A->numcols );
     assert( A->nonzero[i] >= 0 ); 
-    tmp[A->nonzero[i]]++;
+    colcnt[A->nonzero[i]]++;
   }
 
-  At = init_matrix(A->numcols, A->numrows, A->nnz);
+  At = init_matrix(A->numcols, A->numrows, A->nnz, (A->value!=NULL));
   if(!At){printf("ERROR: transpose_matrix: init_matrix failed!\n");return(NULL);}
 
-  //use the tmp array to build the offset array and
+  //use the colcnt array to build the offset array and
   //reuse it as we fill in the nonzeros 
   At->offset[0] = 0;
   for(i = 0; i < At->numrows; i++){
-    At->offset[i+1] = At->offset[i] + tmp[i];
-    tmp[i] = At->offset[i];
+    At->offset[i+1] = At->offset[i] + colcnt[i];
+    tmpoffset[i] = At->offset[i];
   }
-  tmp[i] = At->offset[i];
 
   //redistribute the nonzeros 
-  //This is still tidy, right?
   for(row=0; row<A->numrows; row++) {
     for(j=A->offset[row]; j<A->offset[row+1]; j++){
-      At->nonzero[ tmp[A->nonzero[j]] ] = row;
-      tmp[A->nonzero[j]]++;
+      col = A->nonzero[j];
+      At->nonzero[ tmpoffset[col] ] = row;
+      if(A->value) At->value[ tmpoffset[col] ] = A->value[j];
+      tmpoffset[col]++;
     }
   }
 
-  free(tmp);
+  free(colcnt);
   return(At);
 }
 
@@ -443,14 +456,52 @@ int nz_comp(const void *a, const void *b)
   return( *(uint64_t *)a - *(uint64_t *)b );
 }
 
-/*! \brief sort the non-zeros in each row of a sparse matrix
+/*! \brief comparison function for qsort in sort_nonzeros in a matrix with values
+ */
+int cv_comp(const void *a, const void *b)
+ {
+   return(((int64_t)((col_val_t*)a)->col) - ((int64_t)((col_val_t*)b)->col));
+ }
+ 
+/*! \brief sort the  non-zeros in each row of a sparse matrix so that their column indices
+ * are in ascending order.
  * \param mat pointer to the sparse matrix
  */
-int64_t sort_nonzeros( sparsemat_t *mat) 
+int64_t sort_nonzeros( sparsemat_t *mat)
 {
-  int64_t i;
-  for(i = 0; i < mat->numrows; i++){
-    qsort( &(mat->nonzero[mat->offset[i]]), mat->offset[i+1] - mat->offset[i], sizeof(int64_t), nz_comp );
+  int64_t i, j;
+  if(mat->value){
+    // we have to sort the column indicies, but we also have to permute the value array accordingly
+    // this is annoying in C
+    // we have to create an array of stucts that holds col,val pairs for a row
+    // sort that array according to the col keys
+    // and then overwrite the row data
+    int64_t max = 0;
+    for(i = 0; i < mat->numrows; i++)
+      if(mat->offset[i+1] - mat->offset[i] > max) max = mat->offset[i+1] - mat->offset[i];
+
+    // allocate a temporary array to hold a row's worth of col, value pairs
+    col_val_t * tmparr = calloc(max, sizeof(col_val_t));
+
+    for(i = 0; i < mat->numrows; i++){
+      int64_t pos = 0;
+      for(j = mat->offset[i]; j < mat->offset[i+1]; j++){
+	tmparr[pos].col = mat->nonzero[j];
+	tmparr[pos++].value = mat->value[j];
+      }
+      qsort(tmparr, mat->offset[i+1] - mat->offset[i], sizeof(col_val_t), cv_comp );
+      pos = 0;
+      for(j = mat->offset[i]; j < mat->offset[i+1]; j++){
+	mat->nonzero[j] = tmparr[pos].col;
+	mat->value[j] = tmparr[pos++].value;
+      }
+    }
+    free(tmparr);
+  }else{
+    // no values, just sort the column indicies
+    for(i = 0; i < mat->numrows; i++){
+      qsort( &(mat->nonzero[mat->offset[i]]), mat->offset[i+1] - mat->offset[i], sizeof(int64_t), nz_comp );
+    }
   }
   return(0);
 }
@@ -463,7 +514,17 @@ int64_t sort_nonzeros( sparsemat_t *mat)
 int64_t compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) 
 {
   int64_t i,j;
+  int values;
 
+  if( lmat->value == NULL && rmat->value == NULL){
+    values = 0;
+  }else if((lmat->value && !rmat->value) || (rmat->value && !lmat->value)){
+    printf("Only one matrix has values!\n");
+    return(1);    
+  }else{
+    values = 1;
+  }
+  
   if( lmat->numrows != rmat->numrows ){
     printf("(lmat->numrows = %ld)  != (rmat->numrows = %ld)", lmat->numrows, rmat->numrows );
     return(1);
@@ -499,8 +560,16 @@ int64_t compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat)
   
   for(j=0; j< lmat->nnz; j++) {
     if( lmat->nonzero[j] != rmat->nonzero[j] ){
-      printf("(lmat->nonzero[%ld] = %ld)  != (rmat->nonzero[%ld] = %ld)", j, lmat->nonzero[j], j, rmat->nonzero[j] );
+      printf("(lmat->nonzero[%ld] = %ld)  != (rmat->nonzero[%ld] = %ld)", j,
+	     lmat->nonzero[j], j, rmat->nonzero[j] );      
       return(1);
+    }
+    if(values){
+      if( lmat->value[j] != rmat->value[j] ){
+	printf("(lmat->value[%ld] = %lf)  != (rmat->value[%ld] = %lf)", j,
+	       lmat->value[j], j, rmat->value[j] );
+	return(1);
+      }
     }
   }
 
@@ -515,7 +584,7 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
 {
   int64_t i,j;
   
-  sparsemat_t * destmat = init_matrix(srcmat->numrows, srcmat->numcols, srcmat->nnz);
+  sparsemat_t * destmat = init_matrix(srcmat->numrows, srcmat->numcols, srcmat->nnz, (srcmat->value != NULL));
   if(!destmat) return(NULL);
 
   for(i = 0; i < (srcmat->numrows)+1; i++){
@@ -523,6 +592,7 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
   }
   for(j=0; j < srcmat->nnz; j++) {
     destmat->nonzero[j] = srcmat->nonzero[j];
+    if(srcmat->value) destmat->value[j] = srcmat->value[j];
   }
   return(destmat);
 }
@@ -534,11 +604,11 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
  * \param nnz number of nonzero
  * \return An initialized sparsemat_t (numrows, numcols, nnz are set) or NULL on error.
  */
-sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz) 
+ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values) 
 {
   sparsemat_t * mat = calloc(1, sizeof(sparsemat_t));
   mat->numrows  = numrows;
-  mat->numcols  = numcols;  
+  mat->numcols  = numcols;
   mat->nnz  = nnz;  
   mat->offset   = calloc(mat->numrows+1, sizeof(int64_t));
   if(mat->offset == NULL) 
@@ -546,230 +616,555 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz)
   mat->nonzero = calloc(mat->nnz, sizeof(int64_t));
   if(mat->nonzero == NULL) 
     return(NULL);
+  if(values){
+    mat->value = calloc(mat->nnz, sizeof(double));
+    if(mat->value == NULL)
+      return(NULL);
+  }else
+    mat->value = NULL;
   return(mat);
 }
 
+ /*************************************************************************************/
+ /*                               RANDOM MATRICES                                     */
+ /*************************************************************************************/
 
-// TODO: this whole part for generating random matrices needs to be reworked.
-// - It really can only make square matrices (cause we only cared about graphs)
-// - There is a cute trick to get around the fact that you have
-//    to generate the matrix before you can allocate memory, then
-//    you have to generate the same matrix to fill it in.
-//    (Hence the compile time warning).
-//
-/*! \brief Generates the upper or lower half of the adjacency matrix for an Erdos-Renyi random graph. 
+ /* 
+  * What kinds of methods should we have to generate "random" sparse matrices?
+  * 1) erdos-renyi - square upper or lower-triangular matrices 
+  *    can be used to create symmetric or nonsymmetric square matrices
+  * 2) uniform sparse: use ER technology
+  * 3) kron_prod_graph (square symmetric or lower-triangular)
+  * 4) random geometric? random planar graphs? Social network (preferential attachment, etc)
+  * geometric graph - k-nearest neighbor graph, or epsilon ball graph
+  *   - has different properties than ER
+  *
+  */
+ // apps that need input matrices:
+ // topo: square, upper-triangular, unit-diagonal, random or read in
+ // permute_matrix and transpose: any random matrix, or read in matrix
+ // triangle: kron_graph (special lower triangular), or any random lower triangular, or read in
+ // SSSP: random non-symmetric square with values
+
+ /*! \brief A routine to generate the adjacency matrix of a random graph.
+  * If the graph is undirected, this routine only returns a lower-triangular
+  * adjancency matrix (since the adjancency matrix would be symmetric and we don't need
+  * the redundant entries).
+  * 
+  * \param n The number of vertices in the graph.
+  * \param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
+  * \param edge_type See edge_type enum. Directed, or not, Weighted or not.
+  * \param loops see self_loops enum. Does every node have a loop or not.
+  * \param edge_density: d in [0, 1), target fraction of edges present.
+  * \param seed: RNG seed.
+  */
+ //
+ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
+			    double edge_density, int64_t seed){
+
+   if(model == FLAT){
+     
+     return(erdos_renyi_random_graph(n, edge_density, edge_type, loops, seed));
+     
+   }else if(model == GEOMETRIC){
+     double r;
+     // determine the r that will lead to the desired edge density
+     // Expected degree = n*pi*r^2
+     // The expected number of edges E = n^2*pi*r^2/2
+     // for undirected d = E/(n choose 2)
+     // for directed   d = E/(n^2 - n)
+     if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED){
+       r = sqrt(edge_density/M_PI);
+     }else{
+       printf("ERROR: directed geometric graphs are not supported yet.\n");
+       return(NULL);
+     }
+
+     return(geometric_random_graph(n, r, edge_type, loops, seed));
+     
+   }else{
+     printf("ERROR: random_graph: Unknown type!\n");
+     return(NULL);
+   }
+   
+ }
+
+ /*! \brief Subroutine to create a random sparse matrix.
+  * 
+  * The matrix is formed using a Erdo-Renyi like method. A[i,j] is nonzero with a fixed probability p.
+  * The value of p depends on the density specified.
+  *
+  * \param nrows The number of rows
+  * \param ncols The number of columns
+  * \params density d in [0,1) specifying the fraction of entries that are nonzero
+  * \params values 0 means all nonzeros are 1, 1 means all nonzeros are [0,1) uniform random.
+  * \params seed RNG seed
+  */
+ 
+ sparsemat_t * random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed){
+   int64_t i, j, r;
+   int64_t row, col;
+   double lM = log(RAND_MAX);
+   double D  = log(1 - density);
+   int64_t nnz = 0;
+   
+   // first loop to count the number of nonzeros
+   srand(seed);
+   row = 0;
+   do { r = rand(); } while(r == RAND_MAX);
+   col = 1 + floor((log(RAND_MAX - r) - lM)/D);
+   while(row < nrows){
+     while(col < ncols){
+       nnz++;
+       do { r = rand(); } while(r == RAND_MAX);     
+       col += 1 + floor((log(RAND_MAX - r) - lM)/D);
+     }
+     row++;
+     col -= ncols;
+   }
+
+   sparsemat_t * A = init_matrix(nrows, ncols, nnz, values);
+
+   //second pass: regenerate same random sequence and populate the matrix
+   srand(seed);
+   row = 0;
+   nnz = 0;
+   do { r = rand(); } while(r == RAND_MAX);
+   col = 1 + floor((log(RAND_MAX - r) - lM)/D);
+   while(row < nrows){
+     while(col < ncols){
+       A->nonzero[nnz++] = col;
+       do { r = rand(); } while(r == RAND_MAX);     
+       col += 1 + floor((log(RAND_MAX - r) - lM)/D);
+     }
+     row++;
+     A->offset[row] = nnz;
+     col -= ncols;
+   }
+
+   // fill in the random values
+   if(values){
+     for(i = 0; i < nnz; i++){
+       A->value[i] = (double)rand()/RAND_MAX;
+     }
+   }
+   return(A);
+ }
+
+ /*! \brief Generate a distributed graph that is the product of a
+ collection of star graphs (K_{1,m}). 
+ *
+ * \param star_sizes An array of m_i values specifying the star graphs we are taking the product of.
+ * \param B_num The number of star sizes in the star_sizes array.
+ * \param mode Mode 0 graphs have no triangles, mode 1 graphs have lots of triangles and mode 2 graphs
+ * have few triangles.
+ * \return A matrix which represents the adjacency matrix for the Kronecker product of K_{1,m_i} 
+ * for each m_i in the list of star_sizes.
+ */
+
+ sparsemat_t * kronecker_product_graph(int64_t * star_sizes, int64_t num_stars, int mode);
+ 
+ typedef struct points_t{
+   double x;
+   double y;
+   int64_t index;
+ }points_t;
+ 
+ typedef struct sector_t{
+   points_t * points;
+   int64_t numpoints;
+ }sector_t;
+
+// returns the square of the L2 distance
+double dist(points_t a, points_t b){
+  return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
+}
+
+
+ 
+ /*! \brief Generates the adjacency matrix for a random geometric graph. 
+  * 
+  * See https://en.wikipedia.org/wiki/Random_geometric_graph
+  * Each vertex corresponds to a point randomly placed in the unit square. Two vertices
+  * are adjancent if their corresponding points are within distance r of each other.
+  * 
+  * \param n The number of vertices
+  * \param r The size of the neighborhoods that determine edges.
+  * \param type See edge_type. If undirected, this routine returns a lower triangular matrix.
+  * \param loops See self_loops. Are there self loops?
+  * \param seed A seed for the RNG.
+  * \return An adjacency matrix (or lower portion of in the undirected case).
+  */
+sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed){
+  int64_t i, j, k, l;
+  double r2 = r*r;
+  // We break up the unit square into chunks that are rxr grid.
+  // We generate the points uniformly at random over the unit square.
+  // We calculate edges by comparing distances between each point and every other point in
+  // its own sector and in neighboring sectors.
+  
+  int64_t nsectors = ceil(1.0/r);
+  printf("GEOMETRIC with r = %lf number of sectors = %ld\n", r, nsectors);
+  sector_t ** sectors = calloc(nsectors, sizeof(sector_t*));
+  int64_t ** first_index_this_sector = calloc(nsectors, sizeof(int64_t*));
+  for(i = 0; i < nsectors; i++){
+    sectors[i] = calloc(nsectors, sizeof(sector_t));
+    first_index_this_sector[i] = calloc(nsectors, sizeof(int64_t));
+    for(j = 0; j < nsectors; j++)
+      sectors[i][j].numpoints = 0;
+  }
+
+
+  // First pass, generate the points and count how many will fall in each sector.
+  srand(seed);
+  for(i = 0; i < n; i++){
+    double x = (double)rand()/RAND_MAX;
+    double y = (double)rand()/RAND_MAX;
+    int64_t row = floor(y/r);
+    int64_t col = floor(x/r);
+    assert(row < nsectors);
+    assert(col < nsectors);
+    sectors[row][col].numpoints++;
+  }
+
+  // initialize the struct to hold the points
+  for(i = 0; i < nsectors; i++){
+    for(j = 0; j < nsectors; j++){
+      if(j > 0)
+	first_index_this_sector[i][j] += first_index_this_sector[i][j-1] + sectors[i][j-1].numpoints;
+      else if(i > 0)
+	first_index_this_sector[i][j] += first_index_this_sector[i-1][nsectors-1] + sectors[i-1][nsectors-1].numpoints;
+      sectors[i][j].points = calloc(sectors[i][j].numpoints, sizeof(points_t));
+    }
+  }
+
+  // reset numpoints
+  for(i = 0; i < nsectors; i++){
+    for(j = 0; j < nsectors; j++){
+      sectors[i][j].numpoints = 0;
+    }
+  }
+  // Second pass: generate the points and insert them into the struct
+  srand(seed);
+  for(i = 0; i < n; i++){
+    double x = (double)rand()/RAND_MAX;
+    double y = (double)rand()/RAND_MAX;
+    int64_t row = floor(y/r);
+    int64_t col = floor(x/r);
+    int64_t li = sectors[row][col].numpoints;
+    sectors[row][col].points[li].x = x;
+    sectors[row][col].points[li].y = y;
+    sectors[row][col].points[li].index = first_index_this_sector[row][col] + li;
+    sectors[row][col].numpoints++;
+  }
+  
+  
+  // next we will count number of edges
+  int64_t node = 0;
+  int64_t nedges = 0;
+  for(i = 0; i < nsectors; i++){
+    for(j = 0; j < nsectors; j++){
+      
+      sector_t * sec = &sectors[i][j];
+      int64_t m = sec->numpoints;
+      for(k = 0; k < m; k++){
+
+	// count the edges to lower-indexed nodes within this sector
+	for(l = 0; l < k; l++){
+	  if(dist(sec->points[k], sec->points[l]) < r2)
+	    nedges++;
+	}
+
+	// count the edges to lower-indexed nodes outside the sector
+	// to do this, we need to look at sectors to the W, NW, N, and NE.
+	// W
+	if(j > 0){
+	  sector_t * sec2 = &sectors[i][j-1];
+	  for(l = 0; l < sec2->numpoints; l++){
+	    if(dist(sec->points[k], sec2->points[l]) < r2)
+	      nedges++;
+	  }
+	} 
+	// NW
+	if(i > 0 && j > 0){
+	  sector_t * sec2 = &sectors[i-1][j-1];
+	  for(l = 0; l < sec2->numpoints; l++){
+	    if(dist(sec->points[k], sec2->points[l]) < r2)
+	      nedges++;
+	  }
+	} 
+	// N
+	if(i > 0){
+	  sector_t * sec2 = &sectors[i-1][j];
+	  for(l = 0; l < sec2->numpoints; l++){
+	    if(dist(sec->points[k], sec2->points[l]) < r2)
+	      nedges++;
+	  }
+	}
+	// NE
+	if(i > 0 && j < (nsectors-1)){
+	  sector_t * sec2 = &sectors[i-1][j+1];
+	  for(l = 0; l < sec2->numpoints; l++){
+	    if(dist(sec->points[k], sec2->points[l]) < r2)
+	      nedges++;
+	  }
+	} 
+      }
+    }
+  }
+  
+  if(loops == LOOPS)
+    nedges += n;
+  //printf("nedges = %ld %lf\n", nedges, nedges/((double)n*(n-1)/2.0));
+   
+  int weighted = (edge_type == UNDIRECTED_WEIGHTED);
+  sparsemat_t * A = init_matrix(n, n, nedges, weighted);
+
+  // go back through the loop and populate the adjacency matrix
+  nedges = 0;
+  for(i = 0; i < nsectors; i++){
+    for(j = 0; j < nsectors; j++){
+       
+       sector_t * sec = &sectors[i][j];
+       int64_t m = sec->numpoints;
+       for(k = 0; k < m; k++){
+	 
+	 node = sec->points[k].index;
+
+	 if(loops == LOOPS){
+	   A->nonzero[nedges] = node;
+	   if(weighted) A->value[nedges] = rand()/RAND_MAX;
+	   nedges++;
+	 }
+	 
+	 // count the edges to lower-indexed nodes within this sector
+	 for(l = 0; l < k; l++){
+	   if(dist(sec->points[k], sec->points[l]) < r2){
+	     A->nonzero[nedges] = sec->points[l].index;
+	     assert(node >= sec->points[l].index);
+	     if(weighted) A->value[nedges] = rand()/RAND_MAX;
+	     nedges++;
+	   }
+	 }
+
+	 // count the edges to lower-indexed nodes outside the sector
+	 // to do this, we need to look at sectors to the W, NW, N, and NE.
+	 // W
+	 if(j > 0){
+	   sector_t * sec2 = &sectors[i][j-1];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r2){
+	       A->nonzero[nedges] = sec2->points[l].index;
+	       assert(node >= sec2->points[l].index);
+	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
+	       nedges++;
+	     }
+	   }
+	 } 
+	 // NW
+	 if(i > 0 && j > 0){
+	   sector_t * sec2 = &sectors[i-1][j-1];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r2){
+	       A->nonzero[nedges] = sec2->points[l].index;
+	       assert(node >= sec2->points[l].index);
+	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
+	       nedges++;
+	     }
+	   }
+	 } 
+	 // N
+	 if(i > 0){
+	   sector_t * sec2 = &sectors[i-1][j];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r2){
+	       A->nonzero[nedges] = sec2->points[l].index;
+	       assert(node >= sec2->points[l].index);
+	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
+	       nedges++;
+	     }
+	   }
+	 }
+	 // NE
+	 if(i > 0 && j < (nsectors-1)){
+	   sector_t * sec2 = &sectors[i-1][j+1];
+	   for(l = 0; l < sec2->numpoints; l++){
+	     if(dist(sec->points[k], sec2->points[l]) < r2){
+	       A->nonzero[nedges] = sec2->points[l].index;
+	       assert(node >= sec2->points[l].index);
+	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
+	       nedges++;
+	     }
+	   }
+	 }
+	 A->offset[node+1] = nedges;
+	 node++;
+       }
+              
+     }
+   }
+   sort_nonzeros(A);
+   return(A);
+ }
+
+ 
+/*! \brief Generates the lower half of the adjacency matrix for an Erdos-Renyi random graph. 
  * This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
  * by Batageli and Brandes appearing in Physical Review 2005. Instead of flipping a coin for each potential edge
  * this algorithm generates a sequence of "gaps" between 1s in the upper or lower triangular portion of the 
  * adjancecy matrix using a geometric random variable.
  *
- * \param numrows The total number of vertices in the graph (rows in the matrix).
+ * \param n The total number of vertices in the graph (rows in the matrix).
  * \param p The probability that each non-loop edge is present.
- * \param mode  enum ER_TRIANGLE:
- *              ER_TRI_L, ER_TRI_U, ER_TRI_LWD, ER_TRI_UWD for 
- *              lower triangle, upper triangle, lower with diagonal, upper with diagonal, resp.
+ * \param type See edge_type.
+ * \param loops See self_loops.
  * \param seed A random seed.
  * \return A sparsemat_t
  */
-sparsemat_t * erdos_renyi_tri(int numrows, double p, enum ER_TRIANGLE mode, int64_t seed) 
-{
+sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed) {
   int64_t row, col;
   double lM = log(RAND_MAX);
   double D  = log(1 - p);
-
-  int64_t numcols = numrows;
   int64_t nnz;
   int64_t r;
-  int64_t lower, diag; 
+  int64_t lower, diag;
+  int64_t end = n;
+  int64_t ndiag = n;
   sparsemat_t *mat;
 
-  assert(numrows > 0);
-  switch(mode){ 
-  case ER_TRI_L   : lower =1; diag = 0; break;
-  case ER_TRI_U   : lower =0; diag = 0; break;
-  case ER_TRI_LWD : lower =1; diag = 1; break;
-  case ER_TRI_UWD : lower =0; diag = 1; break;
-  default: 
-    fprintf(stderr," ERROR: erdos_renyi_tri unknown mode\n"); return(NULL); 
-    break; 
-  }
-  
-  // run this loop twice. the first time to count, then alloc.
-  // the second time to store.
-  int keep;
-  for(keep=0; keep<2; keep++) { 
-    srand(seed);
-    if(keep) mat->offset[0] = 0;
-    nnz = 0;
-    row = 0;
-    col = (lower) ? 0 : 1;
-    if(diag && (lower != 1)) {
-      if(keep) mat->nonzero[nnz] = 0;
+  assert(n > 0);
+
+  // first loop to count the number of nonzeros
+  srand(seed);
+  row = 0;
+  nnz = 0;
+  do { r = rand(); } while(r == RAND_MAX);     
+  col = 1 + floor((log(RAND_MAX - r) - lM)/D);
+  while(row < n){
+    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      end = row;
+    while(col < end){
+      if(col == row) // we hit a diagonal for free!
+	ndiag--;
       nnz++;
-    }
-    while(row < numrows){
-      do { r = rand(); } while(r == RAND_MAX);
-  
+      do { r = rand(); } while(r == RAND_MAX);     
       col += 1 + floor((log(RAND_MAX - r) - lM)/D);
-  
-      while((col >= ((lower) ? row : numrows)) && (row < numrows)){
-        if(lower){ 
-          if(diag) {
-            if(keep) mat->nonzero[nnz] = row;
-            nnz++;
-          }
-          col = col - row;
-          row ++;
-          if(keep) mat->offset[row] = nnz;
-        }else{
-          row ++;
-          col = row + 1 + col - numrows;
-          if(keep) mat->offset[row] = nnz;
-          if((row < numrows) && diag) {
-            if(keep)  mat->nonzero[nnz] = row;
-            nnz++;
-          }
-        }      
-      }
-      if(row < numrows) {
-        if(keep) mat->nonzero[nnz] = col;
-        nnz++;
-      }
     }
-    if(keep) mat->offset[row] = nnz;
-    if(keep == 0){
-      mat = init_matrix(numrows, numcols, nnz);
-      if(!mat){ printf("ERROR: generate_toposort_input: init_matrix failed!\n"); return(NULL); }
+    row++;
+    col -= end;
+  }
+  if(loops == LOOPS) nnz += ndiag;
+
+  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  sparsemat_t * A = init_matrix(n, n, nnz, weighted);
+
+  if(!A){ printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL); }
+
+  // fill in the nonzeros
+  srand(seed);
+  nnz = 0;
+  row = 0;
+  A->offset[0] = 0;
+  do { r = rand(); } while(r == RAND_MAX);     
+  col = 1 + floor((log(RAND_MAX - r) - lM)/D);
+  while(row < n){
+    int need_diag = (loops==LOOPS);
+    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      end = row;
+    while(col < end){
+      if(col == row) need_diag = 0;
+      A->nonzero[nnz++] = col;
+      do { r = rand(); } while(r == RAND_MAX);     
+      col += 1 + floor((log(RAND_MAX - r) - lM)/D);     
+    }
+    
+    if(need_diag){
+      A->nonzero[nnz++] = row;
+    }
+    row++;
+    A->offset[row] = nnz;
+    col -= end;
+  }
+
+  // fill in weights
+  if(weighted){
+    int64_t i;
+    for(i = 0; i < nnz; i++){
+      mat->value[i] = (double)rand()/RAND_MAX;
     }
   }
-  //dump_matrix( mat, 0, "erdos_renyi");
-  return( mat);
+  assert(A->nnz == nnz);
+  if(loops == LOOPS && (edge_type == DIRECTED || edge_type == DIRECTED_WEIGHTED))
+    sort_nonzeros(A); // to get the diagonal entry sorted correctly
+  return(A);
 }
 
 /*! \brief Generates the upper or lower half of the adjacency matrix for an Erdos-Renyi random graph. 
- * This is here mostly for illustration cause it is so slow.
- * It flips a coin for each possible edge
- * \param numrows The total number of vertices in the graph (rows in the matrix).
+ * This is here mostly for illustration because it is so slow.
+ * It flips a coin for each possible edge.
+ * \param n The total number of vertices in the graph (rows in the matrix).
  * \param p The probability that each non-loop edge is present.
- * \param mode  enum ER_TRIANGLE:
- *              ER_TRI_L, ER_TRI_U, ER_TRI_LWD, ER_TRI_UWD for 
- *              lower triangle, upper triangle, lower with diagonal, upper with diagonal, resp.
+ * \param type See edge_type.
+ * \param loops See self_loops.
  * \param seed A random seed.
  * \return A sparsemat_t
  */
 
-sparsemat_t * naive_erdos_renyi_tri(int numrows, double p, enum ER_TRIANGLE mode, int64_t seed) 
-{
+sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed){
   int64_t row, col;
   int64_t P = p*RAND_MAX;
-  int64_t numcols = numrows;
-  int64_t nnz=0;
   int64_t pos;
-  int64_t lower, diag;
   
-  assert(numrows > 0);
-  switch(mode){ 
-  case ER_TRI_L : lower =1; diag = 0; break;
-  case ER_TRI_U : lower =0; diag = 0; break;
-  case ER_TRI_LWD : lower =1; diag = 1; break;
-  case ER_TRI_UWD : lower =0; diag = 1; break;
-  default: 
-    fprintf(stderr," ERROR: naive_erdos_renyi_tri unknown mode\n"); return(NULL); 
-    break; 
-  }
+  assert(n > 0);
   
   srand(seed);
-  nnz = 0;
-  for(row = 0; row < numrows; row++){
-    if( lower ) {
-      for(col = 0; col < row; col++){
-        if( rand() < P )
-          nnz++;
-      }
-    } else {
-      for(col = row+1; col < numcols; col++){
-        if( rand() < P )
-          nnz++;
+  int64_t nnz = 0;
+  int64_t end = n;
+  for(row = 0; row < n; row++){
+    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      end = row;    
+    for(col = 0; col < end; col++){
+      if(col == row) continue;
+      if( rand() < P ){
+	nnz++;
       }
     }
-    if( diag ) 
-      nnz++;
   }
+  if(loops = LOOPS) nnz += n;
   
-  sparsemat_t * mat = init_matrix(numrows, numcols, nnz);
-  if(!mat){ printf("ERROR: generate_toposort_input: init_matrix failed!\n"); return(NULL); }
+  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  sparsemat_t * mat = init_matrix(n, n, nnz, weighted);
+  if(!mat){ printf("ERROR: erdos_renyi_random_graph_naive: init_matrix failed!\n"); return(NULL); }
+
+  // fill in the nonzeros
   srand(seed);
-  // fill in the nonzeros, including the diagonal entry
   pos = 0;
   mat->offset[0] = 0;
-  for(row = 0; row < numrows; row++){
-    if( lower ) {
-      for(col = 0; col < row; col++){
-        if( rand() < P )
-          mat->nonzero[pos++] = col;
+  for(row = 0; row < n; row++){
+    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      end = row + (loops == LOOPS);
+    for(col = 0; col < end; col++){
+      if(col == row && loops == LOOPS){
+	mat->nonzero[pos++] = row;
+	continue;
       }
-      if( diag ) 
-        mat->nonzero[pos++] = row;
-      mat->offset[row+1] = pos;
-    } else {
-      if( diag ) 
-        mat->nonzero[pos++] = row;
-      for(col = row+1; col < numcols; col++){
-        if( rand() < P )
-          mat->nonzero[pos++] = col;
+      if( rand() < P ){
+	mat->nonzero[pos++] = col;
       }
-      mat->offset[row+1] = pos;
+    }
+    mat->offset[row+1] = pos;
+  }
+  // fill in the weights
+  if(weighted){
+    int64_t i;
+    for(i = 0; i < pos; i++){
+      mat->value[i] = (double)rand()/RAND_MAX;
     }
   }
+  
   return( mat);
 }
 
-/*! \brief Generates an Erdos-Renyi random graph
- * Puts together appropriate triangluar matrices created by erdos_renyi_tri
- * \param numrows The total number of vertices in the graph (rows in the matrix).
- * \param p The probability that each non-loop edge is present.
- * \param mode  enum ER_GRAPH:
- *              ER_GRAPH_SIMPLE, ER_GRAPH_DIRECT for a simple (undirected) graph, simple directed graph, resp
- * \param seed A random seed.
- * \return A sparsemat_t
- */
-
-sparsemat_t * erdos_renyi_graph(int64_t numrows, double p, enum ER_GRAPH mode, int64_t seed) 
-{
-  int64_t row, j;
-  int64_t pos;
-  sparsemat_t *mat, *U, *L;
-  
-  assert(numrows > 0);
-  switch(mode){ 
-  case ER_GRAPH_SIMPLE:
-    U = erdos_renyi_tri(numrows, p, ER_TRI_U, seed); 
-    L = transpose_matrix(U);
-    break;
-  case ER_GRAPH_DIRECT: 
-    U = erdos_renyi_tri(numrows, p, ER_TRI_U, seed); 
-    L = erdos_renyi_tri(numrows, p, ER_TRI_L, seed); 
-    break;
-  default: 
-    fprintf(stderr," ERROR: erdos_renyi_graph unknown mode\n"); return(NULL); 
-    break; 
-  }
-  
-  mat = init_matrix(numrows, numrows, U->nnz + L->nnz );
-  if(!mat){ printf("ERROR: gen_erdos_renyi_graph: init_matrix failed!\n"); return(NULL); }
-  
-  pos=0;
-  mat->offset[0] = 0;
-  for(row=0; row<numrows; row++) {
-    for(j=L->offset[row]; j< L->offset[row+1]; j++)
-      mat->nonzero[pos++] = L->nonzero[j];     
-    for(j=U->offset[row]; j< U->offset[row+1]; j++)
-      mat->nonzero[pos++] = U->nonzero[j];     
-    mat->offset[row+1] = pos;
-  }
-  
-  return( mat );
-}
 
 
 /*! \brief prints some stats of a sparse matrix
@@ -805,4 +1200,5 @@ void clear_matrix(sparsemat_t * mat)
 {
   free(mat->nonzero);
   free(mat->offset);
+  free(mat->value);
 }

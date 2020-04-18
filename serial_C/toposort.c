@@ -111,32 +111,36 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
 
 /*! \brief Generate a matrix that is the a random permutation of a sparse uppper triangular matrix.
  * \param numrows the number of rows (and columns) in the produced matrix
- * \param erdos_renyi_prob the probability that an entry in the matrix is non-zero
+ * \param edge_probability the probability that an entry in the matrix is non-zero
  * \param seed the seed for random number generator that determines the original matrix and the permutations
  * \param dump_files is a debugging flag
  * \return the permuted upper triangular matrix
  * 
- * Make the upper triangular matrix is essentially the upper half of an Erdös–Renyi random graph
- * We force the diagonal entry and pick the other edges with probability erdos_renyi_prob
- * then randomly permute the rows and the columns.  
+ * Make the upper triangular matrix. We do this by getting the lower-triangular portion of the adjacency matrix of a random
+ * graph. We force the diagonal entries. We then transpose this matrix to get U.
+ * Finally, we randomly permute the rows and the columns.
  * The toposort algorithm takes this matrix and finds one of the possibly many row and column permutations 
  *  that would bring the matrix back to an upper triangular form.
  */
-sparsemat_t * generate_toposort_input(int64_t numrows, double edge_prob,  uint32_t seed, int64_t dump_files)
+sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double edge_prob, uint32_t seed, int64_t dump_files)
 {
   int64_t numcols = numrows;
   
-  sparsemat_t * tmat = erdos_renyi_tri(numrows, edge_prob, ER_TRI_UWD, seed);
-  if(!tmat){
-    printf("ERROR: generate_toposort_input: init_matrix failed!\n");
+  sparsemat_t * L = random_graph(numrows, model, UNDIRECTED, LOOPS, edge_prob, seed);
+  if(!L){
+    printf("ERROR: generate_toposort_input: random_graph!\n");
     return(NULL);
   }
-  
-  if(dump_files) dump_matrix(tmat, 20, "orig_tri.out");
-  if(is_upper_triangular(tmat) != 0 ){
+
+  sparsemat_t * U = transpose_matrix(L);
+  clear_matrix(L); free(L);
+
+  if(is_upper_triangular(U) != 0 ){
     fprintf(stderr,"ERROR: generate_toposort did not start with an upper triangular\n");
     exit(1);
   }
+  
+  if(dump_files) dump_matrix(U, 0, "orig_tri.out");
   
   // get random row and column permutations
   int64_t * rperminv = rand_perm(numrows, 1234);
@@ -152,15 +156,14 @@ sparsemat_t * generate_toposort_input(int64_t numrows, double edge_prob,  uint32
     dump_array(cperminv, numcols, 20, "cperm.out");
   }
   
-  sparsemat_t * mat = permute_matrix(tmat, rperminv, cperminv);
+  sparsemat_t * mat = permute_matrix(U, rperminv, cperminv);
   if(!mat) {
     printf("ERROR: generate_toposort_input: permute_matrix returned NULL");
     exit(1);
   }
   if(dump_files) dump_matrix(mat,20, "perm.out");
   
-  clear_matrix( tmat );
-  free(tmat);
+  clear_matrix( U ); free( U );
   free(rperminv);
   free(cperminv);
   
@@ -307,24 +310,26 @@ int main(int argc, char * argv[])
 {
   #define NUMROWS 20000 
   int64_t numrows=NUMROWS, numcols;
-  double erdos_renyi_prob = 0.1;
+  double edge_density = 0.1;
   uint32_t seed =  123456789;
   double laptime = 0.0;
 
-  enum MODEL {GENERIC_Model=1, LOOP_Model=2, ALL_Models=4};
+  enum FLAVOR {GENERIC=1, LOOP=2, ALL=4};
   uint32_t use_model;
-  uint32_t models_mask = ALL_Models - 1;
+  uint32_t models_mask = ALL - 1;
   uint32_t printhelp = 0;
   uint32_t quiet = 0;
   uint32_t dump_files = 0;
-
+  graph_model graph_model = FLAT;
+  
   int opt; 
-  while( (opt = getopt(argc, argv, "hn:s:e:DM:q")) != -1 ) {
+  while( (opt = getopt(argc, argv, "hn:s:e:g:DM:q")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
     case 'n': sscanf(optarg,"%ld" ,&numrows );  break;
     case 's': sscanf(optarg,"%d" ,&seed );  break;
-    case 'e': sscanf(optarg,"%lg", &erdos_renyi_prob); break;
+    case 'e': graph_model = FLAT; sscanf(optarg,"%lg", &edge_density); break;
+    case 'g': graph_model = GEOMETRIC; sscanf(optarg,"%lg", &edge_density); break;
     case 'D': dump_files = 1; break;
     case 'M': sscanf(optarg,"%d", &models_mask); break;
     case 'q': quiet = 1; break;
@@ -335,20 +340,21 @@ int main(int argc, char * argv[])
   numcols = numrows;
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of toposort\n");
-    fprintf(stderr,"help                 (-h)\n");
-    fprintf(stderr,"number of rows       (-n)= %ld\n", numrows);
-    fprintf(stderr,"random seed          (-s)= %d\n", seed);
-    fprintf(stderr,"erdos_renyi_prob     (-e)= %g\n", erdos_renyi_prob);
-    fprintf(stderr,"models_mask          (-M)= %d\n", models_mask);
-    fprintf(stderr,"dump_files           (-D)\n");
-    fprintf(stderr,"quiet                (-q)= %d\n", quiet);
+    fprintf(stderr,"help                   (-h)\n");
+    fprintf(stderr,"number of rows         (-n)= %ld\n", numrows);
+    fprintf(stderr,"random seed            (-s)= %d\n", seed);
+    fprintf(stderr,"flat model (dens)      (-e)= %g\n", edge_density);
+    fprintf(stderr,"geometric model (dens) (-g)= %g\n", edge_density);
+    fprintf(stderr,"models_mask            (-M)= %d\n", models_mask);
+    fprintf(stderr,"dump_files             (-D)\n");
+    fprintf(stderr,"quiet                  (-q)= %d\n", quiet);
     if(printhelp)
       return(0);
   }
   
 
   if(!quiet) printf("Creating input matrix for toposort\n");
-  sparsemat_t * mat = generate_toposort_input (numrows, erdos_renyi_prob, seed, dump_files);
+  sparsemat_t * mat = generate_toposort_input (numrows, graph_model, edge_density, seed, dump_files);
   if(!mat){printf("ERROR: topo: generate_toposort_input failed\n"); exit(1);}
   
   if(!quiet){
@@ -369,13 +375,13 @@ int main(int argc, char * argv[])
   // arrays to hold the row and col permutations
   int64_t *rperminv2 = calloc(numrows, sizeof(int64_t));
   int64_t *cperminv2 = calloc(numcols, sizeof(int64_t));
-  for( use_model=1; use_model < ALL_Models; use_model *=2 ) {
+  for( use_model=1; use_model < ALL; use_model *=2 ) {
     switch( use_model & models_mask ) {
-    case GENERIC_Model:
+    case GENERIC:
       if(!quiet) printf("   using generic toposort: ");
       laptime = toposort_matrix_queue(rperminv2, cperminv2, mat, tmat);
       break;
-    case LOOP_Model:
+    case LOOP:
       if(!quiet) printf("   using loop    toposort: ");
       laptime = toposort_matrix_loop(rperminv2, cperminv2, mat, tmat);
       break;

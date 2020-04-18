@@ -123,6 +123,7 @@ After the first number, the next numbers are the parameters for the two kronecke
 the sequence of numbers in half to get two sequences.\n\
 In our example above we would produce the product of K(3,4) and K(5,9).\n\
 \n");
+  lgp_finalize();
   lgp_global_exit(0);
 }
 

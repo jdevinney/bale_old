@@ -48,6 +48,7 @@ quick_run=0
 mask=31
 path=$HOME/bale/build_$PLATFORM/bin
 LAUNCHER=""
+UPC_OPTS=""
 options=""
 while getopts ":c:qM:p:e:o:l:" opt; do
     case $opt in
@@ -77,10 +78,16 @@ if [ -z $LAUNCHER ]; then
      if [ -x "$(command -v oshrun)" ]; then
 	 LAUNCHER='oshrun'
      fi
+     if [ -x "$(command -v upcrun)" ]; then
+         LAUNCHER='upcrun'
+     fi
 fi
 if [ -z $LAUNCHER ]; then
-    echo "Can't find oshrun, srun, or aprun!"
-    exit 1
+    echo "Can't find oshrun, srun, upcrun, or aprun!"
+    echo "Assuming this is GNU or CLANG UPC..."
+    export UPC_OPTS=" -n 1"
+    unset PREAMBLE
+    echo "$UPC_OPTS"
 fi
 
 : ${BALEDIR:=$PWD}
@@ -95,20 +102,31 @@ fi
 for app in histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix
 #for app in triangles
 do
+    if [ ! -z "$UPC_OPTS" ]; then
+        UPC_OPTS=' -n 1'        
+    else
+        PREAMBLE="$LAUNCHER -n 1"
+    fi
     # just run the command with -h
     echo;echo; echo XXXXXXXXXXXX $app XXXXXXXXXXXXXXX
     echo;
-    $LAUNCHER -n 1 $BALEDIR/build_$PLATFORM/apps/$app -h
+    cmd=$PREAMBLE $BALEDIR/build_$PLATFORM/apps/$app $UPC_OPTS -h
+    echo $cmd
+    eval "$cmd"
     echo;
     
-    for i in `seq 0 2 4`
+    for i in `seq 0 2`
     do
         echo;
         nodes=$((2**i))
         cores=$(($nodes*$cores_per_node))
-
+        if [ ! -z "$UPC_OPTS" ]; then
+            UPC_OPTS=' -n $cores'            
+        else
+            PREAMBLE="$LAUNCHER -n $cores"
+        fi
         if [ $app != 'triangles' ]; then
-            cmd="$LAUNCHER -n $cores $BALEDIR/build_$PLATFORM/apps/$app -c $cores_per_node $options"
+            cmd="$PREAMBLE $BALEDIR/build_$PLATFORM/apps/$app ${UPC_OPTS} -c $cores_per_node $options"
             eval "$cmd"
             if [ $? -ne 0 ]; then
                 echo "ERROR! $cmd"
@@ -117,13 +135,17 @@ do
         else
             for a in `seq 0 1`
             do
-                cmd="$LAUNCHER -n $cores $BALEDIR/build_$PLATFORM/apps/$app -a $a -c $cores_per_node $options"
+                cmd="$PREAMBLE $BALEDIR/build_$PLATFORM/apps/$app ${UPC_OPTS} -a $a -c $cores_per_node $options"
+                echo "$cmd"
                 eval "$cmd"
                 if [ $? -ne 0 ]; then
                     echo "ERROR! $cmd"
                     exit 1
                 fi
-                $LAUNCHER -n $cores $BALEDIR/build_$PLATFORM/apps/$app -a $a -c $cores_per_node $options -K '"1 4 9 16 25"'
+                triopt="-K '1 4 9 16'"
+                cmd2="$PREAMBLE $BALEDIR/build_$PLATFORM/apps/$app ${UPC_OPTS} -a $a -c $cores_per_node $options ${triopt}"
+                echo "$cmd2"
+                eval "$cmd2"
                 if [ $? -ne 0 ]; then
                     echo "ERROR! in triangles run"
                     exit 1

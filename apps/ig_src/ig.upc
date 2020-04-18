@@ -82,6 +82,7 @@ ig [-h][-b count][-M mask][-n num][-T tabsize][-c num]\n\
 - -T tabsize is the table size per thread\n\
 - -c num number of cores/node is a scaling factor to adjust the update rate to handle multi-core nodes\n\
 \n");
+  lgp_finalize();
   lgp_global_exit(0);
 }
 

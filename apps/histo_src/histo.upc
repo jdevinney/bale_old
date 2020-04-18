@@ -86,6 +86,7 @@ histo [-h][-b count][-M mask][-n num][-T tabsize][-c num]\n\
 - -T tabsize is the table size or number of buckets per thread\n\
 - -c num number of cores/node is a scaling factor to adjust the update rate to handle multi-core nodes\n\
 \n");
+  lgp_finalize();
   lgp_global_exit(0);
 }
 
@@ -164,6 +165,7 @@ int main(int argc, char * argv[]) {
     case AGI_Model:
       T0_fprintf(stderr,"      AGI: ");
       laptime = histo_agi(index, l_num_ups, (SHARED int64_t *)counts);
+      laptime = histo_agi(index, l_num_ups, (SHARED int64_t*)counts);
       num_models++;
       break;
     
