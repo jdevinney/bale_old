@@ -165,7 +165,6 @@ int main(int argc, char * argv[]) {
     case AGI_Model:
       T0_fprintf(stderr,"      AGI: ");
       laptime = histo_agi(index, l_num_ups, (SHARED int64_t *)counts);
-      laptime = histo_agi(index, l_num_ups, (SHARED int64_t*)counts);
       num_models++;
       break;
     
