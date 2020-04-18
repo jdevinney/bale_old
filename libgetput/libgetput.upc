@@ -203,9 +203,9 @@ void lgp_finalize(){
     upc_barrier;                                                        \
     return dst[0]; }
 
-Define_Reducer(lgp_reduce_add_l, long, long, upc_all_reduceL, UPC_ADD)
-Define_Reducer(lgp_reduce_min_l, long, long, upc_all_reduceL, UPC_MIN)
-Define_Reducer(lgp_reduce_max_l, long, long, upc_all_reduceL, UPC_MAX)
+Define_Reducer(lgp_reduce_add_l, int64_t, int64_t, upc_all_reduceL, UPC_ADD)
+Define_Reducer(lgp_reduce_min_l, int64_t, int64_t, upc_all_reduceL, UPC_MIN)
+Define_Reducer(lgp_reduce_max_l, int64_t, int64_t, upc_all_reduceL, UPC_MAX)
 
 Define_Reducer(lgp_reduce_or_int, int, int, upc_all_reduceL, UPC_OR)
 
