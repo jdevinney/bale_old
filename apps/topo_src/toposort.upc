@@ -132,6 +132,7 @@ topo [-h][-b count][-M mask][-n num][-f filename][-Z num][-e prob][-D]\n\
  -e prob use an Erdos Renyi matrix where prob is the probability of an entry in matrix being non-zero \n\
  -D debugging flag that dumps out input and output files.\n\
 \n");
+  lgp_finalize();
   lgp_global_exit(0);
 }
 

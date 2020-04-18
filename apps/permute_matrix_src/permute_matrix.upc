@@ -82,6 +82,7 @@ permute_matrix [-h][-e prob][-M mask][-n num][-s seed][-Z num]\n\
  -s=seed Set a seed for the random number generation.\n\
  -Z=num  Set the avg number of nonzeros per row to z (default = 10, overrides Erdos-Renyi p).\n\
 \n");
+  lgp_finalize();
   lgp_global_exit(0);
 }
 

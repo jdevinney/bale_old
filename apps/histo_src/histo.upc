@@ -86,6 +86,7 @@ histo [-h][-b count][-M mask][-n num][-T tabsize][-c num]\n\
 - -T tabsize is the table size or number of buckets per thread\n\
 - -c num number of cores/node is a scaling factor to adjust the update rate to handle multi-core nodes\n\
 \n");
+  lgp_finalize();
   lgp_global_exit(0);
 }
 
@@ -163,7 +164,7 @@ int main(int argc, char * argv[]) {
     switch( use_model & models_mask ) {
     case AGI_Model:
       T0_fprintf(stderr,"      AGI: ");
-      laptime = histo_agi(index, l_num_ups, (int64_t *)counts);
+      laptime = histo_agi(index, l_num_ups, (SHARED int64_t*)counts);
       num_models++;
       break;
     
@@ -209,7 +210,7 @@ int main(int argc, char * argv[]) {
   // Assume that the atomic add version will correctly zero out the counts array
   for(i = 0; i < l_num_ups; i++) {
 #pragma pgas defer_sync
-    lgp_atomic_add((int64_t *)counts, index[i], -num_models);
+    lgp_atomic_add((SHARED int64_t *)counts, index[i], -num_models);
   }
   lgp_barrier();
 
@@ -226,7 +227,7 @@ int main(int argc, char * argv[]) {
      T0_fprintf(stderr,"FAILED!!!! total errors = %"PRId64"\n", totalerrors);   
   }
   
-  lgp_all_free((int64_t *)counts);
+  lgp_all_free((SHARED int64_t *)counts);
   free(index);
   free(pckindx);
   lgp_finalize();

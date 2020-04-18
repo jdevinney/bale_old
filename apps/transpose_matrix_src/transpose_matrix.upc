@@ -78,6 +78,7 @@ histo [-h][-b count][-M mask][-n num][-T tabsize][-c num]\n\
 -s=s Set a seed for the random number generation.\n\
 -Z=z Set the avg number of nonzeros per row to z (default = 10, overrides Erdos-Renyi p).\n\
 \n");
+  lgp_finalize();
   lgp_global_exit(0);
 }
 

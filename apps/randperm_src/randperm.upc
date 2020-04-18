@@ -79,6 +79,7 @@ randperm [-h][-n num][-M mask][-s seed]\n\
  -M mask Set the models mask (1,2,4,8,16,32 for AGI, exstack, exstack2,conveyor,alternate)\n\
  -s seed Set a seed for the random number generation.\n\
 \n");
+  lgp_finalize();
   lgp_global_exit(0);
 }
 
