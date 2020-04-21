@@ -247,6 +247,21 @@ int elt_comp(const void *a, const void *b)
   return( eltA->row - eltB->row );
 }
 
+/*! \brief the compare function for qsort called while reading 
+ * a MatrixMarket format (for matrix with values).
+ * NB. We sort on the rows so that we can fill the offset array
+ * sequentially in one pass. We sort on the columns so that
+ * the matrix will be "tidy"
+ */
+int triple_comp(const void *a, const void *b) 
+{
+  triple_t * A = (triple_t *)a;
+  triple_t * B = (triple_t *)b;
+  if( (A->row - B->row) == 0 )
+    return( A->col - B->col );
+  return( A->row - B->row );
+}
+
 /*! \brief read a sparse matrix from a file in a MasterMarket ASCII format
  * \param name the filename to be read
  * \return a pointer to the sparse matrix or NULL on failure
@@ -268,9 +283,30 @@ sparsemat_t  *read_matrix_mm(char * name)
   //The only format we need to be able to read requires the first line to be:
   //"%%MasterMarket matrix coordinate position"
   fscanfret = fscanf(fp,"%%%%MasterMarket %s %s %s\n", object, format, field);
-  if( (fscanfret != 3 ) || strncmp(object,"matrix",24)|| strncmp(format,"coordinate",24) || strncmp(field,"position",24)){
-    fprintf(stderr,"read_matrix_mm: can't read format of file %s\n", name);
+  if( (fscanfret != 3 ) || strncmp(object,"matrix",24) || strncmp(format,"coordinate",24) ){
+    fprintf(stderr,"read_matrix_mm: Incompatible matrix market format.\n");
+    fprintf(stderr,"                First line should be either:\n");
+    fprintf(stderr,"                matrix coordinate pattern\n");
+    fprintf(stderr,"                OR\n");
+    fprintf(stderr,"                matrix coordinate real\n");
+    fprintf(stderr,"                OR\n");
+    fprintf(stderr,"                matrix coordinate integer\n");
     exit(1);
+  }
+  
+  if(strncmp(field,"pattern",24) && strncmp(field,"real",24) && strncmp(field,"integer",24) ){
+    fprintf(stderr,"read_matrix_mm: Incompatible matrix market field.\n");
+    fprintf(stderr,"                Last entry on first line should be pattern, real, or integer\n");
+    exit(1);
+  }
+  int value;
+
+  if(strncmp(field,"pattern",24) == 0){
+    value = 0; // no values
+  }else if(strncmp(field,"real",24) == 0){
+    value = 1; // real values
+  }else{
+    value = 2; // integer values
   }
 
   fscanfret = fscanf(fp,"%ld %ld %ld\n", &nr, &nc, &nnz);
@@ -278,48 +314,101 @@ sparsemat_t  *read_matrix_mm(char * name)
     fprintf(stderr,"read_matrix_mm: reading nr, nc, nnz\n");
     exit(1);
   }
-
-  // read all the nonzeros into the elts array of (row,col)
-  // and sort them before building the sparsemat format
-  element_t *elts = calloc(nnz, sizeof(element_t));
-  if( elts == NULL ) {
-    fprintf(stderr,"read_matrix_mm: elts calloc failed\n");
-    exit(1);
-  }
-  for(i=0; i<nnz; i++) {
-    fscanfret = fscanf(fp,"%ld %ld\n", &(elts[i].row), &(elts[i].col));
-    assert (fscanfret == 2);
-    //fprintf(stderr,"--- %ld %ld\n",  elts[i].row, elts[i].col);
-    assert ( 0<elts[i].row && elts[i].row <=nr);
-    assert ( 0<elts[i].col && elts[i].col <=nc);
-    elts[i].row -=1;    // MasterMarket format is 1-up, not 0-up
-    elts[i].col -=1;
-  }
-  qsort( elts, nnz, sizeof(element_t), elt_comp);
-
-  sparsemat_t *ret = init_matrix( nr, nc, nnz ,0);//TODO: values??????
-  if( ret == NULL ) {
-    fprintf(stderr,"read_matrix_mm: sparsemat calloc failed\n");
-    exit(1);
-  }
-
+  
   int64_t pos = 0;
   int64_t row = 0;
-  ret->offset[row] = 0;
-  while( pos<nnz ){
-    if( elts[pos].row == row ) {
-      ret->nonzero[pos] = elts[pos].col;
-      pos++;
-      continue;
+  sparsemat_t * ret;
+  if(!value){ // no values
+    
+    // read all the nonzeros into the elts array of (row,col)
+    // and sort them before building the sparsemat format
+    element_t * elts = calloc(nnz, sizeof(element_t));
+    if( elts == NULL ) {
+      fprintf(stderr,"read_matrix_mm: elts calloc failed\n");
+      exit(1);
     }
-    while( row < elts[pos].row ) {
-      row++;
-      ret->offset[row] = pos;
-    }
-  }
-  ret->offset[row+1] = pos;
 
-  free(elts);
+    for(i=0; i<nnz; i++) {
+      fscanfret = fscanf(fp,"%ld %ld\n", &(elts[i].row), &(elts[i].col));
+      assert (fscanfret == 2);
+      //fprintf(stderr,"--- %ld %ld\n",  elts[i].row, elts[i].col);
+      assert ( 0<elts[i].row && elts[i].row <=nr);
+      assert ( 0<elts[i].col && elts[i].col <=nc);
+      elts[i].row -=1;    // MasterMarket format is 1-up, not 0-up
+      elts[i].col -=1;
+    }
+    
+    qsort( elts, nnz, sizeof(element_t), elt_comp);
+
+    ret = init_matrix( nr, nc, nnz, (value > 0));
+    if( ret == NULL ) {
+      fprintf(stderr,"read_matrix_mm: sparsemat calloc failed\n");
+      exit(1);
+    }
+
+    ret->offset[row] = 0;
+    while( pos<nnz ){
+      if( elts[pos].row == row ) {
+	ret->nonzero[pos] = elts[pos].col;
+	pos++;
+	continue;
+      }
+      while( row < elts[pos].row ) {
+	row++;
+	ret->offset[row] = pos;
+      }
+    }
+    ret->offset[row+1] = pos;
+
+    free(elts);
+    
+  }else{ // real or integer values
+
+    triple_t * elts = calloc(nnz, sizeof(triple_t));
+    if( elts == NULL ) {
+      fprintf(stderr,"read_matrix_mm: elts calloc failed\n");
+      exit(1);
+    }
+
+    for(i=0; i<nnz; i++) {
+      if(value == 1)
+	fscanfret = fscanf(fp,"%ld %ld %lf\n", &(elts[i].row), &(elts[i].col), &(elts[i].val));
+      //else
+      //fscanfret = fscanf(fp,"%ld %ld %lf\n", &(elts[i].row), &(elts[i].col));
+      assert (fscanfret == 3);
+      //fprintf(stderr,"--- %ld %ld %lf\n",  elts[i].row, elts[i].col, elts[i].val);
+      assert ( 0<elts[i].row && elts[i].row <=nr);
+      assert ( 0<elts[i].col && elts[i].col <=nc);
+      elts[i].row -= 1;    // MasterMarket format is 1-up, not 0-up
+      elts[i].col -= 1;
+    }
+
+    qsort( elts, nnz, sizeof(triple_t), triple_comp);
+
+    ret = init_matrix( nr, nc, nnz, (value > 0));
+    if( ret == NULL ) {
+      fprintf(stderr,"read_matrix_mm: sparsemat calloc failed\n");
+      exit(1);
+    }
+
+    ret->offset[row] = 0;
+    while( pos<nnz ){
+      if( elts[pos].row == row ) {
+	ret->nonzero[pos] = elts[pos].col;
+	ret->value[pos] = elts[pos].val;
+	pos++;
+	continue;
+      }
+      while( row < elts[pos].row ) {
+	row++;
+	ret->offset[row] = pos;
+      }
+    }
+    ret->offset[row+1] = pos;
+
+    free(elts);
+
+  }
   fclose(fp);
   return(ret);
 }
