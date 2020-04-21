@@ -182,9 +182,9 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
     for(j=off; j < nxtoff;j++){
       fprintf(fp, "%9ld %9ld",i, A->nonzero[j] );
       if(A->value)
-	fprintf(fp," %9.5f\n",A->value[j]);
+        fprintf(fp," %9.5f\n",A->value[j]);
       else
-	fprintf(fp,"\n");
+        fprintf(fp,"\n");
     }
   }
   if( stoprow < startrow)
@@ -195,9 +195,9 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
     for(j=off; j < nxtoff;j++){
       fprintf(fp, "%9ld %9ld",i, A->nonzero[j] );
       if(A->value)
-	fprintf(fp," %9.5f\n",A->value[j]);
+        fprintf(fp," %9.5f\n",A->value[j]);
       else
-	fprintf(fp,"\n");
+        fprintf(fp,"\n");
     }
   }
   fclose(fp);
@@ -222,9 +222,9 @@ int64_t write_matrix_mm(sparsemat_t *A, char * name) {
   for(i=0; i<A->numrows; i++){
     for(j=A->offset[i]; j < A->offset[i+1];j++)
       if(A->value)
-	fprintf(fp, "%ld %ld %lf\n",i+1, A->nonzero[j]+1, A->value[j]);
+        fprintf(fp, "%ld %ld %lf\n",i+1, A->nonzero[j]+1, A->value[j]);
       else
-	fprintf(fp, "%ld %ld\n",i+1, A->nonzero[j]+1);
+        fprintf(fp, "%ld %ld\n",i+1, A->nonzero[j]+1);
   }
   fclose(fp);
   return(0);
@@ -486,14 +486,14 @@ int64_t sort_nonzeros( sparsemat_t *mat)
     for(i = 0; i < mat->numrows; i++){
       int64_t pos = 0;
       for(j = mat->offset[i]; j < mat->offset[i+1]; j++){
-	tmparr[pos].col = mat->nonzero[j];
-	tmparr[pos++].value = mat->value[j];
+        tmparr[pos].col = mat->nonzero[j];
+        tmparr[pos++].value = mat->value[j];
       }
       qsort(tmparr, mat->offset[i+1] - mat->offset[i], sizeof(col_val_t), cv_comp );
       pos = 0;
       for(j = mat->offset[i]; j < mat->offset[i+1]; j++){
-	mat->nonzero[j] = tmparr[pos].col;
-	mat->value[j] = tmparr[pos++].value;
+        mat->nonzero[j] = tmparr[pos].col;
+        mat->value[j] = tmparr[pos++].value;
       }
     }
     free(tmparr);
@@ -561,14 +561,14 @@ int64_t compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat)
   for(j=0; j< lmat->nnz; j++) {
     if( lmat->nonzero[j] != rmat->nonzero[j] ){
       printf("(lmat->nonzero[%ld] = %ld)  != (rmat->nonzero[%ld] = %ld)", j,
-	     lmat->nonzero[j], j, rmat->nonzero[j] );      
+             lmat->nonzero[j], j, rmat->nonzero[j] );      
       return(1);
     }
     if(values){
       if( lmat->value[j] != rmat->value[j] ){
-	printf("(lmat->value[%ld] = %lf)  != (rmat->value[%ld] = %lf)", j,
-	       lmat->value[j], j, rmat->value[j] );
-	return(1);
+        printf("(lmat->value[%ld] = %lf)  != (rmat->value[%ld] = %lf)", j,
+               lmat->value[j], j, rmat->value[j] );
+        return(1);
       }
     }
   }
@@ -660,7 +660,7 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
   */
  //
  sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
-			    double edge_density, int64_t seed){
+                            double edge_density, int64_t seed){
 
    if(model == FLAT){
      
@@ -702,7 +702,7 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
   */
  
  sparsemat_t * random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed){
-   int64_t i, j, r;
+   int64_t i, r;
    int64_t row, col;
    double lM = log(RAND_MAX);
    double D  = log(1 - density);
@@ -831,9 +831,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   for(i = 0; i < nsectors; i++){
     for(j = 0; j < nsectors; j++){
       if(j > 0)
-	first_index_this_sector[i][j] += first_index_this_sector[i][j-1] + sectors[i][j-1].numpoints;
+        first_index_this_sector[i][j] += first_index_this_sector[i][j-1] + sectors[i][j-1].numpoints;
       else if(i > 0)
-	first_index_this_sector[i][j] += first_index_this_sector[i-1][nsectors-1] + sectors[i-1][nsectors-1].numpoints;
+        first_index_this_sector[i][j] += first_index_this_sector[i-1][nsectors-1] + sectors[i-1][nsectors-1].numpoints;
       sectors[i][j].points = calloc(sectors[i][j].numpoints, sizeof(points_t));
     }
   }
@@ -869,46 +869,46 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       int64_t m = sec->numpoints;
       for(k = 0; k < m; k++){
 
-	// count the edges to lower-indexed nodes within this sector
-	for(l = 0; l < k; l++){
-	  if(dist(sec->points[k], sec->points[l]) < r2)
-	    nedges++;
-	}
+        // count the edges to lower-indexed nodes within this sector
+        for(l = 0; l < k; l++){
+          if(dist(sec->points[k], sec->points[l]) < r2)
+            nedges++;
+        }
 
-	// count the edges to lower-indexed nodes outside the sector
-	// to do this, we need to look at sectors to the W, NW, N, and NE.
-	// W
-	if(j > 0){
-	  sector_t * sec2 = &sectors[i][j-1];
-	  for(l = 0; l < sec2->numpoints; l++){
-	    if(dist(sec->points[k], sec2->points[l]) < r2)
-	      nedges++;
-	  }
-	} 
-	// NW
-	if(i > 0 && j > 0){
-	  sector_t * sec2 = &sectors[i-1][j-1];
-	  for(l = 0; l < sec2->numpoints; l++){
-	    if(dist(sec->points[k], sec2->points[l]) < r2)
-	      nedges++;
-	  }
-	} 
-	// N
-	if(i > 0){
-	  sector_t * sec2 = &sectors[i-1][j];
-	  for(l = 0; l < sec2->numpoints; l++){
-	    if(dist(sec->points[k], sec2->points[l]) < r2)
-	      nedges++;
-	  }
-	}
-	// NE
-	if(i > 0 && j < (nsectors-1)){
-	  sector_t * sec2 = &sectors[i-1][j+1];
-	  for(l = 0; l < sec2->numpoints; l++){
-	    if(dist(sec->points[k], sec2->points[l]) < r2)
-	      nedges++;
-	  }
-	} 
+        // count the edges to lower-indexed nodes outside the sector
+        // to do this, we need to look at sectors to the W, NW, N, and NE.
+        // W
+        if(j > 0){
+          sector_t * sec2 = &sectors[i][j-1];
+          for(l = 0; l < sec2->numpoints; l++){
+            if(dist(sec->points[k], sec2->points[l]) < r2)
+              nedges++;
+          }
+        } 
+        // NW
+        if(i > 0 && j > 0){
+          sector_t * sec2 = &sectors[i-1][j-1];
+          for(l = 0; l < sec2->numpoints; l++){
+            if(dist(sec->points[k], sec2->points[l]) < r2)
+              nedges++;
+          }
+        } 
+        // N
+        if(i > 0){
+          sector_t * sec2 = &sectors[i-1][j];
+          for(l = 0; l < sec2->numpoints; l++){
+            if(dist(sec->points[k], sec2->points[l]) < r2)
+              nedges++;
+          }
+        }
+        // NE
+        if(i > 0 && j < (nsectors-1)){
+          sector_t * sec2 = &sectors[i-1][j+1];
+          for(l = 0; l < sec2->numpoints; l++){
+            if(dist(sec->points[k], sec2->points[l]) < r2)
+              nedges++;
+          }
+        } 
       }
     }
   }
@@ -928,77 +928,77 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
        sector_t * sec = &sectors[i][j];
        int64_t m = sec->numpoints;
        for(k = 0; k < m; k++){
-	 
-	 node = sec->points[k].index;
+         
+         node = sec->points[k].index;
 
-	 if(loops == LOOPS){
-	   A->nonzero[nedges] = node;
-	   if(weighted) A->value[nedges] = rand()/RAND_MAX;
-	   nedges++;
-	 }
-	 
-	 // count the edges to lower-indexed nodes within this sector
-	 for(l = 0; l < k; l++){
-	   if(dist(sec->points[k], sec->points[l]) < r2){
-	     A->nonzero[nedges] = sec->points[l].index;
-	     assert(node >= sec->points[l].index);
-	     if(weighted) A->value[nedges] = rand()/RAND_MAX;
-	     nedges++;
-	   }
-	 }
+         if(loops == LOOPS){
+           A->nonzero[nedges] = node;
+           if(weighted) A->value[nedges] = rand()/RAND_MAX;
+           nedges++;
+         }
+         
+         // count the edges to lower-indexed nodes within this sector
+         for(l = 0; l < k; l++){
+           if(dist(sec->points[k], sec->points[l]) < r2){
+             A->nonzero[nedges] = sec->points[l].index;
+             assert(node >= sec->points[l].index);
+             if(weighted) A->value[nedges] = rand()/RAND_MAX;
+             nedges++;
+           }
+         }
 
-	 // count the edges to lower-indexed nodes outside the sector
-	 // to do this, we need to look at sectors to the W, NW, N, and NE.
-	 // W
-	 if(j > 0){
-	   sector_t * sec2 = &sectors[i][j-1];
-	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r2){
-	       A->nonzero[nedges] = sec2->points[l].index;
-	       assert(node >= sec2->points[l].index);
-	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
-	       nedges++;
-	     }
-	   }
-	 } 
-	 // NW
-	 if(i > 0 && j > 0){
-	   sector_t * sec2 = &sectors[i-1][j-1];
-	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r2){
-	       A->nonzero[nedges] = sec2->points[l].index;
-	       assert(node >= sec2->points[l].index);
-	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
-	       nedges++;
-	     }
-	   }
-	 } 
-	 // N
-	 if(i > 0){
-	   sector_t * sec2 = &sectors[i-1][j];
-	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r2){
-	       A->nonzero[nedges] = sec2->points[l].index;
-	       assert(node >= sec2->points[l].index);
-	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
-	       nedges++;
-	     }
-	   }
-	 }
-	 // NE
-	 if(i > 0 && j < (nsectors-1)){
-	   sector_t * sec2 = &sectors[i-1][j+1];
-	   for(l = 0; l < sec2->numpoints; l++){
-	     if(dist(sec->points[k], sec2->points[l]) < r2){
-	       A->nonzero[nedges] = sec2->points[l].index;
-	       assert(node >= sec2->points[l].index);
-	       if(weighted) A->value[nedges] = rand()/RAND_MAX;
-	       nedges++;
-	     }
-	   }
-	 }
-	 A->offset[node+1] = nedges;
-	 node++;
+         // count the edges to lower-indexed nodes outside the sector
+         // to do this, we need to look at sectors to the W, NW, N, and NE.
+         // W
+         if(j > 0){
+           sector_t * sec2 = &sectors[i][j-1];
+           for(l = 0; l < sec2->numpoints; l++){
+             if(dist(sec->points[k], sec2->points[l]) < r2){
+               A->nonzero[nedges] = sec2->points[l].index;
+               assert(node >= sec2->points[l].index);
+               if(weighted) A->value[nedges] = rand()/RAND_MAX;
+               nedges++;
+             }
+           }
+         } 
+         // NW
+         if(i > 0 && j > 0){
+           sector_t * sec2 = &sectors[i-1][j-1];
+           for(l = 0; l < sec2->numpoints; l++){
+             if(dist(sec->points[k], sec2->points[l]) < r2){
+               A->nonzero[nedges] = sec2->points[l].index;
+               assert(node >= sec2->points[l].index);
+               if(weighted) A->value[nedges] = rand()/RAND_MAX;
+               nedges++;
+             }
+           }
+         } 
+         // N
+         if(i > 0){
+           sector_t * sec2 = &sectors[i-1][j];
+           for(l = 0; l < sec2->numpoints; l++){
+             if(dist(sec->points[k], sec2->points[l]) < r2){
+               A->nonzero[nedges] = sec2->points[l].index;
+               assert(node >= sec2->points[l].index);
+               if(weighted) A->value[nedges] = rand()/RAND_MAX;
+               nedges++;
+             }
+           }
+         }
+         // NE
+         if(i > 0 && j < (nsectors-1)){
+           sector_t * sec2 = &sectors[i-1][j+1];
+           for(l = 0; l < sec2->numpoints; l++){
+             if(dist(sec->points[k], sec2->points[l]) < r2){
+               A->nonzero[nedges] = sec2->points[l].index;
+               assert(node >= sec2->points[l].index);
+               if(weighted) A->value[nedges] = rand()/RAND_MAX;
+               nedges++;
+             }
+           }
+         }
+         A->offset[node+1] = nedges;
+         node++;
        }
               
      }
@@ -1027,10 +1027,8 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
   double D  = log(1 - p);
   int64_t nnz;
   int64_t r;
-  int64_t lower, diag;
   int64_t end = n;
   int64_t ndiag = n;
-  sparsemat_t *mat;
 
   assert(n > 0);
 
@@ -1045,7 +1043,7 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
       end = row;
     while(col < end){
       if(col == row) // we hit a diagonal for free!
-	ndiag--;
+        ndiag--;
       nnz++;
       do { r = rand(); } while(r == RAND_MAX);     
       col += 1 + floor((log(RAND_MAX - r) - lM)/D);
@@ -1056,15 +1054,15 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
   if(loops == LOOPS) nnz += ndiag;
 
   int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
-  sparsemat_t * A = init_matrix(n, n, nnz, weighted);
+  sparsemat_t * mat = init_matrix(n, n, nnz, weighted);
 
-  if(!A){ printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL); }
+  if(!mat){ printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL); }
 
   // fill in the nonzeros
   srand(seed);
   nnz = 0;
   row = 0;
-  A->offset[0] = 0;
+  mat->offset[0] = 0;
   do { r = rand(); } while(r == RAND_MAX);     
   col = 1 + floor((log(RAND_MAX - r) - lM)/D);
   while(row < n){
@@ -1073,16 +1071,16 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
       end = row;
     while(col < end){
       if(col == row) need_diag = 0;
-      A->nonzero[nnz++] = col;
+      mat->nonzero[nnz++] = col;
       do { r = rand(); } while(r == RAND_MAX);     
       col += 1 + floor((log(RAND_MAX - r) - lM)/D);     
     }
     
     if(need_diag){
-      A->nonzero[nnz++] = row;
+      mat->nonzero[nnz++] = row;
     }
     row++;
-    A->offset[row] = nnz;
+    mat->offset[row] = nnz;
     col -= end;
   }
 
@@ -1093,10 +1091,10 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
       mat->value[i] = (double)rand()/RAND_MAX;
     }
   }
-  assert(A->nnz == nnz);
+  assert(mat->nnz == nnz);
   if(loops == LOOPS && (edge_type == DIRECTED || edge_type == DIRECTED_WEIGHTED))
-    sort_nonzeros(A); // to get the diagonal entry sorted correctly
-  return(A);
+    sort_nonzeros(mat); // to get the diagonal entry sorted correctly
+  return(mat);
 }
 
 /*! \brief Generates the upper or lower half of the adjacency matrix for an Erdos-Renyi random graph. 
@@ -1126,11 +1124,11 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
     for(col = 0; col < end; col++){
       if(col == row) continue;
       if( rand() < P ){
-	nnz++;
+        nnz++;
       }
     }
   }
-  if(loops = LOOPS) nnz += n;
+  if(loops == LOOPS) nnz += n;
   
   int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
   sparsemat_t * mat = init_matrix(n, n, nnz, weighted);
@@ -1145,11 +1143,11 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
       end = row + (loops == LOOPS);
     for(col = 0; col < end; col++){
       if(col == row && loops == LOOPS){
-	mat->nonzero[pos++] = row;
-	continue;
+        mat->nonzero[pos++] = row;
+        continue;
       }
       if( rand() < P ){
-	mat->nonzero[pos++] = col;
+        mat->nonzero[pos++] = col;
       }
     }
     mat->offset[row+1] = pos;
