@@ -372,7 +372,7 @@ sparsemat_t  *read_matrix_mm(char * name)
 
     for(i=0; i<nnz; i++) {
       if(value == 1)
-	fscanfret = fscanf(fp,"%ld %ld %lf\n", &(elts[i].row), &(elts[i].col), &(elts[i].val));
+        fscanfret = fscanf(fp,"%ld %ld %lf\n", &(elts[i].row), &(elts[i].col), &(elts[i].val));
       //else
       //fscanfret = fscanf(fp,"%ld %ld %lf\n", &(elts[i].row), &(elts[i].col));
       assert (fscanfret == 3);
@@ -691,9 +691,10 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
  * \param numrows total number of rows
  * \param numcols total number of columns
  * \param nnz number of nonzero
+ * \param values flag: 0 = no values, 1 = doubles
  * \return An initialized sparsemat_t (numrows, numcols, nnz are set) or NULL on error.
  */
- sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values) 
+sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values) 
 {
   sparsemat_t * mat = calloc(1, sizeof(sparsemat_t));
   mat->numrows  = numrows;
@@ -747,7 +748,6 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
   * \param edge_density: d in [0, 1), target fraction of edges present.
   * \param seed: RNG seed.
   */
- //
  sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                             double edge_density, int64_t seed){
 
@@ -838,21 +838,203 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
      }
    }
    return(A);
- }
+}
 
- /*! \brief Generate a distributed graph that is the product of a
- collection of star graphs (K_{1,m}). 
+//****************** Kronecker Products of Star  Graphs *******************************/
+
+/*! \brief Generate the adjacency matrix for the star K_{1,m} (with or without loop edges)
+ * \param m  the number of non-hub vertices
+ * \param mode
+ *  - mode == 0: default, no self loops
+ *  - mode == 1: add a self loop to center vertex of star (row zero)
+ *  - mode == 2: add a self loop to an outer vertex (the last one)
+ * \return the adjacency matrix of the graph
+*/
+sparsemat_t * gen_star_graph(int64_t m, int mode) 
+{
+  sparsemat_t * G = init_matrix(m + 1, m + 1, 2*m + (mode > 0 ? 1 : 0), 0);
+  
+  int64_t i,j;
+  int64_t pos = 0;  // counter thru the nonzeros
+
+  G->offset[0] = 0;
+  if(mode == 1)     // add a self loop to center vertex 
+    G->nonzero[pos++] = 0;
+
+  // Add the top row 
+  for(j = 1; j < m+1; j++){
+    G->nonzero[pos++] = j;
+  }  
+  G->offset[1] = pos;
+
+  // rest of the rows 
+  for(i = 1; i < m+1; i++){
+    G->nonzero[pos++] = 0;
+    G->offset[i+1] = pos;
+  }
+  
+  if(mode == 2){  // add a self loop to last vertex and fix the last offset
+    G->nonzero[pos++] = m;
+    G->offset[m+1] = pos;
+  }
+  
+  return(G);
+}
+
+/*! \brief Produce the Kronecker matrix product of two square {0,1}-matrices
+ * \param A sparse matrix, A is A_n x A_n
+ * \param B sparse matrix, B is B_n x B_n
+ * \return $C =  A \bigotimes B$
+ * 
+ * Key fact is that element wise, using the notation C[row,col], A[r,s] and B[u,v],
+ * 
+ *  C[row,col] = C[r*B_n + u, s*B_n + v] = A[r,s] * B[u,v]
  *
- * \param star_sizes An array of m_i values specifying the star graphs we are taking the product of.
- * \param B_num The number of star sizes in the star_sizes array.
- * \param mode Mode 0 graphs have no triangles, mode 1 graphs have lots of triangles and mode 2 graphs
- * have few triangles.
- * \return A matrix which represents the adjacency matrix for the Kronecker product of K_{1,m_i} 
- * for each m_i in the list of star_sizes.
- */
+*/
+sparsemat_t * kronecker_mat_product(sparsemat_t * A, sparsemat_t * B) 
+{
+  int64_t r, s, u, v, j, k;
+  int64_t A_n = A->numrows;
+  int64_t B_n = B->numrows;
+  int64_t C_n = A_n * B_n;
+  int64_t C_nnz = A->nnz * B->nnz;
 
- sparsemat_t * kronecker_product_graph(int64_t * star_sizes, int64_t num_stars, int mode);
+  sparsemat_t * C = init_matrix(C_n, C_n, C_nnz, 0);  // values = 0, for a {0,1}-matrix
+
+  // get the number of nonzeros in each row 
+  int64_t * C_rowtmp = calloc(C_n + 1, sizeof(int64_t));
+  for(r = 0; r < A_n; r++){
+    int64_t da = A->offset[r + 1] - A->offset[r];
+    for(s = 0; s < B_n; s++){
+      int64_t db = B->offset[s + 1] - B->offset[s]; 
+      C_rowtmp[r*B_n + s] = da * db;
+    }
+  }
+
+  // set the offsets in C 
+  // we will reuse C_rowtmp[] to count from C->offset[r] to C->offset[r+1] 
+  // as we fill in the nonzeros in row r of C
+  C->offset[0] = 0;
+  for(r = 0; r < C_n; r++){
+    C->offset[r+1] = C->offset[r] + C_rowtmp[r];
+    C_rowtmp[r] = C->offset[r];
+  }
+  
+
+  // fill in the nonzeros of C, we fill them in a "block" order.
+  // ie, we write all of B for each nonzero in A 
+  for(r = 0; r < A_n; r++){
+    for(j = A->offset[r]; j < A->offset[r+1]; j++){
+      s = A->nonzero[j];
+      for(u = 0; u < B_n; u++){
+        for(k = B->offset[u]; k < B->offset[u+1]; k++){
+          v = B->nonzero[k];
+          C->nonzero[C_rowtmp[r*B_n + u]++] = s * B_n + v;
+        }
+      }
+    }
+  }
+  
+  free(C_rowtmp);
+
+  return(C);
+}
+
+
+/*! \brief Generate the kroncker product of a collection of star graphs.
+ * \param M the number of stars in the collection (M must be at least 2) 
+ * \param m The list of sizes: each element m[i] corresponds to a star K_{1,m[i]}
+ * \param mode 
+ *  - mode == 0: default, no self loops
+ *  - mode == 1: add a self loop to center vertex of each star 
+ *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
+ * \return the adjacency matrix for graph
+*/
+sparsemat_t * kronecker_product_graph(int64_t M, int64_t * m, int mode){
+  int64_t i,j;
+  int64_t G_n, G_nnz;
+  sparsemat_t * star;
+
+  if(M < 1){
+    printf("ERROR: kronecker_product_graph requires  M >= 1!\n");
+    return(NULL);
+  }
+
+  if(M == 1){ // mostly for debugging
+    return(gen_star_graph(m[0], mode));
+  }
+  
+  sparsemat_t ** mats = calloc(2*M, sizeof(sparsemat_t *));
+
+  mats[0] = gen_star_graph(m[0], mode);
+
+  for(i = 1; i < M; i++) {
+    star = gen_star_graph(m[i], mode);
+    mats[i] = kronecker_mat_product(mats[i-1] , star);
+    clear_matrix( star );
+  }
+  sparsemat_t * R = mats[M-1];  // what we want but is full symmetric and may have loops
+#if 0 // the free trick doesn't work
+  Aarr[M] = kron_prod(Aarr[0], Aarr[1]);
+  for(i = 0; i < M-2; i++)
+    Aarr[M + 1 + i] = kron_prod(Aarr[M+i], Aarr[2+i]);
  
+  sparsemat_t * A = Aarr[2*M-2];
+  Aarr[2*M - 2] = NULL;
+
+  for(i = 0; i < 2*M-2; i++){
+    clear_matrix(Aarr[i]); free(Aarr[i]);
+  }
+#endif
+  // count the number of nonzeros in the lower triangle part of the matrix
+  G_n = R->numrows;
+  G_nnz = 0;
+  for(i=0; i<R->numrows; i++){
+    for(j=R->offset[i]; (j<R->offset[i+1]) && (R->nonzero[j] < i ); j++){
+      G_nnz++;
+    }
+  }
+
+  // copy the lower triangle of the matrix (excluding the diagonal) to the returned matrix
+  sparsemat_t * G = init_matrix(G_n, G_n, G_nnz, 0);
+  G->offset[0] = 0;
+  int64_t pos = 0;
+  for(i=0; i<R->numrows; i++){
+    for(j=R->offset[i]; (j<R->offset[i+1]) && (R->nonzero[j] < i ); j++){
+      G->nonzero[pos++] = R->nonzero[j];
+    }
+    G->offset[i+1] = pos;
+  }
+  return(G);
+}
+
+int64_t num_triangles_from_theory(int64_t M, int64_t * m, int mode)
+{
+   double ts;
+   int64_t ms;
+   int i;
+
+   if( mode == 0 ) 
+     return 0;
+   else if( mode == 1 ){
+     ts = 1.0;
+     ms = 1;
+     for(i = 0; i < M; i++){
+        ts *= (3*m[i] + 1);
+        ms *= (m[i] + 1);
+     }
+     return ( (int64_t) ((ts / 6.0) - 0.5 * ms + 1.0/3.0));
+   } else if( mode == 2 ){
+     return( (int64_t) (1.0/6.0)*pow(4,M) - pow(2.0,(M - 1)) + 1.0/3.0);
+   } else {
+     printf("ERROR: : init_matrix failed!\n");
+     return(-1); 
+   }
+
+}
+ 
+
+//****************************** Geometric Graphs *********************************************/
  typedef struct points_t{
    double x;
    double y;

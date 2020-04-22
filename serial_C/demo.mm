@@ -1,4 +1,4 @@
-%%MasterMarket matrix coordinate position
+%%MasterMarket matrix coordinate pattern
 20 20 190
 2 1
 3 1
