@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Institute for Defense Analyses
+# Copyright (c) 2020, Institute for Defense Analyses
 # 4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 # This material may be reproduced by or for the U.S. Government 
 # pursuant to the copyright license under the clauses at DFARS 
@@ -196,6 +196,16 @@ if test "x$with_mpp" = xyes; then
         [AC_MSG_ERROR([Couldn't find libactimer. Update LDFLAGS and try again.])])
 fi
 
+# Check behavior of getopt() [Linux vs. BSD]
+AC_LANG_PUSH([C])
+AC_MSG_CHECKING([for optreset in getopt()])
+AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <unistd.h>]], [return optreset;])],
+    [AC_MSG_RESULT([yes])
+     have_optreset=yes],
+    [AC_MSG_RESULT([no])
+     have_optreset=no])
+AC_LANG_POP([C])
+
 mpp_use_mpi=no
 mpp_use_shmem=no
 if test "x$with_mpp" = xyes; then
@@ -267,6 +277,8 @@ AS_IF([test "x$with_shmem_ptr" = xyes],
     [AC_DEFINE([HAVE_SHMEM_PTR], [1], [Define if shmem_ptr exists and should be used.])])
 AS_IF([test "x$enable_profiling" = xyes],
     [AC_DEFINE([ENABLE_PROFILING], [1], [Define to activate mpp profiling and actimer.])])
+AS_IF([test "x$have_optreset" = xyes],
+    [AC_DEFINE([HAVE_OPTRESET], [1], [Define if getopt() understands optreset.])])
 
 # Decide what codelets to build
 AC_LANG_PUSH([C])

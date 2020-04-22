@@ -1,4 +1,4 @@
-// Copyright (c) 2019, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -1184,12 +1184,16 @@ main(int argc, char* argv[])
         n++;
       if (n == 1)
         break;
-      // optind = 1;
-      optind = 0;  // correct value for glibc
       int failure = alltoallv(n, tokens);
       if (status < failure)
         status = failure;
       fflush(stdout);
+#if HAVE_OPTRESET
+      optind = 1;
+      optreset = 1;
+#else
+      optind = 0;  // correct value for glibc
+#endif
     }
 
     mprint(0, 0, "job finished\n");
