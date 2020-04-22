@@ -15,4 +15,4 @@ threads="$1"
 shift
 program="$1"
 shift
-$program -fupc-threads-$threads "$@"
+$program -fupc-threads-$threads -- "$@"
