@@ -166,8 +166,8 @@ void lgp_init(int argc, char *argv[]) {
   time_t now = time(NULL);
   struct tm *date = localtime(&now);
 
-  T0_fprintf(stderr,"Bale Version 2.1 (UPC): %04d-%02d-%02d.%02d:%02d\n",
-     date->tm_year+1990, date->tm_mon, date->tm_mday, date->tm_hour, date->tm_min);
+  T0_fprintf(stderr,"Bale Version 2.1 (UPC %d): %04d-%02d-%02d.%02d:%02d\n",
+             __UPC_VERSION__, date->tm_year+1990, date->tm_mon, date->tm_mday, date->tm_hour, date->tm_min);
 
   int i;
 
@@ -226,8 +226,9 @@ void lgp_init(int argc, char *argv[]) {
   time_t now = time(NULL);
   struct tm *date = localtime(&now);
  
-  T0_fprintf(stderr,"Bale Version 2.1 (on Shmem): %04d-%02d-%02d.%02d:%02d\n",
-     date->tm_year+1990, date->tm_mon+1, date->tm_mday, date->tm_hour, date->tm_min); 
+  T0_fprintf(stderr,"Bale Version 2.1 (OpenShmem version %d.%d): %04d-%02d-%02d.%02d:%02d\n",
+             SHMEM_MAJOR_VERSION, SHMEM_MINOR_VERSION,
+             date->tm_year+1990, date->tm_mon+1, date->tm_mday, date->tm_hour, date->tm_min); 
   int i;
 
   T0_fprintf(stderr,"Command:");
