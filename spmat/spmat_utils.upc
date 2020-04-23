@@ -596,90 +596,96 @@ sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int
   return(A2);
 }
 
-/*! \brief Generates the upper or lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
+ /*! \brief Generates the adjacency matrix for a random geometric graph. 
+  * 
+  * See https://en.wikipedia.org/wiki/Random_geometric_graph
+  * Each vertex corresponds to a point randomly placed in the unit square. Two vertices
+  * are adjancent if their corresponding points are within distance r of each other.
+  * 
+  * \param n The number of vertices
+  * \param r The size of the neighborhoods that determine edges.
+  * \param type See edge_type. If undirected, this routine returns a lower triangular matrix.
+  * \param loops See self_loops. Are there self loops?
+  * \param seed A seed for the RNG.
+  * \return An adjacency matrix (or lower portion of in the undirected case).
+  */
+sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed){
+
+  
+  
+}
+/*! \brief Generates the lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
  * graph. This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
  * by Batageli and Brandes appearing in Physical Review 2005. Instead of flipping a coin for each potential edge
  * this algorithm generates a sequence of "gaps" between 1s in the upper or lower triangular portion of the 
  * adjancecy matrix using a geometric random variable.
  *
+ * We parallelized this algorithm by noting that the geometric random variable is memory-less. This means, we 
+ * can start each PE independently (still need to think about the details of exactly how we did this below).
+ *
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
- * \param unit_diag 1 - set the diagonal to all ones, 0's otherwise
- * \param lower 0/1 : return the lower/upper-triangular portion of the adjacency matrix 
+ * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
+ * \param loops See self_loops enum. Does all or no vertices have self loops.
  * \param seed A random seed.
  * \return A distributed sparsemat_t
  */
-sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, int64_t seed) {
-
-  srand(seed);
-
-  int64_t row, col, i, j;
+sparsemat_t * erdos_renyi_random_graph(int n, double p, edge_type edge_type, self_loops loops, int64_t seed){
+  
+  int64_t row, col, i;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
-  int64_t lnnz, lnnz_orig;
+  int64_t lnnz = 0, lnnz_orig=0;
   int64_t P = p*RAND_MAX;
   double lM = log(RAND_MAX);
   double D = log(1 - p);
-
-  if(p == 0.0){
-    sparsemat_t * A = init_matrix(n, n, 0);
-    return(A);
-  }
+  int64_t r;
+  int64_t end = n;
   
   /* count lnnz so we can allocate A correctly */
-  lnnz_orig = 0;
-  int64_t r;
+  srand(seed);
   row = MYTHREAD;
-  col = (lower == 1) ? 0 : MYTHREAD + 1;
+  do { r = rand(); } while(r == RAND_MAX);     
+  col = 1 + floor((log(RAND_MAX - r) - lM)/D);
   while(row < n){
-    r = rand();
-    while(r == RAND_MAX) r = rand();
-    col += 1 + floor((log(RAND_MAX - r) - lM)/D);
-    while((col >= ((lower == 1) ? row : n)) && (row < n)){
-      /* the column index is too big, so we need to wrap it */
-      col = col - ((lower == 1) ? row : n - (row + 1 + THREADS));
-      row += THREADS;
-    }
-    if(row < n)
+    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      end = row;
+    while(col < end){
+      if(col == row) ndiag--; // we just hit a diagonal entry (we don't have to generate this one later)
       lnnz_orig++;
+      do { r = rand(); } while(r == RAND_MAX);     
+      col += 1 + floor((log(RAND_MAX - r) - lM)/D);
+    }
+    row += THREADS;
+    col -= end;
   }
-  if(unit_diag)
-    lnnz_orig += ln;
+  if(loops == LOOPS) lnnz_orig += ndiag;
   
   lgp_barrier();
 
-  sparsemat_t * A = init_matrix(n, n, lnnz_orig);
-  if(!A){T0_printf("ERROR: gen_er_graph_dist: A is NULL!\n"); return(NULL);}
+  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  sparsemat_t * A = init_matrix(n, n, lnnz_orig, weighted);
+  if(!A){T0_printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL);}
 
   /* reset the seed so we get the same sequence of coin flips */
   srand(seed);
-
   A->loffset[0] = 0;
-  lnnz = 0;
   row = MYTHREAD;
-  col = (lower == 1) ? 0 : MYTHREAD + 1;
-  if(unit_diag && (lower != 1)) A->lnonzero[lnnz++] = MYTHREAD;
+  do { r = rand(); } while(r == RAND_MAX);     
+  col = 1 + floor((log(RAND_MAX - r) - lM)/D);
   while(row < n){
-    r = rand();
-    while(r == RAND_MAX) r = rand();
-    col += 1 + floor((log(RAND_MAX - r) - lM)/D);
-    while((col >= ((lower == 1) ? row : n)) && (row < n)){
-      /* the column index is too big, so we need to wrap it */
-      if(lower == 1){ /* lower triangular matrix */
-        /* diagonal element */
-        if(unit_diag) A->lnonzero[lnnz++] = row;
-        col = col - row;
-        row += THREADS;
-        A->loffset[row/THREADS] = lnnz;
-      }else{ /* upper triangular matrix */
-        /* diagonal element */
-        row += THREADS;
-        col = row + 1 + col - n;
-        A->loffset[row/THREADS] = lnnz;
-        if((row < n) && unit_diag) A->lnonzero[lnnz++] = row;
-      }      
-    }
-    if(row < n)
+    int need_diag = (loops == LOOPS);
+    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      end = row;
+    while(col < end){
+      if(col == row) need_diag = 0;
       A->lnonzero[lnnz++] = col;
+      do { r = rand(); } while(r == RAND_MAX);     
+      col += 1 + floor((log(RAND_MAX - r) - lM)/D);
+    }
+    if(need_diag) A->nonzero[lnnz++] = row;
+    row+=THREADS;
+    col -= end;
+    A->loffset[row] = lnnz;
   }
   
   if(lnnz != lnnz_orig){
@@ -687,89 +693,89 @@ sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_
     return(NULL);
   }
 
+  // fill in the weights
+  if(weighted){
+    for(i = 0; i < lnnz; i++){
+      A->lvalue[i] = (double)rand()/RAND_MAX;
+    }
+  }
+
+  if(loops == LOOPS && (edge_type == DIRECTED || edge_type == DIRECTED_WEIGHTED))
+    sort_nonzeros(A); // to get the diagonal entry sorted correctly
+  
   return(A);
 }
 
 /*! \brief Generates the upper or lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
- * graph. This is O(n^2)!
+ * graph. This is the naive O(n^2) algorithm. It flips a coin for each possible edge.
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
- * \param unit_diag Include the diagonal or not.
- * \param mode 0 : return a symmetric adjacency matrix
-               1 : return the lower-triangular portion of the adjacency matrix 
-               2 : return the upper-triangular portion of the adjacency matrix 
+ * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
+ * \param loops See self_loops enum. Do all or no vertices have self loops.
  * \param seed A random seed.
  * \return A distributed sparsemat_t (the lower half of the adjacency matrix).
  */
-sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, int64_t seed) {
+sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_type, self_loops loops, int64_t seed){
   
-
   int64_t row, col, i, j;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
   int64_t lnnz, lnnz_orig;
   int64_t P = p*RAND_MAX;
+  int64_t end = n;
   
-  srand(seed);
   /* count lnnz so we can allocate A correctly */
+  srand(seed);
   lnnz_orig = 0;
   for(row = MYTHREAD; row < n; row += THREADS){
-    if(mode == 1){
-      for(j = 0; j < row; j++){
-        if(rand() < P)
-          lnnz_orig++;
-      }
-      if(unit_diag)
-        lnnz_orig++;
-    }else{   // mode 0 or 2
-      if(unit_diag)
-        lnnz_orig++;
-      for(j = row + 1; j < n; j++)
-        if(rand() < P)
-          lnnz_orig++;      
-    }
+    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      end = row;
+    for(j = 0; j < end; j++){
+      if(col == row) continue;
+      if(rand() < P)
+	lnnz_orig++;
+    }    
   }
+  if(loops == LOOPS) lnnz_orig += n;
   
   lgp_barrier();
 
-  sparsemat_t * A = init_matrix(n, n, lnnz_orig);
-  if(!A){T0_printf("ERROR: gen_er_graph_dist: A is NULL!\n"); return(NULL);}
+  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  sparsemat_t * A = init_matrix(n, n, lnnz_orig, weighted);
+  if(!A){T0_printf("ERROR: erdos_renyi_random_graph_naive: init_matrix failed!\n"); return(NULL);}
 
   /* reset the seed so we get the same sequence of coin flips */
   srand(seed);
-
   A->loffset[0] = 0;  
   lnnz = 0;
-  if(mode == 1){ /* lower triangular matrix */
-    for(row = MYTHREAD; row < n; row += THREADS){
-      for(col = 0; col < row; col++){
-        if(rand() < P){
-          A->lnonzero[lnnz++] = col;
-        }
+  for(row = MYTHREAD; row < n; row += THREADS){
+    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      end = row + (loops == LOOPS);
+    for(col = 0; col < row; col++){
+      if(col == row && loops == LOOPS){
+	A->nonzero[lnnz++] = row;
+	continue;
       }
-      /* diagonal element */
-      if(unit_diag)
-        A->lnonzero[lnnz++] = row;
-      
-      A->loffset[row/THREADS + 1] = lnnz;
+      if(rand() < P){
+	A->lnonzero[lnnz++] = col;
+      }      
     }
-  }else{ /* upper triangular matrix or symmetric*/
-    for(row = MYTHREAD; row < n; row += THREADS){
-      /* diagonal element */
-      if(unit_diag)
-        A->lnonzero[lnnz++] = row;
-      for(col = row + 1; col < n; col++){
-        if(rand() < P){
-          A->lnonzero[lnnz++] = col;
-        }
-      }
-      A->loffset[row/THREADS + 1] = lnnz;
-    }
+    A->loffset[row/THREADS + 1] = lnnz;
   }
+
   if(lnnz != lnnz_orig){
-    printf("ERROR: lnnz (%"PRId64") != lnnz_orig (%"PRId64")\n", lnnz, lnnz_orig);
+    printf("ERROR: erdos_renyi_random_graph_naive: lnnz (%"PRId64") != lnnz_orig (%"PRId64")\n", lnnz, lnnz_orig);
     return(NULL);
   }
 
+  //fill in the weights
+  if(weighted){
+    int64_t i;
+    for(i = 0; i < lnnz; i++){
+      A->lvalue[i] = (double)rand()/RAND_MAX;
+    }
+  }
+  
+#if 0
   /* if the user wants the whole symmetric matrix, 
      we have made the upper so transpose and add */
   if(mode == 0){ 
@@ -799,6 +805,7 @@ sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_dia
     free(L);
     A = A2;
   }
+  #endif
   return(A);
   
 }

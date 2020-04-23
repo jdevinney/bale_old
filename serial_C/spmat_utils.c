@@ -1287,7 +1287,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
  *
  * \param n The total number of vertices in the graph (rows in the matrix).
  * \param p The probability that each non-loop edge is present.
- * \param type See edge_type.
+ * \param edge_type See edge_type. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops.
  * \param seed A random seed.
  * \return A sparsemat_t
@@ -1373,7 +1373,7 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
  * It flips a coin for each possible edge.
  * \param n The total number of vertices in the graph (rows in the matrix).
  * \param p The probability that each non-loop edge is present.
- * \param type See edge_type.
+ * \param edge_type See edge_type.
  * \param loops See self_loops.
  * \param seed A random seed.
  * \return A sparsemat_t
