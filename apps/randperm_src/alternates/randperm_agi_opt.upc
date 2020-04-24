@@ -42,7 +42,7 @@ SHARED int64_t * rand_permp_agi_opt(int64_t N, int seed) {
   int64_t pos, numdarts, numtargets, lnumtargets;
   int64_t buf_cnt = 1024;
   double t1 = wall_seconds();
-  if( seed != 0 ) srand48( seed );  
+  if( seed != 0 ) srand( seed );  
   
   //T0_printf("Entering rand_permp_atomic...");fflush(0);
   SHARED int64_t * inbox = lgp_all_alloc(THREADS*THREADS, sizeof(int64_t));
@@ -69,7 +69,7 @@ SHARED int64_t * rand_permp_agi_opt(int64_t N, int seed) {
 
   // figure out which PE each "dart" will land on and initialize perm
   for(i = 0; i < l_N; i++){
-    r = lrand48() % THREADS;
+    r = rand() % THREADS;
     PE_hist[r]++;
     lperm[i] = r;
   }
@@ -127,7 +127,7 @@ SHARED int64_t * rand_permp_agi_opt(int64_t N, int seed) {
   
   // shuffle tmp_perm
   for(i = 0; i < total_local_darts; i++){
-    j = i + lrand48() % (total_local_darts - i);
+    j = i + rand() % (total_local_darts - i);
     t = tmp_perm[j];
     tmp_perm[j] = tmp_perm[i];
     tmp_perm[i] = t;
