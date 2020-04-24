@@ -44,7 +44,7 @@ include_HEADERS=libgetput.h
 lib_LIBRARIES = liblibgetput.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc
-liblibgetput_a_CFLAGS = -g -O2
+liblibgetput_a_CFLAGS = -g -O2 -std=c11
 #liblibgetput_a_CFLAGS = -g -O0
 
 if BUILD_UPC
