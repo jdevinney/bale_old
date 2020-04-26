@@ -1,4 +1,4 @@
-  Copyright(C) 2018, Institute for Defense Analyses
+  Copyright(C) 2019, Institute for Defense Analyses
   4850 Mark Center Drive, Alexandria, VA; 703-845-2500
   This material may be reproduced by or for the US Government
   pursuant to the copyright license under the clauses at DFARS
@@ -36,7 +36,14 @@
 
 BUILDING INSTRUCTIONS
     See the INSTALL file for a description of the components and instructions
-    for building this package
+    for building this package.
+
+TESTING
+    After installation, try ./runall.sh -c (#cores/node)
+
+    This script will test all the "apps" on 1, 4, and 16 nodes and
+    provide some timing information.  Don't take the timing data too
+    seriously, as these are rather small runs.
 
 DOCUMENTATION
     Run 'doxygen' in this directory and then point your browser at ./html/index.html
@@ -74,6 +81,7 @@ DOCUMENTATION
 *******************************************************************************
 
 #CHANGE HISTORY:
-# bale 2.0.0 released 
+# bale 2.1.0 released August 2019
+# - update conveyors to version 0.5.0
+# bale 2.0.0 released December 2018
 # Initial Release v 1.0.0 May 2018
-

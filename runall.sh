@@ -1,7 +1,7 @@
 #!/bin/sh
 #
 #
-#  Copyright(C) 2018, Institute for Defense Analyses
+#  Copyright(C) 2019, Institute for Defense Analyses
 #  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 #  This material may be reproduced by or for the US Government
 #  pursuant to the copyright license under the clauses at DFARS
@@ -37,18 +37,20 @@
 
 # this script runs all of the bale apps with some reasonable parameters on 1, 4, and 16 nodes
 # It exits if any application exits abnormally.
-# You specify cores_per_node on the command line as the first argument: for example
-# ./runall 32
+# You specify cores_per_node on the command line using the -c option: for example
+# ./runall.sh -c 32
 #
 cores_per_node=""
 quick_run=0
 mask=31
-while getopts ":c:qM:" opt; do
+path=$HOME/bale/build_$PLATFORM/bin
+while getopts ":c:qM:p:" opt; do
     case $opt in
         c ) cores_per_node=$OPTARG;;
         q ) quick_run=1;;
         M ) mask=$OPTARG;;
-        \? ) echo 'usage: runall [-c cores_per_node] [-M models_mask] [-q]'
+        p ) path=$OPTARG;;
+        \? ) echo 'usage: runall [-c cores_per_node] [-M models_mask] [-p PATH_TO_BINARIES] [-q]'
              exit 1
     esac
 done
@@ -70,6 +72,8 @@ if [ -z $LAUNCHER ]; then
     exit 1
 fi
 
+: ${BALEDIR:=$PWD}
+
 options="-M $mask"
 if [ $quick_run == 1 ]; then
     # this makes the tests run a little quicker, if you want to run a longer
@@ -83,7 +87,7 @@ do
     # just run the command with -h
     echo;echo; echo XXXXXXXXXXXX $app XXXXXXXXXXXXXXX
     echo;
-    $LAUNCHER -n1 $HOME/bale/build_$PLATFORM/apps/$app -h
+    $LAUNCHER -n1 $BALEDIR/build_$PLATFORM/apps/$app -h
     echo;
     
     for i in `seq 0 2 4`
@@ -93,7 +97,7 @@ do
         cores=$(($nodes*$cores_per_node))
 
         if [ $app != 'triangles' ]; then
-            cmd="$LAUNCHER -n $cores $HOME/bale/build_$PLATFORM/apps/$app -c $cores_per_node $options"
+            cmd="$LAUNCHER -n $cores $BALEDIR/build_$PLATFORM/apps/$app -c $cores_per_node $options"
             eval "$cmd"
             if [ $? -ne 0 ]; then
                 echo "ERROR! $cmd"
@@ -102,13 +106,13 @@ do
         else
             for a in `seq 0 1`
             do
-                cmd="$LAUNCHER -n $cores $HOME/bale/build_$PLATFORM/apps/$app -a $a -c $cores_per_node $options"
+                cmd="$LAUNCHER -n $cores $BALEDIR/build_$PLATFORM/apps/$app -a $a -c $cores_per_node $options"
                 eval "$cmd"
                 if [ $? -ne 0 ]; then
                     echo "ERROR! $cmd"
                     exit 1
                 fi
-                $LAUNCHER -n $cores $HOME/bale/build_$PLATFORM/apps/$app -a $a -c $cores_per_node $options -K '"1 4 9 16 25"'
+                $LAUNCHER -n $cores $BALEDIR/build_$PLATFORM/apps/$app -a $a -c $cores_per_node $options -K '"1 4 9 16 25"'
                 if [ $? -ne 0 ]; then
                     echo "ERROR! in triangles run"
                     exit 1

@@ -40,17 +40,21 @@ common_sources = libgetput.upc
 pkconfigdir=@libdir@/pkgconfig
 
 include_HEADERS=libgetput.h
+lib_LIBRARIES = 
+lib_LTLIBRARIES = liblibgetput.la
 
-lib_LIBRARIES = liblibgetput.a
 pkconfig_DATA = @PACKAGE_NAME@.pc
+liblibgetput_la_CFLAGS = -g -O2
+#liblibgetput_la_CFLAGS = -g -O0
 
 if BUILD_UPC
-liblibgetput_a_SOURCES = $(common_sources:.c=__upc.upc)
+liblibgetput_la_SOURCES = $(common_sources:.c=__upc.upc)
 endif
 
 if BUILD_SHMEM
-liblibgetput_a_SOURCES = $(common_sources:.upc=__c.c)
-liblibgetput_a_CFLAGS = -DUSE_SHMEM
+liblibgetput_la_LINK = $(LINK)
+liblibgetput_la_SOURCES = $(common_sources:.upc=__c.c)
+liblibgetput_la_CFLAGS += -DUSE_SHMEM
 endif
 
 # Automatic linking as needed to create C copies of UPC files.               #

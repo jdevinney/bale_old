@@ -178,15 +178,17 @@ sparsemat_t * generate_toposort_input(int64_t numrows, double prob, int64_t rand
   int64_t numcols = numrows;
   
   T0_fprintf(stderr,"Creating input matrix for toposort\n");fflush(stderr);
-  
+  double t = wall_seconds();
   omat = gen_erdos_renyi_graph_dist(numrows, prob, 1, 2, rand_seed);
+  T0_printf("generate ER graph time %lf\n", wall_seconds() - t);
   if(!omat) exit(1);
   if(!is_upper_triangular(omat, 1))exit(1);
 
   // get row and column permutations
+  t = wall_seconds();
   SHARED int64_t * rperminv = rand_permp(numrows, 1230+MYTHREAD);
   SHARED int64_t * cperminv = rand_permp(numcols, 45+MYTHREAD);
-
+  T0_printf("generate perms time %lf\n", wall_seconds() - t);
   lgp_barrier();
 
   if(!rperminv || !cperminv){
@@ -198,8 +200,10 @@ sparsemat_t * generate_toposort_input(int64_t numrows, double prob, int64_t rand
   int64_t * lcperminv = lgp_local_part(int64_t, cperminv);
 
   lgp_barrier();
-  
+  t = wall_seconds();
   sparsemat_t * mat = permute_matrix(omat, rperminv, cperminv);
+  T0_printf("permute matrix time %lf\n", wall_seconds() - t);
+  
   if(!mat) {
     T0_printf("ERROR: permute_matrix returned NULL");fflush(0);
     return(NULL);
@@ -223,7 +227,7 @@ int main(int argc, char * argv[]) {
   double t1;
 
   int64_t l_numrows = 100000;
-  int64_t nz_per_row = 35;
+  double  nz_per_row = 35;
   int64_t buf_cnt = 1024;
   int64_t rand_seed =  MYTHREAD*MYTHREAD*10000 + 5;
   int64_t numrows, numcols;
@@ -247,7 +251,7 @@ int main(int argc, char * argv[]) {
     case 'n': sscanf(optarg,"%ld" , &l_numrows);  break;
     case 'f': read_graph = 1; sscanf(optarg,"%s", filename); break;
 
-    case 'Z': sscanf(optarg,"%ld" , &nz_per_row);  break;
+    case 'Z': sscanf(optarg,"%lf" , &nz_per_row);  break;
     case 'e': sscanf(optarg,"%lf" , &erdos_renyi_prob);  break;
     case 'D': dump_files = 1; break;
     default:  break;
@@ -258,7 +262,7 @@ int main(int argc, char * argv[]) {
   numrows = l_numrows * THREADS;
   numcols = numrows;
   if(erdos_renyi_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
-    erdos_renyi_prob = (2.0*(nz_per_row - 1))/numrows;
+    erdos_renyi_prob = (2.0*nz_per_row)/(numrows - 1);
     if(erdos_renyi_prob > 1.0)
       erdos_renyi_prob = 1.0;
   } else {                     // use erdos_renyi_prob to get nz_per_row
@@ -268,7 +272,7 @@ int main(int argc, char * argv[]) {
   T0_fprintf(stderr,"Running toposort on %d threads\n", THREADS);
   T0_fprintf(stderr,"buf_cnt (stack size)           (-b)   %ld\n", buf_cnt);
   T0_fprintf(stderr,"Number of rows per thread      (-n)   %ld\n", l_numrows);
-  T0_fprintf(stderr,"Avg # of nonzeros per row      (-Z)   %ld\n", nz_per_row);
+  T0_fprintf(stderr,"Avg # of nonzeros per row      (-Z)   %2.2lf\n", nz_per_row);
   T0_fprintf(stderr,"Erdos-Renyi edge probability   (-e)   %lf\n", erdos_renyi_prob);
   T0_fprintf(stderr,"task mask (M) = %ld (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);
   
@@ -315,9 +319,9 @@ int main(int argc, char * argv[]) {
       break;
 
     case ALTERNATE_Model:
-      T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
-      //T0_fprintf(stderr," ALTERNATE: ");
-      //laptime = toposort_matrix_oo(rperminv2, cperminv2, mat, tmat);
+      //T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
+      T0_fprintf(stderr," ALTERNATE: ");
+      laptime = toposort_matrix_cooler(rperminv2, cperminv2, mat, tmat);
       break;
     
     default:

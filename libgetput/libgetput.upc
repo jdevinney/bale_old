@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2019, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -151,7 +151,7 @@ void lgp_init(int argc, char *argv[]) {
   time_t now = time(NULL);
   struct tm *date = localtime(&now);
 
-  T0_fprintf(stderr,"Bale Version 2.0 (UPC): %04d-%02d-%02d.%02d:%02d\n",
+  T0_fprintf(stderr,"Bale Version 2.1 (UPC): %04d-%02d-%02d.%02d:%02d\n",
      date->tm_year+1990, date->tm_mon, date->tm_mday, date->tm_hour, date->tm_min);
 
   int i;
@@ -209,7 +209,7 @@ void lgp_init(int argc, char *argv[]) {
   time_t now = time(NULL);
   struct tm *date = localtime(&now);
  
-  T0_fprintf(stderr,"Bale Version 2.0 (on Shmem): %04d-%02d-%02d.%02d:%02d\n",
+  T0_fprintf(stderr,"Bale Version 2.1 (on Shmem): %04d-%02d-%02d.%02d:%02d\n",
      date->tm_year+1990, date->tm_mon+1, date->tm_mday, date->tm_hour, date->tm_min); 
   int i;
 

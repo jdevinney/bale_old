@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2019, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -96,13 +96,13 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
   double t1 = wall_seconds();
   int64_t rejects = 0;
   pkg_t pkg;
-  convey_t * conv_throw = convey_new(sizeof(pkg_t), SIZE_MAX, 0, NULL, convey_opt_PROGRESS);
-  convey_t * conv_reply = convey_new(sizeof(int64_t), SIZE_MAX, 0, NULL, convey_opt_PROGRESS);
+  convey_t * conv_throw = convey_new(SIZE_MAX, 0, NULL, convey_opt_PROGRESS);
+  convey_t * conv_reply = convey_new(SIZE_MAX, 0, NULL, convey_opt_PROGRESS);
   if(conv_throw == NULL){return(NULL);}
   if(conv_reply == NULL){return(NULL);}
 
-  convey_begin(conv_throw);
-  convey_begin(conv_reply);
+  convey_begin(conv_throw, sizeof(pkg_t));
+  convey_begin(conv_reply, sizeof(int64_t));
   
   bool more;
   int64_t hits = 0;
@@ -155,7 +155,7 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
 
   convey_free(conv_throw);
   convey_reset(conv_reply);
-  convey_begin(conv_reply);
+  convey_begin(conv_reply, sizeof(int64_t));
   
   /* now locally pack the values you have in target */
   cnt = 0;
@@ -241,9 +241,9 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
 
   pkg_rowcnt_t pkg_rc;
   pkg_rowcnt_t pkgrc_p;
-  convey_t* cnv_rc = convey_new(sizeof(pkg_rowcnt_t), SIZE_MAX, 0, NULL, convey_opt_SCATTER);
+  convey_t* cnv_rc = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
 
-  convey_begin(cnv_rc);
+  convey_begin(cnv_rc, sizeof(pkg_rowcnt_t));
   lnnz = row = 0;
   while(convey_advance(cnv_rc, (row == A->lnumrows))) {
     for( ;row < A->lnumrows; row++){
@@ -280,8 +280,8 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
   int64_t * wrkoff = calloc(A->lnumrows, sizeof(int64_t)); 
   pkg_rowcol_t pkg_nz, pkgnz_p;
   
-  convey_t* cnv_nz = convey_new(sizeof(pkg_rowcol_t), SIZE_MAX, 0, NULL, convey_opt_SCATTER);
-  convey_begin(cnv_nz);
+  convey_t* cnv_nz = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
+  convey_begin(cnv_nz, sizeof(pkg_rowcol_t));
 
   i = row = 0;
   while(convey_advance(cnv_nz, (i == A->lnnz))){
@@ -316,12 +316,12 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
   /* do column permutation ... this is essentially an indexgather */
   /****************************************************************/
   pkg_inonz_t pkg_r, pkg_e, pkg_p;
-  convey_t* cnv_r = convey_new(sizeof(pkg_inonz_t), SIZE_MAX, 0, NULL, convey_opt_SCATTER);
+  convey_t* cnv_r = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
   assert( cnv_r != NULL );
-  convey_t* cnv_e = convey_new(sizeof(pkg_inonz_t), SIZE_MAX, 0, NULL, 0);
+  convey_t* cnv_e = convey_new(SIZE_MAX, 0, NULL, 0);
   assert( cnv_e != NULL );
-  convey_begin(cnv_r);
-  convey_begin(cnv_e);
+  convey_begin(cnv_r, sizeof(pkg_inonz_t));
+  convey_begin(cnv_e, sizeof(pkg_inonz_t));
   bool more;
   i=0;
   while( more = convey_advance(cnv_r,(i == Ap->lnnz)), more | convey_advance(cnv_e, !more) ){
@@ -371,8 +371,8 @@ sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
   int64_t * lcounts = calloc(lnumcols, sizeof(int64_t));
   lgp_barrier();
   
-  convey_t* cnv_cnt = convey_new(sizeof(long), SIZE_MAX, 0, NULL, convey_opt_SCATTER);
-  convey_begin(cnv_cnt);
+  convey_t* cnv_cnt = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
+  convey_begin(cnv_cnt, sizeof(long));
 
   lnnz = i = 0;
   while(convey_advance(cnv_cnt, (i == A->lnnz))){
@@ -408,8 +408,8 @@ sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
 
   pkg_rowcol_t pkg_nz, pkg_p;
   
-  convey_t* cnv_rd = convey_new(sizeof(pkg_rowcol_t), SIZE_MAX, 0, NULL, convey_opt_SCATTER);
-  convey_begin(cnv_rd);
+  convey_t* cnv_rd = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
+  convey_begin(cnv_rd, sizeof(pkg_rowcol_t));
 
   uint64_t numtimespop=0;
   i = row = 0;
