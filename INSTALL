@@ -38,7 +38,7 @@
 #  INSTALL       # This file
 #  libgetput     # parallel programming utility lib
 #  exstack       # the exstack and exstack2 libraries
-#  convey-0.5.0  # directory containing the conveyor buffering model
+#  convey        # directory containing the conveyor buffering model
 #  spmat         # the sparse matrix library
 #  apps          # the applications directory, includes histogram, indexgather, toposort, and others
 #  install.sh    # an install script
@@ -47,10 +47,16 @@
 #  mainpage.h    # The main documentation page.
 #  clang_upc_run.sh  # a script to add "-fupc-threads-N" as appropriate when using clang-upc
 #
-# The codes are in C and all except conveyors use the libgetput library for a parallel API.
-# Everything can be built on UPC or SHMEM. We have tested with Cray UPC (cce 8.7.3). We have
-# done some testing with Cray SHMEM (7.7.2), Berkeley UPC (with CLANG UPC compiler bupc/2.24.2.5201)
-# and OpenShmem (2.1.0).
+# All of bale is written in C. All except conveyors use the libgetput library for a parallel API.
+# Everything can be built on UPC or SHMEM. Bale is supported on:
+#  * Cray UPC (cce 8.7.3)
+#  * GNU UPC (5.2.0.1)
+#  * Clang UPC (3.9.1-1)
+#
+#  * (not working yet) OpenMPI (OSHMEM) 3.0.6 
+#  * (all but conveyors) Sandia OpenSHMEM (SOS) (1.4.5)
+#  * Cray SHMEM (7.7.2)
+#  * Cray openshmemX ?
 #
 #  The models used are:
 #  agi      : standard PGAS model that uses puts, gets, and atomics
