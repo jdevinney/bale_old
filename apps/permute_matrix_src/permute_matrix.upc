@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-
+#include <getopt.h>
 #include <libgetput.h>
 #include <spmat.h>
 //#include "alternates/permute_matrix_alternates.h"

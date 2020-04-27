@@ -83,6 +83,8 @@ randperm [-h][-n num][-M mask][-s seed]\n\
   lgp_global_exit(0);
 }
 
+#include <unistd.h>
+#include <getopt.h>
 
 int main(int argc, char * argv[]) {
   lgp_init(argc, argv);

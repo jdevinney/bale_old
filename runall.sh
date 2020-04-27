@@ -85,7 +85,7 @@ fi
 if [ -z $LAUNCHER ]; then
     echo "Can't find oshrun, srun, upcrun, or aprun!"
     echo "Assuming this is GNU or CLANG UPC..."
-    export UPC_OPTS=" -n 4"
+    export UPC_OPTS=" -n 1"
     unset PREAMBLE
     echo "$UPC_OPTS"
 fi
