@@ -51,7 +51,7 @@ RUN mkdir -p "${PREFIX}" \
     && mkdir -p "${PREFIX}/src" \
     && mkdir -p "${PREFIX}/src/config"  
 
-ADD files/run-gups.sh /run-gups.sh
+#ADD files/run-gups.sh /run-gups.sh
 
 #ENV container docker
 
