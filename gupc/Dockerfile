@@ -25,13 +25,15 @@ RUN apt-get -y update \
     && apt-get install -y --no-install-recommends \
         autoconf \
         automake \
+	flex \
         g++ \
         gcc \
+	gcc-multilib \
         gfortran \
         git \
-	libgmp10 \
-	libmpc3 \
-	libmpfr6 \
+	libgmp3-dev \
+	libmpc-dev \
+	libmpfr-dev \
 	libnuma-dev \
         libtool \
         m4 \
@@ -43,20 +45,27 @@ RUN apt-get -y update \
         zlib1g-dev \
     && apt-get clean
 
-ENV GUPC_URL=https://www.gccupc.org/gupc-5201-1/30-gupc-5201-x8664-ubuntu-1204/file
-ENV GUPC_ARCHIVE=${PREFIX}/src/gupc.tar.gz
+ENV GUPC_URL=https://www.gccupc.org/gupc-5201-1/32-gupc-5-2-0-1-source-release/file
+#ENV GUPC_URL=https://www.gccupc.org/gupc-5201-1/30-gupc-5201-x8664-ubuntu-1204/file
+ENV GUPC_ARCHIVE=${PREFIX}/src/gupc.tar.bz2
 ENV GUPC_SRC_DIR=${PREFIX}/src/gupc/
+ENV GUPC_BUILD_DIR=${PREFIX}/build/gupc/
 ENV GUPC_INSTALL_DIR=${PREFIX}
 RUN mkdir -p ${GUPC_SRC_DIR}
+RUN mkdir -p ${GUPC_BUILD_DIR}
 RUN mkdir -p ${GUPC_INSTALL_DIR}
 RUN wget --quiet ${GUPC_URL} --output-document=${GUPC_ARCHIVE}
-RUN tar -xzf ${GUPC_ARCHIVE} -C ${GUPC_SRC_DIR} --strip-components=1
-WORKDIR ${GUPC_SRC_DIR}
-RUN ./configure --prefix=${GUPC_INSTALL_DIR} --enable-languages=c,c++
+RUN tar -jxf ${GUPC_ARCHIVE} -C ${GUPC_SRC_DIR} --strip-components=1
+WORKDIR ${GUPC_BUILD_DIR}
+RUN ${GUPC_SRC_DIR}/configure --prefix=${GUPC_INSTALL_DIR} --enable-languages=c \
+    --with-mpfr-include=/usr/include --with-mpfr-lib=/usr/lib/x86_64-linux-gnu \
+    --with-gmp-include=/usr/include --with-gmp-lib=/usr/lib/x86_64-linux-gnu \
+    --with-mpc-include=/usr/include --with-mpc-lib=/usr/lib/x86_64-linux-gnu\
+    --disable-multilib --disable-bootstrap
 RUN make -j ${NPROCS}
 RUN make install
 RUN rm -rf ${GUPC_ARCHIVE}
 
 ENV PATH=${PREFIX}/bin:$PATH
-RUN adduser --disable-password --gecos "" bale_user
+RUN adduser --disabled-password --gecos "" bale_user
 CMD ["/bin/bash"]
