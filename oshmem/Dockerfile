@@ -77,6 +77,7 @@ RUN apt-get -y update \
         libtool \
         m4 \
         make \
+	openssh-client \
         patch \
 	pkg-config \
         wget \
