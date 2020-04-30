@@ -43,10 +43,12 @@ RUN apt-get -y update \
         zlib1g-dev \
     && apt-get clean
 
-RUN export GUPC_URL=https://www.gccupc.org/gupc-5201-1/30-gupc-5201-x8664-ubuntu-1204/file
-RUN export GUPC_ARCHIVE=${PREFIX}/src/gupc.tar.gz
-RUN export GUPC_SRC_DIR=${PREFIX}/src/gupc/
-RUN export GUPC_INSTALL_DIR=${PREFIX}
+ENV GUPC_URL=https://www.gccupc.org/gupc-5201-1/30-gupc-5201-x8664-ubuntu-1204/file
+ENV GUPC_ARCHIVE=${PREFIX}/src/gupc.tar.gz
+ENV GUPC_SRC_DIR=${PREFIX}/src/gupc/
+ENV GUPC_INSTALL_DIR=${PREFIX}
+RUN mkdir -p ${GUPC_SRC_DIR}
+RUN mkdir -p ${GUPC_INSTALL_DIR}
 RUN wget --quiet ${GUPC_URL} --output-document=${GUPC_ARCHIVE}
 RUN tar -xzf ${GUPC_ARCHIVE} -C ${GUPC_SRC_DIR} --strip-components=1
 WORKDIR ${GUPC_SRC_DIR}
