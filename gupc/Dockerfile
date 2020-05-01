@@ -1,5 +1,5 @@
 
-FROM ubuntu:18.04
+FROM ubuntu:14.04
 
 MAINTAINER Jason DeVinney <jgdevin@super.org>
 
@@ -20,16 +20,16 @@ RUN apt-get -y update \
         ca-certificates \
     && apt-get clean
 
-# Install various useful/prereq packages 
+# Install various useful/prereq packages
 RUN apt-get -y update \
     && apt-get install -y --no-install-recommends \
         autoconf \
         automake \
 	flex \
-        g++ \
-        gcc \
+	gcc \
+	g++ \
+	gfortran \
 	gcc-multilib \
-        gfortran \
         git \
 	libgmp3-dev \
 	libmpc-dev \
@@ -44,9 +44,7 @@ RUN apt-get -y update \
         wget \
         zlib1g-dev \
     && apt-get clean
-
 ENV GUPC_URL=https://www.gccupc.org/gupc-5201-1/32-gupc-5-2-0-1-source-release/file
-#ENV GUPC_URL=https://www.gccupc.org/gupc-5201-1/30-gupc-5201-x8664-ubuntu-1204/file
 ENV GUPC_ARCHIVE=${PREFIX}/src/gupc.tar.bz2
 ENV GUPC_SRC_DIR=${PREFIX}/src/gupc/
 ENV GUPC_BUILD_DIR=${PREFIX}/build/gupc/
