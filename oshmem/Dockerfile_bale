@@ -1,0 +1,25 @@
+FROM oshmem4.0.3:latest
+
+COPY . /opt/bale_private
+
+WORKDIR /opt/bale_private
+
+RUN ./run_autoreconf
+ENV CC oshcc
+ENV PLATFORM osmem
+RUN ./install.sh -s
+
+RUN echo "---- done with install ----"
+
+# run as non-root user
+RUN adduser --disabled-password --gecos "" bale_user
+RUN su bale_user - -c "oshrun -n 2 build_${PLATFORM}/bin/histo -M 1 -c 2"
+
+# here we actaully run it as root
+RUN echo "--- run as root ---"
+ENV OMPI_ALLOW_RUN_AS_ROOT 1
+ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM 1
+RUN oshrun -n 2 build_${PLATFORM}/bin/histo -M 1 -c 2
+
+
+

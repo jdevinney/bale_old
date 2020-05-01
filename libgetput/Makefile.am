@@ -44,7 +44,7 @@ include_HEADERS=libgetput.h
 lib_LIBRARIES = liblibgetput.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc
-liblibgetput_a_CFLAGS = -g -O2 -std=c11
+liblibgetput_a_CFLAGS = -g -O2
 #liblibgetput_a_CFLAGS = -g -O0
 
 if BUILD_UPC
@@ -54,7 +54,7 @@ endif
 if BUILD_SHMEM
 #liblibgetput_a_LINK = $(LINK)
 liblibgetput_a_SOURCES = $(common_sources:.upc=__c.c)
-liblibgetput_a_CFLAGS += -DUSE_SHMEM
+liblibgetput_a_CFLAGS += -DUSE_SHMEM -std=c11
 endif
 
 # Automatic linking as needed to create C copies of UPC files.               #
