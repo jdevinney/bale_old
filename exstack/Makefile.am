@@ -44,7 +44,7 @@ include_HEADERS=exstack.h
 lib_LIBRARIES = libexstack.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc
-libexstack_a_CPPFLAGS = -g -O2
+libexstack_a_CPPFLAGS = -g -O2 -std=c11
 #libexstack_a_CPPFLAGS = -g -O0
 
 # handle UPC library

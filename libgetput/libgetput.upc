@@ -58,7 +58,7 @@ void lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
   //shmem_int64_atomic_add(&ptr[lindex], value, pe);
-  shmem_atomic_add(&ptr[lindex], value, pe);
+  shmem_atomic_add(&ptr[lindex], value, (int)pe);
   //printf("atomic_add  %ld, to %ld %ld %ld\n", MYTHREAD, pe,  lindex, value);
 #elif _CRAYC 
   _amo_aadd(&ptr[index], value);
@@ -79,7 +79,7 @@ void lgp_atomic_add_async(SHARED int64_t * ptr, int64_t index, int64_t value){
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
   //shmem_int64_atomic_add(&ptr[lindex], value, pe);
-  shmem_atomic_add(&ptr[lindex], value, pe);
+  shmem_atomic_add(&ptr[lindex], value, (int)pe);
   //printf("atomic_add  %ld, to %ld %ld %ld\n", MYTHREAD, pe,  lindex, value);                                                                                                                   
 #elif _CRAYC
 #pragma pgas defer_sync
@@ -99,7 +99,7 @@ int64_t lgp_fetch_and_inc(SHARED int64_t * ptr, int64_t index) {
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
   //ret = shmem_int64_atomic_fetch_inc(&ptr[lindex], pe);
-  ret = shmem_atomic_fetch_inc(&ptr[lindex], pe);
+  ret = shmem_atomic_fetch_inc(&ptr[lindex], (int)pe);
 #elif _CRAYC
   ret = _amo_afadd(&ptr[index], 1L);
 #elif __BERKELEY_UPC_RUNTIME__
@@ -120,7 +120,7 @@ int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
   //ret = shmem_int64_atomic_fetch_add(&ptr[lindex], value, pe);
-  ret = shmem_atomic_fetch_add(&ptr[lindex], value, pe);
+  ret = shmem_atomic_fetch_add(&ptr[lindex], value, (int)pe);
   //printf("atomic_add  %ld, to %ld %ld %ld was %ld\n", MYTHREAD, pe,  lindex, value, ret);
 #elif _CRAYC
   ret = _amo_afadd(&ptr[index], value);
@@ -143,7 +143,7 @@ int64_t lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, i
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
   //ret = shmem_int64_atomic_compare_swap(&ptr[lindex], cmp_val, swap_val, pe);
-  ret = shmem_atomic_compare_swap(&ptr[lindex], cmp_val, swap_val, pe);
+  ret = shmem_atomic_compare_swap(&ptr[lindex], cmp_val, swap_val, (int)pe);
 #elif _CRAYC
   ret = _amo_acswap_upc(&ptr[index], cmp_val, swap_val);
 #elif __BERKELEY_UPC_RUNTIME__
