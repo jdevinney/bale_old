@@ -166,7 +166,7 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
 
 /*! \brief This function should be called regularly after pushes and pops to trigger the exstack2 endgame.
  *
- * One of exstack2_proceed's jobs is to tell it's caller when this exstack2  is finished.
+ * One of exstack2_proceed's jobs is to tell it's caller when this exstack2 is finished.
  * An exstack2 is finished from this threads's perspective once...
  * a) all the PE's have nothing left to push onto send stacks
  * b) all the PE's send stacks are empty
@@ -184,6 +184,7 @@ int64_t exstack2_proceed(exstack2_t *Xstk2, int done_pushing)
 {
   printf("%d in proceed\n",MYTHREAD);fflush(0);
   static int flag = 0;
+
   if( done_pushing ) {
     if(flag == 0){
       printf("%d is done pushing\n", MYTHREAD);
@@ -240,85 +241,66 @@ int64_t exstack2_flush_needed(exstack2_t * Xstk2)
 /******************************************************************************/
 /*! \brief This is how you push items onto the exstack2 struct.
  *
- * When you push an item onto an exstack2, it first attempts to 
+ * When you push an item, it first attempts to 
  * push the item onto a send buffer. If there is no more room
  * on that buffer, the buffer will attempt to send itself to its 
  * destination. If the destination is not ready to receive this buffer
- * then this function returns 1 (otherwise 0).
+ * then this function returns 0 (otherwise nonzero).
 
  * \param Xstk2 The exstack2 struct.
  * \param pkg A pointer to memory of the package you want to push
  * \param pe The destination pe.
- * \return A LIE
- * 1 upon success or 0 if this item cannot be put on a stack at this time.
+ * \return nonzero upon success or 0 if this item cannot be put on a stack at this time
  * \ingroup exstackgrp
  */
-#if 0
-int64_t exstack2_push(exstack2_t * Xstk2, void *pkg, int64_t pe)
-{
-  if(Xstk2->push_cnt[pe] < Xstk2->buf_cnt){           // copy to the buffer
-    memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
-    Xstk2->push_cnt[pe]++;
-    Xstk2->push_ptr[pe] += Xstk2->pkg_size;
-  }
-  if(Xstk2->push_cnt[pe] == Xstk2->buf_cnt){   // this push filled a buffer, try to send it
-    if(exstack2_send(Xstk2, pe, 0) == 0){     // but we could maybe push to other stacks
-      return(0L);
-    } 
-  }
-  return(1L);
-}
-int64_t 
-exstack2_push(exstack2_t * Xstk2, void *pkg, int64_t pe)
-{
-  if(Xstk2->push_cnt[pe] < Xstk2->buf_cnt){
-    memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
-    Xstk2->push_cnt[pe]++;
-    Xstk2->push_ptr[pe] += Xstk2->pkg_size;
-    return(1L);
-  } else { 
-    if( exstack2_send(Xstk2, pe, 0) ) {
-      memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
-      Xstk2->push_cnt[pe]++;
-      Xstk2->push_ptr[pe] += Xstk2->pkg_size;
-      return(1L);
-    } else {
-      return(0L);
-    }
-  }
-}
-#else
 int64_t
 exstack2_push(exstack2_t * Xstk2, void *pkg, int64_t pe)
 {
-  int64_t head = Xstk2->buf_cnt - Xstk2->push_cnt[pe];
+  int64_t headroom = Xstk2->buf_cnt - Xstk2->push_cnt[pe];
   printf("%d in push\n",MYTHREAD);fflush(0);
-  if( head ){
+  assert(headroom >= 0);
+  if(headroom == 0){    
+    if( exstack2_send(Xstk2, pe, 0) ) {     // try to send full buffer
+      // if success reset headroom and go on
+      headroom = Xstk2->buf_cnt; 
+    }
+  }
+  if(headroom){
+    // push item onto buffer
     memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
     Xstk2->push_cnt[pe]++;
     Xstk2->push_ptr[pe] += Xstk2->pkg_size;
-  } else { 
+  }
+  return(headroom);
+#if 0
+  if( headroom ){    
+    memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
+    Xstk2->push_cnt[pe]++;
+    Xstk2->push_ptr[pe] += Xstk2->pkg_size;
+  }
+  if(Xstk2->push_cnt[pe] == Xstk2->buf_cnt){
     if( exstack2_send(Xstk2, pe, 0) ) {
-      head = Xstk2->buf_cnt; 
-      memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
-      Xstk2->push_cnt[pe]++;
-      Xstk2->push_ptr[pe] += Xstk2->pkg_size;
+      //headroom = Xstk2->buf_cnt; 
+      //memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
+      //Xstk2->push_cnt[pe]++;
+      //Xstk2->push_ptr[pe] += Xstk2->pkg_size;
     } 
   }
-  return(head);
-} 
+  return(headroom);
 #endif
+} 
+
 
 
 /******************************************************************************/
-/*! \brief This subroutine sends a stack.
- * If it can send the stack it sets _can_send to 0 and claims a spot on the 
+/*! \brief This subroutine sends a buffer to PE pe.
+ * If it can send the buffer it sets s_can_send to 0 and claims a spot on the 
  * receiver's pop_from queue.
  * \param Xstk2 The exstack2 struct
  * \param pe The destination pe.
  * \param islast Signal that this is the last buffer that we will be
  *        sending to this pe in this context.
- * \return 0 if is not able to be sent at this time, * \return 1 if the buffer is sent successfully
+ * \return 0 if is not able to be sent at this time, 1 if the buffer is sent successfully
  */
 int64_t 
 exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
@@ -327,16 +309,17 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
   int64_t zero = 0L;
   printf("%d is in send to %ld %ld\n", MYTHREAD, pe, Xstk2->l_can_send[pe]);fflush(0);
 
-  // if l_can_send[pe] == 0 it is not safe to send ... return 0
+  // See if it is safe to send.
+  // If s_can_send[pe] == 1, we are OK to send.
+  // If s_can_send[pe] == 0, we can't send right now.
   if(shmem_test((int64_t*)&Xstk2->s_can_send[pe],SHMEM_CMP_EQ, 0L))
     return(0);
   
-  // mark this buffer as unsafe to send, when pe empties its buffer, it will change
-  // the value of s_can_send so that we can send again.
-  //Xstk2->l_can_send[pe] = 0L;
+  // mark this buffer as unsafe to send. When pe is finished popping from the buffer we
+  // are about to send, it will change the value of s_can_send so that we can send again.
   shmem_atomic_add(&Xstk2->s_can_send[pe], -1L, MYTHREAD);
   
-  if(Xstk2->push_cnt[pe] > 0L){      // flushing might call send with an empty buffer
+  if(Xstk2->push_cnt[pe] > 0L){      // flushing might call send() with an empty buffer
     lgp_memput(Xstk2->s_rcv_buffer,
                (const void * restrict)Xstk2->l_snd_buffer[pe],
                Xstk2->push_cnt[pe]*Xstk2->pkg_size,
@@ -347,29 +330,30 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
 
   // this may have to be done with atomics...
   printf("%d finished atomic add in send\n",MYTHREAD);fflush(0);
-  lgp_fence();
+  shmem_quiet();
   printf("%d about to fetch and inc\n",MYTHREAD);fflush(0);
 
   // send a message to the receiver pe, that a buffer has been delivered
-  pos = lgp_fetch_and_inc(Xstk2->s_num_msgs, pe);
+  pos = shmem_atomic_fetch_inc(Xstk2->s_num_msgs, pe);
   pos = pos & Xstk2->msg_Q_mask;
   printf("%d about to send message to %ld to pos %ld\n",MYTHREAD, pe, pos);fflush(0);
-  lgp_put_int64((SHARED int64_t *)Xstk2->s_msg_queue, pos*THREADS + pe, msg_pack( Xstk2->push_cnt[pe], islast ));
+  //lgp_put_int64((SHARED int64_t *)Xstk2->s_msg_queue, pos*THREADS + pe, msg_pack( Xstk2->push_cnt[pe], islast ));
+  shmem_put(&Xstk2->s_msg_queue[pos], msg_pack( Xstk2->push_cnt[pe], islast ), 1, (int)pe);
 
   // reset the buffer to continue pushing to it
   Xstk2->push_cnt[pe] = 0L;
   Xstk2->push_ptr[pe] = Xstk2->l_snd_buffer[pe];
 
-  lgp_fence();
+  shmem_quiet();
   printf("%d about to leave send\n",MYTHREAD);fflush(0);
   return(1L);
 }
 
-/*! \brief This is the way we pop items off of the receive stacks in a exstack2.
+/*! \brief Pop an item off of a receive buffer if there are items to be popped.
  * \param Xstk2 The exstack2 struct
  * \param pkg A pointer to a pointer to memory that holds the item from the buffer. Note, that this memory is not copied
  *  from the buffer, it is just pointed to by pkg.
- * \param from_pe if non-NULL returns the pe from which the item was popped
+ * \param from_pe if non-NULL returns the pe that sent the item that was popped
  * \return 1 if something was successfully popped, 0 otherwise.
  * Note there is a slight advantage to just assigning a pointer to pkg, rather than copying the package as
  *  we do here.  This seems safer and a lot less ugly.
@@ -379,14 +363,14 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
 {
   int64_t msg_index, msg, pe, cnt;
 
-  lgp_poll();
-
-  //int64_t s2l_num_msgs = Xstk2->l_num_msgs[0];
-  int64_t s2l_num_msgs = shmem_atomic_fetch(Xstk2->s_num_msgs, MYTHREAD);
-
+  // if you are all done, just return
   if(Xstk2->all_done){
     return(0L);
   }
+  lgp_poll();
+  
+  // figure out how many buffers you have received total.
+  int64_t s2l_num_msgs = shmem_atomic_fetch(Xstk2->s_num_msgs, MYTHREAD);
   
   if(Xstk2->pop_pe != -1L){ // We have a buffer queued up... 
     if(Xstk2->pop_cnt[Xstk2->pop_pe] > 0L){  // there is something to pop
@@ -401,16 +385,11 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
 
       return(1L);
     
-    }else{  // the buffer we are working on is now empty 
+    }else{  // the buffer we have been popping from is now empty... 
 
       // tell whoever sent this buffer, it is safe to start send again 
-#pragma pgas defer_sync
-      //_amo_aadd((SHARED uint64_t *)&Xstk2->s_can_send[MYTHREAD*THREADS + Xstk2->curr_pop_pe], 1L);
-      //lgp_put_int64((SHARED int64_t *)Xstk2->s_can_send, (MYTHREAD*THREADS + Xstk2->pop_pe), 1L);
-      //Xstk2->s_can_send[MYTHREAD*THREADS + Xstk2->pop_pe] = 1L;
-      //shmem_atomic_set((int64_t*)&Xstk2->s_can_send[MYTHREAD], 1, Xstk2->pop_pe);
-      lgp_atomic_add(Xstk2->s_can_send, MYTHREAD*THREADS + Xstk2->pop_pe, 1L);
-      lgp_fence();  // Necessary?, Harmful
+      shmem_atomic_add(&Xstk2->s_can_send[MYTHREAD], 1L, (int)Xstk2->pop_pe);
+      shmem_quiet();
       
       Xstk2->num_popped++;
       Xstk2->num_active_buffers--;
@@ -422,7 +401,7 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
     }
   }
 
-  //   Use this opportunity to activate new messages
+  // Use this opportunity to activate new messages
   while(Xstk2->num_made_active < s2l_num_msgs){
     msg_index = (Xstk2->num_made_active & Xstk2->msg_Q_mask);
     msg = Xstk2->l_msg_queue[msg_index];
@@ -432,10 +411,10 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
     if( msg_islast(msg) ) 
       Xstk2->num_done_sending++;
     if( cnt ){        // this is not an empty "I'm done sending" message
+      lgp_poll();
       assert(Xstk2->pop_cnt[pe] == 0L);
       assert(cnt > 0);
       Xstk2->pop_cnt[pe] = cnt;
-      lgp_poll();
       Xstk2->pop_ptr[pe] = Xstk2->l_rcv_buffer[pe];
     }
     Xstk2->active_buffer_queue[Xstk2->num_active_buffers] = pe;
@@ -483,6 +462,7 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
   int64_t msg_index, msg, pe, cnt;
   int64_t one=1L;
 
+  // if you are all done, just return
   if(Xstk2->all_done){
     return(0L);
   }
@@ -490,7 +470,6 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
   lgp_poll();
   
   // figure out how many buffers you have received total.
-  //int64_t s2l_num_msgs = Xstk2->l_num_msgs[0];
   int64_t s2l_num_msgs = shmem_atomic_fetch(Xstk2->s_num_msgs, MYTHREAD);
   //sleep(1);
   //printf("%d got %ld messages %ld active\n", MYTHREAD, s2l_num_msgs, Xstk2->num_made_active);fflush(0);
@@ -508,12 +487,13 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
 
       return(ret);
     
-    }else{  // the buffer we are working on is now empty 
+    }else{ // the buffer we have been popping from is now empty...
+      
       printf("%d emptied a buffer from %ld\n", MYTHREAD, Xstk2->pop_pe);
+
       // tell whoever sent this buffer, it is safe to start send again 
-      //lgp_atomic_add(Xstk2->s_can_send, MYTHREAD*THREADS + Xstk2->pop_pe, 1L);
-      shmem_put(Xstk2->s_can_send, &one, 1, Xstk2->pop_pe);
-      lgp_fence(); //Necessary?, Harmful?
+      shmem_atomic_add(&Xstk2->s_can_send[MYTHREAD], 1L, (int)Xstk2->pop_pe);
+      shmem_quiet();
       
       Xstk2->num_popped++;
       Xstk2->num_active_buffers--;
@@ -541,7 +521,6 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
       assert(Xstk2->pop_cnt[pe] == 0L);
       assert(cnt > 0);
       Xstk2->pop_cnt[pe] = cnt;
-      //Xstk2->pop_ptr[pe] = Xstk2->l_rcv_buffer[pe] + (cnt-1)*Xstk2->pkg_size;
       Xstk2->pop_ptr[pe] = Xstk2->l_rcv_buffer[pe];
     }
     Xstk2->active_buffer_queue[Xstk2->num_active_buffers] = pe;
