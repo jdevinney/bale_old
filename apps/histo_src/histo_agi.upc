@@ -64,6 +64,7 @@ double histo_agi(int64_t *index, int64_t l_num_ups,  SHARED int64_t *counts) {
     //counts[index[i]] += 1;
     lgp_atomic_add(counts, index[i], 1);
   }
+  
   lgp_barrier();
   tm = wall_seconds() - tm;
   lgp_min_avg_max_d( stat, tm, THREADS );
