@@ -53,10 +53,9 @@ upc_atomicdomain_t * lgp_atomic_domain;
  */
 void lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   long ret;
-  int64_t oldval; 
 #if USE_SHMEM
-  long lindex = index/shmem_n_pes();
-  long pe = index % shmem_n_pes();
+  int64_t lindex = index/shmem_n_pes();
+  int64_t pe = index % shmem_n_pes();
   //shmem_int64_atomic_add(&ptr[lindex], value, pe);
   shmem_atomic_add(&ptr[lindex], value, pe);
   //printf("atomic_add  %ld, to %ld %ld %ld\n", MYTHREAD, pe,  lindex, value);
