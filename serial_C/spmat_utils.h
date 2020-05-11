@@ -44,7 +44,9 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stddef.h>
 #include <string.h>
+#include <inttypes.h>
 #include <math.h>
 #include <float.h>
 #include <sys/time.h>
@@ -52,9 +54,8 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <fcntl.h>
-#include <assert.h>
-#include <stddef.h>
 #include <getopt.h>
+#include <assert.h>
 
 
 /*! \struct sparsemat_t 
@@ -109,7 +110,15 @@ typedef struct triple_t{
   double val;
 }triple_t;
 
-typedef enum graph_model {FLAT, GEOMETRIC} graph_model;
+typedef struct kron_args_t{
+  char str[256];
+  int64_t mode;
+  int64_t num_stars;      // 
+  int64_t star_size[64];  // can't be too many stars, else the graph would be huge
+  int64_t numrows;
+} kron_args_t;
+
+typedef enum graph_model {FLAT, GEOMETRIC, KRONECKER} graph_model;
 typedef enum edge_type {DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED} edge_type;
 typedef enum self_loops {LOOPS, NOLOOPS} self_loops;
 
@@ -121,6 +130,7 @@ void incr_nxt_l_nz(next_nz_t * nxtnz);
 
 
 void             clear_matrix(sparsemat_t * mat);
+void             clear_kron_args(kron_args_t * kron_args);
 int64_t          compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
 sparsemat_t *    copy_matrix(sparsemat_t *srcmat);
 
@@ -130,8 +140,9 @@ int64_t          dump_matrix(sparsemat_t * A, int64_t maxrows, char * name);
 sparsemat_t *    erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
 sparsemat_t *    erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
 sparsemat_t *    geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed);
-sparsemat_t *    kronecker_product_graph(int64_t M, int64_t * m, int mode);
-int64_t          num_triangles_from_theory(int64_t M, int64_t * m, int mode);
+kron_args_t *    kron_args_init(char *str);
+sparsemat_t *    kronecker_product_graph(kron_args_t * K);
+int64_t          tri_count_kron_graph(kron_args_t *K);
 
 sparsemat_t *    init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values);
 

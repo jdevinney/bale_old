@@ -200,7 +200,7 @@ int main(int argc, char * argv[])
   while( (opt = getopt(argc, argv, "hn:s:M:q")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%ld" ,&length    );   break;
+    case 'n': sscanf(optarg,"%"SCNd64 ,&length    );   break;
     case 's': sscanf(optarg,"%d", &seed); break;      
     case 'M': sscanf(optarg,"%d" , &models_mask);  break;
     case 'q': quiet = 1; break;
@@ -211,7 +211,7 @@ int main(int argc, char * argv[])
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of rand_perm\n");
     fprintf(stderr,"help                 (-h)\n");
-    fprintf(stderr,"permutation size     (-n)= %ld\n", length);
+    fprintf(stderr,"permutation size     (-n)= %"PRId64"\n", length);
     fprintf(stderr,"random seed          (-s)= %d\n", seed);
     fprintf(stderr,"models_mask          (-M)= %d\n", models_mask);
     fprintf(stderr,"quiet                (-q)= %d\n", quiet);

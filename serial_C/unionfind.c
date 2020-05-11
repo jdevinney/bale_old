@@ -58,7 +58,7 @@ sparsemat_t * generate_concomp_input(int64_t numrows, double edge_prob,  uint32_
   //sparsemat_t * mat = erdos_renyi_tri(numrows, edge_prob, ER_TRI_L, seed);
   sparsemat_t * mat = random_graph(numrows, FLAT, UNDIRECTED, NOLOOPS, edge_prob, seed);
   if(!mat){
-    fprintf(stderr, "ERROR: generate_concomp_input: failed!\n");
+    fprintf(stderr, "ERROR: generate_concomp_iinput: failed!\n");
     return(NULL);
   }
 
@@ -107,13 +107,13 @@ static void comp_rank_union( comp_tree_t *cc, int64_t r, int64_t s, int verbose)
    if( r == s )
      return;
    if( cc[r].rank < cc[s].rank ) {
-     if(verbose) printf("set parent of %ld to %ld\n", r, s); 
+     if(verbose) printf("set parent of %"PRId64" to %"PRId64"\n", r, s); 
      cc[r].parent = s;
    } else if( cc[s].rank < cc[r].rank ) {
-     if(verbose) printf("set parent of %ld to %ld\n", s, r); 
+     if(verbose) printf("set parent of %"PRId64" to %"PRId64"\n", s, r); 
      cc[s].parent = r;
    } else {
-     if(verbose) printf("set parent of %ld to %ld rank++\n", r, s); 
+     if(verbose) printf("set parent of %"PRId64" to %"PRId64" rank++\n", r, s); 
      cc[r].parent = s;
      cc[s].rank  += 1;
    }
@@ -132,7 +132,7 @@ static void comp_bad_union( comp_tree_t *cc, int64_t r, int64_t s, int64_t e, in
 {
    if( r == s )
      return;
-   if(verbose) printf("set root %ld to limb  %ld\n", r, e); 
+   if(verbose) printf("set root %"PRId64" to limb  %"PRId64"\n", r, e); 
    cc[r].parent = e;
 }
 
@@ -149,7 +149,7 @@ void dump_comp_tree( char *prefix, comp_tree_t *cc, int64_t numverts, int verbos
 
   if(verbose) printf("tree: %s ",prefix);
   for(i=0; i<numverts; i++) {
-    if(verbose) printf(" %2ld",cc[i].parent);
+    if(verbose) printf(" %2"PRId64"",cc[i].parent);
   }
   if(verbose) printf("\n");
 }
@@ -172,12 +172,12 @@ double concomp(int64_t *numcomps, comp_tree_t * cc, sparsemat_t *graph, int verb
     for(k=graph->offset[i]; k < graph->offset[i+1]; k++) {
       j = graph->nonzero[k];
   
-      if( verbose > 0 ) printf("looking at (%ld,%ld): ", i, j);
+      if( verbose > 0 ) printf("looking at (%"PRId64",%"PRId64"): ", i, j);
   
       r = comp_find(cc,i);
       s = comp_find(cc,j);
   
-      if( verbose > 0 ) printf("parentof %ld is %ld , parentof %ld is %ld\n", i,r,j,s);
+      if( verbose > 0 ) printf("parentof %"PRId64" is %"PRId64" , parentof %"PRId64" is %"PRId64"\n", i,r,j,s);
   
       if( verbose > 1 ) dump_comp_tree(">", cc, graph->numrows, verbose);
   
@@ -187,7 +187,7 @@ double concomp(int64_t *numcomps, comp_tree_t * cc, sparsemat_t *graph, int verb
         comp_bad_union(cc, r, s, j, verbose);
       }
       if( verbose > 1 ) dump_comp_tree("<",cc, graph->numrows, verbose);
-      if( verbose > 0 ) printf("parentof %ld is %ld , parentof %ld is %ld\n", r,comp_find(cc,r),s,comp_find(cc,s));
+      if( verbose > 0 ) printf("parentof %"PRId64" is %"PRId64" , parentof %"PRId64" is %"PRId64"\n", r,comp_find(cc,r),s,comp_find(cc,s));
     }
   }
   for(i = 0; i < graph->numrows; i++){ 
@@ -203,7 +203,7 @@ double concomp(int64_t *numcomps, comp_tree_t * cc, sparsemat_t *graph, int verb
   for(i = 0; i < graph->numrows; i++){ 
     if( comp_size[i] > 0 ){
       *numcomps += 1;
-      if(verbose) printf("component %ld has size %ld\n", i, comp_size[i]);
+      if(verbose) printf("component %"PRId64" has size %"PRId64"\n", i, comp_size[i]);
     }
   }
   
@@ -237,7 +237,7 @@ int main(int argc, char * argv[])
   while( (opt = getopt(argc, argv, "hn:s:M:e:Df:q")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%ld" ,&numrows );  break;
+    case 'n': sscanf(optarg,"%"SCNd64, &numrows );  break;
     case 's': sscanf(optarg,"%d" ,&seed );  break;
     case 'M': sscanf(optarg,"%d" , &models_mask);  break;
     case 'e': sscanf(optarg,"%lg", &er_prob); break;
@@ -257,7 +257,7 @@ int main(int argc, char * argv[])
   }
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of union_find\n");
-    fprintf(stderr,"number of nodes      (-n) %ld\n", graph->numrows);
+    fprintf(stderr,"number of nodes      (-n) %"PRId64"\n", graph->numrows);
     fprintf(stderr,"erdos_renyi_prob     (-e)= %lg\n", er_prob);
     fprintf(stderr,"readfile             (-f [%s])\n", filename); 
     fprintf(stderr,"random seed          (-s)= %d\n", seed);
@@ -286,7 +286,7 @@ int main(int argc, char * argv[])
     default:
       continue;
     }
-    if(!quiet) printf(" number of components: %8ld in  %8.3lf seconds \n", num_components, laptime);
+    if(!quiet) printf(" number of components: %8"PRId64" in  %8.3lf seconds \n", num_components, laptime);
   }
   
   clear_matrix(graph);

@@ -54,7 +54,7 @@ double wall_seconds()
 {
   struct timeval tp;
   int retVal = gettimeofday(&tp,NULL);
-  if (retVal == -1) { perror("gettimeofday"); fflush(stderr); }
+  if (retVal == -1){ perror("gettimeofday"); fflush(stderr); }
   return ( (double) tp.tv_sec + (double) tp.tv_usec * 1.e-6 );
 
 }
@@ -108,7 +108,7 @@ int64_t is_perm(int64_t * perm, int64_t N)
   int64_t * flag = calloc(N, sizeof(int64_t));
   if( flag == NULL ) return(0);
 
-  for(i = 0; i < N; i++) {
+  for(i = 0; i < N; i++){
     if( 0 > perm[i] || perm[i] >= N )
       err++;
     else 
@@ -139,7 +139,7 @@ int64_t dump_array(int64_t *A, int64_t len, int64_t maxdisp, char * name)
   }
 
   FILE * fp = fopen(name, "w");
-  for(i=0; i<len; i = (i<stoprow || i>=startrow)? i+1: startrow) {
+  for(i=0; i<len; i = (i<stoprow || i>=startrow)? i+1: startrow){
     fprintf(fp, "%3ld\n", A[i]);
   }
   fclose(fp);
@@ -209,7 +209,7 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
  * \param name the filename to written to
  * \return 0 on success, non-0 on error.
  */
-int64_t write_matrix_mm(sparsemat_t *A, char * name) {
+int64_t write_matrix_mm(sparsemat_t *A, char * name){
   int64_t i,j;
 
   FILE * fp = fopen(name, "w");       // FIXME error
@@ -276,7 +276,7 @@ sparsemat_t  *read_matrix_mm(char * name)
 
   // Read the header line of the MasterMarket format 
   FILE * fp = fopen(name, "r");
-  if( fp == NULL ) {
+  if( fp == NULL ){
     fprintf(stderr,"read_matrix_mm: can't open file %s \n", name);
     exit(1);
   }
@@ -306,11 +306,13 @@ sparsemat_t  *read_matrix_mm(char * name)
   }else if(strncmp(field,"real",24) == 0){
     value = 1; // real values
   }else{
-    value = 2; // integer values
+    //value = 2; // integer values
+    printf("Error: read_matrix_mm: don't yet support integer weights (only doubles)\n");
+    return(NULL);
   }
 
-  fscanfret = fscanf(fp,"%ld %ld %ld\n", &nr, &nc, &nnz);
-  if( (fscanfret != 3 ) || (nr<=0) || (nc<=0) || (nnz<=0) ) {
+  fscanfret = fscanf(fp,"%"SCNd64" %"SCNd64" %"SCNd64"\n", &nr, &nc, &nnz);
+  if( (fscanfret != 3 ) || (nr<=0) || (nc<=0) || (nnz<=0) ){
     fprintf(stderr,"read_matrix_mm: reading nr, nc, nnz\n");
     exit(1);
   }
@@ -323,13 +325,13 @@ sparsemat_t  *read_matrix_mm(char * name)
     // read all the nonzeros into the elts array of (row,col)
     // and sort them before building the sparsemat format
     element_t * elts = calloc(nnz, sizeof(element_t));
-    if( elts == NULL ) {
+    if( elts == NULL ){
       fprintf(stderr,"read_matrix_mm: elts calloc failed\n");
       exit(1);
     }
 
-    for(i=0; i<nnz; i++) {
-      fscanfret = fscanf(fp,"%ld %ld\n", &(elts[i].row), &(elts[i].col));
+    for(i=0; i<nnz; i++){
+      fscanfret = fscanf(fp,"%"SCNd64" %"SCNd64"\n", &(elts[i].row), &(elts[i].col));
       assert (fscanfret == 2);
       //fprintf(stderr,"--- %ld %ld\n",  elts[i].row, elts[i].col);
       assert ( 0<elts[i].row && elts[i].row <=nr);
@@ -341,42 +343,39 @@ sparsemat_t  *read_matrix_mm(char * name)
     qsort( elts, nnz, sizeof(element_t), elt_comp);
 
     ret = init_matrix( nr, nc, nnz, (value > 0));
-    if( ret == NULL ) {
+    if( ret == NULL ){
       fprintf(stderr,"read_matrix_mm: sparsemat calloc failed\n");
       exit(1);
     }
 
     ret->offset[row] = 0;
     while( pos<nnz ){
-      if( elts[pos].row == row ) {
-	ret->nonzero[pos] = elts[pos].col;
-	pos++;
-	continue;
+      if( elts[pos].row == row ){
+    ret->nonzero[pos] = elts[pos].col;
+    pos++;
+    continue;
       }
-      while( row < elts[pos].row ) {
-	row++;
-	ret->offset[row] = pos;
+      while( row < elts[pos].row ){
+    row++;
+    ret->offset[row] = pos;
       }
     }
     ret->offset[row+1] = pos;
 
     free(elts);
     
-  }else{ // real or integer values
+  }else{ // real 
 
     triple_t * elts = calloc(nnz, sizeof(triple_t));
-    if( elts == NULL ) {
+    if( elts == NULL ){
       fprintf(stderr,"read_matrix_mm: elts calloc failed\n");
       exit(1);
     }
 
-    for(i=0; i<nnz; i++) {
+    for(i=0; i<nnz; i++){
       if(value == 1)
-        fscanfret = fscanf(fp,"%ld %ld %lf\n", &(elts[i].row), &(elts[i].col), &(elts[i].val));
-      //else
-      //fscanfret = fscanf(fp,"%ld %ld %lf\n", &(elts[i].row), &(elts[i].col));
+        fscanfret = fscanf(fp,"%"SCNd64" %"SCNd64" %lf\n", &(elts[i].row), &(elts[i].col), &(elts[i].val));
       assert (fscanfret == 3);
-      //fprintf(stderr,"--- %ld %ld %lf\n",  elts[i].row, elts[i].col, elts[i].val);
       assert ( 0<elts[i].row && elts[i].row <=nr);
       assert ( 0<elts[i].col && elts[i].col <=nc);
       elts[i].row -= 1;    // MasterMarket format is 1-up, not 0-up
@@ -386,28 +385,26 @@ sparsemat_t  *read_matrix_mm(char * name)
     qsort( elts, nnz, sizeof(triple_t), triple_comp);
 
     ret = init_matrix( nr, nc, nnz, (value > 0));
-    if( ret == NULL ) {
+    if( ret == NULL ){
       fprintf(stderr,"read_matrix_mm: sparsemat calloc failed\n");
       exit(1);
     }
 
     ret->offset[row] = 0;
     while( pos<nnz ){
-      if( elts[pos].row == row ) {
-	ret->nonzero[pos] = elts[pos].col;
-	ret->value[pos] = elts[pos].val;
-	pos++;
-	continue;
+      if( elts[pos].row == row ){
+        ret->nonzero[pos] = elts[pos].col;
+        ret->value[pos] = elts[pos].val;
+        pos++;
+        continue;
       }
-      while( row < elts[pos].row ) {
-	row++;
-	ret->offset[row] = pos;
+      while( row < elts[pos].row ){
+        row++;
+        ret->offset[row] = pos;
       }
     }
     ret->offset[row+1] = pos;
-
     free(elts);
-
   }
   fclose(fp);
   return(ret);
@@ -470,7 +467,7 @@ sparsemat_t * transpose_matrix(sparsemat_t *A)
   int64_t * tmpoffset = colcnt;
   
   // histogram the column counts of A into colcnt
-  for( i=0; i< A->nnz; i++) {  
+  for( i=0; i< A->nnz; i++){  
     assert( A->nonzero[i] < A->numcols );
     assert( A->nonzero[i] >= 0 ); 
     colcnt[A->nonzero[i]]++;
@@ -488,7 +485,7 @@ sparsemat_t * transpose_matrix(sparsemat_t *A)
   }
 
   //redistribute the nonzeros 
-  for(row=0; row<A->numrows; row++) {
+  for(row=0; row<A->numrows; row++){
     for(j=A->offset[row]; j<A->offset[row+1]; j++){
       col = A->nonzero[j];
       At->nonzero[ tmpoffset[col] ] = row;
@@ -647,7 +644,7 @@ int64_t compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat)
     }
   }
   
-  for(j=0; j< lmat->nnz; j++) {
+  for(j=0; j< lmat->nnz; j++){
     if( lmat->nonzero[j] != rmat->nonzero[j] ){
       printf("(lmat->nonzero[%ld] = %ld)  != (rmat->nonzero[%ld] = %ld)", j,
              lmat->nonzero[j], j, rmat->nonzero[j] );      
@@ -679,7 +676,7 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat)
   for(i = 0; i < (srcmat->numrows)+1; i++){
     destmat->offset[i] = srcmat->offset[i];
   }
-  for(j=0; j < srcmat->nnz; j++) {
+  for(j=0; j < srcmat->nnz; j++){
     destmat->nonzero[j] = srcmat->nonzero[j];
     if(srcmat->value) destmat->value[j] = srcmat->value[j];
   }
@@ -842,6 +839,55 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
 
 //****************** Kronecker Products of Star  Graphs *******************************/
 
+/*! \brief Parses a list describing the input for the Kronecker Product construction.
+ * \param list is the ascii string describing which stars are to be used in the construction.
+ *   must be close to the form "M: k0 k1 k2 ...k(M-1)"
+ *   where M is the mode:
+ *    - mode == 0: default, no self loops
+ *    - mode == 1: add a self loop to center vertex of star (row zero)
+ *    - mode == 2: add a self loop to an outer vertex (the last one)
+ *   then a space separated list of sizes.
+ * \return a pointer to the argument struct
+*/
+kron_args_t * kron_args_init(char * list)
+{
+  int64_t cnt, error=0;
+  int i, n;
+  int64_t numrows = 1;
+
+  kron_args_t * R = (kron_args_t *) calloc(1,sizeof(kron_args_t));
+
+  strncpy(R->str, list, 256);
+  do { 
+    cnt =  sscanf(list, "%"PRId64": %n", &(R->mode), &n);
+    if(cnt != 1){
+      error = 1;     // didn't find the mode or its NULL
+      break;
+    }
+    list += n;
+
+    for (i=0; i<64; i++){
+      cnt = sscanf(list, "%"PRId64" %n", &(R->star_size[i]), &n);
+      if (cnt != 1)  // not an error, just done
+        break;
+      list += n;
+      numrows *= (R->star_size[i] + 1); // a star is a K{1,m} graph
+    }
+    if(i < 1 || i > 63){
+      error = 2;     // didn't find stars or found too many
+      break;
+    }
+    R->num_stars = i;
+    R->numrows = numrows;
+  } while(0); // cause goto's are bad
+
+  if( error ){
+    printf("ERROR: trouble parsing the kron argument list! (error = %"PRId64")\n", error); 
+    return(NULL);
+  }
+  return(R);
+}
+
 /*! \brief Generate the adjacency matrix for the star K_{1,m} (with or without loop edges)
  * \param m  the number of non-hub vertices
  * \param mode
@@ -942,50 +988,36 @@ sparsemat_t * kronecker_mat_product(sparsemat_t * A, sparsemat_t * B)
 
 
 /*! \brief Generate the kroncker product of a collection of star graphs.
- * \param M the number of stars in the collection (M must be at least 2) 
- * \param m The list of sizes: each element m[i] corresponds to a star K_{1,m[i]}
+ * \param K is a struct that holds all the parameters for the construction
  * \param mode 
  *  - mode == 0: default, no self loops
  *  - mode == 1: add a self loop to center vertex of each star 
  *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
  * \return the adjacency matrix for graph
 */
-sparsemat_t * kronecker_product_graph(int64_t M, int64_t * m, int mode){
+sparsemat_t * kronecker_product_graph(kron_args_t * K){
   int64_t i,j;
   int64_t G_n, G_nnz;
   sparsemat_t * star;
+  int64_t M = K->num_stars;
 
-  if(M < 1){
-    printf("ERROR: kronecker_product_graph requires  M >= 1!\n");
+
+  if(M < 2){
+    printf("ERROR: kronecker_product_graph requires  number of stars to be >= 2!\n");
     return(NULL);
   }
 
-  if(M == 1){ // mostly for debugging
-    return(gen_star_graph(m[0], mode));
-  }
-  
   sparsemat_t ** mats = calloc(2*M, sizeof(sparsemat_t *));
 
-  mats[0] = gen_star_graph(m[0], mode);
+  mats[0] = gen_star_graph(K->star_size[0], K->mode);
 
-  for(i = 1; i < M; i++) {
-    star = gen_star_graph(m[i], mode);
+  for(i = 1; i < M; i++){
+    star = gen_star_graph(K->star_size[i], K->mode);
     mats[i] = kronecker_mat_product(mats[i-1] , star);
     clear_matrix( star );
   }
   sparsemat_t * R = mats[M-1];  // what we want but is full symmetric and may have loops
-#if 0 // the free trick doesn't work
-  Aarr[M] = kron_prod(Aarr[0], Aarr[1]);
-  for(i = 0; i < M-2; i++)
-    Aarr[M + 1 + i] = kron_prod(Aarr[M+i], Aarr[2+i]);
- 
-  sparsemat_t * A = Aarr[2*M-2];
-  Aarr[2*M - 2] = NULL;
-
-  for(i = 0; i < 2*M-2; i++){
-    clear_matrix(Aarr[i]); free(Aarr[i]);
-  }
-#endif
+  
   // count the number of nonzeros in the lower triangle part of the matrix
   G_n = R->numrows;
   G_nnz = 0;
@@ -1005,32 +1037,29 @@ sparsemat_t * kronecker_product_graph(int64_t M, int64_t * m, int mode){
     }
     G->offset[i+1] = pos;
   }
+  // free mats
   return(G);
 }
 
-int64_t num_triangles_from_theory(int64_t M, int64_t * m, int mode)
+int64_t tri_count_kron_graph(kron_args_t * K)
 {
-   double ts;
-   int64_t ms;
+   double approx, ns;
    int i;
 
-   if( mode == 0 ) 
+   if( K->mode == 0 ) 
      return 0;
-   else if( mode == 1 ){
-     ts = 1.0;
-     ms = 1;
-     for(i = 0; i < M; i++){
-        ts *= (3*m[i] + 1);
-        ms *= (m[i] + 1);
-     }
-     return ( (int64_t) ((ts / 6.0) - 0.5 * ms + 1.0/3.0));
-   } else if( mode == 2 ){
-     return( (int64_t) (1.0/6.0)*pow(4,M) - pow(2.0,(M - 1)) + 1.0/3.0);
+   else if( K->mode == 1 ){
+     approx = 1.0;
+     for(i = 0; i < K->num_stars; i++)
+        approx *= (3*K->star_size[i] + 1);
+     return ( round((approx / 6.0) - 0.5 * K->numrows + 1.0/3.0) );
+   } else if( K->mode == 2 ){
+     ns = (double) K->num_stars;
+     return( round( (1.0/6.0)*pow(4,ns) - pow(2.0,ns - 1.0) + 1.0/3.0) );
    } else {
      printf("ERROR: : init_matrix failed!\n");
      return(-1); 
    }
-
 }
  
 
@@ -1075,7 +1104,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   // its own sector and in neighboring sectors.
   
   int64_t nsectors = ceil(1.0/r);
-  printf("GEOMETRIC with r = %lf number of sectors = %ld\n", r, nsectors);
+  printf("GEOMETRIC with r = %lf number of sectors = %"PRId64"\n", r, nsectors);
   sector_t ** sectors = calloc(nsectors, sizeof(sector_t*));
   int64_t ** first_index_this_sector = calloc(nsectors, sizeof(int64_t*));
   for(i = 0; i < nsectors; i++){
@@ -1186,7 +1215,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   if(loops == LOOPS)
     nedges += n;
-  //printf("nedges = %ld %lf\n", nedges, nedges/((double)n*(n-1)/2.0));
+  //printf("nedges = %"PRId64" %lf\n", nedges, nedges/((double)n*(n-1)/2.0));
    
   int weighted = (edge_type == UNDIRECTED_WEIGHTED);
   sparsemat_t * A = init_matrix(n, n, nedges, weighted);
@@ -1292,7 +1321,8 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
  * \param seed A random seed.
  * \return A sparsemat_t
  */
-sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed) {
+sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed)
+{
   int64_t row, col;
   double lM = log(RAND_MAX);
   double D  = log(1 - p);
@@ -1441,16 +1471,16 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
  */
 void spmat_stats(sparsemat_t *mat) 
 {
-  printf("   mat->numrows  = %12ld\n", mat->numrows);
-  printf("   mat->numcols  = %12ld\n", mat->numcols);
-  printf("   mat->nnz      = %12ld\n", mat->nnz);
+  printf("   mat->numrows  = %12"PRId64"\n", mat->numrows);
+  printf("   mat->numcols  = %12"PRId64"\n", mat->numcols);
+  printf("   mat->nnz      = %12"PRId64"\n", mat->nnz);
   
   int64_t i, d, mindeg, maxdeg, cntdeg;
   double avgdeg;
   mindeg = mat->numcols;
   maxdeg = 0;
   cntdeg = 0;
-  for(i=0; i<mat->numrows; i++) {
+  for(i=0; i<mat->numrows; i++){
     d = mat->offset[i+1]-mat->offset[i];
     cntdeg += d;
     mindeg = (d < mindeg) ? d : mindeg;
@@ -1458,7 +1488,7 @@ void spmat_stats(sparsemat_t *mat)
   }
   avgdeg = (double)cntdeg/(double)mat->numrows;
   
-  printf("  min, avg, max degree = %ld, %g, %ld\n", mindeg, avgdeg, maxdeg);
+  printf("  min, avg, max degree = %"PRId64", %g, %"PRId64"\n", mindeg, avgdeg, maxdeg);
 }
 
 
