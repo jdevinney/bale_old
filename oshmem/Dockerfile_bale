@@ -6,7 +6,7 @@ WORKDIR /opt/bale_private
 
 RUN ./run_autoreconf
 ENV CC oshcc
-ENV PLATFORM osmem
+ENV PLATFORM oshmem
 RUN ./install.sh -s
 
 RUN echo "---- done with install ----"

@@ -166,24 +166,28 @@ int main(int argc, char * argv[]) {
       T0_fprintf(stderr,"      AGI: ");
       laptime = histo_agi(index, l_num_ups, (SHARED int64_t *)counts);
       num_models++;
+      lgp_barrier();
       break;
     
     case EXSTACK_Model:
       T0_fprintf(stderr,"  Exstack: ");
       laptime = histo_exstack(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
       num_models++;
+      lgp_barrier();
       break;
 
     case EXSTACK2_Model:
       T0_fprintf(stderr," Exstack2: ");
       laptime = histo_exstack2(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
       num_models++;
+      lgp_barrier();
       break;
 
     case CONVEYOR_Model:
       T0_fprintf(stderr,"Conveyors: ");
       laptime = histo_conveyor(pckindx, l_num_ups, (int64_t *)lcounts);
       num_models++;
+      lgp_barrier();
       break;
 
     case ALTERNATE_Model:
@@ -194,6 +198,7 @@ int main(int argc, char * argv[]) {
       //laptime = histo_exstack_function(pckindx, l_num_ups, lcounts, buf_cnt);
       //laptime = histo_exstack2_function(pckindx, l_num_ups, lcounts, buf_cnt);
       //num_models++;
+      lgp_barrier();
       break;
 
     default:
