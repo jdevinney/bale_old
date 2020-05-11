@@ -127,14 +127,22 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   XS2->pop_ptr = calloc(THREADS, sizeof(char*));
   XS2->pop_pe = -1L;
 
-  // linked list trick for flush
+
+  /* 
+   * If all the threads start flushing at the same time and 
+   * they all flush in the same order we could introduce an 
+   * accidental hot spot.  To avoid this, we will have each thread 
+   * flush in an order that was randomly determined order based 
+   * on the thread.  We pick that order by each thread doing its own
+   * Fisher-Yates or Knuth shuffle. 
+   */
   int64_t t, s, swap;
   XS2->flush_perm = calloc(THREADS, sizeof(int64_t));
   if(XS2->flush_perm == NULL) return(NULL);
   for(t = 0; t < THREADS; t++){
      XS2->flush_perm[t] = t;
   }
-  srand48( MYTHREAD*MYTHREAD*MYTHREAD*313 + 909091 );
+  srand48( MYTHREAD*MYTHREAD*MYTHREAD*313 + 909091 ); // :)
   for(t=THREADS-1; t>1; t--){
     s = lrand48() % t; 
     swap = XS2->flush_perm[t];
@@ -142,15 +150,32 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
     XS2->flush_perm[s] = swap;
   }
 
+  //  flush_perm holds the permutation in the natural form
+  // We will use the permutation using flush_order which is 
+  // a linked list format for the permutation.
+
   XS2->flush_order = calloc(THREADS+1, sizeof(int64_t)); 
   if(XS2->flush_order == NULL) return(NULL); 
-
   t = THREADS;
   for(i = 0; i < THREADS; i++){
     XS2->flush_order[t] = XS2->flush_perm[i];
     t = XS2->flush_perm[i];
   }
   XS2->flush_order[t] = THREADS;
+
+  //Note 
+  //            for(i=0 ... THREAD-1)  
+  //              print flush_perm[i]
+  // so the perm of i is stored in flush_perm[i]
+  // and
+  //            t = THREADS
+  //            do{
+  //              print flush_order[t]
+  //              t = flush_order[t]
+  //            }while(t != THREADS)
+  // print the same permutation, so the perm of i is stored
+  // in the i hop (like a linked list) within the array flush_order
+  // In exstack2_flush_needed we will collapse the link list as buffers become empty.
 
   XS2->all_done = 0L;
   XS2->num_done_sending = 0;     // incremented by exstack2_pop, for each done pushing message
