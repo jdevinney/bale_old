@@ -413,7 +413,7 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
     if( cnt ){        // this is not an empty "I'm done sending" message
       lgp_poll();
       assert(Xstk2->pop_cnt[pe] == 0L);
-      assert(cnt > 0);
+      assert(cnt > 0);  
       Xstk2->pop_cnt[pe] = cnt;
       Xstk2->pop_ptr[pe] = Xstk2->l_rcv_buffer[pe];
     }
