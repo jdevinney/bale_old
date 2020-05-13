@@ -89,7 +89,7 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   while( Q_len < 2L*(size_t)THREADS ) 
     Q_len = (Q_len << 1);
   XS2->msg_Q_mask = Q_len-1;
-  printf("Qlen = %ld\n", Q_len);
+  //printf("Qlen = %ld\n", Q_len);
   XS2->s_msg_queue = lgp_all_alloc(Q_len*(size_t)THREADS, sizeof(int64_t));
   if(XS2->s_msg_queue == NULL) return(NULL);
   XS2->l_msg_queue = lgp_local_part(int64_t, XS2->s_msg_queue);
@@ -182,19 +182,19 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
  */
 int64_t exstack2_proceed(exstack2_t *Xstk2, int done_pushing)
 {
-  printf("%d in proceed\n",MYTHREAD);fflush(0);
+  //printf("%d in proceed\n",MYTHREAD);fflush(0);
   static int flag = 0;
 
   if( done_pushing ) {
     if(flag == 0){
-      printf("%d is done pushing\n", MYTHREAD);
+      //printf("%d is done pushing\n", MYTHREAD);
       flag = 1;
     }
     if( exstack2_flush_needed(Xstk2) ) {
       return(2L);
     } else {
       if( Xstk2->num_done_sending < THREADS ){
-        printf("%d says %ld are done sending\n", MYTHREAD, Xstk2->num_done_sending);
+        //printf("%d says %ld are done sending\n", MYTHREAD, Xstk2->num_done_sending);
         return(4L);
       }else {
         //if ( Xstk2->num_popped == Xstk2->l_num_msgs[0] ){
@@ -221,7 +221,7 @@ int64_t exstack2_flush_needed(exstack2_t * Xstk2)
 
   t = THREADS;
   i = Xstk2->flush_order[t];
-  printf("%d in flush\n", MYTHREAD);
+  //printf("%d in flush\n", MYTHREAD);
   if(i == THREADS) 
     return(0L);
   while( i != THREADS ) {
@@ -232,7 +232,7 @@ int64_t exstack2_flush_needed(exstack2_t * Xstk2)
       Xstk2->flush_order[t] = Xstk2->flush_order[i];
     }
     i = Xstk2->flush_order[t];
-    printf("%d trying to flush to %ld\n", MYTHREAD, i);
+    //printf("%d trying to flush to %ld\n", MYTHREAD, i);
   }
   
   return(ret);
@@ -257,7 +257,7 @@ int64_t
 exstack2_push(exstack2_t * Xstk2, void *pkg, int64_t pe)
 {
   int64_t headroom = Xstk2->buf_cnt - Xstk2->push_cnt[pe];
-  printf("%d in push\n",MYTHREAD);fflush(0);
+  //printf("%d in push\n",MYTHREAD);fflush(0);
   assert(headroom >= 0);
   if(headroom == 0){    
     if( exstack2_send(Xstk2, pe, 0) ) {     // try to send full buffer
@@ -307,7 +307,7 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
 {
   uint64_t pos;
   int64_t zero = 0L;
-  printf("%d is in send to %ld %ld\n", MYTHREAD, pe, Xstk2->l_can_send[pe]);fflush(0);
+  //printf("%d is in send to %ld %ld\n", MYTHREAD, pe, Xstk2->l_can_send[pe]);fflush(0);
 
   // See if it is safe to send.
   // If s_can_send[pe] == 1, we are OK to send.
@@ -326,26 +326,27 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
                ((size_t)THREADS*MYTHREAD*(Xstk2->pkg_size*Xstk2->buf_cnt) + pe)
                );
   }
-  printf("%d sending to %ld islast=%d cnt= %ld\n", MYTHREAD, pe, islast, Xstk2->push_cnt[pe]);
+  //printf("%d sending to %ld islast=%d cnt= %ld\n", MYTHREAD, pe, islast, Xstk2->push_cnt[pe]);
 
   // this may have to be done with atomics...
-  printf("%d finished atomic add in send\n",MYTHREAD);fflush(0);
+  //printf("%d finished atomic add in send\n",MYTHREAD);fflush(0);
   shmem_quiet();
-  printf("%d about to fetch and inc\n",MYTHREAD);fflush(0);
+  //printf("%d about to fetch and inc\n",MYTHREAD);fflush(0);
 
   // send a message to the receiver pe, that a buffer has been delivered
   pos = shmem_atomic_fetch_inc(Xstk2->s_num_msgs, pe);
   pos = pos & Xstk2->msg_Q_mask;
-  printf("%d about to send message to %ld to pos %ld\n",MYTHREAD, pe, pos);fflush(0);
+  //printf("%d about to send message to %ld to pos %ld\n",MYTHREAD, pe, pos);fflush(0);
   //lgp_put_int64((SHARED int64_t *)Xstk2->s_msg_queue, pos*THREADS + pe, msg_pack( Xstk2->push_cnt[pe], islast ));
-  shmem_put(&Xstk2->s_msg_queue[pos], msg_pack( Xstk2->push_cnt[pe], islast ), 1, (int)pe);
+  int64_t msg = msg_pack( Xstk2->push_cnt[pe], islast );
+  shmem_put(&Xstk2->s_msg_queue[pos], &msg, 1, (int)pe);
 
   // reset the buffer to continue pushing to it
   Xstk2->push_cnt[pe] = 0L;
   Xstk2->push_ptr[pe] = Xstk2->l_snd_buffer[pe];
 
   shmem_quiet();
-  printf("%d about to leave send\n",MYTHREAD);fflush(0);
+  //printf("%d about to leave send\n",MYTHREAD);fflush(0);
   return(1L);
 }
 
@@ -489,7 +490,7 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
     
     }else{ // the buffer we have been popping from is now empty...
       
-      printf("%d emptied a buffer from %ld\n", MYTHREAD, Xstk2->pop_pe);
+      //printf("%d emptied a buffer from %ld\n", MYTHREAD, Xstk2->pop_pe);
 
       // tell whoever sent this buffer, it is safe to start send again 
       shmem_atomic_add(&Xstk2->s_can_send[MYTHREAD], 1L, (int)Xstk2->pop_pe);
@@ -512,7 +513,7 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
     if(msg == -1L) break;                 // the message is still in flight
     pe = msg_pe(msg);
     cnt = msg_cnt(msg);
-    printf("%d recvd from %ld cnt=%ld islast=%d nummsgs=%ld\n", MYTHREAD, pe, cnt, msg_islast(msg), s2l_num_msgs);
+    //printf("%d recvd from %ld cnt=%ld islast=%d nummsgs=%ld\n", MYTHREAD, pe, cnt, msg_islast(msg), s2l_num_msgs);
     if( msg_islast(msg) ){
       Xstk2->num_done_sending++;
     }

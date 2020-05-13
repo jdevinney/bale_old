@@ -92,8 +92,8 @@ fi
 
 : ${BALEDIR:=$PWD}
 
-option += " -M $mask"
-if [ $quick_run == 1 ]; then
+options=$options+" -M $mask"
+if [ ${quick_run} -eq 1 ]; then
     # this makes the tests run a little quicker, if you want to run a longer
     # set of tests, use a second argument (can be anything!)
     options+=" -n 1000"

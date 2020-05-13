@@ -44,7 +44,7 @@ include_HEADERS=exstack.h
 lib_LIBRARIES = libexstack.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc
-libexstack_a_CPPFLAGS = -g -O2 -std=c11
+libexstack_a_CPPFLAGS = -g -O2
 #libexstack_a_CPPFLAGS = -g -O0
 
 # handle UPC library
@@ -55,7 +55,7 @@ endif
 if BUILD_SHMEM
 #libexstack_a_LINK = $(LINK)
 libexstack_a_SOURCES = $(common_sources:.upc=__c.c)
-libexstack_a_CPPFLAGS += -DUSE_SHMEM
+libexstack_a_CPPFLAGS += -DUSE_SHMEM -std=c11
 endif
 
 libexstack_a_CPPFLAGS += @CPPFLAGS@ @libdeps_CFLAGS@

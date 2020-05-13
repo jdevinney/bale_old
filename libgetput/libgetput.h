@@ -56,6 +56,8 @@
 #include <sys/time.h>
 #include <assert.h>
 
+#define BALE_VERSION 2.2
+
 #if HAVE_CONFIG_H
 #include "config.h"
 #endif
