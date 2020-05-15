@@ -210,7 +210,7 @@ int64_t exstack2_proceed(exstack2_t *Xstk2, int done_pushing)
   }
 }
 
-/*!\brief Try to send all of your unsent buffers.
+/*!\brief Try to send all of your unsent buffers. We call this during the endgame.
  * \param Xstk2 The exstack2 struct.
  * \return 0 if you have successfully flushed all buffers, 1 otherwise.
  */
@@ -241,9 +241,9 @@ int64_t exstack2_flush_needed(exstack2_t * Xstk2)
 /******************************************************************************/
 /*! \brief This is how you push items onto the exstack2 struct.
  *
- * When you push an item, it first attempts to 
- * push the item onto a send buffer. If there is no more room
- * on that buffer, the buffer will attempt to send itself to its 
+ * When you push an item, we make sure there is room on the buffer.
+ * If there is no more room
+ * on the buffer, the buffer will attempt to send itself to its 
  * destination. If the destination is not ready to receive this buffer
  * then this function returns 0 (otherwise nonzero).
 
@@ -256,38 +256,23 @@ int64_t exstack2_flush_needed(exstack2_t * Xstk2)
 int64_t
 exstack2_push(exstack2_t * Xstk2, void *pkg, int64_t pe)
 {
+  // headroom is how much space we have on the buffer we are trying to push to
   int64_t headroom = Xstk2->buf_cnt - Xstk2->push_cnt[pe];
-  //printf("%d in push\n",MYTHREAD);fflush(0);
   assert(headroom >= 0);
-  if(headroom == 0){    
-    if( exstack2_send(Xstk2, pe, 0) ) {     // try to send full buffer
-      // if success reset headroom and go on
-      headroom = Xstk2->buf_cnt; 
+  if(headroom == 0){
+    // Oh... we have no room. Try to send full buffer...
+    if( exstack2_send(Xstk2, pe, 0) ) {
+      // We were able to send it! Reset headroom and go on.
+      headroom = Xstk2->buf_cnt;
     }
   }
   if(headroom){
-    // push item onto buffer
+    // We have some room to push our item. Push item onto buffer.
     memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
     Xstk2->push_cnt[pe]++;
     Xstk2->push_ptr[pe] += Xstk2->pkg_size;
   }
   return(headroom);
-#if 0
-  if( headroom ){    
-    memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
-    Xstk2->push_cnt[pe]++;
-    Xstk2->push_ptr[pe] += Xstk2->pkg_size;
-  }
-  if(Xstk2->push_cnt[pe] == Xstk2->buf_cnt){
-    if( exstack2_send(Xstk2, pe, 0) ) {
-      //headroom = Xstk2->buf_cnt; 
-      //memcpy(Xstk2->push_ptr[pe], (char*)pkg, Xstk2->pkg_size);
-      //Xstk2->push_cnt[pe]++;
-      //Xstk2->push_ptr[pe] += Xstk2->pkg_size;
-    } 
-  }
-  return(headroom);
-#endif
 } 
 
 
@@ -337,7 +322,6 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
   pos = shmem_atomic_fetch_inc(Xstk2->s_num_msgs, pe);
   pos = pos & Xstk2->msg_Q_mask;
   //printf("%d about to send message to %ld to pos %ld\n",MYTHREAD, pe, pos);fflush(0);
-  //lgp_put_int64((SHARED int64_t *)Xstk2->s_msg_queue, pos*THREADS + pe, msg_pack( Xstk2->push_cnt[pe], islast ));
   int64_t msg = msg_pack( Xstk2->push_cnt[pe], islast );
   shmem_put(&Xstk2->s_msg_queue[pos], &msg, 1, (int)pe);
 
@@ -352,12 +336,12 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
 
 /*! \brief Pop an item off of a receive buffer if there are items to be popped.
  * \param Xstk2 The exstack2 struct
- * \param pkg A pointer to a pointer to memory that holds the item from the buffer. Note, that this memory is not copied
- *  from the buffer, it is just pointed to by pkg.
+ * \param pkg After a successful call, this will hold the next item from the in-buffer. 
  * \param from_pe if non-NULL returns the pe that sent the item that was popped
  * \return 1 if something was successfully popped, 0 otherwise.
- * Note there is a slight advantage to just assigning a pointer to pkg, rather than copying the package as
- *  we do here.  This seems safer and a lot less ugly.
+ * 
+ *  Note there is a slight advantage to just assigning a pointer to pkg, rather than copying the package as
+ *  we do here. We do this alternative in exstack2_pull.
  * \ingroup exstackgrp
  */
 int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
