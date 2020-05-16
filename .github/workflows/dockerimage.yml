@@ -15,6 +15,6 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build the Docker image
-      run: docker build . --file oshmem/Dockerfile_github_action --tag bale_test:github_action
+      run: docker build . --file oshmem/Dockerfile_github_action --tag bale_test:gh_action
     - name: Run the Docker image
-      run: docker run bale_test:github_action oshrun -n 1 build_oshmem/bin/histo -M 1 -c 1
+      run: docker run bale_test:gh_action su bale_user - -c "oshrun -n 1 build_oshmem/bin/histo -M 1 -c 1"
