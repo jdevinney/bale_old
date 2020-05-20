@@ -124,32 +124,39 @@ int main(int argc, char * argv[]) {
   T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", models_mask);
   fflush(stderr);
 
-
+  histo_t data;
+  
   // Allocate and zero out the counts array
-  int64_t num_counts = lnum_counts*THREADS;
-  SHARED volatile int64_t * counts = lgp_all_alloc(num_counts, sizeof(int64_t)); assert(counts != NULL);  
-  volatile int64_t *lcounts = lgp_local_part(int64_t, counts);
+  data.l_num_ups = l_num_ups;
+  data.lnum_counts = lnum_counts;
+  data.num_counts = lnum_counts*THREADS;
+  data.counts = lgp_all_alloc(data.num_counts, sizeof(int64_t));
+  assert(data.counts != NULL);  
+  data.lcounts = lgp_local_part(int64_t, data.counts);  
   for(i = 0; i < lnum_counts; i++)
-    lcounts[i] = 0L;
+    data.lcounts[i] = 0L;
   
   // index is a local array of indices into the shared counts array.
   // This is used by the _agi version. 
   // To avoid paying the UPC tax of computing index[i]/THREADS and index[i]%THREADS
   // when using the exstack and conveyor models
   // we also store a packed version that holds the pe (= index%THREADS) and lindx (=index/THREADS)
-  int64_t *index   = calloc(l_num_ups, sizeof(int64_t)); assert(index != NULL);
-  int64_t *pckindx = calloc(l_num_ups, sizeof(int64_t)); assert(pckindx != NULL);
+  data.index   = calloc(l_num_ups, sizeof(int64_t)); assert(data.index != NULL);
+  data.pckindx = calloc(l_num_ups, sizeof(int64_t)); assert(data.pckindx != NULL);
+
   int64_t indx, lindx, pe;
-  
   srand(MYTHREAD + 120348);
   for(i = 0; i < l_num_ups; i++) {
-    //indx = i % num_counts;          //might want to do this for debugging
-    indx = rand() % num_counts;
-    index[i] = indx;                 
+    //indx = i % data.num_counts;          //might want to do this for debugging
+    indx = rand() % data.num_counts;
+    data.index[i] = indx;                 
     lindx = indx / THREADS;
     pe  = indx % THREADS;
-    printf("%d: -> %ld %ld\n",MYTHREAD,  pe, index[i]);
-    pckindx[i]  =  (lindx << 16L) | (pe & 0xffff);
+    assert(indx < data.num_counts);
+    assert(lindx < data.lnum_counts);
+    assert(lindx < (1L<<48));
+    assert(pe < (1L<<16));
+    data.pckindx[i]  =  (lindx << 16L) | (pe & 0xffff);
   }
   double volume_per_node = (8*l_num_ups*cores_per_node)*(1.0E-9);
   
@@ -165,29 +172,36 @@ int main(int argc, char * argv[]) {
     switch( use_model & models_mask ) {
     case AGI_Model:
       T0_fprintf(stderr,"      AGI: ");
-      laptime = histo_agi(index, l_num_ups, (SHARED int64_t *)counts);
+      //laptime = histo_agi(index, l_num_ups, (SHARED int64_t *)counts);
+      laptime = histo_agi(&data);
       num_models++;
       lgp_barrier();
       break;
     
     case EXSTACK_Model:
       T0_fprintf(stderr,"  Exstack: ");
-      laptime = histo_exstack(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
+      //laptime = histo_exstack(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
+      laptime = histo_exstack(&data, buf_cnt);
+      lgp_barrier();
+      //if(MYTHREAD == 0)
+      //for(i = 0; i < data.num_counts; i++)
+      //  printf("[%ld] = %ld\n", i, lgp_get_int64(data.counts, i));
       num_models++;
       lgp_barrier();
       break;
 
     case EXSTACK2_Model:
       T0_fprintf(stderr," Exstack2: ");
-      laptime = histo_exstack2(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
-      printf("%d ALL DONE\n", MYTHREAD);
+      //laptime = histo_exstack2(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
+      laptime = histo_exstack2(&data, buf_cnt);
       num_models++;
       lgp_barrier();
       break;
 
     case CONVEYOR_Model:
       T0_fprintf(stderr,"Conveyors: ");
-      laptime = histo_conveyor(pckindx, l_num_ups, (int64_t *)lcounts);
+      //laptime = histo_conveyor(pckindx, l_num_ups, (int64_t *)lcounts);
+      histo_conveyor(&data);
       num_models++;
       lgp_barrier();
       break;
@@ -215,18 +229,18 @@ int main(int argc, char * argv[]) {
 
   // Check the results
   // Assume that the atomic add version will correctly zero out the counts array
-  for(i = 0; i < l_num_ups; i++) {
+  for(i = 0; i < data.l_num_ups; i++) {
 #pragma pgas defer_sync
-    lgp_atomic_add((SHARED int64_t *)counts, index[i], -num_models);
+    lgp_atomic_add(data.counts, data.index[i], -num_models);
   }
   lgp_barrier();
 
   int64_t num_errors = 0, totalerrors = 0;
-  for(i = 0; i < lnum_counts; i++) {
-    if(lcounts[i] != 0L) {
+  for(i = 0; i < data.lnum_counts; i++) {
+    if(data.lcounts[i] != 0L) {
       num_errors++;
       if(num_errors < 5)  // print first five errors, report number of errors below
-        fprintf(stderr,"ERROR: Thread %d error at %"PRId64" (= %"PRId64")\n", MYTHREAD, i, lcounts[i]);
+        fprintf(stderr,"ERROR: Thread %d error at %"PRId64" (= %"PRId64")\n", MYTHREAD, i, data.lcounts[i]);
     }
   }
   totalerrors = lgp_reduce_add_l(num_errors);
@@ -234,9 +248,9 @@ int main(int argc, char * argv[]) {
      T0_fprintf(stderr,"FAILED!!!! total errors = %"PRId64"\n", totalerrors);   
   }
   
-  lgp_all_free((SHARED int64_t *)counts);
-  free(index);
-  free(pckindx);
+  lgp_all_free(data.counts);
+  free(data.index);
+  free(data.pckindx);
   lgp_finalize();
 
   return(totalerrors);

@@ -157,7 +157,7 @@ int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64
     T0_fprintf(stderr,"ERROR: check_is_triangle is_perm(rperminv2) = %d is_perm(cperminv2) = %d\n",rf,cf);
     return(1);
   }
-  mat2 = permute_matrix(mat, rperminv, cperminv);
+  mat2 = permute_matrix(mat, rperminv, cperminv, 500);
   if(!is_upper_triangular(mat2, 1)) {
     T0_fprintf(stderr,"ERROR: check_is_triangle fails\n");
     ret = 1;
@@ -174,7 +174,7 @@ int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64
  * \param rand_seed the seed for random number generator that determines the original matrix and the permutations
  * \return the permuted upper triangular matrix
  */
-sparsemat_t * generate_toposort_input(int64_t numrows, double prob, int64_t rand_seed) {
+sparsemat_t * generate_toposort_input(int64_t numrows, double prob, int64_t rand_seed, int64_t buf_cnt) {
   sparsemat_t * omat;
   int64_t numcols = numrows;
   
@@ -187,8 +187,8 @@ sparsemat_t * generate_toposort_input(int64_t numrows, double prob, int64_t rand
 
   // get row and column permutations
   t = wall_seconds();
-  SHARED int64_t * rperminv = rand_permp(numrows, 1230+MYTHREAD);
-  SHARED int64_t * cperminv = rand_permp(numcols, 45+MYTHREAD);
+  SHARED int64_t * rperminv = rand_permp(numrows, 1230+MYTHREAD, buf_cnt);
+  SHARED int64_t * cperminv = rand_permp(numcols, 45+MYTHREAD, buf_cnt);
   T0_printf("generate perms time %lf\n", wall_seconds() - t);
   lgp_barrier();
 
@@ -202,7 +202,7 @@ sparsemat_t * generate_toposort_input(int64_t numrows, double prob, int64_t rand
 
   lgp_barrier();
   t = wall_seconds();
-  sparsemat_t * mat = permute_matrix(omat, rperminv, cperminv);
+  sparsemat_t * mat = permute_matrix(omat, rperminv, cperminv, buf_cnt);
   T0_printf("permute matrix time %lf\n", wall_seconds() - t);
   
   if(!mat) {
@@ -277,12 +277,12 @@ int main(int argc, char * argv[]) {
   T0_fprintf(stderr,"Erdos-Renyi edge probability   (-e)   %lf\n", erdos_renyi_prob);
   T0_fprintf(stderr,"task mask (M) = %"PRId64" (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);
   
-  sparsemat_t * mat = generate_toposort_input(numrows, erdos_renyi_prob, rand_seed);
+  sparsemat_t * mat = generate_toposort_input(numrows, erdos_renyi_prob, rand_seed, buf_cnt);
   if(!mat){T0_printf("ERROR: mat is NULL!\n"); exit(1);}
 
   T0_printf("Input matrix has %"PRId64" rows and %"PRId64" nonzeros\n", mat->numrows, mat->nnz);
   
-  sparsemat_t * tmat = transpose_matrix(mat);
+  sparsemat_t * tmat = transpose_matrix(mat, buf_cnt);
   if(!tmat){T0_printf("ERROR: tmat is NULL!\n"); exit(1);}
 
   lgp_barrier();
@@ -306,12 +306,12 @@ int main(int argc, char * argv[]) {
 
     case EXSTACK_Model:
       T0_fprintf(stderr,"  Exstack: ");
-      laptime = toposort_matrix_exstack(rperminv2, cperminv2, mat, tmat);
+      laptime = toposort_matrix_exstack(rperminv2, cperminv2, mat, tmat, buf_cnt);
       break;
 
     case EXSTACK2_Model:
       T0_fprintf(stderr," Exstack2: ");
-      laptime = toposort_matrix_exstack2(rperminv2, cperminv2, mat, tmat);
+      laptime = toposort_matrix_exstack2(rperminv2, cperminv2, mat, tmat, buf_cnt);
       break;
 
     case CONVEYOR_Model:

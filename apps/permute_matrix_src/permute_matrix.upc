@@ -102,7 +102,7 @@ int main(int argc, char * argv[]) {
   int64_t cores_per_node = 1;
 
   int opt; 
-  while( (opt = getopt(argc, argv, "e:hc:n:M:s:Z:")) != -1 ) {
+  while( (opt = getopt(argc, argv, "b:e:hc:n:M:s:Z:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
     case 'b': sscanf(optarg,"%"PRId64"", &buf_cnt);  break;
@@ -142,8 +142,8 @@ int main(int argc, char * argv[]) {
   minavgmaxD_t stat[1];
   int64_t error = 0;
   
-  SHARED int64_t * rp = rand_permp(numrows, seed);
-  SHARED int64_t * cp = rand_permp(numrows, seed + 1);  
+  SHARED int64_t * rp = rand_permp(numrows, seed, buf_cnt);
+  SHARED int64_t * cp = rand_permp(numrows, seed + 1, buf_cnt);  
   
   sparsemat_t * inmat = gen_erdos_renyi_graph_dist(numrows, erdos_renyi_prob, 0, 3, seed + 2);
   if(inmat == NULL){

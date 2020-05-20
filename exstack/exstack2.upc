@@ -89,7 +89,7 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   while( Q_len < 2L*(size_t)THREADS ) 
     Q_len = (Q_len << 1);
   XS2->msg_Q_mask = Q_len-1;
-  //printf("Qlen = %ld\n", Q_len);
+
   XS2->s_msg_queue = lgp_all_alloc(Q_len*(size_t)THREADS, sizeof(int64_t));
   if(XS2->s_msg_queue == NULL) return(NULL);
   XS2->l_msg_queue = lgp_local_part(int64_t, XS2->s_msg_queue);

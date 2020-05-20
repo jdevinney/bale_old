@@ -131,9 +131,9 @@ int64_t write_sparse_matrix_agi( char * datadir, sparsemat_t * mat);
 int64_t write_sparse_matrix_exstack( char * datadir, sparsemat_t * mat, int64_t buf_cnt);
 
 /* wrapper functions */
-SHARED int64_t * rand_permp(int64_t N, int seed);
-sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv);
-sparsemat_t * transpose_matrix(sparsemat_t *omat);
+SHARED int64_t * rand_permp(int64_t N, int seed, int64_t buf_cnt);
+sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv, int64_t buf_cnt);
+sparsemat_t * transpose_matrix(sparsemat_t *omat, int64_t buf_cnt);
 
 
 /* misc utility functions */

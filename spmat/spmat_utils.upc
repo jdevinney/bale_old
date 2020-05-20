@@ -46,6 +46,7 @@
 /*! \brief Produce a global array the holds a uniform random permutation.
  * \param N the global length of the permutaion
  * \param seed the seed for the random number generator
+ * \param buf_cnt The size of the buffers in any exstack, exstack2, calls
  * \return a pointer to the matrix that has been produced or NULL if the model can't be used
  *
  * This is wrapper for implementations written in the different models.
@@ -60,10 +61,10 @@
  * This gives a random permutation with spaces in it, then you squeeze out the spaces.
  * \ingroup spmatgrp
  */
-SHARED int64_t * rand_permp(int64_t N, int seed) {
+SHARED int64_t * rand_permp(int64_t N, int seed, int64_t buf_cnt) {
   SHARED int64_t * p;
   //p = rand_permp_agi(N, seed);
-  p = rand_permp_exstack(N, seed, 1024);
+  p = rand_permp_exstack(N, seed, buf_cnt);
   //p = rand_permp_exstack2(N, seed, 1024);
   
   if(!is_perm(p, N)){
@@ -80,7 +81,8 @@ SHARED int64_t * rand_permp(int64_t N, int seed) {
  * \param cperminv pointer to the global array holding the inverse of the column permutation
  * rperminv[i] = j means that row i of A goes to row j in matrix Ap
  * cperminv[i] = j means that col i of A goes to col j in matrix Ap
- * \param mode which buffering model to use 
+ * \param buf_cnt The size of the buffers in any exstack, exstack2, calls
+
  * \return a pointer to the matrix that has be computed or NULL on failure
  *
  * This is wrapper for implementations written in the different models.
@@ -89,15 +91,16 @@ SHARED int64_t * rand_permp(int64_t N, int seed) {
  *
  * \ingroup spmatgrp
  */
-sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {
+sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv, int64_t buf_cnt) {
   //return( permute_matrix_agi(omat, rperminv, cperminv) );
-    return( permute_matrix_exstack(omat, rperminv, cperminv, 1024) );
+    return( permute_matrix_exstack(omat, rperminv, cperminv, buf_cnt) );
   //return( permute_matrix_exstack2(omat, rperminv, cperminv, 1024) );
   //return( permute_matrix_conveyor(omat, rperminv, cperminv) );
 }
 
 /*! \brief produce the transpose of a sparse matrix using UPC
  * \param omat  pointer to the original matrix
+ * \param buf_cnt The size of the buffers in any exstack, exstack2, calls
  * \return a pointer to the matrix that has be computed or NULL on failure
  *
  * This is wrapper for implementations written in the different models.
@@ -106,10 +109,10 @@ sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED
  *
  * \ingroup spmatgrp
  */
-sparsemat_t * transpose_matrix(sparsemat_t *omat) {
+sparsemat_t * transpose_matrix(sparsemat_t *omat, int64_t buf_cnt) {
   sparsemat_t * A;
   //A = transpose_matrix_agi(omat);
-  A = transpose_matrix_exstack(omat, 1024);
+  A = transpose_matrix_exstack(omat, buf_cnt);
   //A = transpose_matrix_exstack2(omat, 1024);
   //A = transpose_matrix_conveyor(omat);
   if(!A){return(NULL);}
@@ -559,7 +562,7 @@ sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int
   case 0:
     /* generate the upper triangular portion, then transpose and add */
     U = gen_erdos_renyi_graph_triangle_dist(n, p, unit_diag, 0, seed);
-    L = transpose_matrix(U);
+    L = transpose_matrix(U, 500);
     if(!L){T0_printf("ERROR: gen_er_graph_dist: L is NULL!\n"); return(NULL);}
     break;
   case 1:
@@ -773,7 +776,7 @@ sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_dia
   /* if the user wants the whole symmetric matrix, 
      we have made the upper so transpose and add */
   if(mode == 0){ 
-    sparsemat_t * L = transpose_matrix(A);
+    sparsemat_t * L = transpose_matrix(A, 500);
     if(!L){T0_printf("ERROR: gen_er_graph_dist: L is NULL!\n"); return(NULL);}
     
     lnnz = L->lnnz + A->lnnz;

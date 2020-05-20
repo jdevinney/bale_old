@@ -50,7 +50,7 @@
  * \param *tmat the transpose of mat
  * \return average run time
  */
-double toposort_matrix_exstack2(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) {
+double toposort_matrix_exstack2(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat, int64_t buf_cnt) {
   typedef struct pkg_rowcol_t{
     int64_t row;    
     int64_t col;
@@ -105,9 +105,9 @@ double toposort_matrix_exstack2(SHARED int64_t *rperm, SHARED int64_t *cperm, sp
   int64_t perm_pos = nr - 1 - lgp_prior_add_l(lrows_this_level);
   int64_t rows_per_level = 0L;
 
-  exstack2_t * ex3 =  exstack2_init(1024, sizeof(int64_t));
+  exstack2_t * ex3 =  exstack2_init(buf_cnt, sizeof(int64_t));
   pkg_rowcol_t pkg_nz;
-  exstack2_t * ex4 = exstack2_init(1024, sizeof(pkg_rowcol_t));
+  exstack2_t * ex4 = exstack2_init(buf_cnt, sizeof(pkg_rowcol_t));
 
   // Do it in levels:
   // Per level -- everyone picks their degree one rows

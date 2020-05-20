@@ -51,7 +51,7 @@
  */
 exstack_t * exstack_init( int64_t buf_cnt, size_t pkg_size)
 {
-  uint64_t th , buf_siz_alloc ;
+  uint64_t th;
   int i , j , k , tmp ;
 
   if(!buf_cnt) return(NULL);
@@ -71,42 +71,39 @@ exstack_t * exstack_init( int64_t buf_cnt, size_t pkg_size)
   }
 
   /* each thread has a send and receive buffer for every other thread   */
-  buf_siz_alloc = sizeof(uint64_t) + pkg_size*buf_cnt;
-  XStk->snd_buf = lgp_all_alloc (buf_siz_alloc*THREADS*THREADS, sizeof(char));
+  XStk->snd_buf = shmem_malloc (sizeof(exstack_buffer_t *)*THREADS);
   if(XStk->snd_buf   == NULL) return(NULL);
-  XStk->rcv_buf = lgp_all_alloc (buf_siz_alloc*THREADS*THREADS, sizeof(char));
+  XStk->rcv_buf = shmem_malloc (sizeof(exstack_buffer_t *)*THREADS);
   if(XStk->rcv_buf   == NULL) return(NULL);
-
-  XStk->l_snd_buf = calloc(THREADS,sizeof(SHARED char*));
-  if(XStk->l_snd_buf == NULL) return(NULL);
-  XStk->l_rcv_buf = calloc(THREADS,sizeof(SHARED char*));
-  if(XStk->l_rcv_buf == NULL) return(NULL);
-  XStk->fifo_ptr  = calloc(THREADS,sizeof(char*));
-  if(XStk->fifo_ptr  == NULL) return(NULL);
-  XStk->push_ptr  = calloc(THREADS,sizeof(char*));
-  if(XStk->push_ptr  == NULL) return(NULL);
-
-  XStk->l_snd_buf[0] = lgp_local_part( char, XStk->snd_buf);
-  XStk->l_rcv_buf[0] = lgp_local_part( char, XStk->rcv_buf);
-  for(th=1; th<THREADS; th++) {
-    XStk->l_snd_buf[th] = XStk->l_snd_buf[th-1] + pkg_size*buf_cnt + sizeof(uint64_t);
-    XStk->l_rcv_buf[th] = XStk->l_rcv_buf[th-1] + pkg_size*buf_cnt + sizeof(uint64_t);
+  for(i = 0; i < THREADS; i++){
+    XStk->snd_buf[i] = shmem_malloc(sizeof(exstack_buffer_t) + pkg_size*buf_cnt);
+    XStk->rcv_buf[i] = shmem_malloc(sizeof(exstack_buffer_t) + pkg_size*buf_cnt);
   }
 
+  XStk->l_snd_buf = calloc(THREADS,sizeof(exstack_buffer_t *));
+  if(XStk->l_snd_buf == NULL) return(NULL);
+  XStk->l_rcv_buf = calloc(THREADS,sizeof(exstack_buffer_t *));
+  if(XStk->l_rcv_buf == NULL) return(NULL);
+  XStk->fifo_ptr  = calloc(THREADS,sizeof(char *));
+  if(XStk->fifo_ptr  == NULL) return(NULL);
+  XStk->push_ptr  = calloc(THREADS,sizeof(char *));
+  if(XStk->push_ptr  == NULL) return(NULL);
+
   for(th=0; th<THREADS; th++) {
-    // counters live in the first 8 bytes of the buffers
-    *((uint64_t*)XStk->l_snd_buf[th])  = 0L;
-    *((uint64_t*)XStk->l_rcv_buf[th])  = 0L;
-    // set the push and pop ptrs to the item in the bufers
-    XStk->push_ptr[th]  = &XStk->l_snd_buf[th][sizeof(uint64_t)];
-    XStk->fifo_ptr[th]  = &XStk->l_rcv_buf[th][sizeof(uint64_t)];
+    XStk->l_snd_buf[th] = lgp_local_part(exstack_buffer_t,  XStk->snd_buf[th]);
+    XStk->l_rcv_buf[th] = lgp_local_part(exstack_buffer_t,  XStk->rcv_buf[th]);
+    
+    XStk->l_snd_buf[th]->count  = 0L;
+    XStk->l_rcv_buf[th]->count  = 0L;
+    XStk->push_ptr[th] = XStk->l_snd_buf[th]->data;
+    XStk->fifo_ptr[th] = XStk->l_rcv_buf[th]->data;
   }
 
   XStk->buf_cnt               = buf_cnt;
   XStk->pkg_size              = pkg_size;
   XStk->first_ne_rcv          = 0;
 
-  XStk->wait_done = lgp_all_alloc(THREADS*THREADS,sizeof(SHARED int64_t));
+  XStk->wait_done = lgp_all_alloc(THREADS*THREADS,sizeof(int64_t));
   if(XStk->wait_done == NULL) return(NULL);             
   
   XStk->l_wait_done = lgp_local_part(int64_t, XStk->wait_done);
@@ -163,12 +160,15 @@ int64_t exstack_proceed(exstack_t *Xstk , int im_done) {
 int64_t exstack_push(exstack_t *Xstk, void *push_item, int64_t th_num)
 {
   // first 64 bits of the buffer hold the current buffer count, regardless of the package size.
-  uint64_t h ,*snd_buf_ct_ptr = (uint64_t*)Xstk->l_snd_buf[th_num];   // first address of the buffer (a 64-bit int)
+  uint64_t h;
+  //uint64_t *snd_buf_ct_ptr = (uint64_t*)(Xstk->l_snd_buf[th_num]);   // first address of the buffer (a 64-bit int)
 
-  h = Xstk->buf_cnt - *snd_buf_ct_ptr;    // the headroom in packages for this buffer
+  //h = Xstk->buf_cnt - *snd_buf_ct_ptr;    // the headroom in packages for this buffer
+  h = Xstk->buf_cnt - Xstk->l_snd_buf[th_num]->count;
   if( h ) {
-    memcpy(Xstk->push_ptr[th_num] , (char*)push_item , Xstk->pkg_size);
-    (*snd_buf_ct_ptr)++;
+    memcpy(Xstk->push_ptr[th_num], (char*)push_item, Xstk->pkg_size);
+    //(*snd_buf_ct_ptr)++;
+    Xstk->l_snd_buf[th_num]->count++;
     Xstk->push_ptr[th_num] += Xstk->pkg_size;
   }
   return(h);
@@ -184,30 +184,37 @@ int64_t exstack_push(exstack_t *Xstk, void *push_item, int64_t th_num)
  */
 void exstack_exchange(exstack_t *Xstk )
 {
-  uint64_t ran , th , snd_buf_ct;
+  uint64_t ran, th, snd_buf_ct;
 
   // copy the contents of all non-empty send buffers from my thread
   // to the receive buffers of all other threads
   for(ran=0; ran<THREADS; ran++) {
     th = (uint64_t)Xstk->put_order[ran];
-    snd_buf_ct = *((uint64_t*)Xstk->l_snd_buf[th]);
-    if(snd_buf_ct) {                                           // only send if buffer has something in it
-      lgp_memput(Xstk->rcv_buf,
-                 Xstk->l_snd_buf[th],
-                 snd_buf_ct*Xstk->pkg_size + sizeof(int64_t),
-                 THREADS*MYTHREAD*(Xstk->pkg_size*Xstk->buf_cnt + sizeof(int64_t)) + th);
-
+    //snd_buf_ct = *((uint64_t*)Xstk->l_snd_buf[th]);
+    snd_buf_ct = Xstk->l_snd_buf[th]->count;
+    //printf("PE %d: sending %ld to %ld\n", MYTHREAD, snd_buf_ct, th);
+    if(snd_buf_ct) {// only send if buffer has something in it
+      //lgp_memput(Xstk->rcv_buf,
+      //Xstk->l_snd_buf[th],
+      //           snd_buf_ct*Xstk->pkg_size + sizeof(int64_t),
+      //           THREADS*MYTHREAD*(Xstk->pkg_size*Xstk->buf_cnt + sizeof(int64_t)) + th);
+      shmem_putmem(Xstk->rcv_buf[MYTHREAD],
+                   Xstk->l_snd_buf[th],
+                   snd_buf_ct*Xstk->pkg_size + sizeof(exstack_buffer_t),
+                   th);
+      
     }
   }
 
-  //upc_synci();
   lgp_barrier();
 
   // clear send buffers for my thread and 
   // reset crnt_min_headroom and first_ne_rcv
   for(th=0; th<THREADS; th++) {
-    *((uint64_t*)Xstk->l_snd_buf[th]) = 0L;
-    Xstk->push_ptr[th] = &Xstk->l_snd_buf[th][sizeof(int64_t)];
+    //*((uint64_t*)Xstk->l_snd_buf[th]) = 0L;
+    Xstk->l_snd_buf[th]->count = 0L;
+    //Xstk->push_ptr[th] = &Xstk->l_snd_buf[th][sizeof(int64_t)];
+    Xstk->push_ptr[th] = Xstk->l_snd_buf[th]->data;
   }
   Xstk->first_ne_rcv = 0;
 
@@ -216,7 +223,15 @@ void exstack_exchange(exstack_t *Xstk )
 
   // set rcv buffer pointers after we know that all the memputs have completed
   for(th=0; th<THREADS; th++) {
-    Xstk->fifo_ptr[th]  = Xstk->l_rcv_buf[th] + sizeof(int64_t);
+    Xstk->fifo_ptr[th]  = Xstk->l_rcv_buf[th]->data;
+  }
+  
+  for(th = 0; th < THREADS; th++){
+    //printf("PE %d recvd %ld from %ld\n", MYTHREAD, Xstk->rcv_buf[th]->count, th);
+    //for(int j = 0; j < 3; j++){
+      //if(Xstk->rcv_buf[th]->count == 0)
+      // printf("PE %d pkg: %ld from %ld\n", MYTHREAD, *(((int64_t*)Xstk->l_rcv_buf[th]->data) + j), th);
+  //}
   }
 }
 
@@ -232,12 +247,14 @@ int64_t exstack_pop_thread(exstack_t *Xstk, void *pop_item, int64_t th_num)
 {
   uint64_t i;
 
-  if( (*((uint64_t*)Xstk->l_rcv_buf[th_num])) == 0) 
+  //if( (*((uint64_t*)Xstk->l_rcv_buf[th_num])) == 0)
+  if(Xstk->l_rcv_buf[th_num]->count == 0) 
     return(0);
 
   memcpy((char*)pop_item , Xstk->fifo_ptr[th_num] , Xstk->pkg_size);
   Xstk->fifo_ptr[th_num] += Xstk->pkg_size;
-  (*((uint64_t*)Xstk->l_rcv_buf[th_num]))--;
+  //(*((uint64_t*)Xstk->l_rcv_buf[th_num]))--;
+  Xstk->l_rcv_buf[th_num]->count--;
   return(1);
 }
 
@@ -252,7 +269,8 @@ void exstack_unpop_thread(exstack_t *Xstk , int64_t th_num)
 /**********************************************************************/
 {
   Xstk->fifo_ptr[th_num] -= Xstk->pkg_size;
-  (*((uint64_t*)Xstk->l_rcv_buf[th_num]))++;
+  //(*((uint64_t*)Xstk->l_rcv_buf[th_num]))++;
+  Xstk->l_rcv_buf[th_num]->count++;
 }
 
 
@@ -268,12 +286,14 @@ int64_t exstack_pop(exstack_t *Xstk, void *pop_item ,  int64_t *from_th)
   int64_t th;
 
   for(th=Xstk->first_ne_rcv; th<THREADS; th++) {
-    if(*((uint64_t*)Xstk->l_rcv_buf[th]) == 0L) continue;
+    //if(*((uint64_t*)Xstk->l_rcv_buf[th]) == 0L) continue;
+    if(Xstk->l_rcv_buf[th]->count == 0L) continue;
 
     // non-empty rcv buffer found: pop work item:
     memcpy((char*)pop_item , Xstk->fifo_ptr[th] , Xstk->pkg_size);
     Xstk->fifo_ptr[th] += Xstk->pkg_size;
-    (*((uint64_t*)Xstk->l_rcv_buf[th]))--;
+    //(*((uint64_t*)Xstk->l_rcv_buf[th]))--;
+    Xstk->l_rcv_buf[th]->count--;
     Xstk->first_ne_rcv = th;
     if( from_th != NULL )
        *from_th = th;
@@ -283,7 +303,8 @@ int64_t exstack_pop(exstack_t *Xstk, void *pop_item ,  int64_t *from_th)
   // all receive buffers empty:  get ready for next exstack_memcpy and  return failure
   Xstk->first_ne_rcv = 0;
   for(th=0; th<THREADS; th++) {
-    Xstk->fifo_ptr[th] = &Xstk->l_rcv_buf[th][sizeof(uint64_t)];
+    //Xstk->fifo_ptr[th] = &Xstk->l_rcv_buf[th][sizeof(uint64_t)];
+    Xstk->fifo_ptr[th] = Xstk->l_rcv_buf[th]->data;
   }
   return (0);
 }
@@ -312,28 +333,31 @@ void exstack_unpop(exstack_t *Xstk)
  */
 void *exstack_pull(exstack_t *Xstk, int64_t *from_th)
 {
-  void *ret;
+  char *ret;
   int64_t th;
 
   for(th=Xstk->first_ne_rcv; th<THREADS; th++) {
-    if(*((uint64_t*)Xstk->l_rcv_buf[th]) == 0L) continue;
+    //if(*((uint64_t*)Xstk->l_rcv_buf[th]) == 0L) continue;
+    if(Xstk->l_rcv_buf[th]->count == 0L) continue;
 
     // non-empty rcv buffer found: pop work item:
     ret = Xstk->fifo_ptr[th];
-
+    //if(!MYTHREAD)printf("%d is in pull: %ld things to pull (%ld)\n", MYTHREAD, Xstk->l_rcv_buf[th]->count, *(int64_t*)ret);
     Xstk->fifo_ptr[th] += Xstk->pkg_size;
-    (*((uint64_t*)Xstk->l_rcv_buf[th]))--;
+    //(*((uint64_t*)Xstk->l_rcv_buf[th]))--;
+    Xstk->l_rcv_buf[th]->count--;
     Xstk->first_ne_rcv = th;
     if( from_th != NULL )
        *from_th = th;
 
-    return(ret);
+    return((void*)ret);
   }
 
   // all receive buffers empty:  get ready for next exstack_memcpy and  return failure
   Xstk->first_ne_rcv = 0;
   for(th=0; th<THREADS; th++) {
-    Xstk->fifo_ptr[th] = &Xstk->l_rcv_buf[th][sizeof(uint64_t)];
+    //Xstk->fifo_ptr[th] = &Xstk->l_rcv_buf[th][sizeof(uint64_t)];
+    Xstk->fifo_ptr[th] = Xstk->l_rcv_buf[th]->data;
   }
   return (NULL);
 }
@@ -349,7 +373,8 @@ void exstack_unpull(exstack_t *Xstk)
 {
   // ONLY A GUESS AT WHAT MIGHT WORK 
   Xstk->fifo_ptr[Xstk->first_ne_rcv] -= Xstk->pkg_size;
-  (*((uint64_t*)Xstk->l_rcv_buf[Xstk->first_ne_rcv]))++;
+  //(*((uint64_t*)Xstk->l_rcv_buf[Xstk->first_ne_rcv]))++;
+  Xstk->l_rcv_buf[Xstk->first_ne_rcv]->count++;
 }
 
 
@@ -361,12 +386,13 @@ void exstack_unpull(exstack_t *Xstk)
  */
 int64_t exstack_min_headroom(exstack_t *Xstk)
 {
-  uint64_t t, ret, *snd_buf_ct_ptr;
+  uint64_t t, ret, snd_buf_ct_ptr;
   // first 64 bits of the buffer hold the current buffer count, regardless of the package size.
   ret = 0;
   for(t=0; t<THREADS; t++) {
-    snd_buf_ct_ptr = (uint64_t*)Xstk->l_snd_buf[t];   
-    ret += (Xstk->buf_cnt - *snd_buf_ct_ptr); // the headroom in packages going to MYTHREAD
+    snd_buf_ct_ptr = Xstk->l_snd_buf[t]->count;   
+    ret += (Xstk->buf_cnt - snd_buf_ct_ptr); // the headroom in packages going to MYTHREAD
+
   }
   return(ret);      // min across all my send buffers
 }
@@ -379,8 +405,9 @@ int64_t exstack_min_headroom(exstack_t *Xstk)
  */
 int64_t exstack_headroom(exstack_t *Xstk , int64_t th_num)
 {
-  int64_t *snd_buf_ct_ptr = (int64_t*)Xstk->l_snd_buf[th_num];
-  return( Xstk->buf_cnt - *snd_buf_ct_ptr);
+  //int64_t *snd_buf_ct_ptr = (int64_t*)Xstk->l_snd_buf[th_num];
+  int64_t snd_buf_ct_ptr = Xstk->l_snd_buf[th_num]->count;
+  return( Xstk->buf_cnt - snd_buf_ct_ptr);
 }
 
 
@@ -390,7 +417,12 @@ int64_t exstack_headroom(exstack_t *Xstk , int64_t th_num)
  */
 void exstack_clear(exstack_t *Xstk )
 {
+  int64_t i;
   lgp_all_free(Xstk->wait_done);
+  for(i=0; i < THREADS; i++){
+    lgp_all_free(Xstk->snd_buf[i]);
+    lgp_all_free(Xstk->rcv_buf[i]);
+  }
   lgp_all_free(Xstk->snd_buf);
   lgp_all_free(Xstk->rcv_buf);
   free(Xstk->put_order);
@@ -408,10 +440,15 @@ void exstack_clear(exstack_t *Xstk )
 void exstack_reset(exstack_t * Xstk){
   
   for(int th=0; th<THREADS; th++) {
-    *((uint64_t*)Xstk->l_snd_buf[th])  = 0L;
-    *((uint64_t*)Xstk->l_rcv_buf[th])  = 0L;
-    Xstk->push_ptr[th]  = &Xstk->l_snd_buf[th][sizeof(SHARED uint64_t)];
-    Xstk->fifo_ptr[th]  = &Xstk->l_rcv_buf[th][sizeof(SHARED uint64_t)];
+    //*((uint64_t*)Xstk->l_snd_buf[th])  = 0L;
+    //*((uint64_t*)Xstk->l_rcv_buf[th])  = 0L;
+    //Xstk->push_ptr[th]  = &Xstk->l_snd_buf[th][sizeof(SHARED uint64_t)];
+    //Xstk->fifo_ptr[th]  = &Xstk->l_rcv_buf[th][sizeof(SHARED uint64_t)];
+    Xstk->l_snd_buf[th]->count  = 0L;
+    Xstk->l_rcv_buf[th]->count  = 0L;
+    // set the push and pop ptrs to the item in the buffers
+    Xstk->push_ptr[th] = Xstk->l_snd_buf[th]->data;
+    Xstk->fifo_ptr[th] = Xstk->l_rcv_buf[th]->data;
   }
   Xstk->first_ne_rcv = 0;
   for(int th=0; th<THREADS; th++) 

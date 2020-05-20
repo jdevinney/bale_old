@@ -305,7 +305,7 @@ int main(int argc, char * argv[]) {
   lgp_barrier();
   
   if(alg == 1)
-    U = transpose_matrix(L);
+    U = transpose_matrix(L, buf_cnt);
 
   lgp_barrier();
 

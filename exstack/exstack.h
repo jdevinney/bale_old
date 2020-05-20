@@ -59,13 +59,16 @@
 #include <assert.h>
 #include <stddef.h>
 #include <getopt.h>
-
 #include<libgetput.h>
 
 #if __UPC__
 #include <upc_nb.h>
 #endif
 
+typedef struct exstack_buffer_t{
+  int64_t count;
+  char data[];
+}exstack_buffer_t;
 
 /*******************  Classic Exstack  ***************************************************/
 /*! \struct exstack_t 
@@ -74,10 +77,14 @@
  * \ingroup exstackgrp
  */
 typedef struct exstack_t {
-  SHARED char *snd_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for items to be sent */
-  SHARED char *rcv_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for recieved items */
-  char **l_snd_buf;           /*!< Local pointers to each of the send buffers */
-  char **l_rcv_buf;           /*!< Local pointers to each of the receive buffers */
+  //SHARED char *snd_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for items to be sent */
+  //SHARED char *rcv_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for recieved items */
+  exstack_buffer_t ** snd_buf;
+  exstack_buffer_t ** rcv_buf;
+  //char **l_snd_buf;           /*!< Local pointers to each of the send buffers */
+  //char **l_rcv_buf;           /*!< Local pointers to each of the receive buffers */
+  exstack_buffer_t ** l_snd_buf;
+  exstack_buffer_t ** l_rcv_buf;
   char **fifo_ptr;            /*!< (internal) pointer to oldest work item in each rcv buffer */
   char **push_ptr;            /*!< (internal) pointer to next avail work item position in each snd buffer */
   int *put_order;             /*!< local pointer to random upc_memput ordering */
@@ -148,9 +155,8 @@ typedef struct exstack2_t {
   char ** l_snd_buffer;  /*!< 2D array of local pointers to view the send buffers */ 
                                           /*!< locally... as if each thread has THREADS different send and rcv buffers */
   int64_t * push_cnt;     /*!< THREADS long array, number of pkgs pushed to each send buffer */
-  int64_t * push_trigger;     /*!< THREADS long array, number of pkgs pushed to each send buffer */
   char ** push_ptr;       /*!< THREADS long array, pointers to current position to push to in send buffers */
-  int64_t * pop_cnt;      /*!< THREADS long array,  */
+  int64_t * pop_cnt;      /*!< THREADS long array, number of pkgs popped in each received buffer */
   char ** pop_ptr;        /*!< THREADS long array, pointers to current position to pop from in receive buffers */
   int64_t pop_pe;         /*!< the pe that is currently being popped or pulled (-1 if no buffer has been received) */
 
@@ -175,9 +181,9 @@ typedef struct exstack2_t {
   // The sender put the message on the receivers queue, the receiver uses it locally to pop the stacks
 
   SHARED int64_t * s_num_msgs;  /*!< keeps track of total number of pull requests received on this thread  */
-                                         /*!< This is the head of the msg_queue. It is updated with a fetch_and_add */
+                                /*!< This is the head of the msg_queue. It is updated with a fetch_and_add */
   int64_t * l_num_msgs;         /*!< my local pointer to s_num_msgs */
-  int64_t num_popped;                    /*!< keeps track of the total number of stacks popped.  This is the tail of the queue */
+  int64_t num_popped;           /*!< keeps track of the total number of stacks popped.  This is the tail of the queue */
 
   int64_t * active_buffer_queue; /*!< array of indices into the msg_queue for active (=unpopped and recvd) buffers. */
   int64_t num_active_buffers;  /*!< current number of active buffers */
@@ -187,13 +193,6 @@ typedef struct exstack2_t {
   int all_done;         /*!< This exstack is all done (exstack2_proceed should return 0), useful in nested exstacks */
   int num_done_sending; /*!< This is a counter of the number of threads that are done sending to me. */
 
-//#if __UPC_ATOMIC__
-//  upc_atomicdomain_t * domain;
-//#else
-//  void * domain;
-//#endif
-
-  void * domain;      /*!< an atomic_domain, required by some atomic operations */
 
 } exstack2_t;
 

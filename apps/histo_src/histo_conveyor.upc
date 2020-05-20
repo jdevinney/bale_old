@@ -50,7 +50,8 @@
  *
  */
 
-double histo_conveyor(int64_t *pckindx, int64_t T,  int64_t *lcounts) {
+//double histo_conveyor(int64_t *pckindx, int64_t T,  int64_t *lcounts) {
+double histo_conveyor(histo_t * data){
   int ret;
   int64_t i;
   double tm;
@@ -69,16 +70,19 @@ double histo_conveyor(int64_t *pckindx, int64_t T,  int64_t *lcounts) {
   lgp_barrier();  
   tm = wall_seconds();
   i = 0UL;
-  while(convey_advance(conveyor, i == T)) {
-    for(; i< T; i++){
-      col = pckindx[i] >> 16;
-      pe  = pckindx[i] & 0xffff;
+  while(convey_advance(conveyor, i == data->l_num_ups)) {
+    for(; i< data->l_num_ups; i++){
+      col = data->pckindx[i] >> 16;
+      pe  = data->pckindx[i] & 0xffff;
+      assert(pe < THREADS);
       if( !convey_push(conveyor, &col, pe))
 	    break;
     }
-    while( convey_pull(conveyor, &pop_col, NULL) == convey_OK)
+    while( convey_pull(conveyor, &pop_col, NULL) == convey_OK){
     //while( (pop_col = convey_pull(conveyor, NULL)) != NULL)
-      lcounts[pop_col] += 1;
+      assert(pop_col < data->lnum_counts);
+      data->lcounts[pop_col] += 1;
+    }
   }
 
   lgp_barrier();

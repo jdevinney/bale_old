@@ -91,8 +91,8 @@ if [ -z $LAUNCHER ]; then
 fi
 
 : ${BALEDIR:=$PWD}
-
-options=$options+" -M $mask"
+echo $mask
+options=$options" -M $mask"
 if [ ${quick_run} -eq 1 ]; then
     # this makes the tests run a little quicker, if you want to run a longer
     # set of tests, use a second argument (can be anything!)
