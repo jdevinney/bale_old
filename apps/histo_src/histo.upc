@@ -201,7 +201,7 @@ int main(int argc, char * argv[]) {
     case CONVEYOR_Model:
       T0_fprintf(stderr,"Conveyors: ");
       //laptime = histo_conveyor(pckindx, l_num_ups, (int64_t *)lcounts);
-      histo_conveyor(&data);
+      laptime = histo_conveyor(&data);
       num_models++;
       lgp_barrier();
       break;
