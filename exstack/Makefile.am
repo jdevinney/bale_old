@@ -36,25 +36,24 @@
 # 
 # *****************************************************************/ 
 
-common_sources = exstack.upc exstack2.upc
+common_sources = exstack.upc 
 pkconfigdir=@libdir@/pkgconfig
 
 include_HEADERS=exstack.h
-#lib_LIBRARIES =
 lib_LIBRARIES = libexstack.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc
 libexstack_a_CPPFLAGS = -g -O2
-#libexstack_a_CPPFLAGS = -g -O0
 
 # handle UPC library
 if BUILD_UPC
 libexstack_a_SOURCES = $(common_sources:.c=__upc.upc)
+libexstack_a_SOURCES += exstack2.upc
 endif
 
 if BUILD_SHMEM
-#libexstack_a_LINK = $(LINK)
 libexstack_a_SOURCES = $(common_sources:.upc=__c.c)
+libexstack_a_SOURCES += exstack2_shmem.c
 libexstack_a_CPPFLAGS += -DUSE_SHMEM -std=c11
 endif
 

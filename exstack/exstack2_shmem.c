@@ -79,7 +79,7 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   XS2->l_rcv_buffer[0] = lgp_local_part(char, XS2->s_rcv_buffer);
   for(int64_t th=1; th<THREADS; th++) {
     XS2->l_snd_buffer[th] = XS2->l_snd_buffer[th-1] + buffer_bytes;
-    XS2->l_rcv_buffer[th] = XS2->l_rcv_buffer[th-1] + buffer_bytes;    
+    XS2->l_rcv_buffer[th] = XS2->l_rcv_buffer[th-1] + buffer_bytes;
   }
     
   // the message queue is a circular buffer, indices into the queue are ever increasing 
@@ -89,7 +89,7 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   while( Q_len < 2L*(size_t)THREADS ) 
     Q_len = (Q_len << 1);
   XS2->msg_Q_mask = Q_len-1;
-  
+
   XS2->s_msg_queue = lgp_all_alloc(Q_len*(size_t)THREADS, sizeof(int64_t));
   if(XS2->s_msg_queue == NULL) return(NULL);
   XS2->l_msg_queue = lgp_local_part(int64_t, XS2->s_msg_queue);
@@ -101,7 +101,8 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   XS2->l_num_msgs = lgp_local_part(int64_t, XS2->s_num_msgs);
   
   XS2->num_popped = 0L;
-  XS2->l_num_msgs[0] = 0L;
+  //XS2->l_num_msgs[0] = 0L;
+  shmem_atomic_set(XS2->s_num_msgs, 0, MYTHREAD);
   
   XS2->active_buffer_queue = calloc(THREADS, sizeof(int64_t));
   XS2->num_active_buffers = 0L;
@@ -113,6 +114,7 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   if(XS2->s_can_send == NULL) return(NULL);
   XS2->l_can_send = lgp_local_part(int64_t,  XS2->s_can_send);
   for(i = 0; i < THREADS; i++)
+    //shmem_atomic_set(&XS2->s_can_send[i], 1, MYTHREAD);
     XS2->l_can_send[i] = 1L;
 
   // allocate and initialize push and pop ptrs
@@ -195,7 +197,8 @@ int64_t exstack2_proceed(exstack2_t *Xstk2, int done_pushing)
         //printf("%d says %ld are done sending\n", MYTHREAD, Xstk2->num_done_sending);
         return(4L);
       }else {
-        if ( Xstk2->num_popped == Xstk2->l_num_msgs[0] ){
+        //if ( Xstk2->num_popped == Xstk2->l_num_msgs[0] ){
+        if(shmem_test(Xstk2->s_num_msgs, SHMEM_CMP_EQ, Xstk2->num_popped)){
           Xstk2->all_done = 1L;
           return(0L);
         } else
@@ -294,13 +297,12 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
   // See if it is safe to send.
   // If s_can_send[pe] == 1, we are OK to send.
   // If s_can_send[pe] == 0, we can't send right now.
-  if(Xstk2->l_can_send[pe] == 0)
+  if(shmem_test((int64_t*)&Xstk2->s_can_send[pe],SHMEM_CMP_EQ, 0L))
     return(0);
   
   // mark this buffer as unsafe to send. When pe is finished popping from the buffer we
   // are about to send, it will change the value of s_can_send so that we can send again.
-  //lgp_atomic_add(Xstk2->s_can_send, THREADS*pe + MYTHREAD, -1L);
-  Xstk2->l_can_send[pe] = 0;
+  shmem_atomic_add(&Xstk2->s_can_send[pe], -1L, MYTHREAD);
   
   if(Xstk2->push_cnt[pe] > 0L){      // flushing might call send() with an empty buffer
     lgp_memput(Xstk2->s_rcv_buffer,
@@ -309,21 +311,25 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
                ((size_t)THREADS*MYTHREAD*(Xstk2->pkg_size*Xstk2->buf_cnt) + pe)
                );
   }
+  //printf("%d sending to %ld islast=%d cnt= %ld\n", MYTHREAD, pe, islast, Xstk2->push_cnt[pe]);
 
-  lgp_fence();
+  // this may have to be done with atomics...
+  //printf("%d finished atomic add in send\n",MYTHREAD);fflush(0);
+  shmem_quiet();
+  //printf("%d about to fetch and inc\n",MYTHREAD);fflush(0);
 
   // send a message to the receiver pe, that a buffer has been delivered
-  pos = lgp_fetch_and_inc(Xstk2->s_num_msgs, pe);
+  pos = shmem_atomic_fetch_inc(Xstk2->s_num_msgs, pe);
   pos = pos & Xstk2->msg_Q_mask;
+  //printf("%d about to send message to %ld to pos %ld\n",MYTHREAD, pe, pos);fflush(0);
   int64_t msg = msg_pack( Xstk2->push_cnt[pe], islast );
-  //printf("%d about to send message to %ld to pos %ld msg = %lx\n",MYTHREAD, pe, pos, msg);fflush(0);
-  Xstk2->s_msg_queue[pos*THREADS + pe] = msg;
+  shmem_put(&Xstk2->s_msg_queue[pos], &msg, 1, (int)pe);
 
   // reset the buffer to continue pushing to it
   Xstk2->push_cnt[pe] = 0L;
   Xstk2->push_ptr[pe] = Xstk2->l_snd_buffer[pe];
 
-  lgp_fence();
+  shmem_quiet();
   //printf("%d about to leave send\n",MYTHREAD);fflush(0);
   return(1L);
 }
@@ -349,7 +355,7 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
   lgp_poll();
   
   // figure out how many buffers you have received total.
-  int64_t s2l_num_msgs = Xstk2->l_num_msgs[0];
+  int64_t s2l_num_msgs = shmem_atomic_fetch(Xstk2->s_num_msgs, MYTHREAD);
   
   if(Xstk2->pop_pe != -1L){ // We have a buffer queued up... 
     if(Xstk2->pop_cnt[Xstk2->pop_pe] > 0L){  // there is something to pop
@@ -366,9 +372,9 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
     
     }else{  // the buffer we have been popping from is now empty... 
 
-      // tell whoever sent this buffer, it is safe to start send again     
-      lgp_atomic_add(Xstk2->s_can_send, MYTHREAD*THREADS + Xstk2->pop_pe, 1L);
-      lgp_fence();
+      // tell whoever sent this buffer, it is safe to start send again 
+      shmem_atomic_add(&Xstk2->s_can_send[MYTHREAD], 1L, (int)Xstk2->pop_pe);
+      shmem_quiet();
       
       Xstk2->num_popped++;
       Xstk2->num_active_buffers--;
@@ -449,7 +455,9 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
   lgp_poll();
   
   // figure out how many buffers you have received total.
-  int64_t s2l_num_msgs = Xstk2->l_num_msgs[0];
+  int64_t s2l_num_msgs = shmem_atomic_fetch(Xstk2->s_num_msgs, MYTHREAD);
+  //sleep(1);
+  //printf("%d got %ld messages %ld active\n", MYTHREAD, s2l_num_msgs, Xstk2->num_made_active);fflush(0);
   
   if(Xstk2->pop_pe != -1L){ // We have a buffer queued up... 
     if(Xstk2->pop_cnt[Xstk2->pop_pe] > 0L){  // there is something to pop
@@ -469,8 +477,8 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
       //printf("%d emptied a buffer from %ld\n", MYTHREAD, Xstk2->pop_pe);
 
       // tell whoever sent this buffer, it is safe to start send again 
-      lgp_atomic_add(Xstk2->s_can_send, MYTHREAD*THREADS + Xstk2->pop_pe, 1L);
-      lgp_fence();
+      shmem_atomic_add(&Xstk2->s_can_send[MYTHREAD], 1L, (int)Xstk2->pop_pe);
+      shmem_quiet();
       
       Xstk2->num_popped++;
       Xstk2->num_active_buffers--;

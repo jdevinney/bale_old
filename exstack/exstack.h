@@ -79,8 +79,9 @@ typedef struct exstack_buffer_t{
 typedef struct exstack_t {
   //SHARED char *snd_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for items to be sent */
   //SHARED char *rcv_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for recieved items */
-  exstack_buffer_t ** snd_buf;
-  exstack_buffer_t ** rcv_buf;
+  int64_t bytes_per_stack;
+  SHARED char * snd_buf;
+  SHARED char * rcv_buf;
   //char **l_snd_buf;           /*!< Local pointers to each of the send buffers */
   //char **l_rcv_buf;           /*!< Local pointers to each of the receive buffers */
   exstack_buffer_t ** l_snd_buf;
