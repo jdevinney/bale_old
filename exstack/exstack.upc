@@ -130,6 +130,7 @@ int64_t exstack_proceed(exstack_t *Xstk , int im_done) {
   int i;
   int64_t breakout;
   if( im_done && !Xstk->notify_done ) {
+    // If I am done pushing and I haven't notified everyone, do so now.
     for(i=0; i<THREADS; i++) 
       lgp_put_int64(Xstk->wait_done, MYTHREAD*THREADS + i, 1L);
     Xstk->notify_done = 1;
@@ -138,6 +139,7 @@ int64_t exstack_proceed(exstack_t *Xstk , int im_done) {
   
   breakout = 0;
   
+  // See if everyone else is all done pushing.
   if( Xstk->notify_done ){ 
     breakout = 1L; 
     for(i=0; i<THREADS; i++)
@@ -161,13 +163,13 @@ int64_t exstack_proceed(exstack_t *Xstk , int im_done) {
  */
 int64_t exstack_push(exstack_t *Xstk, void *push_item, int64_t th_num)
 {
-  uint64_t h = Xstk->buf_cnt - Xstk->l_snd_buf[th_num]->count;
-  if( h ) {
+  uint64_t headroom = Xstk->buf_cnt - Xstk->l_snd_buf[th_num]->count;
+  if( headroom ) {
     memcpy(Xstk->push_ptr[th_num], (char*)push_item, Xstk->pkg_size);
     Xstk->l_snd_buf[th_num]->count++;
     Xstk->push_ptr[th_num] += Xstk->pkg_size;
   }
-  return(h);
+  return(headroom);
 }
 
 
@@ -192,12 +194,7 @@ void exstack_exchange(exstack_t *Xstk )
       lgp_memput(Xstk->rcv_buf,
                  Xstk->l_snd_buf[th],
                  snd_buf_ct*Xstk->pkg_size + sizeof(exstack_buffer_t),
-                 Xstk->bytes_per_stack*MYTHREAD*THREADS + th);
-      //shmem_putmem(&Xstk->rcv_buf[Xstk->bytes_per_stack*MYTHREAD],
-      //             Xstk->l_snd_buf[th],
-      //             snd_buf_ct*Xstk->pkg_size + sizeof(exstack_buffer_t),
-      //             th);
-      
+                 Xstk->bytes_per_stack*MYTHREAD*THREADS + th);      
     }
   }
 
