@@ -31,40 +31,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 # OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-
-# See the bale documentation for more information about what bale is.
 #
-# The main components are :
-#  INSTALL       # This file
-#  libgetput     # parallel programming utility lib
-#  exstack       # the exstack and exstack2 libraries
-#  convey        # directory containing the conveyor buffering model
-#  spmat         # the sparse matrix library
-#  apps          # the applications directory, includes histogram, indexgather, toposort, and others
-#  install.sh    # an install script
-#  runall.sh     # a test script
-#  Doxyfile      # A key to building the documentation with doxygen (see more below).
-#  mainpage.h    # The main documentation page.
-#  clang_upc_run.sh  # a script to add "-fupc-threads-N" as appropriate when using clang-upc
-#
-# All of bale is written in C. All except conveyors use the libgetput library for a parallel API.
-# Everything can be built on UPC or SHMEM. Bale is supported on:
-#  * Cray UPC (cce 8.7.3)
-#  * GNU UPC (5.2.0.1)
-#  * Clang UPC (3.9.1-1)
-#
-#  * (not working yet) OpenMPI (OSHMEM) 3.0.6 
-#  * (all but conveyors) Sandia OpenSHMEM (SOS) (1.4.5)
-#  * Cray SHMEM (7.7.2)
-#  * Cray openshmemX ?
-#
-#  The models used are:
-#  agi      : standard PGAS model that uses puts, gets, and atomics
-#  exstack  : a bulk synchronous buffering model
-#  exstack2 : a asynchronous variant of exstack
-#  conveyors: a asynchronous model that is independent of exstack and exstack2. 
-#             The user interface is similar to exstack2.             
-#
+# See README.md or Doxygen documentation for more information about bale.
 #
 # ENVIRONMENT CONFIGURATION ###########################################
 #
@@ -76,8 +44,8 @@
 # You can build bale on top of UPC or SHMEM. 
 #
 # UPC:   You should set the UPC environment variable to point to the UPC compiler and 
-#          the UPCFLAGS variable to whatever options you pass to the compiler (for example:
-#          UPCFLAGS="-gupc -network=ibv".
+#        the UPCFLAGS variable to whatever options you pass to the compiler (for example:
+#        UPCFLAGS="-gupc -network=ibv".
 # SHMEM: If you are using openshmem, set CC=oshcc (the openshmem compiler).
 #
 #
