@@ -124,15 +124,18 @@ int                 compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
 sparsemat_t *       copy_matrix(sparsemat_t *srcmat);
 
 sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
+sparsemat_t *       gen_star_graph(int64_t m, int mode);
 sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed);
-sparsemat_t *       kronecker_product_graph(int64_t M, int64_t * m, int mode);
-
 sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread);
 sparsemat_t *       init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz);
 
 int                 is_upper_triangular(sparsemat_t *A, int64_t unit_diagonal);
 int                 is_lower_triangular(sparsemat_t *A, int64_t unit_diagonal);
 int                 is_perm(SHARED int64_t * perm, int64_t N);
+
+sparsemat_t *       kronecker_product_of_stars(int64_t M, int64_t * m, int mode);
+sparsemat_t *       kronecker_product_graph_local(sparsemat_t * B, sparsemat_t * C);
+sparsemat_t *       kronecker_product_graph_dist(sparsemat_t * B, sparsemat_t * C);
 
 sparsemat_t *       permute_matrix(sparsemat_t * A, SHARED int64_t *rperminv, SHARED int64_t *cperminv);
 sparsemat_t *       permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
@@ -173,11 +176,6 @@ int64_t triu(sparsemat_t * A, int64_t k);
 sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, int64_t seed);
 sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, int64_t seed);
 sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, int64_t seed);
-
-sparsemat_t * kron_prod_dist(sparsemat_t * B, sparsemat_t * C, int64_t lower);
-sparsemat_t * kron_prod(sparsemat_t * B, sparsemat_t * C);
-sparsemat_t * gen_star(int64_t m, int mode);
-sparsemat_t * gen_local_mat_from_stars(int64_t M, int64_t * m, int mode);
 
 
 int sort_nonzeros( sparsemat_t *mat);

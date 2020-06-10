@@ -534,67 +534,55 @@ int nz_comp(const void *a, const void *b) {
   return( *(uint64_t *)a - *(uint64_t *)b );
 }
 
+ /*************************************************************************************/
+ /*                               RANDOM MATRICES                                     */
+ /*************************************************************************************/
 
-/*! \brief Generates the upper or lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
- * graph. This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
- * by Batageli and Brandes appearing in Physical Review 2005. Instead of flipping a coin for each potential edge
- * this algorithm generates a sequence of "gaps" between 1s in the upper or lower triangular portion of the 
- * adjancecy matrix using a geometric random variable.
- *
- * \param n The total number of vertices in the graph.
- * \param p The probability that each non-loop edge is present.
- * \param unit_diag 1 - set the diagonal to all ones, 0's otherwise
- * \param mode 0 : return a symmetric adjacency matrix
-               1 : return the lower-triangular portion of the adjacency matrix 
-               2 : return the upper-triangular portion of the adjacency matrix
-               3 : return an asymmetric random matrix.
- * \param seed A random seed.
- * \return A distributed sparsemat_t 
- */
-sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, int64_t seed) {
-  //T0_fprintf(stderr,"Entering gen_erdos_renyi_graph_dist...\n");
 
-  sparsemat_t * L, * U;
-  switch(mode){
-  case 0:
-    /* generate the upper triangular portion, then transpose and add */
-    U = gen_erdos_renyi_graph_triangle_dist(n, p, unit_diag, 0, seed);
-    L = transpose_matrix(U);
-    if(!L){T0_printf("ERROR: gen_er_graph_dist: L is NULL!\n"); return(NULL);}
-    break;
-  case 1:
-    return(gen_erdos_renyi_graph_triangle_dist(n, p, unit_diag, 1, seed));
-  case 2:
-    return(gen_erdos_renyi_graph_triangle_dist(n, p, unit_diag, 0, seed));
-  case 3:
-    /* generate to separate halves and add together */
-    U = gen_erdos_renyi_graph_triangle_dist(n, p, unit_diag, 0, seed);
-    L = gen_erdos_renyi_graph_triangle_dist(n, p, unit_diag, 1, rand());    
-  }
+/*! \brief A routine to generate the adjacency matrix of a random graph.
+  * If the graph is undirected, this routine only returns a lower-triangular
+  * adjancency matrix (since the adjancency matrix would be symmetric and we don't need
+  * the redundant entries).
+  * 
+  * \param n The number of vertices in the graph.
+  * \param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
+  * \param edge_type See edge_type enum. Directed, or not, Weighted or not.
+  * \param loops see self_loops enum. Does every node have a loop or not.
+  * \param edge_density: d in [0, 1), target fraction of edges present.
+  * \param seed: RNG seed.
+  */
 
-  int64_t i, j;
-  int64_t lnnz = L->lnnz + U->lnnz;
-  sparsemat_t * A2 = init_matrix(n, n, lnnz);
-  if(!A2){T0_printf("ERROR: gen_er_graph_dist: A2 is NULL!\n"); return(NULL);}
-  
-  A2->loffset[0] = 0;
-  lnnz = 0;
-  for(i = 0; i < L->lnumrows; i++){
-    int64_t global_row = i*THREADS + MYTHREAD;
-    for(j = L->loffset[i]; j < L->loffset[i+1]; j++)
-      A2->lnonzero[lnnz++] = L->lnonzero[j];
-    for(j = U->loffset[i]; j < U->loffset[i+1]; j++){
-      if(U->lnonzero[j] != global_row) // don't copy the diagonal element twice!
-        A2->lnonzero[lnnz++] = U->lnonzero[j];
+sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
+                            double edge_density, int64_t seed){
+
+  if(model == FLAT){
+    
+    return(erdos_renyi_random_graph(n, edge_density, edge_type, loops, seed));
+    
+  }else if(model == GEOMETRIC){
+    double r;
+    // determine the r that will lead to the desired edge density
+    // Expected degree = n*pi*r^2
+    // The expected number of edges E = n^2*pi*r^2/2
+    // for undirected d = E/(n choose 2)
+    // for directed   d = E/(n^2 - n)
+    if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED){
+      r = sqrt(edge_density/M_PI);
+    }else{
+      printf("ERROR: directed geometric graphs are not supported yet.\n");
+      return(NULL);
     }
-    A2->loffset[i+1] = lnnz;
+    
+    return(geometric_random_graph(n, r, edge_type, loops, seed));
+    
+  }else{
+    T0_printf("ERROR: random_graph: Unknown model!\n");
+    return(NULL);
   }
-  lgp_barrier();
-  clear_matrix(U);
-  clear_matrix(L);
-  free(U); free(L);
-  return(A2);
+
 }
+
+
 
  /*! \brief Generates the adjacency matrix for a random geometric graph. 
   * 
@@ -606,31 +594,270 @@ sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int
   * \param r The size of the neighborhoods that determine edges.
   * \param type See edge_type. If undirected, this routine returns a lower triangular matrix.
   * \param loops See self_loops. Are there self loops?
-  * \param seed A seed for the RNG.
+  * \param seed A seed for the RNG. This should be a single across all PEs (it will be modified by each PE individually).
   * \return An adjacency matrix (or lower portion of in the undirected case).
   */
-sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed){
+sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed){
+  
+  // We generate n points (p_i) uniformly at random over the unit square.
+  // Each point corresponds to a vertex (v_i).
+  // There is an edge between v_A and v_B if the distance between the p_A and p_B is less than r.
+  // To do this in parallel, we break up the unit square into chunks that are rxr grid.  
+  // Each processor is responsible for some number of chunks.
+  // We calculate edges by comparing distances between each point and every other point in
+  // its own sector and in neighboring sectors.
+  
+  int64_t i, j, k, l;
+  double r2 = r*r;
+  int64_t nsectors_across = ceil(1.0/r);
+  int64_t nsectors = nsectors_across*nsectors_across;
+  T0_printf("GEOMETRIC with r = %lf number of sectors = %ld\n", r, nsectors);
 
+  // The PEs will get sectors in a round-robin fashion
+
+  // Step 1. Each PE generates n/NPES random sector destinations
+  // to create a distributed histogram of counts in each sector.
   
+  srand(seed + MYTHREAD + 1);
+  /* now we allocate a shared array to hold all the points */
+  SHARED point_t * points = lgp_all_alloc(n, sizeof(point_t));
+  point_t * lpoints = lgp_local_part(point_t, points);
+  SHARED int64_t * sector_offsets = calloc(nsectors + THREADS, sizeof(int64_t));
+  int64_t * lsector_offsets = lgp_local_part(int64_t, sector_offsets);
   
+  SHARED sector_t * sectors = lgp_all_alloc(nsectors, sizeof(sector_t));
+  sector_t * lsectors = lgp_local_part(sector_t, sectors);
+  int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
+  for(i = 0; i < lnsectors; i++){
+    lsectors[i].numpoints = 0;
+  }
+
+  lgp_barrier();
+
+  SHARED int64_t * counts = lgp_all_alloc(nsectors,sizeof(int64_t));
+  int64_t * lcounts = lgp_local_part(int64_t, counts);
+  for(i = 0; i < lnsectors; i++)
+    lcounts[i] = 0;
+  lgp_barrier();
+  
+  int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
+  for(i = 0; i < ln; i++){
+    int64_t row = rand() % nsectors_across;
+    int64_t col = rand() % nsectors_across;
+    lgp_atomic_add(counts, row*nsectors_across + col, 1L);
+  }
+
+  lgp_barrier();
+
+  // Step 2. Figure out how many points landed in your sectors
+  int64_t my_total_points = 0;
+  lsector_offsets[0] = 0;
+  for(i = 0; i < lnsectors; i++){
+    my_total_points += lcounts[i];
+    lsector_offsets[i+1] = lsector_offsets[i] + lcounts[i];
+    //lsectors[i].numpoints = lcounts[i];    
+  }
+
+  // Step 3. Each PE generates the points for their own sector.
+  int64_t pt = 0;
+  for(i = 0; i < lnsectors; i++){
+    for(j = 0; j < lsectors[i].numpoints; j++){
+      lpoints[pt].x = ((double)rand()/RAND_MAX)*r;
+      lpoints[pt].y = ((double)rand()/RAND_MAX)*r;
+      lpoints[pt].index = pt + lsector_offsets[i];
+      pt++;
+    }
+  }
+  assert(pt == my_total_points);
+  lgp_barrier();
+
+  // Step 4. Now count the total number of edges in the graph
+  int64_t lnedges = 0;
+  for(i = 0; i < lnsectors; i++){
+    global_index = (i*THREADS + MYTHREAD);
+    global_row = global_index / nsectors;
+    global_col = global_index % nsectors;
+    for(j = 0; j < lcounts[i]; j++){
+
+      // count the ends to lower-indexed nodes within this sector
+      for(l = 0; l < j; l++){
+	if(dist(lpoints[j], lpoints[l]) < r2)
+	  lnedges++;
+      }
+
+      point_t tmp;
+      
+      // count the edges to lower-indexed nodes outside the sector
+      // to do this, we need to look at sectors to the W, NW, N, and NE.
+      // W
+      if(global_col > 0){
+	int64_t sector_index = global_index - 1;
+	int64_t first_point index = lgp_get_int64(sector_offsets, sector_index);
+	int64_t num = lgp_get_int64(counts, sector_index);
+	for(l = 0; l < num; l++){
+	  tmp = lgp_memget(tmp, points, sizeof(point_t), first_point_index + l);
+	  if(dist(lpoints[j], tmp) < r2)
+	    lnedges++;
+	}
+      }
+
+      // NW
+      if(global_row > 0 && global_col > 0){
+	int64_t sector_index = (global_row - 1)*nsector_across + (global_col - 1);
+	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+	int64_t num = lgp_get_int64(counts, sector_index);
+	for(l = 0; l < num; l++){
+	  tmp = lgp_memget(tmp, points, sizeof(point_t), first_point_index + l);
+	  if(dist(lpoints[j], tmp) < r2)
+	    lnedges++;
+	}
+      }
+
+      // N
+      if(global_row > 0){
+	int64_t sector_index = (global_row - 1)*nsector_across + global_col;
+	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+	int64_t num = lgp_get_int64(counts, sector_index);
+	for(l = 0; l < num; l++){
+	  tmp = lgp_memget(tmp, points, sizeof(point_t), first_point_index + l);
+	  if(dist(lpoints[j], tmp) < r2)
+	    lnedges++;
+	}
+      }
+
+      // NE
+      if(global_row > 0 && global_col < (nsectors_across - 1)){
+	int64_t sector_index = (global_row - 1)*nsector_across + (global_col + 1);
+	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+	int64_t num = lgp_get_int64(counts, sector_index);
+	for(l = 0; l < num; l++){
+	  tmp = lgp_memget(tmp, points, sizeof(point_t), first_point_index + l);
+	  if(dist(lpoints[j], tmp) < r2)
+	    lnedges++;
+	}
+      }
+      
+    }
+  }
+  if(loops = LOOPS)
+    lndeges += ln;
+
+  int weighted = (edge_type == UNDIRECTED_WEIGHTED);
+  sparsemat_t * A = init_matrix(n, n, lnedges, weighted);
+
+  // Step 5. Go back and repeat the above loops, but this time populate the adjacency matrix
+  lnedges = 0;
+  for(i = 0; i < lnsectors; i++){
+    global_index = (i*THREADS + MYTHREAD);
+    global_row = global_index / nsectors;
+    global_col = global_index % nsectors;    
+    
+    for(j = 0; j < lcounts[i]; j++){
+
+      int64_t this_point_index = lsector_offsets[i] + j;
+
+      if(loops == LOOPS){
+	A->lnonzero[lnedges] = this_point_index;
+	if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;
+	lnedges++;
+      }
+      
+      // count the ends to lower-indexed nodes within this sector
+      for(l = 0; l < j; l++){
+	if(dist(lpoints[j], lpoints[l]) < r2){
+	  A->lnonzero[lnedges] = lsector_offsets[i] + l;
+	  if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
+	  lnedges++;
+      }
+	
+      point_t tmp;      
+      // count the edges to lower-indexed nodes outside the sector
+      // to do this, we need to look at sectors to the W, NW, N, and NE.
+      // W
+      if(global_col > 0){
+	int64_t sector_index = global_index - 1;
+	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+	int64_t num = lgp_get_int64(counts, sector_index);
+	for(l = 0; l < num; l++){
+	  tmp = lgp_memget(tmp, points, sizeof(point_t), first_point_index + l);
+	  if(dist(lpoints[j], tmp) < r2){
+	    A->lnonzero[lnedges] = first_point_index + l;
+	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
+	    lnedges++;
+	  }
+	}
+      }
+
+      // NW
+      if(global_row > 0 && global_col > 0){
+	int64_t sector_index = (global_row - 1)*nsector_across + (global_col - 1);
+	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+	int64_t num = lgp_get_int64(counts, sector_index);
+	for(l = 0; l < num; l++){
+	  tmp = lgp_memget(tmp, points, sizeof(point_t), first_point_index + l);
+	  if(dist(lpoints[j], tmp) < r2){
+	    A->lnonzero[lnedges] = first_point_index + l;
+	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
+	    lnedges++;
+	  }
+	}
+      }
+      
+      // N
+      if(global_row > 0){
+	int64_t sector_index = (global_row - 1)*nsector_across + global_col;
+	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+	int64_t num = lgp_get_int64(counts, sector_index);
+	for(l = 0; l < num; l++){
+	  tmp = lgp_memget(tmp, points, sizeof(point_t), first_point_index + l);
+	  if(dist(lpoints[j], tmp) < r2){
+	    A->lnonzero[lnedges] = first_point_index + l;
+	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
+	    lnedges++;
+	  }
+	}
+      }
+
+      // NE
+      if(global_row > 0 && global_col < (nsectors_across - 1)){
+	int64_t sector_index = (global_row - 1)*nsector_across + (global_col + 1);
+	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+	int64_t num = lgp_get_int64(counts, sector_index);
+	for(l = 0; l < num; l++){
+	  tmp = lgp_memget(tmp, points, sizeof(point_t), first_point_index + l);
+	  if(dist(lpoints[j], tmp) < r2){
+	    A->lnonzero[lnedges] = first_point_index + l;
+	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
+	    lnedges++;
+	  }
+	}
+      }
+      
+      }
+    }
+    sort_nonzeros(A);
+    return(A);
 }
 /*! \brief Generates the lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
  * graph. This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
- * by Batageli and Brandes appearing in Physical Review 2005. Instead of flipping a coin for each potential edge
- * this algorithm generates a sequence of "gaps" between 1s in the upper or lower triangular portion of the 
- * adjancecy matrix using a geometric random variable.
+ * by Batageli and Brandes appearing in Physical Review 2005. 
+ * Instead of flipping a coin for each potential edge this algorithm generates a sequence of 
+ * "gaps" between 1s in the upper or lower triangular portion of the adjancecy matrix using 
+ * a geometric random variable.
  *
  * We parallelized this algorithm by noting that the geometric random variable is memory-less. This means, we 
- * can start each PE independently (still need to think about the details of exactly how we did this below).
+ * can start the first row on each PE independently. In fact, we could start each row from scratch if we
+ * we wanted to! This makes this routine embarassingly parallel.
  *
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
  * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Does all or no vertices have self loops.
- * \param seed A random seed.
+ * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE 
+individually).
  * \return A distributed sparsemat_t
  */
-sparsemat_t * erdos_renyi_random_graph(int n, double p, edge_type edge_type, self_loops loops, int64_t seed){
+sparsemat_t * erdos_renyi_random_graph(int n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
   
   int64_t row, col, i;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
@@ -640,9 +867,10 @@ sparsemat_t * erdos_renyi_random_graph(int n, double p, edge_type edge_type, sel
   double D = log(1 - p);
   int64_t r;
   int64_t end = n;
+
+  srand(seed + 1 + MYTHREAD);
   
-  /* count lnnz so we can allocate A correctly */
-  srand(seed);
+  /* count lnnz so we can allocate A correctly */   
   row = MYTHREAD;
   do { r = rand(); } while(r == RAND_MAX);     
   col = 1 + floor((log(RAND_MAX - r) - lM)/D);
@@ -667,7 +895,9 @@ sparsemat_t * erdos_renyi_random_graph(int n, double p, edge_type edge_type, sel
   if(!A){T0_printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL);}
 
   /* reset the seed so we get the same sequence of coin flips */
-  srand(seed);
+  srand(seed + 1 + MYTHREAD);
+
+  /* now go through the same sequence of random events and fill in nonzeros */
   A->loffset[0] = 0;
   row = MYTHREAD;
   do { r = rand(); } while(r == RAND_MAX);     
@@ -712,10 +942,11 @@ sparsemat_t * erdos_renyi_random_graph(int n, double p, edge_type edge_type, sel
  * \param p The probability that each non-loop edge is present.
  * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Do all or no vertices have self loops.
- * \param seed A random seed.
+ * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE 
+ individually).
  * \return A distributed sparsemat_t (the lower half of the adjacency matrix).
  */
-sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_type, self_loops loops, int64_t seed){
+sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
   
   int64_t row, col, i, j;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
@@ -724,7 +955,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
   int64_t end = n;
   
   /* count lnnz so we can allocate A correctly */
-  srand(seed);
+  srand(seed + 1 + MYTHREAD);
   lnnz_orig = 0;
   for(row = MYTHREAD; row < n; row += THREADS){
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
@@ -744,7 +975,9 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
   if(!A){T0_printf("ERROR: erdos_renyi_random_graph_naive: init_matrix failed!\n"); return(NULL);}
 
   /* reset the seed so we get the same sequence of coin flips */
-  srand(seed);
+  srand(seed + 1 + MYTHREAD);
+
+  /* now go through the same sequence of random events and fill in nonzeros */
   A->loffset[0] = 0;  
   lnnz = 0;
   for(row = MYTHREAD; row < n; row += THREADS){
@@ -774,38 +1007,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
       A->lvalue[i] = (double)rand()/RAND_MAX;
     }
   }
-  
-#if 0
-  /* if the user wants the whole symmetric matrix, 
-     we have made the upper so transpose and add */
-  if(mode == 0){ 
-    sparsemat_t * L = transpose_matrix(A);
-    if(!L){T0_printf("ERROR: gen_er_graph_dist: L is NULL!\n"); return(NULL);}
-    
-    lnnz = L->lnnz + A->lnnz;
-    sparsemat_t * A2 = init_matrix(n, n, lnnz);
-    if(!A2){T0_printf("ERROR: gen_er_graph_dist: A2 is NULL!\n"); return(NULL);}
 
-    A2->loffset[0] = 0;
-    lnnz = 0;
-    for(i = 0; i < L->lnumrows; i++){
-      int64_t global_row = i*THREADS + MYTHREAD;
-      for(j = L->loffset[i]; j < L->loffset[i+1]; j++)
-        A2->lnonzero[lnnz++] = L->lnonzero[j];
-      for(j = A->loffset[i]; j < A->loffset[i+1]; j++){
-        if(A->lnonzero[j] != global_row) // don't copy the diagonal element twice!
-          A2->lnonzero[lnnz++] = A->lnonzero[j];
-      }
-      A2->loffset[i+1] = lnnz;
-    }
-    lgp_barrier();
-    clear_matrix(A);
-    clear_matrix(L);
-    free(A);
-    free(L);
-    A = A2;
-  }
-  #endif
   return(A);
   
 }
@@ -813,11 +1015,10 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
 /*! \brief Generate kron(B,C) in a distributed matrix (B and C are local matrices and all PEs have the same B and C).
  * \param B A local sparsemat_t (perhaps generated with kron_prod) that is the adjacency matrix of a graph.
  * \param C Another local sparsemat_t that is the adjacency matrix of a graph.
- * \param lower Flag to say whether you want the adjacency matrix to be lower triangular (1) or symmetric (0).
- * \return The adjacency matrix (or lower half of) the kronecker product of B and C.
+ * \return The adjacency matrix the kronecker product of B and C.
  * \ingroup spmatgrp
  */
-sparsemat_t * kron_prod_dist(sparsemat_t * B, sparsemat_t * C, int64_t lower) {
+sparsemat_t * kronecker_product_graph_dist(sparsemat_t * B, sparsemat_t * C) {
 
   int64_t lrow, row, rowB, rowC, col, pos, i, j, k;
   int64_t n = B->lnumrows*C->lnumrows;
@@ -925,7 +1126,7 @@ sparsemat_t * kron_prod_dist(sparsemat_t * B, sparsemat_t * C, int64_t lower) {
  * \return The adjacency matrix of the Kronecker product of B and C.
  * \ingroup spmatgrp
 */
-sparsemat_t * kron_prod(sparsemat_t * B, sparsemat_t * C) {
+sparsemat_t * kronecker_product_graph_local(sparsemat_t * B, sparsemat_t * C) {
   int64_t row, col, i, j, k;
   int64_t n = B->lnumrows*C->lnumrows;
   int64_t nnz = B->lnnz*C->lnnz;
@@ -973,7 +1174,7 @@ sparsemat_t * kron_prod(sparsemat_t * B, sparsemat_t * C) {
  * \return The adjacency matrix of the graph.
  * \ingroup spmatgrp
 */
-sparsemat_t * gen_star(int64_t m, int mode) {
+sparsemat_t * gen_star_graph(int64_t m, int mode) {
   sparsemat_t * G = init_local_matrix(m + 1, m + 1, 2*m + (mode > 0 ? 1 : 0));
   
   int64_t i, pos = 0;
@@ -1001,7 +1202,9 @@ sparsemat_t * gen_star(int64_t m, int mode) {
   return(G);
 }
 
-/*! \brief Generate the kroncker product of a collection of star graphs.
+/*! \brief Generate the kroncker product of a collection of star graphs. The result is a
+ * local submatrix.
+ * 
  * \param M The number of elements in the list. M must be at least 2 
  * \param m The list of parameters: each element m[i] represents a K_{1,m[i]} graph.
  * \param mode Add 0 or 1 loop edges.
@@ -1011,7 +1214,7 @@ sparsemat_t * gen_star(int64_t m, int mode) {
  * \return The local adjacency matrix for the kronecker product of the list of star graphs.
  * \ingroup spmatgrp
 */
-sparsemat_t * gen_local_mat_from_stars(int64_t M, int64_t * m, int mode) {
+sparsemat_t * kronecker_product_of_stars(int64_t M, int64_t * m, int mode) {
   int64_t i;
 
   if(M < 1){
@@ -1020,12 +1223,12 @@ sparsemat_t * gen_local_mat_from_stars(int64_t M, int64_t * m, int mode) {
   }
 
   if(M == 1){
-    return(gen_star(m[0], mode));
+    return(gen_star_graph(m[0], mode));
   }
   
   sparsemat_t ** Aarr = calloc(2*M, sizeof(sparsemat_t *));
   for(i = 0; i < M; i++)
-    Aarr[i] = gen_star(m[i], mode);
+    Aarr[i] = gen_star_graph(m[i], mode);
 
   Aarr[M] = kron_prod(Aarr[0], Aarr[1]);
   for(i = 0; i < M-2; i++)

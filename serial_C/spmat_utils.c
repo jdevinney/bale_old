@@ -1066,7 +1066,7 @@ double dist(points_t a, points_t b){
   * \param seed A seed for the RNG.
   * \return An adjacency matrix (or lower portion of in the undirected case).
   */
-sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed){
+sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed){
   int64_t i, j, k, l;
   double r2 = r*r;
   // We break up the unit square into chunks that are rxr grid.
