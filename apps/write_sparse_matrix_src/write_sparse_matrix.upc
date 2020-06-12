@@ -48,7 +48,7 @@
 \page write_sparse_matrix_page Write Sparse Matrix
 
 Demo program that runs the variants of write_sparse_matrix kernel. It first generates 
-a random matrix according to the Erdos-Renyi model and then it writes this matrix to disk
+a random matrix in FLAT mode and then it writes this matrix to disk
 in a directory called 'write_sparse_test'.
 
 We define a sparse matrix dataset to be the following:
@@ -162,7 +162,7 @@ int main(int argc, char * argv[])
   minavgmaxD_t stat[1];
   int64_t error = 0;
   
-  inmat = gen_erdos_renyi_graph_dist(numrows, erdos_renyi_prob, 0, 3, seed + 2);
+  inmat = random_graph(numrows, FLAT, DIRECTED, 0, erdos_renyi_prob, seed + 2);
   if(inmat == NULL){
     T0_printf("ERROR: inmat is null!\n");
     return(-1);

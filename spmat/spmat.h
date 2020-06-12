@@ -123,10 +123,10 @@ void                clear_matrix(sparsemat_t * mat);
 int                 compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
 sparsemat_t *       copy_matrix(sparsemat_t *srcmat);
 
-sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
+sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed);
 sparsemat_t *       gen_star_graph(int64_t m, int mode);
-sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed);
-sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread);
+sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
+sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted);
 sparsemat_t *       init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz);
 
 int                 is_upper_triangular(sparsemat_t *A, int64_t unit_diagonal);
@@ -148,6 +148,8 @@ SHARED int64_t *    rand_permp_conveyor(int64_t N, int seed);
 SHARED int64_t *    rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_agi(int64_t N, int seed);
+sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
+                                 double edge_density, int64_t seed);
 
 sparsemat_t *       transpose_matrix(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
@@ -173,16 +175,16 @@ int64_t tril(sparsemat_t * A, int64_t k);
 int64_t triu(sparsemat_t * A, int64_t k);
 
 
-sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, int64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, int64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, int64_t seed);
+sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
+sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
+sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, uint64_t seed);
 
 
 int sort_nonzeros( sparsemat_t *mat);
 int nz_comp(const void *a, const void *b);
 
-
-
+int dbl_comp(const void *a, const void *b);
+int triple_comp(const void *a, const void *b);
 
 #define spmat_INCLUDED
 #endif

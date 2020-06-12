@@ -140,7 +140,7 @@ sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperminv, SHARE
   }
   lgp_barrier();
 
-  sparsemat_t * Ap = init_matrix(A->numrows, A->numcols, cnt);
+  sparsemat_t * Ap = init_matrix(A->numrows, A->numcols, cnt, (A->value != NULL));
   
   // fill in permuted rows
   Ap->loffset[0] = pos = 0;
@@ -208,7 +208,7 @@ sparsemat_t * transpose_matrix_agi(sparsemat_t *A) {
     lnnz += l_shtmp[i];
   }
   
-  At = init_matrix(A->numcols, A->numrows, lnnz);
+  At = init_matrix(A->numcols, A->numrows, lnnz, (A->value != NULL));
   if(!At){printf("ERROR: transpose_matrix_upc: init_matrix failed!\n");return(NULL);}
 
   int64_t sum = lgp_reduce_add_l(lnnz);      // check the histogram counted everything

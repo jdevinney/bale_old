@@ -122,7 +122,7 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
  * The toposort algorithm takes this matrix and finds one of the possibly many row and column permutations 
  *  that would bring the matrix back to an upper triangular form.
  */
-sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double edge_prob, uint32_t seed, int64_t dump_files)
+sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double edge_prob, uint64_t seed, int64_t dump_files)
 {
   int64_t numcols = numrows;
   

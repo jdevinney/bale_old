@@ -264,7 +264,7 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
   assert(A->nnz = lgp_reduce_add_l(lnnz));
 
   // allocate pmat to the max of the new number of nonzeros per thread  
-  Ap = init_matrix(A->numrows, A->numcols, lnnz);
+  Ap = init_matrix(A->numrows, A->numcols, lnnz, (A->value != NULL));
   if(Ap == NULL) return(NULL);
   lgp_barrier();
 
@@ -392,7 +392,7 @@ sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
   int64_t sum = lgp_reduce_add_l(lnnz);
   assert( A->nnz == sum ); 
   
-  sparsemat_t * At = init_matrix(A->numcols, A->numrows, lnnz);
+  sparsemat_t * At = init_matrix(A->numcols, A->numrows, lnnz, (A->value != NULL));
   if(!At){printf("ERROR: transpose_matrix: init_matrix failed!\n");return(NULL);}
 
   /* convert colcounts to offsets */

@@ -274,15 +274,14 @@ sparsemat_t  *read_matrix_mm(char * name)
   char object[24], format[24], field[24];
   int fscanfret;
 
-  // Read the header line of the MasterMarket format 
+  // Read the header line of the MatrixMarket format 
   FILE * fp = fopen(name, "r");
   if( fp == NULL ) {
     fprintf(stderr,"read_matrix_mm: can't open file %s \n", name);
     exit(1);
   }
-  //The only format we need to be able to read requires the first line to be:
-  //"%%MasterMarket matrix coordinate position"
-  fscanfret = fscanf(fp,"%%%%MasterMarket %s %s %s\n", object, format, field);
+    
+  fscanfret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
   if( (fscanfret != 3 ) || strncmp(object,"matrix",24) || strncmp(format,"coordinate",24) ){
     fprintf(stderr,"read_matrix_mm: Incompatible matrix market format.\n");
     fprintf(stderr,"                First line should be either:\n");
