@@ -18,7 +18,8 @@ RUN ./install.sh -u
 RUN echo "---- done with install ----"
 
 # run as non-root user
-RUN adduser --disabled-password --gecos "" bale_user
+# bale_user exists from Dockerfile in the bale_public_gupc image at this point
+#RUN adduser --disabled-password --gecos "" bale_user
 
 
 
