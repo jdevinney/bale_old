@@ -582,11 +582,6 @@ int is_perm(SHARED int64_t * perm, int64_t N) {
   return(err == 0L);
 }
 
-/*! \brief comparison function to support qsort 
- */
-int nz_comp(const void *a, const void *b) {
-  return( *(uint64_t *)a - *(uint64_t *)b );
-}
 
  /*************************************************************************************/
  /*                               RANDOM MATRICES                                     */
@@ -606,12 +601,13 @@ int nz_comp(const void *a, const void *b) {
   * \param seed: RNG seed.
   */
 
-sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
-                            double edge_density, int64_t seed){
+sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
+                           self_loops loops,
+                           double edge_density, int64_t seed){
 
   if(model == FLAT){
     
-    return(erdos_renyi_random_graph(n, edge_density, edge_type, loops, seed));
+    return(erdos_renyi_random_graph(n, edge_density, edgetype, loops, seed));
     
   }else if(model == GEOMETRIC){
     double r;
@@ -620,22 +616,44 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, se
     // The expected number of edges E = n^2*pi*r^2/2
     // for undirected d = E/(n choose 2)
     // for directed   d = E/(n^2 - n)
-    if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED){
-      r = sqrt(edge_density/M_PI);
-    }else{
+    r = sqrt(edge_density/M_PI);
+    if (edgetype == DIRECTED || edgetype == DIRECTED_WEIGHTED){
       edge_type t;
-      if(edge_type == DIRECTED)
+      int val = 0;
+      if(edgetype == DIRECTED)
         t = UNDIRECTED;
-      else if(edge_type == DIRECTED_WEIGHTED)
+      else if(edgetype == DIRECTED_WEIGHTED){
         t = UNDIRECTED_WEIGHTED;
-      sparsemat_t * L = geometric_random_graph(n, r, UNDIRECTED, loops, seed);
-      sparsemat_t * L2 = geometric_random_graph(n, r, UNDIRECTED, loops, seed + 1);
+        val = 1;
+      }
+      sparsemat_t * L = geometric_random_graph(n, r, t, loops, seed);
+      sparsemat_t * L2 = geometric_random_graph(n, r, t, loops, seed + 1);
       sparsemat_t * U = transpose_matrix(L2);
       clear_matrix(L2);
+      int64_t i, j;
+
+      int64_t lnnz = L->lnnz + U->lnnz;
+      sparsemat_t * A2 = init_matrix(n, n, lnnz, val);
+      if(!A2){T0_printf("ERROR: gen_er_graph_dist: A2 is NULL!\n"); return(NULL);}
       
+      A2->loffset[0] = 0;
+      lnnz = 0;
+      for(i = 0; i < L->lnumrows; i++){
+        int64_t global_row = i*THREADS + MYTHREAD;
+        for(j = L->loffset[i]; j < L->loffset[i+1]; j++)
+          A2->lnonzero[lnnz++] = L->lnonzero[j];
+        for(j = U->loffset[i]; j < U->loffset[i+1]; j++){
+          if(U->lnonzero[j] != global_row) // don't copy the diagonal element twice!
+            A2->lnonzero[lnnz++] = U->lnonzero[j];
+        }
+        A2->loffset[i+1] = lnnz;
+      }
+      clear_matrix(L);
+      clear_matrix(U);
+      return(A2);
     }
     
-    return(geometric_random_graph(n, r, edge_type, loops, seed));
+    return(geometric_random_graph(n, r, edgetype, loops, seed));
     
   }else{
     T0_printf("ERROR: random_graph: Unknown model!\n");
@@ -690,8 +708,6 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   srand(seed + MYTHREAD + 1);
   /* now we allocate a shared array to hold all the points */
-  SHARED point_t * points = lgp_all_alloc(n, sizeof(point_t));
-  point_t * lpoints = lgp_local_part(point_t, points);
   SHARED int64_t * sector_offsets = lgp_all_alloc(nsectors + THREADS, sizeof(int64_t));
   int64_t * lsector_offsets = lgp_local_part(int64_t, sector_offsets);
   
@@ -714,6 +730,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   for(i = 0; i < ln; i++){
     int64_t row = rand() % nsectors_across;
     int64_t col = rand() % nsectors_across;
+    assert(row*nsectors_across + col < n);
     lgp_atomic_add(counts, row*nsectors_across + col, 1L);
   }
 
@@ -727,11 +744,17 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     lsector_offsets[i+1] = lsector_offsets[i] + lcounts[i];
     //lsectors[i].numpoints = lcounts[i];    
   }
-
+  
+  // allocate space for the points
+  int64_t max_lnum_points = lgp_reduce_max_l(my_total_points);
+  SHARED point_t * points = lgp_all_alloc(max_lnum_points, sizeof(point_t));
+  
+  point_t * lpoints = lgp_local_part(point_t, points);
   // Step 3. Each PE generates the points for their own sector.
   int64_t pt = 0;
   for(i = 0; i < lnsectors; i++){
     for(j = 0; j < lcounts[i]; j++){
+      assert(pt < my_total_points);
       lpoints[pt].x = ((double)rand()/RAND_MAX)*r;
       lpoints[pt].y = ((double)rand()/RAND_MAX)*r;
       lpoints[pt].index = pt + lsector_offsets[i];
@@ -747,7 +770,11 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     int64_t global_index = (i*THREADS + MYTHREAD);
     int64_t global_row = global_index / nsectors;
     int64_t global_col = global_index % nsectors;
+
     for(j = 0; j < lcounts[i]; j++){
+
+      if(loops == LOOPS)
+        lnedges++;
 
       // count the ends to lower-indexed nodes within this sector
       for(l = 0; l < j; l++){
@@ -756,16 +783,17 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       }
 
       point_t tmp;
-      
       // count the edges to lower-indexed nodes outside the sector
       // to do this, we need to look at sectors to the W, NW, N, and NE.
       // W
       if(global_col > 0){
-	int64_t sector_index = global_index - 1;
+	int64_t sector_index = global_index - 1;       
 	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+        first_point_index = first_point_index*THREADS + sector_index % THREADS;
 	int64_t num = lgp_get_int64(counts, sector_index);
 	for(l = 0; l < num; l++){
-	  lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l);
+          assert(first_point_index + l < n);
+	  lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
 	  if(dist(lpoints[j], tmp) < r2)
 	    lnedges++;
 	}
@@ -775,9 +803,10 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       if(global_row > 0 && global_col > 0){
 	int64_t sector_index = (global_row - 1)*nsectors_across + (global_col - 1);
 	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+        first_point_index = first_point_index*THREADS + sector_index % THREADS;
 	int64_t num = lgp_get_int64(counts, sector_index);
 	for(l = 0; l < num; l++){
-	  lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l);
+	  lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
 	  if(dist(lpoints[j], tmp) < r2)
 	    lnedges++;
 	}
@@ -787,9 +816,10 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       if(global_row > 0){
 	int64_t sector_index = (global_row - 1)*nsectors_across + global_col;
 	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+        first_point_index = first_point_index*THREADS + sector_index % THREADS;
 	int64_t num = lgp_get_int64(counts, sector_index);
 	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l);
+          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
 	  if(dist(lpoints[j], tmp) < r2)
 	    lnedges++;
 	}
@@ -799,9 +829,10 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       if(global_row > 0 && global_col < (nsectors_across - 1)){
 	int64_t sector_index = (global_row - 1)*nsectors_across + (global_col + 1);
 	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+        first_point_index = first_point_index*THREADS + sector_index % THREADS;
 	int64_t num = lgp_get_int64(counts, sector_index);
 	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l);
+          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
 	  if(dist(lpoints[j], tmp) < r2)
 	    lnedges++;
 	}
@@ -809,13 +840,11 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       
     }
   }
-  if(loops = LOOPS)
-    lnedges += ln;
-
-  int weighted = (edge_type == UNDIRECTED_WEIGHTED);
+  printf("lnedges = %ld\n", lnedges);
+  int weighted = (edge_type == DIRECTED_WEIGHTED || edge_type == UNDIRECTED_WEIGHTED);
   sparsemat_t * A = init_matrix(n, n, lnedges, weighted);
+  A->loffset[0] = 0;
   
-
   // Step 5. Go back and repeat the above loops, but this time populate the adjacency matrix
   lnedges = 0;
   for(i = 0; i < lnsectors; i++){
@@ -828,7 +857,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       int64_t this_point_index = lsector_offsets[i] + j;
 
       if(loops == LOOPS){
-	A->lnonzero[lnedges] = this_point_index;
+	A->lnonzero[lnedges] = this_point_index*THREADS + MYTHREAD;
 	if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;
 	lnedges++;
       }
@@ -836,7 +865,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       // count the ends to lower-indexed nodes within this sector
       for(l = 0; l < j; l++){
 	if(dist(lpoints[j], lpoints[l]) < r2){
-	  A->lnonzero[lnedges] = lsector_offsets[i] + l;
+	  A->lnonzero[lnedges] = (lsector_offsets[i] + l)*THREADS + MYTHREAD;
 	  if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
 	  lnedges++;
         }
@@ -849,9 +878,10 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       if(global_col > 0){
 	int64_t sector_index = global_index - 1;
 	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+        first_point_index = first_point_index*THREADS + sector_index % THREADS;
 	int64_t num = lgp_get_int64(counts, sector_index);
 	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l);
+          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
 	  if(dist(lpoints[j], tmp) < r2){
 	    A->lnonzero[lnedges] = first_point_index + l;
 	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
@@ -864,9 +894,10 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       if(global_row > 0 && global_col > 0){
 	int64_t sector_index = (global_row - 1)*nsectors_across + (global_col - 1);
 	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+        first_point_index = first_point_index*THREADS + sector_index % THREADS;
 	int64_t num = lgp_get_int64(counts, sector_index);
 	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l);
+          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
 	  if(dist(lpoints[j], tmp) < r2){
 	    A->lnonzero[lnedges] = first_point_index + l;
 	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
@@ -879,9 +910,10 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       if(global_row > 0){
 	int64_t sector_index = (global_row - 1)*nsectors_across + global_col;
 	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+        first_point_index = first_point_index*THREADS + sector_index % THREADS;
 	int64_t num = lgp_get_int64(counts, sector_index);
 	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l);
+          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
 	  if(dist(lpoints[j], tmp) < r2){
 	    A->lnonzero[lnedges] = first_point_index + l;
 	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
@@ -894,9 +926,10 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       if(global_row > 0 && global_col < (nsectors_across - 1)){
 	int64_t sector_index = (global_row - 1)*nsectors_across + (global_col + 1);
 	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
+        first_point_index = first_point_index*THREADS + sector_index % THREADS;
 	int64_t num = lgp_get_int64(counts, sector_index);
 	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l);
+          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
 	  if(dist(lpoints[j], tmp) < r2){
 	    A->lnonzero[lnedges] = first_point_index + l;
 	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
@@ -904,11 +937,16 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 	  }
 	}
       }
-      
+      A->loffset[this_point_index + 1] = lnedges;
     }
   }
+  printf("lnedges = %ld lnnz = %ld\n", lnedges, A->lnnz);
+  assert(lnedges == A->lnnz);
+  printf("Hi1!\n"); fflush(0);
   sort_nonzeros(A);
+
   lgp_barrier();
+  printf("Hi2!\n"); fflush(0);
   return(A);
 }
 /*! \brief Generates the lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
@@ -1340,6 +1378,7 @@ sparsemat_t * kronecker_product_of_stars(int64_t M, int64_t * m, int mode) {
 int sort_nonzeros( sparsemat_t *mat) {
   int i,j;
   if(mat->value){
+
     // we have to sort the column indicies, but we also have to permute the value array accordingly
     // this is annoying in C
     // we have to create an array of stucts that holds col,val pairs for a row
@@ -1359,7 +1398,7 @@ int sort_nonzeros( sparsemat_t *mat) {
         tmparr[pos].col = mat->lnonzero[j];
         tmparr[pos++].value = mat->lvalue[j];
       }
-      qsort(tmparr, mat->loffset[i+1] - mat->loffset[i], sizeof(col_val_t), dbl_comp );
+      qsort(tmparr, mat->loffset[i+1] - mat->loffset[i], sizeof(col_val_t), col_val_comp );
       pos = 0;
       for(j = mat->loffset[i]; j < mat->loffset[i+1]; j++){
         mat->lnonzero[j] = tmparr[pos].col;
@@ -1369,6 +1408,7 @@ int sort_nonzeros( sparsemat_t *mat) {
     free(tmparr);
     
   }else{
+
     for(i = 0; i < mat->lnumrows; i++){
       qsort( &(mat->lnonzero[mat->loffset[i]]), mat->loffset[i+1] - mat->loffset[i], sizeof(int64_t), nz_comp );
     }
@@ -1666,6 +1706,17 @@ void incr_S_nxnz( nxnz_t *nxz, int64_t S_row ) {
   nxz->col   = lgp_get_int64(nxz->mat->nonzero, (nxz->idx) * THREADS +  (nxz->row)%THREADS );
 }
 
+/*! \brief comparison function to support qsort 
+ */
+int nz_comp(const void *a, const void *b) {
+  return( *(uint64_t *)a - *(uint64_t *)b );
+}
+
+int col_val_comp(const void *a, const void *b) {
+  col_val_t * A = (col_val_t*)a;
+  col_val_t * B = (col_val_t*)b;
+  return((int)(A->col - B->col));
+}
 
 /*! \brief the compare function for qsort called while reading 
  * a MatrixMarket format.

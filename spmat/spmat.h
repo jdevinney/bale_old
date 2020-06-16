@@ -182,7 +182,7 @@ sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_
 
 int sort_nonzeros( sparsemat_t *mat);
 int nz_comp(const void *a, const void *b);
-
+int col_val_comp(const void *a, const void *b);
 int dbl_comp(const void *a, const void *b);
 int triple_comp(const void *a, const void *b);
 
