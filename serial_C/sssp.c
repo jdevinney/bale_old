@@ -66,7 +66,7 @@ int main(){
   while( (opt = getopt(argc, argv, "hn:s:e:M:f:Dq")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%ld" ,&numrows ); break;
+    case 'n': sscanf(optarg,"%"SCNd64 ,&numrows ); break;
     case 's': sscanf(optarg,"%d" ,&seed ); break;
     case 'e': sscanf(optarg,"%lg", &er_prob); break;
     case 'M': sscanf(optarg,"%d" , &models_mask); break;
@@ -86,7 +86,7 @@ int main(){
   }
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of transpose matrix\n");
-    fprintf(stderr,"Number of rows    (-n) %ld\n", numrows);
+    fprintf(stderr,"Number of rows    (-n) %"PRId64"\n", numrows);
     fprintf(stderr,"random seed     (-s)= %d\n", seed);
     fprintf(stderr,"erdos_renyi_prob   (-e)= %lg\n", er_prob);
     fprintf(stderr,"models_mask     (-M)= %d\n", models_mask);

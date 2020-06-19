@@ -85,8 +85,8 @@ int main(int argc, char * argv[])
   while( (opt = getopt(argc, argv, "hm:n:s:DM:e:f:q")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%ld" ,&numrows );  break;
-    case 'm': sscanf(optarg,"%ld" ,&numcols );  break;
+    case 'n': sscanf(optarg,"%"SCNd64 ,&numrows );  break;
+    case 'm': sscanf(optarg,"%"SCNd64 ,&numcols );  break;
     case 's': sscanf(optarg,"%d" ,&seed );  break;
     case 'e': edge_prob = sscanf(optarg,"%lg", &edge_prob); break;
     case 'M': sscanf(optarg,"%d" , &models_mask);  break;
@@ -110,8 +110,8 @@ int main(int argc, char * argv[])
   }
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of transpose matrix\n");
-    fprintf(stderr,"Number of rows       (-n) %ld\n", mat->numrows);
-    fprintf(stderr,"Number of cols       (-m) %ld\n", mat->numcols);
+    fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", mat->numrows);
+    fprintf(stderr,"Number of cols       (-m) %"PRId64"\n", mat->numcols);
     fprintf(stderr,"random seed          (-s)= %d\n", seed);
     fprintf(stderr,"models_mask          (-M)= %d\n", models_mask);
     fprintf(stderr,"edge_prob            (-e)= %lg\n", edge_prob);

@@ -1,0 +1,26 @@
+name: Docker Image CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Build the oshmem Docker image
+      run: docker build . --file oshmem/Dockerfile_github_action --tag bale_test_oshmem:gh_action
+    - name: Run the oshmem Docker image
+      run: docker run bale_test_oshmem:gh_action su bale_user - -c "oshrun -n 1 build_oshmem/bin/histo -M 1 -c 1"
+
+    - name: Build the gupc Docker image
+      run: docker build . --file gupc/Dockerfile_github_action --tag bale_test_gupc:gh_action
+    - name: Run the gupc Docker image
+      run: docker run bale_test_gupc:gh_action su bale_user - -c "build_gupc/bin/histo -n 1"

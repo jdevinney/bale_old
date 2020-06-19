@@ -60,12 +60,12 @@ int64_t ig_check_and_zero(int64_t *tgt, int64_t *index, int64_t len)
     if( tgt[i] != -index[i] ) {
       errors ++;
       if( errors < 5 )  // print the first 5 errors and count the rest
-        printf("  error tgt[%ld] = %ld != %ld\n", i, tgt[i], -index[i] );
+        printf("  error tgt[%"PRId64"] = %"PRId64" != %"PRId64"\n", i, tgt[i], -index[i] );
     }
     tgt[i] = 0;
   }
   if( errors ) 
-    printf(" total of %ld errors\n", errors);
+    printf(" total of %"PRId64" errors\n", errors);
   return(errors);
 }
 
@@ -164,8 +164,8 @@ int main(int argc, char * argv[])
   while( (opt = getopt(argc, argv, "hT:n:s:M:q")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'T': sscanf(optarg,"%ld" ,&log_tab_size);   break;
-    case 'n': sscanf(optarg,"%ld" ,&num_req);   break;
+    case 'T': sscanf(optarg,"%"SCNd64"" ,&log_tab_size);   break;
+    case 'n': sscanf(optarg,"%"SCNd64"" ,&num_req);   break;
     case 's': sscanf(optarg,"%d" ,&seed);  break;
     case 'M': sscanf(optarg,"%d" ,&models_mask);  break;
     case 'q': quiet = 1; break;
@@ -176,8 +176,8 @@ int main(int argc, char * argv[])
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of ig\n");
     fprintf(stderr,"help                  (-h)\n");
-    fprintf(stderr,"Log of the Table size (-T)= %ld\n", log_tab_size);
-    fprintf(stderr,"number of requests    (-n)= %ld\n", num_req );
+    fprintf(stderr,"Log of the Table size (-T)= %"PRId64"\n", log_tab_size);
+    fprintf(stderr,"number of requests    (-n)= %"PRId64"\n", num_req );
     fprintf(stderr,"models_mask           (-M)= %d\n", models_mask);
     fprintf(stderr,"random seed           (-s)= %d\n", seed);
     fprintf(stderr,"quiet                 (-q)= %d\n", quiet);

@@ -96,7 +96,7 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
   int64_t rf = is_perm(rperminv, mat->numrows);
   int64_t cf = is_perm(cperminv, mat->numcols);
   if(!rf || !cf){
-    fprintf(stderr,"ERROR: check_result is_perm(rperminv2) = %ld is_perm(cperminv2) = %ld\n",rf,cf);
+    fprintf(stderr,"ERROR: check_result is_perm(rperminv2) = %"PRId64" is_perm(cperminv2) = %"PRId64"\n",rf,cf);
     return(1);
   }
   mat2 = permute_matrix(mat, rperminv, cperminv);
@@ -234,7 +234,7 @@ double toposort_matrix_queue(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, s
   t1 = wall_seconds() - t1;
   
   if(n_pivots != nr){
-    printf("ERROR! toposort_matrix_queue: found %ld pivots but expected %ld!\n", n_pivots, nr);
+    printf("ERROR! toposort_matrix_queue: found %"PRId64" pivots but expected %"PRId64"!\n", n_pivots, nr);
     exit(1);
   }
   free(queue);
@@ -299,7 +299,7 @@ double toposort_matrix_loop(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sp
   t1 = wall_seconds() - t1;
   
   if(n_pivots != nr){
-    printf("ERROR! toposort_matrix_queue: found %ld pivots but expected %ld!\n", n_pivots, nr);
+    printf("ERROR! toposort_matrix_queue: found %"PRId64" pivots but expected %"PRId64"!\n", n_pivots, nr);
     exit(1);
   }
   free(rowtrck);
@@ -326,9 +326,9 @@ int main(int argc, char * argv[])
   while( (opt = getopt(argc, argv, "hn:s:e:g:DM:q")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%ld" ,&numrows );  break;
+    case 'n': sscanf(optarg,"%"PRId64 ,&numrows );  break;
     case 's': sscanf(optarg,"%d" ,&seed );  break;
-    case 'e': graph_model = FLAT; sscanf(optarg,"%lg", &edge_density); break;
+    case 'e': graph_model = FLAT;      sscanf(optarg,"%lg", &edge_density); break;
     case 'g': graph_model = GEOMETRIC; sscanf(optarg,"%lg", &edge_density); break;
     case 'D': dump_files = 1; break;
     case 'M': sscanf(optarg,"%d", &models_mask); break;
@@ -341,7 +341,7 @@ int main(int argc, char * argv[])
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of toposort\n");
     fprintf(stderr,"help                   (-h)\n");
-    fprintf(stderr,"number of rows         (-n)= %ld\n", numrows);
+    fprintf(stderr,"number of rows         (-n)= %"PRId64"\n", numrows);
     fprintf(stderr,"random seed            (-s)= %d\n", seed);
     fprintf(stderr,"flat model (dens)      (-e)= %g\n", edge_density);
     fprintf(stderr,"geometric model (dens) (-g)= %g\n", edge_density);

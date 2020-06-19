@@ -96,29 +96,33 @@ int main(int argc, char * argv[])
   double edge_prob = 0.01;
   uint32_t seed = 123456789;
   int64_t readgraph = 0;
-  char filename[256]={"filename"};
+  char filename[256] = {"filename"};
   enum FLAVOR {GENERIC=1, ALL=2};
   graph_model model = FLAT;
+  char * kron_list_def = {"M: k1 k2 k3 ..."};
+  char * kron_list = kron_list_def;
+  kron_args_t * kron_args = NULL;
   uint32_t use_model;
   uint32_t models_mask=ALL - 1;
   int printhelp = 0;
   int quiet = 0;
 
-  sparsemat_t *mat, *tmat;
+  sparsemat_t *mat;
   int64_t triangles;
  
   int64_t dump_files = 0;
  
   int opt; 
-  while( (opt = getopt(argc, argv, "hn:s:e:g:M:f:Dq")) != -1 ) {
+  while( (opt = getopt(argc, argv, "hn:s:e:g:k:M:f:Dq")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%ld" ,&numrows ); break;
-    case 's': sscanf(optarg,"%d" ,&seed ); break;
+    case 'n': sscanf(optarg,"%"SCNd64, &numrows ); break;
+    case 's': sscanf(optarg,"%d" , &seed ); break;
     case 'e': model = FLAT;      sscanf(optarg,"%lg", &edge_prob); break;
     case 'g': model = GEOMETRIC; sscanf(optarg,"%lg", &edge_prob); break;
+    case 'k': model = KRONECKER; kron_list = optarg; break;
     case 'M': sscanf(optarg,"%d" , &models_mask); break;
-    case 'f': readgraph = 1; sscanf(optarg, "%s", filename); break;
+    case 'f': readgraph = 1; sscanf(optarg,"%s", filename); break;
     case 'D': dump_files = 1; break;
     case 'q': quiet = 1; break;
     default: break;
@@ -129,20 +133,27 @@ int main(int argc, char * argv[])
     mat = read_matrix_mm(filename);
     if(!mat){printf("ERROR: triangles: read graph from %s Failed\n", filename); exit(1);}
   } else {
-    //mat = erdos_renyi_tri(numrows, er_prob, ER_TRI_L, seed);
-    mat = random_graph(numrows, model, UNDIRECTED, NOLOOPS, edge_prob, seed);
-    if(!mat){printf("ERROR: triangles: erdos_renyi_graph Failed\n"); exit(1);}
+    if(model == KRONECKER){
+      kron_args = kron_args_init(kron_list);
+      mat = kronecker_product_graph(kron_args);
+      if(!mat){printf("ERROR: triangles: Kronecker Product generation Failed\n"); exit(1);}
+    } else {
+      mat = random_graph(numrows, model, UNDIRECTED, NOLOOPS, edge_prob, seed);
+      if(!mat){printf("ERROR: triangles: erdos_renyi_graph generation Failed\n"); exit(1);}
+    }
   }
   if( printhelp || !quiet ) {
-    fprintf(stderr,"Running C version of transpose matrix\n");
-    fprintf(stderr,"Number of rows         (-n) %ld\n", numrows);
-    fprintf(stderr,"random seed            (-s)= %d\n", seed);
-    fprintf(stderr,"flat model (dens)      (-e)= %g\n", edge_prob);
-    fprintf(stderr,"geometric model (dens) (-g)= %g\n", edge_prob);
-    fprintf(stderr,"models_mask            (-M)= %d\n", models_mask);
-    fprintf(stderr,"readgraph              (-f [%s])\n", filename); 
-    fprintf(stderr,"dump_files             (-D)\n");
-    fprintf(stderr,"quiet                  (-q)= %d\n", quiet);
+    fprintf(stderr,"Running C version of triangle counting\n");
+    fprintf(stderr,"Number of rows            (-n) %"PRId64"\n", numrows);
+    fprintf(stderr,"random seed               (-s)= %d\n", seed);
+    fprintf(stderr,"Graph model:\n");
+    fprintf(stderr,"  from file               (-f [%s])\n", filename); 
+    fprintf(stderr,"  flat model (dens)       (-e [%g]\n", edge_prob);
+    fprintf(stderr,"  geometric model (dens)  (-g [%g]\n", edge_prob);
+    fprintf(stderr,"  kronecker prod (string) (-k [%s]\n", kron_list);
+    fprintf(stderr,"models_mask               (-M)= %d\n", models_mask);
+    fprintf(stderr,"dump_files                (-D)\n");
+    fprintf(stderr,"quiet                     (-q)= %d\n", quiet);
  
     if(printhelp)
       return(0);
@@ -150,12 +161,12 @@ int main(int argc, char * argv[])
   if(!quiet){
     printf("Input matrix stats:\n");
     spmat_stats(mat);
+    if( model == KRONECKER )
+      printf("Kronecker model should have %"PRId64" triangles\n", tri_count_kron_graph(kron_args));
   }
     
-  tmat = transpose_matrix(mat); 
   if(dump_files){
     dump_matrix(mat, 20, "mat.out");
-    dump_matrix(tmat, 20, "tmat.out");
   }
 
   double laptime = 0.0;
@@ -170,9 +181,11 @@ int main(int argc, char * argv[])
       continue;
     }
     if( !quiet ) 
-      printf(" %12ld triangles : %8.3lf seconds\n", triangles, laptime);
+      printf(" %12"PRId64" triangles : %8.3lf seconds\n", triangles, laptime);
   }
  
+  if(model == KRONECKER) 
+    free(kron_args);
   clear_matrix(mat);
   return(0);
 }

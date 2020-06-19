@@ -169,8 +169,8 @@ int main(int argc, char * argv[])
   while( (opt = getopt(argc, argv, "hT:n:s:M:q")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'T': sscanf(optarg,"%ld", &tbl_size); break;
-    case 'n': sscanf(optarg,"%ld", &num_ups); break;
+    case 'T': sscanf(optarg,"%"SCNd64, &tbl_size); break;
+    case 'n': sscanf(optarg,"%"SCNd64, &num_ups); break;
     case 's': sscanf(optarg,"%d", &seed); break;
     case 'M': sscanf(optarg,"%d", &models_mask); break;
     case 'q': quiet = 1; break;
@@ -180,8 +180,8 @@ int main(int argc, char * argv[])
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of histo\n");
     fprintf(stderr,"help           (-h)\n");
-    fprintf(stderr,"Table size     (-T)= %ld\n", tbl_size);
-    fprintf(stderr,"Updates        (-n)= %ld\n", num_ups);
+    fprintf(stderr,"Table size     (-T)= %"PRId64"\n", tbl_size);
+    fprintf(stderr,"Updates        (-n)= %"PRId64"\n", num_ups);
     fprintf(stderr,"models_mask    (-M)= %d\n", models_mask);
     fprintf(stderr,"random seed    (-s)= %d\n", seed);
     fprintf(stderr,"quiet          (-q)= %d\n", quiet);
@@ -230,11 +230,11 @@ int main(int argc, char * argv[])
     if(counts[i] != 0L){
       errors++;
       if(errors < 5)  // print first five errors, report number of errors below
-        fprintf(stderr,"ERROR: first five errors at %ld (= %ld)\n", i, counts[i]);
+        fprintf(stderr,"ERROR: first five errors at %"PRId64" (= %"PRId64")\n", i, counts[i]);
     }
   }
   if(errors)
-    fprintf(stderr,"FAILED!!!! total errors = %ld\n", errors);   
+    fprintf(stderr,"FAILED!!!! total errors = %"PRId64"\n", errors);   
   
   free(index);
   free(counts);

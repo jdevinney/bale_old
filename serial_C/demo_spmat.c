@@ -50,14 +50,14 @@ int main(int argc, char * argv[])
   int64_t *p = rand_perm(10, 0);
   printf("Identity perm = ");
   for(i=0; i<10; i++)
-    printf(" %ld",p[i]);
+    printf(" %"PRId64,p[i]);
   printf("\n");
   free(p);
 
   int64_t *q = rand_perm(12, 1);
   printf("Random perm = ");
   for(i=0; i<12; i++)
-    printf(" %ld",q[i]);
+    printf(" %"PRId64,q[i]);
   printf("\n");
 
   printf("Is q a perm?  %s\n", (is_perm(q,12))?"yes":"no");
@@ -76,5 +76,22 @@ int main(int argc, char * argv[])
 
   write_matrix_mm(graph, "tidy_demo.mm.out");
   clear_matrix(graph);
+
+  printf("Generate a Kronecker Product of Stars\n");
+  kron_args_t * kron_args = kron_args_init("2: 2 2");
+  printf("-- input %s\n", kron_args->str);
+  printf("-- mode %"PRId64"\n", kron_args->mode);
+  printf("-- num_stars %"PRId64"\n", kron_args->num_stars);
+  for(int i=0; i<kron_args->num_stars; i++)
+    printf("%"PRId64" ", kron_args->star_size[i]); 
+  printf("\n-- numrows %"PRId64"\n", kron_args->numrows);
+  printf("Known number of triangles = %"PRId64"\n", tri_count_kron_graph(kron_args));
+
+  sparsemat_t *Kron = kronecker_product_graph(kron_args);
+  spmat_stats(Kron);
+  dump_matrix(Kron, 0, "kron.out");
+
+  clear_matrix(Kron);
+  free(kron_args);
 
 }

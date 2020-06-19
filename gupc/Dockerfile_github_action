@@ -1,0 +1,25 @@
+# get a oshmem image in public Dockerhub
+FROM npmolino/bale_public_gupc
+
+
+RUN apt-get -y update \
+    && apt-get install -y --no-install-recommends \
+	vim less curl
+
+COPY . /opt/bale_private
+
+WORKDIR /opt/bale_private
+
+RUN ./run_autoreconf
+ENV UPC gupc
+ENV PLATFORM gupc
+RUN ./install.sh -u
+
+RUN echo "---- done with install ----"
+
+# run as non-root user
+# bale_user exists from Dockerfile in the bale_public_gupc image at this point
+#RUN adduser --disabled-password --gecos "" bale_user
+
+
+

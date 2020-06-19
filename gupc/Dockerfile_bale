@@ -1,0 +1,35 @@
+FROM gupc:latest
+
+RUN apt-get -y update \
+    && apt-get install -y --no-install-recommends \
+	pandoc vim less curl
+
+COPY . /opt/bale_private
+
+WORKDIR /opt/bale_private
+
+
+
+RUN ./run_autoreconf
+ENV UPC gupc
+ENV PLATFORM gupc
+RUN ./install.sh -u
+
+RUN echo "---- done with install ----"
+
+# run as non-root user
+#RUN adduser --disabled-password --gecos "" bale_user
+#RUN export NUM_CORES=$(grep cores /proc/cpuinfo | awk '{print $4}' | head -n 1) && \
+#    echo NUM_CORES is $NUM_CORES && \
+#    su bale_user - -c "oshrun -n $NUM_CORES build_${PLATFORM}/bin/histo -M 1 -c 1"
+
+# here we actaully run it as root
+#RUN echo "--- run as root ---"
+#ENV OMPI_ALLOW_RUN_AS_ROOT 1
+#ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM 1
+#RUN NUM_CORES=$(grep cores /proc/cpuinfo | awk '{print $4}' | head -n 1) && \
+#    echo NUM_CORES is $NUM_CORES && \
+#    oshrun -n 2 build_${PLATFORM}/bin/histo -M 1 -c 2
+
+RUN echo "---- to run be sure to type: bash runall.sh -c 2 ----"
+
