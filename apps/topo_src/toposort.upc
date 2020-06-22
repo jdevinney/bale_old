@@ -182,11 +182,15 @@ sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double
   
   T0_fprintf(stderr,"Creating input matrix for toposort\n");fflush(stderr);
   double t = wall_seconds();
-  omat = random_graph(numrows, model, edge_prob, 1, 2, rand_seed);
+  omat = random_graph(numrows, model, UNDIRECTED, LOOPS, edge_prob, rand_seed);
   T0_printf("generate ER graph time %lf\n", wall_seconds() - t);
-  if(!omat) exit(1);
-  if(!is_upper_triangular(omat, 1))exit(1);
+  if(!omat) {printf("Error! omat is NULL");return(NULL);}
+  if(!is_lower_triangular(omat, 1)){printf("ERROR: Not LT\n");return(NULL);}
 
+  sparsemat_t * U = transpose_matrix(omat);
+  if(!U){printf("Error! U is NULL");return(NULL);}
+  if(!is_upper_triangular(U, 1)){printf("ERROR: Not UT\n");return(NULL);}
+  
   // get row and column permutations
   t = wall_seconds();
   SHARED int64_t * rperminv = rand_permp(numrows, 1230+MYTHREAD);
@@ -204,7 +208,7 @@ sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double
 
   lgp_barrier();
   t = wall_seconds();
-  sparsemat_t * mat = permute_matrix(omat, rperminv, cperminv);
+  sparsemat_t * mat = permute_matrix(U, rperminv, cperminv);
   T0_printf("permute matrix time %lf\n", wall_seconds() - t);
   
   if(!mat) {
@@ -214,8 +218,8 @@ sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double
 
   lgp_barrier();
 
-  clear_matrix( omat );
-  free(omat);
+  clear_matrix( omat );free(omat);
+  clear_matrix(U); free(U);
   lgp_all_free(rperminv);
   lgp_all_free(cperminv);
 
@@ -283,12 +287,12 @@ int main(int argc, char * argv[]) {
   T0_fprintf(stderr,"task mask (M) = %"PRId64" (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);
   
   sparsemat_t * mat = generate_toposort_input(numrows, model, erdos_renyi_prob, rand_seed);
-  if(!mat){T0_printf("ERROR: mat is NULL!\n"); exit(1);}
+  if(!mat){T0_printf("ERROR: mat is NULL!\n"); lgp_global_exit(1);}
 
   T0_printf("Input matrix has %"PRId64" rows and %"PRId64" nonzeros\n", mat->numrows, mat->nnz);
   
   sparsemat_t * tmat = transpose_matrix(mat);
-  if(!tmat){T0_printf("ERROR: tmat is NULL!\n"); exit(1);}
+  if(!tmat){T0_printf("ERROR: tmat is NULL!\n"); lgp_global_exit(1);}
 
   lgp_barrier();
 

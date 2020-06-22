@@ -438,10 +438,12 @@ int is_lower_triangular(sparsemat_t *A, int64_t unit_diagonal) {
   for(i=0; i < A->lnumrows; i++){
     int64_t global_row = i*THREADS + MYTHREAD;
     int pivot = 0;
-    for(j=A->loffset[i]; j < A->loffset[i+1];j++){
+    for(j = A->loffset[i]; j < A->loffset[i+1]; j++){
       if( A->lnonzero[j] > global_row ) {
         err++;
-      }else if( A->lnonzero[j] == global_row){
+        //if(global_row < 10)
+        //printf("row %ld : col %ld (j = %ld)\n", global_row, A->lnonzero[j], j);
+      }else if( A->lnonzero[j] == global_row ){
         pivot = 1;
       }
     }
@@ -452,7 +454,7 @@ int is_lower_triangular(sparsemat_t *A, int64_t unit_diagonal) {
   err = lgp_reduce_add_l(err);
   err2 = (unit_diagonal ? lgp_reduce_add_l(err2) : 0);
   if( err || err2 ){
-    //if(!MYTHREAD)printf("\nThere are %"PRId64" nz above diag. and %"PRId64" missing pivots in lower.\n", err, err2);
+    if(!MYTHREAD)printf("\nThere are %"PRId64" nz above diag. and %"PRId64" missing pivots in lower.\n", err, err2);
     fflush(0);
   }
 
@@ -606,7 +608,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
                            double edge_density, int64_t seed){
 
   if(model == FLAT){
-    
+
     return(erdos_renyi_random_graph(n, edge_density, edgetype, loops, seed));
     
   }else if(model == GEOMETRIC){
@@ -974,7 +976,7 @@ individually).
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
   int64_t lnnz = 0, lnnz_orig=0;
   int64_t P = p*RAND_MAX;
-  double lM = log(RAND_MAX);
+  double lM = log((double)RAND_MAX);
   double D = log(1 - p);
   int64_t r;
   int64_t end = n;
@@ -985,7 +987,7 @@ individually).
   /* count lnnz so we can allocate A correctly */   
   row = MYTHREAD;
   do { r = rand(); } while(r == RAND_MAX);
-  col = 1 + floor((log(RAND_MAX - r) - lM)/D);
+  col = 1 + floor((log((double)(RAND_MAX - r)) - lM)/D);
   while(row < n){
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       end = row;
@@ -996,6 +998,7 @@ individually).
       do { r = rand(); } while(r == RAND_MAX);
       col += 1 + floor((log(RAND_MAX - r) - lM)/D);
     }
+
     row += THREADS;
     col -= end;
   }
@@ -1022,10 +1025,12 @@ individually).
     while(col < end){
       if(col == row) need_diag = 0;
       A->lnonzero[lnnz++] = col;
-      do { r = rand(); } while(r == RAND_MAX);     
+      do { r = rand(); } while(r == RAND_MAX);
       col += 1 + floor((log(RAND_MAX - r) - lM)/D);
     }
-    if(need_diag) A->nonzero[lnnz++] = row;
+    if(need_diag) {
+      A->lnonzero[lnnz++] = row;
+    }
     row+=THREADS;
     col -= end;
     A->loffset[row/THREADS] = lnnz;
@@ -1049,7 +1054,7 @@ individually).
   return(A);
 }
 
-/*! \brief Generates the upper or lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
+/*! \brief Generates the lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
  * graph. This is the naive O(n^2) algorithm. It flips a coin for each possible edge.
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
