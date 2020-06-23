@@ -23,7 +23,7 @@ The main components are :
 - README.md  - this file
 - INSTALL  - instructions for building bale
 - libgetput  - parallel programming utility library. libgetput is a library that can be compiled on top of UPC or SHMEM and implements puts, gets, collectives, and atomics. Everything in bale except conveyors is built on top of libgetput.
-- exstack   - The exstack and exstack2 libraries for aggregating communication
+- [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
 - convey - The conveyor library for aggregating communication
 - spmat  -  a sparse matrix library
 - apps  -  the applications directory. Includes histogram, 
