@@ -26,8 +26,8 @@ The main components are :
 - [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
 - convey - The conveyor library for aggregating communication
 - spmat  -  a sparse matrix library
-- apps  -  the applications directory. Includes histogram, 
-   indexgather, toposort, triangle counting, randperm, etc.
+- apps  -  the applications directory. Includes [histogram](apps/histo_src/README.md), 
+   [indexgather](apps/ig_src/README.md), [toposort](apps/topo_src/README.md), triangle counting, [randperm](apps/randperm_src/README.md), etc.
 - install.sh - the build and install script
 - runall.sh - a test script that runs all applications
 - Doxyfile - the main file for building the documentation with doxygen
