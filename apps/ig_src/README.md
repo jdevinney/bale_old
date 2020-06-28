@@ -2,17 +2,25 @@
 
 This is another rather simple application. Just like histogram, it is
 important because it represents a pattern of communication that is
-frequently used in parallel applications; asynchronous reading data from a
-distributed data structure.
+frequently used in parallel applications; asynchronous reading data 
+from a distributed data structure.
 
 In SHMEM, indexgather looks like this:
 
     for(i = 0; i < N; i++)
        shmem_get(&target[i], &table[index[i]], sizeof(long), index[i] % NPES);
 
-where table is a distributed array, index is a local array of indices into table, and target is a local array where we record the remote reads. Similar to histogram, the intent of indexgather is that the PEs read asynchronously and without dependencies (allowing for aggregation).
+where table is a distributed array, index is a local array of indices into table, 
+and target is a local array where we record the remote reads. 
+Similar to histogram, the intent of indexgather is 
+that the PEs read asynchronously and without dependencies (allowing for aggregation).
 
-Below is indexgather written with exstack. Note that we need three distinct phases. In phase 1, we send out requests for the remote read. In phase 2, we process requests (pop them off in-buffers, look up the requested index in the table, and push them back onto out-buffers). In phase 3, we receive our processed requests and record their values in our tgt array.
+Below is indexgather written with exstack. 
+Note that we need three distinct phases. 
+In phase 1, we send out requests for the remote read. 
+In phase 2, we process requests (pop them off in-buffers, 
+ look up the requested index in the table, and push them back onto out-buffers). 
+In phase 3, we receive our processed requests and record their values in our tgt array.
 
     while( exstack_proceed(ex, (i==l_num_req)) ) {
        i0 = i;  
@@ -43,4 +51,7 @@ Below is indexgather written with exstack. Note that we need three distinct phas
        lgp_barrier();
     }
 
-In exstack, we can get away with only one exstack struct for this application. This is not possible with exstack2 or conveyors however since they are asynchronous.
+Because exstack is synchronous and we are gathering a single word, 
+we can get reuse the same exstack for both the request and the response.
+This is not possible with exstack2 or conveyors however since they are asynchronous.
+

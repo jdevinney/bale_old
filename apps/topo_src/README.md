@@ -3,20 +3,21 @@
 The toposort application is a step up in complexity from histogram and indexgather.
 Depending on its input, it typically enjoys a significant amount of parallelism, but it 
 is not completely order and latency tolerant.
-The input to toposort is a sparse matrix A where A is "morally upper-triangular".
+The input to toposort is a sparse matrix A, where A is "morally upper-triangular".
 
 To prepare the input to the toposort algorithm, 
-we start we an upper-triangular matrix *T* with no zeros on the diagonal. 
+we start we an upper-triangular matrix *T* with ones on the diagonal. 
 We don't care about the values of the non-zeros in the matrix, only their position.
-Next we randomly permute the rows and columns of *T* to get a matrix *M*. 
-The matrix *M* has been called a morally triangular matrix.
+Next, we randomly (and separately) permute the rows and columns of *T* 
+to get a matrix *M*.  The matrix *M* has been called a morally triangular matrix.
 
 Given a morally triangular matrix, *M*, the goal of toposort is 
 to create row and column permutations such that when these 
 permutations are applied to *M*,
-the result is an upper triangular matrix with no zeros on the diagonal.
-Note, the answer need not be unique and since *M* is a row and column permutation
-of *T*, there must be a solution.
+the result is an upper triangular matrix with ones on the diagonal.
+Note, the answer need not be unique and 
+Since *M* is a row and column permutation of *T*, there must be a solution.
+However, the solution need not be unique.
 
 We use a breadth first search algorithm based on the following observations:
 
@@ -27,8 +28,8 @@ For example, if you create a set of the nonzeros in a particular row;
 a column permutation might change the labels of the elements in the set,
 but doesn't change the cardinality of the set. Likewise for columns.
 Hence, there must be a row in *M* with a single non-zero.
-If we remove that row and column, 
-we are left with smaller, morally upper triangular matrix. This is the motivation behind a simple algorithm.
+If we remove that row and column, we are left with smaller, 
+morally upper triangular matrix. This is the motivation behind a simple algorithm.
 
 The outline of the algorithm is as follows:
 
@@ -43,11 +44,11 @@ Rather than changing the matrix by deleting rows and column and then searching t
 new matrix for the next row.  We do the obvious thing of keeping and array of row counts,
 *rowcnt[i]* is the number of non-zeros in *row i* and
 we use a cool trick to find the column of a row with *rowcnt[i]* equal 1.
-We initialize an array, *rowsum[i]*, to be the sum of the column indices in * row i*.
+We initialize an array, *rowsum[i]*, to be the sum of the column indices in *row i*.
 When we "delete" a column we decrement *rowcnt[i]* and *rowsum[i]* by that column index.
 Hence, when the *rowcnt[i]* gets down to one, the *rowsum[i]* is the column that is left.
 
-In parallel there are three race conditions or synchronization issues to address..
+In parallel there are three race conditions or synchronization issues to address.
 
 The first is reading and writing the queue of rows to be processed.
 One way to handle it is to introduce the notion of a levels.
@@ -62,4 +63,5 @@ in the current level on each thread then assign them in order per thread.
    
 Threads race to update the *rowcnt* and *rowsum* arrays. 
 We handle this with levels and atomic memory operations.
+
 
