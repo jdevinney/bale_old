@@ -22,12 +22,12 @@ The main components are :
 
 - README.md  - this file
 - INSTALL  - instructions for building bale
-- libgetput  - parallel programming utility library. libgetput is a library that can be compiled on top of UPC or SHMEM and implements puts, gets, collectives, and atomics. Everything in bale except conveyors is built on top of libgetput.
+- [libgetput](libgetput/README.md)  - parallel programming utility library. libgetput is a library that can be compiled on top of UPC or SHMEM and implements puts, gets, collectives, and atomics. Everything in bale except conveyors is built on top of libgetput.
 - [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
 - convey - The conveyor library for aggregating communication
-- spmat  -  a sparse matrix library
+- [spmat](spmat/README.md)  -  a sparse matrix library
 - apps  -  the applications directory. Includes [histogram](apps/histo_src/README.md), 
-   [indexgather](apps/ig_src/README.md), [toposort](apps/topo_src/README.md), triangle counting, [randperm](apps/randperm_src/README.md), etc.
+   [indexgather](apps/ig_src/README.md), [toposort](apps/topo_src/README.md), [transpose_matrix](apps/transpose_matrix_src/README.md), [triangle counting](apps/triangle_src/README.md), [randperm](apps/randperm_src/README.md), etc.
 - install.sh - the build and install script
 - runall.sh - a test script that runs all applications
 - Doxyfile - the main file for building the documentation with doxygen
