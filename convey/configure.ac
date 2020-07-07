@@ -34,7 +34,7 @@
 ## Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.63)
-AC_INIT([convey], [0.5.1], [bale@super.org])
+AC_INIT([convey], [0.5.5], [bale@super.org])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([simple.c])
 AC_CONFIG_HEADERS([config.h])
@@ -45,15 +45,18 @@ AC_ARG_VAR([PERL], [Perl interpreter])
 AC_ARG_VAR([CASES], [Perl script for preprocessing source code])
 AC_ARG_VAR([DOXYGEN], [Doxygen documentation generation program])
 AC_ARG_VAR([MSGBYTES], [Preferred message size in bytes])
-AC_ARG_WITH([mpp],
-            [AS_HELP_STRING([--with-mpp], [build atop mpp_utilV4])],
-            [], [with_mpp=no])
-AC_ARG_WITH([upc],
-            [AS_HELP_STRING([--with-upc], [build a UPC version])],
-            [], [with_upc=no])
 AC_ARG_WITH([mpi],
             [AS_HELP_STRING([--with-mpi], [build on MPI alone])],
             [], [with_mpi=no])
+AC_ARG_WITH([mpp],
+            [AS_HELP_STRING([--with-mpp], [build atop mpp_utilV4])],
+            [], [with_mpp=no])
+AC_ARG_WITH([shmem],
+            [AS_HELP_STRING([--with-shmem], [build atop SHMEM])],
+            [], [with_shmem=no])
+AC_ARG_WITH([upc],
+            [AS_HELP_STRING([--with-upc], [build a UPC version])],
+            [], [with_upc=no])
 AC_ARG_WITH([shmem-ptr],
             [AS_HELP_STRING([--without-shmem-ptr], [avoid use of shmem_ptr()])],
             [], [with_shmem_ptr=yes])
@@ -64,17 +67,20 @@ AC_ARG_ENABLE([nonblocking],
     [AS_HELP_STRING([--disable-nonblocking], [disable nonblocking puts])],
     [], [enable_nonblocking=yes])
 
-if   test "x$with_mpp" = xyes -a "x$with_upc" = xyes; then
+if   test "x$with_shmem" = xyes -a "x$with_mpi" = xyes; then
+    AC_MSG_ERROR([--with-shmem and --with-mpi are incompatible])
+elif test "x$with_shmem" = xyes -a "x$with_mpp" = xyes; then
+    AC_MSG_ERROR([--with-shmem and --with-mpp are incompatible])
+elif test "x$with_shmem" = xyes -a "x$with_upc" = xyes; then
+    AC_MSG_ERROR([--with-shmem and --with-upc are incompatible])
+elif test "x$with_mpp" = xyes -a "x$with_upc" = xyes; then
     AC_MSG_ERROR([--with-mpp and --with-upc are incompatible])
 elif test "x$with_mpp" = xyes -a "x$with_mpi" = xyes; then
     AC_MSG_ERROR([--with-mpp and --with-mpi are incompatible])
 elif test "x$with_upc" = xyes -a "x$with_mpi" = xyes; then
     AC_MSG_ERROR([--with-upc and --with-mpi are incompatible])
 fi
-with_shmem=no
-if test "x$with_mpp" = xno -a "x$with_upc" = xno -a "x$with_mpi" = xno; then
-    with_shmem=yes
-fi
+
 if test "x$with_mpp" = xno -a "x$enable_profiling" = xyes; then
     AC_MSG_ERROR([--enable-profiling requires --with-mpp])
 fi
@@ -273,6 +279,8 @@ AS_IF([test "x$with_upc" = xyes],
     [AC_DEFINE([MPP_USE_UPC], [1], [Define if the build is based on UPC.])])
 AS_IF([test "x$with_mpi" = xyes],
     [AC_DEFINE([MPP_RAW_MPI], [1], [Define if the build is based on raw MPI.])])
+AS_IF([test "x$with_shmem" = xyes],
+    [AC_DEFINE([MPP_RAW_SHMEM], [1], [Define if the build is based on raw SHMEM.])])
 AS_IF([test "x$with_shmem_ptr" = xyes],
     [AC_DEFINE([HAVE_SHMEM_PTR], [1], [Define if shmem_ptr exists and should be used.])])
 AS_IF([test "x$enable_profiling" = xyes],
@@ -321,10 +329,10 @@ AS_IF([test "x$enable_bmi2" = xyes],
    [AC_DEFINE([HAVE_BMI2], [1], [BMI2 instructions available])])
 
 # Define conditions for automake
-AM_CONDITIONAL(WITH_UPC, [test "x$with_upc" = xyes])
-AM_CONDITIONAL(WITH_MPP_UTIL, [test "x$with_mpp" = xyes])
 AM_CONDITIONAL(WITH_MPI, [test "x$mpp_use_mpi" = xyes -o "x$with_mpi" = xyes])
+AM_CONDITIONAL(WITH_MPP_UTIL, [test "x$with_mpp" = xyes])
 AM_CONDITIONAL(WITH_SHMEM, [test "x$mpp_use_shmem" = xyes -o "x$with_shmem" = xyes])
+AM_CONDITIONAL(WITH_UPC, [test "x$with_upc" = xyes])
 AM_CONDITIONAL(WITH_SHMEM_PTR, [test "x$with_shmem_ptr" = xyes])
 AM_CONDITIONAL(HAVE_DOXYGEN, [test -n "$DOXYGEN"])
 
@@ -359,14 +367,16 @@ if test "x$with_upc" = xyes; then
     prog_model=UPC
 elif test "x$with_mpi" = xyes; then
     prog_model=MPI
-elif test "x$with_mpp" = xno; then
+elif test "x$with_shmem" = xyes; then
     prog_model=SHMEM
 elif test "x$mpp_use_mpi" = xyes; then
     prog_model=MPP_UTIL/MPI
 elif test "x$mpp_use_shmem" = xyes; then
     prog_model=MPP_UTIL/SHMEM
+elif test "x$with_mpp" = xyes; then
+    prog_model=MPP_UTIL/NONE
 else
-    prog_model=MPP_UTIL
+    prog_model=C
 fi
 
 echo "

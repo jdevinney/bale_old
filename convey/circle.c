@@ -1,4 +1,4 @@
-// Copyright (c) 2019, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -113,11 +113,13 @@ sorter_push(sorter_t* self, const void* item, int dest)
   return space;
 }
 
-bool
+int
 sorter_flush(sorter_t* self)
 {
-  const size_t size = self->item_bytes;
+  if (self->tail == self->head)
+    return 0;
 
+  const size_t size = self->item_bytes;
   while (self->tail < self->head) {
     uint64_t index = self->tail & self->mask;
     int target = self->targets[index];
@@ -126,10 +128,10 @@ sorter_flush(sorter_t* self)
     area->next += size;
     self->tail++;
     if (area->next >= area->limit)
-      break;
+      return -1;
   }
 
-  return (self->tail == self->head);
+  return 1;
 }
 
 void

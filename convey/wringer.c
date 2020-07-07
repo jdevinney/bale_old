@@ -1,4 +1,4 @@
-// Copyright (c) 2019, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -31,7 +31,7 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include <stdint.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -150,7 +150,7 @@ main(int argc, char* argv[])
   for (size_t i = 0; i < w; i++)
     stamp[i] = brand(&_prng) & valid[i] & ~mask[i];
 
-  printf("seed = %lu\n", seed);
+  printf("seed = %" PRIu64 "\n", seed);
   print_bits("valid", w, valid);
   print_bits(" mask", w, mask);
   print_bits("stamp", w, stamp);

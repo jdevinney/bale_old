@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -317,9 +317,10 @@ simple_advance(convey_t* self, bool done)
   bool steady = (self->features & convey_STEADY);
   if (simple->sorter && (done | steady)) {
     if (!simple->overflow) {
-      bool flushed = sorter_flush(simple->sorter);
-      simple->overflow = !flushed;
-      done &= flushed;
+      int status = sorter_flush(simple->sorter);
+      simple->nonempty |= (status != 0);
+      simple->overflow = (status < 0);
+      done &= (status >= 0);
     }
     else
       done = false;

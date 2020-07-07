@@ -61,9 +61,9 @@ bool sorter_setup(sorter_t* self);
 // return value of 'false' by emptying the full buffer(s).
 bool sorter_push(sorter_t* self, const void* item, int dest);
 
-// Returns true if all pushed items have been distributed into the client's
-// buffers.  After a flush, a reset must precede the next push.
-bool sorter_flush(sorter_t* self);
+// Returns 0 if there is nothing to flush, -1 if an outgoing buffer
+// filled up, and 1 otherwise.
+int sorter_flush(sorter_t* self);
 
 void sorter_reset(sorter_t* self);
 void sorter_free(sorter_t* self);
