@@ -1,4 +1,4 @@
-#randperm
+# randperm
 
 The goal of randperm is to create a distributed or parallel array 
 that holds a uniform random permutation of {0,...,N-1}. 
