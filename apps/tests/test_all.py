@@ -15,7 +15,7 @@ def determine_launcher():
 # parameters to this script are handled in conftest.py
 # --path : specify a path to executables
 def test_all(path, node_range, implementation_mask):
-    apps = ["histo", "ig", "topo"]
+    apps = ["histo", "ig", "topo", "randperm"]
     print("Hi")
     launcher = determine_launcher()
     print(launcher)
@@ -34,12 +34,14 @@ def test_all(path, node_range, implementation_mask):
     print(node_range)
 
     runs = []
-    runs.append("-b 16 -n 1000 -M "+implementation_mask)
+    runs.append("-b 16 -n 1000 -M "+implementation_mask)    
     runs.append("-b 35 -n 813 -T 103 -M "+implementation_mask)
-    for app in apps:
+    for app in apps:        
         for pes in node_range:
             if pes == 0: continue
             for run in runs:
+                if run.count('-T'):
+                    continue
                 cmd = launcher.format(os.path.join(path,app),pes) +" "+run
                 print(cmd)
                 cp = subprocess.run(cmd, shell=True)

@@ -59,5 +59,10 @@ Each of the applications in bale are implemented in multiple ways to showcase th
 ## Build Instructions
 There is an install script (called install.sh) to make building easier for most people. Follow the directions in INSTALL. 
 
+## Testing
+We are working on a new test script that uses pytest as a harness. To run this test, go to
+the apps directory and run
+    pytest -s -P=<path/to/bale/binaries> --node_range=0,10,2 -M 15
+
 ## Documentation
 Bale is documented using Doxygen. See INSTALL for directions on how to generate the documentation.
