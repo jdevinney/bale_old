@@ -41,7 +41,7 @@ bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles 
 #BDEBUG = -g -O0
 BDEBUG = -std=c11
 ###################################################################
-include_HEADERS = histo_src/histo.h 
+noinst_HEADERS = histo_src/histo.h 
 
 histo_sources = histo_src/histo.upc 
 histo_sources += histo_src/histo_agi.upc 
@@ -120,7 +120,7 @@ topo_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
-include_HEADERS += randperm_src/randperm_alternates.h
+noinst_HEADERS += randperm_src/randperm_alternates.h
 randperm_sources = randperm_src/randperm.upc
 randperm_sources += randperm_src/alternates/randperm_agi_opt.upc
 
@@ -168,7 +168,7 @@ transpose_matrix_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
-include_HEADERS += triangle_src/triangle.h
+noinst_HEADERS += triangle_src/triangle.h
 triangles_sources = triangle_src/triangle.upc
 triangles_sources += triangle_src/triangle_agi.upc
 triangles_sources += triangle_src/triangle_exstack.upc
@@ -193,7 +193,7 @@ triangles_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
-#include_HEADERS += write_sparse_matrix_src/write_sparse_matrix.h
+#noinst_HEADERS += write_sparse_matrix_src/write_sparse_matrix.h
 write_sparse_matrix_sources = write_sparse_matrix_src/write_sparse_matrix.upc
 
 write_sparse_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/write_sparse_matrix_src

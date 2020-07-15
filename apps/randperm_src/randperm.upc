@@ -99,7 +99,7 @@ int main(int argc, char * argv[]) {
   int64_t cores_per_node = 1;
 
   int opt; 
-  while( (opt = getopt(argc, argv, "c:hn:M:s:")) != -1 ) {
+  while( (opt = getopt(argc, argv, "b:c:hn:M:s:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
     case 'b': sscanf(optarg,"%"PRId64"",&buf_cnt);  break;
@@ -116,6 +116,7 @@ int main(int argc, char * argv[]) {
   T0_fprintf(stderr,"Usage:\n");
   T0_fprintf(stderr,"Permutation size per thread (-n) = %"PRId64"\n", l_numrows);
   T0_fprintf(stderr,"models_mask (-M)                 = %"PRId64" or of 1,2,4,8 for atomics,classic,exstack2,conveyor\n", models_mask);
+  T0_fprintf(stderr,"buf_cnt (-b)                     = %"PRId64"\n", buf_cnt);
   T0_fprintf(stderr,"seed (-s)                        = %"PRId64"\n", seed);
 
 

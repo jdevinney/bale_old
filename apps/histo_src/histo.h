@@ -44,10 +44,21 @@
 #include <convey.h>
 #include <locale.h>
 
-double histo_agi(int64_t *index, int64_t len,  SHARED int64_t *counts);
-double histo_exstack(int64_t *pckindx, int64_t len,  int64_t *lcounts, int64_t buf_cnt);
-double histo_exstack2(int64_t *pckindx, int64_t len,  int64_t *lcounts, int64_t buf_cnt);
-double histo_conveyor(int64_t *pckindx, int64_t len,  int64_t *lcounts); 
+// We package all the state up into this struct so we can do some error checking.
+typedef struct histo_t{
+  SHARED int64_t * counts;
+  int64_t * index;
+  int64_t * lcounts;
+  int64_t * pckindx;
+  int64_t num_counts;
+  int64_t lnum_counts;
+  int64_t l_num_ups;
+} histo_t;
+
+double histo_agi(histo_t * data);
+double histo_exstack(histo_t * data, int64_t buf_cnt);
+double histo_exstack2(histo_t * data, int64_t buf_cnt);
+double histo_conveyor(histo_t * data);
 
 #include "alternates/histo_alternates.h"
 

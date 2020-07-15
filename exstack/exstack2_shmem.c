@@ -58,15 +58,15 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   exstack2_t * XS2 = calloc(1, sizeof(exstack2_t));
   
   XS2->buf_cnt    = buf_cnt;   // in pkgs
-  XS2->pkg_size   = pkg_size;       // in bytes
+  XS2->pkg_size   = pkg_size;  // in bytes
   
   // set up send and receive buffers
   int64_t buffer_bytes = pkg_size*buf_cnt;
 
-  XS2->s_snd_buffer = lgp_all_alloc (buffer_bytes*(size_t)THREADS*(size_t)THREADS, sizeof(char));
+  XS2->s_snd_buffer = shmem_malloc (buffer_bytes*(size_t)THREADS*sizeof(char));
   if(XS2->s_snd_buffer  == NULL) return(NULL);
 
-  XS2->s_rcv_buffer = lgp_all_alloc (buffer_bytes*(size_t)THREADS*(size_t)THREADS, sizeof(char));
+  XS2->s_rcv_buffer = shmem_malloc (buffer_bytes*(size_t)THREADS*sizeof(char));
   if(XS2->s_rcv_buffer  == NULL) return(NULL);
 
   XS2->l_snd_buffer  = calloc(THREADS, sizeof(char*));  
@@ -75,12 +75,14 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   XS2->l_rcv_buffer  = calloc(THREADS, sizeof(char*));
   if(XS2->l_rcv_buffer == NULL) return(NULL);
   
-  XS2->l_snd_buffer[0] = lgp_local_part(char, XS2->s_snd_buffer);
-  XS2->l_rcv_buffer[0] = lgp_local_part(char, XS2->s_rcv_buffer);
+  XS2->l_snd_buffer[0] = XS2->s_snd_buffer;
+  XS2->l_rcv_buffer[0] = XS2->s_rcv_buffer;
   for(int64_t th=1; th<THREADS; th++) {
     XS2->l_snd_buffer[th] = XS2->l_snd_buffer[th-1] + buffer_bytes;
     XS2->l_rcv_buffer[th] = XS2->l_rcv_buffer[th-1] + buffer_bytes;    
   }
+  for(i = 0; i < buffer_bytes; i++)
+    XS2->s_rcv_buffer[i] = -1;
     
   // the message queue is a circular buffer, indices into the queue are ever increasing 
   // int64_t that are masked down the length of the queue
@@ -89,19 +91,17 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   while( Q_len < 2L*(size_t)THREADS ) 
     Q_len = (Q_len << 1);
   XS2->msg_Q_mask = Q_len-1;
-  
-  XS2->s_msg_queue = lgp_all_alloc(Q_len*(size_t)THREADS, sizeof(int64_t));
+
+  XS2->s_msg_queue = shmem_malloc(Q_len * sizeof(int64_t));
   if(XS2->s_msg_queue == NULL) return(NULL);
-  XS2->l_msg_queue = lgp_local_part(int64_t, XS2->s_msg_queue);
   for(i = 0; i < Q_len; i++)
-    XS2->l_msg_queue[i] = -1L;
+    XS2->s_msg_queue[i] = -1L;
   
-  XS2->s_num_msgs      = lgp_all_alloc(THREADS, sizeof(int64_t));
+  XS2->s_num_msgs      = shmem_malloc(sizeof(int64_t));
   if(XS2->s_num_msgs   == NULL) return(NULL);
-  XS2->l_num_msgs = lgp_local_part(int64_t, XS2->s_num_msgs);
+  shmem_atomic_set(XS2->s_num_msgs, 0, MYTHREAD);
   
   XS2->num_popped = 0L;
-  XS2->l_num_msgs[0] = 0L;
   
   XS2->active_buffer_queue = calloc(THREADS, sizeof(int64_t));
   XS2->num_active_buffers = 0L;
@@ -109,43 +109,31 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   XS2->num_made_active = 0L;
 
   // allocate and initialize s_can_send 
-  XS2->s_can_send = lgp_all_alloc((size_t)THREADS*(size_t)THREADS, sizeof(int64_t));
+  XS2->s_can_send = shmem_malloc((size_t)THREADS*sizeof(int64_t));
   if(XS2->s_can_send == NULL) return(NULL);
-  XS2->l_can_send = lgp_local_part(int64_t,  XS2->s_can_send);
   for(i = 0; i < THREADS; i++)
-    XS2->l_can_send[i] = 1L;
+    shmem_atomic_set(&XS2->s_can_send[i], 1, MYTHREAD);
 
   // allocate and initialize push and pop ptrs
   XS2->push_cnt = calloc(THREADS, sizeof(int64_t));
-  if(XS2->push_cnt == NULL) return(NULL);
   XS2->push_ptr = calloc(THREADS, sizeof(char *));
-  if(XS2->push_ptr == NULL) return(NULL);
   for(i = 0; i < THREADS; i++){
     XS2->push_ptr[i] = XS2->l_snd_buffer[i];
     XS2->push_cnt[i] = 0L;
   }
+  
   XS2->pop_cnt = calloc(THREADS, sizeof(int64_t));
   XS2->pop_ptr = calloc(THREADS, sizeof(char*));
   XS2->pop_pe = -1L;
 
-
-  /* 
-   * If all the threads start flushing at the same time and 
-   * they all flush in the same order we could introduce an 
-   * accidental hot spot.  To avoid this, we will have each thread 
-   * flush in an order that was randomly determined order based 
-   * on the thread.  We pick that order by each thread doing its own
-   * Fisher-Yates or Knuth shuffle. 
-   */
+  // linked list trick for flush
   int64_t t, s, swap;
   XS2->flush_perm = calloc(THREADS, sizeof(int64_t));
   if(XS2->flush_perm == NULL) return(NULL);
   for(t = 0; t < THREADS; t++){
      XS2->flush_perm[t] = t;
   }
-
   srand( MYTHREAD*MYTHREAD*MYTHREAD*313 + 909091 );
-
   for(t=THREADS-1; t>1; t--){
     s = rand() % t; 
     swap = XS2->flush_perm[t];
@@ -153,12 +141,9 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
     XS2->flush_perm[s] = swap;
   }
 
-  //  flush_perm holds the permutation in the natural form
-  // We will use the permutation using flush_order which is 
-  // a linked list format for the permutation.
-
   XS2->flush_order = calloc(THREADS+1, sizeof(int64_t)); 
   if(XS2->flush_order == NULL) return(NULL); 
+
   t = THREADS;
   for(i = 0; i < THREADS; i++){
     XS2->flush_order[t] = XS2->flush_perm[i];
@@ -166,24 +151,10 @@ exstack2_t * exstack2_init(int64_t buf_cnt, size_t pkg_size)
   }
   XS2->flush_order[t] = THREADS;
 
-  //Note 
-  //            for(i=0 ... THREAD-1)  
-  //              print flush_perm[i]
-  // so the perm of i is stored in flush_perm[i]
-  // and
-  //            t = THREADS
-  //            do{
-  //              print flush_order[t]
-  //              t = flush_order[t]
-  //            }while(t != THREADS)
-  // print the same permutation, so the perm of i is stored
-  // in the i hop (like a linked list) within the array flush_order
-  // In exstack2_flush_needed we will collapse the link list as buffers become empty.
-
   XS2->all_done = 0L;
   XS2->num_done_sending = 0;     // incremented by exstack2_pop, for each done pushing message
 
-  lgp_barrier();
+  shmem_barrier_all();
   
   
   return(XS2);
@@ -222,7 +193,8 @@ int64_t exstack2_proceed(exstack2_t *Xstk2, int done_pushing)
         //printf("%d says %ld are done sending\n", MYTHREAD, Xstk2->num_done_sending);
         return(4L);
       }else {
-        if ( Xstk2->num_popped == Xstk2->l_num_msgs[0] ){
+        //if ( Xstk2->num_popped == Xstk2->l_num_msgs[0] ){
+        if(shmem_test(Xstk2->s_num_msgs, SHMEM_CMP_EQ, Xstk2->num_popped)){
           Xstk2->all_done = 1L;
           return(0L);
         } else
@@ -316,41 +288,44 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
 {
   uint64_t pos;
   int64_t zero = 0L;
-  //printf("%d is in send to %ld %ld\n", MYTHREAD, pe, Xstk2->l_can_send[pe]);fflush(0);
+  //printf("%d is in send to %ld %ld\n", MYTHREAD, pe, Xstk2->s_can_send[pe]);fflush(0);
 
   // See if it is safe to send.
   // If s_can_send[pe] == 1, we are OK to send.
   // If s_can_send[pe] == 0, we can't send right now.
-  if(Xstk2->l_can_send[pe] == 0)
+
+  if(shmem_test((int64_t*)&Xstk2->s_can_send[pe],SHMEM_CMP_EQ, 0L))
     return(0);
   
   // mark this buffer as unsafe to send. When pe is finished popping from the buffer we
   // are about to send, it will change the value of s_can_send so that we can send again.
-  //lgp_atomic_add(Xstk2->s_can_send, THREADS*pe + MYTHREAD, -1L);
-  Xstk2->l_can_send[pe] = 0;
+  shmem_atomic_add(&Xstk2->s_can_send[pe], -1L, MYTHREAD);
   
-  if(Xstk2->push_cnt[pe] > 0L){      // flushing might call send() with an empty buffer
-    lgp_memput(Xstk2->s_rcv_buffer,
-               (const void * restrict)Xstk2->l_snd_buffer[pe],
-               Xstk2->push_cnt[pe]*Xstk2->pkg_size,
-               ((size_t)THREADS*MYTHREAD*(Xstk2->pkg_size*Xstk2->buf_cnt) + pe)
-               );
+  if(Xstk2->push_cnt[pe] > 0L){ // flushing might call send() with an empty buffer
+    //shmem_putmem(&Xstk2->s_rcv_buffer[MYTHREAD*Xstk2->pkg_size*Xstk2->buf_cnt],
+    //Xstk2->l_snd_buffer[pe],
+    //             Xstk2->push_cnt[pe]*Xstk2->pkg_size,
+    //             pe);
   }
+  //printf("%d sending to %ld islast=%d cnt= %ld\n", MYTHREAD, pe, islast, Xstk2->push_cnt[pe]);
 
-  lgp_fence();
+  // this may have to be done with atomics...
+  //printf("%d finished atomic add in send\n",MYTHREAD);fflush(0);
+  shmem_quiet();
+  //printf("%d about to fetch and inc\n",MYTHREAD);fflush(0);
 
   // send a message to the receiver pe, that a buffer has been delivered
-  pos = lgp_fetch_and_inc(Xstk2->s_num_msgs, pe);
+  pos = shmem_atomic_fetch_inc(Xstk2->s_num_msgs, pe);
   pos = pos & Xstk2->msg_Q_mask;
+  //printf("%d about to send message to %ld to pos %ld\n",MYTHREAD, pe, pos);fflush(0);
   int64_t msg = msg_pack( Xstk2->push_cnt[pe], islast );
-  //printf("%d about to send message to %ld to pos %ld msg = %lx\n",MYTHREAD, pe, pos, msg);fflush(0);
-  Xstk2->s_msg_queue[pos*THREADS + pe] = msg;
+  shmem_put(&Xstk2->s_msg_queue[pos], &msg, 1, (int)pe);
 
   // reset the buffer to continue pushing to it
   Xstk2->push_cnt[pe] = 0L;
   Xstk2->push_ptr[pe] = Xstk2->l_snd_buffer[pe];
 
-  lgp_fence();
+  shmem_quiet();
   //printf("%d about to leave send\n",MYTHREAD);fflush(0);
   return(1L);
 }
@@ -373,10 +348,9 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
   if(Xstk2->all_done){
     return(0L);
   }
-  lgp_poll();
   
   // figure out how many buffers you have received total.
-  int64_t s2l_num_msgs = Xstk2->l_num_msgs[0];
+  int64_t s2l_num_msgs = shmem_atomic_fetch(Xstk2->s_num_msgs, MYTHREAD);
   
   if(Xstk2->pop_pe != -1L){ // We have a buffer queued up... 
     if(Xstk2->pop_cnt[Xstk2->pop_pe] > 0L){  // there is something to pop
@@ -393,9 +367,9 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
     
     }else{  // the buffer we have been popping from is now empty... 
 
-      // tell whoever sent this buffer, it is safe to start send again     
-      lgp_atomic_add(Xstk2->s_can_send, MYTHREAD*THREADS + Xstk2->pop_pe, 1L);
-      lgp_fence();
+      // tell whoever sent this buffer, it is safe to start send again 
+      shmem_atomic_add(&Xstk2->s_can_send[MYTHREAD], 1L, (int)Xstk2->pop_pe);
+      shmem_quiet();
       
       Xstk2->num_popped++;
       Xstk2->num_active_buffers--;
@@ -410,14 +384,13 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
   // Use this opportunity to activate new messages
   while(Xstk2->num_made_active < s2l_num_msgs){
     msg_index = (Xstk2->num_made_active & Xstk2->msg_Q_mask);
-    msg = Xstk2->l_msg_queue[msg_index];
+    msg = Xstk2->s_msg_queue[msg_index];
     if(msg == -1L) break;                 // the message is still in flight
     pe = msg_pe(msg);
     cnt = msg_cnt(msg);
     if( msg_islast(msg) ) 
       Xstk2->num_done_sending++;
     if( cnt ){        // this is not an empty "I'm done sending" message
-      lgp_poll();
       assert(Xstk2->pop_cnt[pe] == 0L);
       assert(cnt > 0);  
       Xstk2->pop_cnt[pe] = cnt;
@@ -426,7 +399,7 @@ int64_t exstack2_pop(exstack2_t * Xstk2, void *pkg, int64_t *from_pe)
     Xstk2->active_buffer_queue[Xstk2->num_active_buffers] = pe;
     Xstk2->num_active_buffers++;
     Xstk2->num_made_active++;
-    Xstk2->l_msg_queue[msg_index] = -1L;
+    Xstk2->s_msg_queue[msg_index] = -1L;
   }
   
   /***************************************************/
@@ -473,10 +446,10 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
     return(0L);
   }
   
-  lgp_poll();
-  
   // figure out how many buffers you have received total.
-  int64_t s2l_num_msgs = Xstk2->l_num_msgs[0];
+  int64_t s2l_num_msgs = shmem_atomic_fetch(Xstk2->s_num_msgs, MYTHREAD);
+  //sleep(1);
+  //printf("%d got %ld messages %ld active\n", MYTHREAD, s2l_num_msgs, Xstk2->num_made_active);fflush(0);
   
   if(Xstk2->pop_pe != -1L){ // We have a buffer queued up... 
     if(Xstk2->pop_cnt[Xstk2->pop_pe] > 0L){  // there is something to pop
@@ -496,8 +469,8 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
       //printf("%d emptied a buffer from %ld\n", MYTHREAD, Xstk2->pop_pe);
 
       // tell whoever sent this buffer, it is safe to start send again 
-      lgp_atomic_add(Xstk2->s_can_send, MYTHREAD*THREADS + Xstk2->pop_pe, 1L);
-      lgp_fence();
+      shmem_atomic_add(&Xstk2->s_can_send[MYTHREAD], 1L, (int)Xstk2->pop_pe);
+      shmem_quiet();
       
       Xstk2->num_popped++;
       Xstk2->num_active_buffers--;
@@ -512,7 +485,7 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
   //   Use this opportunity to activate new messages
   while(Xstk2->num_made_active < s2l_num_msgs){
     msg_index = (Xstk2->num_made_active & Xstk2->msg_Q_mask);
-    msg = Xstk2->l_msg_queue[msg_index];
+    msg = Xstk2->s_msg_queue[msg_index];
     if(msg == -1L) break;                 // the message is still in flight
     pe = msg_pe(msg);
     cnt = msg_cnt(msg);
@@ -521,7 +494,6 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
       Xstk2->num_done_sending++;
     }
     if( cnt ){        // this is not an empty "I'm done sending" message
-      lgp_poll();
       assert(Xstk2->pop_cnt[pe] == 0L);
       assert(cnt > 0);
       Xstk2->pop_cnt[pe] = cnt;
@@ -530,7 +502,7 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
     Xstk2->active_buffer_queue[Xstk2->num_active_buffers] = pe;
     Xstk2->num_active_buffers++;
     Xstk2->num_made_active++;
-    Xstk2->l_msg_queue[msg_index] = -1L;
+    Xstk2->s_msg_queue[msg_index] = -1L;
   }
   
   /***************************************************/
@@ -567,20 +539,20 @@ void exstack2_reset(exstack2_t * Xstk2)
 {
   int64_t i, t;
 
-  lgp_barrier();
+  shmem_barrier_all();
   Xstk2->all_done = 0L;
   Xstk2->num_done_sending = 0;
 
-  assert( Xstk2->num_popped == Xstk2->l_num_msgs[0]);
+  assert( Xstk2->num_popped == Xstk2->s_num_msgs[0]);
   
   Xstk2->num_popped = 0L;
-  Xstk2->l_num_msgs[0] = 0L;
+  Xstk2->s_num_msgs[0] = 0L;
   Xstk2->num_active_buffers = 0;
   Xstk2->current_active_index = -1L;
   Xstk2->num_made_active = 0;
 
   for(i = 0; i < THREADS; i++) {
-    assert( Xstk2->l_can_send[i] == 1L );   // Maybe this shouldn't be an error
+    assert( Xstk2->s_can_send[i] == 1L );   // Maybe this shouldn't be an error
   }
 
   /* reset flush_order */
@@ -591,7 +563,7 @@ void exstack2_reset(exstack2_t * Xstk2)
   }
   Xstk2->flush_order[t] = THREADS;
 
-  lgp_barrier();
+  shmem_barrier_all();
 }
 
 /******************************************************************************/
@@ -600,11 +572,11 @@ void exstack2_reset(exstack2_t * Xstk2)
  */
 void exstack2_clear(exstack2_t * Xstk2)
 {
-  lgp_all_free((SHARED char *)Xstk2->s_snd_buffer);
-  lgp_all_free((SHARED char *)Xstk2->s_rcv_buffer);
-  lgp_all_free((SHARED int64_t *)Xstk2->s_msg_queue);
-  lgp_all_free((SHARED int64_t *)Xstk2->s_num_msgs);
-  lgp_all_free((SHARED int64_t *)Xstk2->s_can_send);
+  shmem_free((SHARED char *)Xstk2->s_snd_buffer);
+  shmem_free((SHARED char *)Xstk2->s_rcv_buffer);
+  shmem_free((SHARED int64_t *)Xstk2->s_msg_queue);
+  shmem_free((SHARED int64_t *)Xstk2->s_num_msgs);
+  shmem_free((SHARED int64_t *)Xstk2->s_can_send);
 
   free(Xstk2->l_snd_buffer);
   free(Xstk2->l_rcv_buffer);
@@ -615,6 +587,6 @@ void exstack2_clear(exstack2_t * Xstk2)
   free(Xstk2->active_buffer_queue);
   free(Xstk2->flush_order);
   free(Xstk2->flush_perm);
-  lgp_barrier();
+  shmem_barrier_all();
 }
 

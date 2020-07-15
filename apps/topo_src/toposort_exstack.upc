@@ -51,7 +51,7 @@
  * \param *tmat the transpose of mat
  * \return average run time
  */
-double toposort_matrix_exstack(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) {
+double toposort_matrix_exstack(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat, int64_t buf_cnt) {
   typedef struct pkg_topo_t{
     int64_t row;    
     int64_t col;
@@ -85,7 +85,7 @@ double toposort_matrix_exstack(SHARED int64_t *rperm, SHARED int64_t *cperm, spa
   int64_t * matched_col= calloc(lnr, sizeof(int64_t));
   pkg_topo_t pkg;
 
-  exstack_t * ex = exstack_init(1024, sizeof(pkg_topo_t));
+  exstack_t * ex = exstack_init(buf_cnt, sizeof(pkg_topo_t));
   if( ex == NULL ){return(-1.0);}
   
   /* initialize rowsum, rowcnt, and queue (queue holds degree one rows) */
@@ -110,7 +110,7 @@ double toposort_matrix_exstack(SHARED int64_t *rperm, SHARED int64_t *cperm, spa
   SHARED int64_t * pivots = lgp_all_alloc(THREADS, sizeof(int64_t));
   int64_t * lpivots = lgp_local_part(int64_t, pivots); 
   lpivots[0] = 0L;
-  lgp_put_int64(pivots, 0, 0);
+  //lgp_put_int64(pivots, 0, 0);
 
   lgp_barrier();
 
@@ -183,6 +183,7 @@ double toposort_matrix_exstack(SHARED int64_t *rperm, SHARED int64_t *cperm, spa
       }
     }
   }
+
   num_levels++;
   /* at this point we know for each row its level and the column it was matched with.
      we need to create cperm and rperm from this information */
@@ -211,7 +212,7 @@ double toposort_matrix_exstack(SHARED int64_t *rperm, SHARED int64_t *cperm, spa
   lgp_barrier();
 
   exstack_clear(ex);
-  ex = exstack_init(1024, sizeof(pkg_cperm_t));
+  ex = exstack_init(buf_cnt, sizeof(pkg_cperm_t));
   pkg_cperm_t pkg2;
   
   /* create cperm */

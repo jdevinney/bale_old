@@ -49,7 +49,8 @@
  * \return average run time
  *
  */
-double histo_exstack2(int64_t *pckindx, int64_t T,  int64_t *lcounts, int64_t buf_cnt) {
+//double histo_exstack2(int64_t *pckindx, int64_t T,  int64_t *lcounts, int64_t buf_cnt) {
+double histo_exstack2(histo_t * data, int64_t buf_cnt) {
   int ret;
   double tm;
   int64_t pe, col, idx, *idxp;
@@ -60,16 +61,18 @@ double histo_exstack2(int64_t *pckindx, int64_t T,  int64_t *lcounts, int64_t bu
   lgp_barrier();
   tm = wall_seconds();
   int64_t i = 0;
-  while(exstack2_proceed( ex2, i==T )) {
-    for( ; i < T; i++){
-      col = pckindx[i] >> 16L;
-      pe  = pckindx[i] & 0xffff;
+  while(exstack2_proceed( ex2, i==data->l_num_ups )) {
+    for( ; i < data->l_num_ups; i++){
+      col = data->pckindx[i] >> 16L;
+      pe  = data->pckindx[i] & 0xffff;
+      assert(pe < THREADS);
       if( !exstack2_push(ex2, &col, pe) )
         break;
     }
 
     while((idxp = exstack2_pull(ex2, NULL))){
-      lcounts[*idxp]++;
+      assert(*idxp < data->lnum_counts);
+      data->lcounts[*idxp]++;
     }
   }
 

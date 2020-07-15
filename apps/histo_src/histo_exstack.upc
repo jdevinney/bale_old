@@ -49,30 +49,36 @@
  * \return average run time
  *
  */
-double histo_exstack(int64_t *pckindx, int64_t T,  int64_t *lcounts, int64_t buf_cnt) {
+//double histo_exstack(int64_t *pckindx, int64_t T,  int64_t *lcounts, int64_t buf_cnt) {
+double histo_exstack(histo_t * data, int64_t buf_cnt){
   int64_t i;
   double tm;
   int64_t pe, col, *colp;
   minavgmaxD_t stat[1];
   exstack_t * ex = exstack_init(buf_cnt, sizeof(int64_t));
   if( ex == NULL) return(-1.0);
-
+  
   lgp_barrier();  
   tm = wall_seconds();
   i = 0UL;
 
-  while( exstack_proceed(ex, (i==T)) ){
-    for( ; i < T; i++){
-      col = pckindx[i] >> 16;
-      pe  = pckindx[i] & 0xffff;
+  while( exstack_proceed(ex, (i==data->l_num_ups)) ){
+    int64_t popped = 0;
+    for( ; i < data->l_num_ups; i++){
+      col = data->pckindx[i] >> 16;
+      pe  = data->pckindx[i] & 0xffff;
+      assert(pe < THREADS);
       if( !exstack_push(ex, &col, pe) )
         break;
     }
-    
+
     exstack_exchange(ex);
     
-    while((colp = exstack_pull(ex, NULL)))
-      lcounts[*colp]++;
+    while((colp = exstack_pull(ex, NULL))){
+      popped++;
+      assert(*colp < data->lnum_counts);
+      data->lcounts[*colp]++;
+    }
   }
 
   lgp_barrier();
