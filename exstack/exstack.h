@@ -158,10 +158,10 @@ typedef struct exstack2_t {
   int64_t * flush_perm;   /*!< THREADS long array stores a random permutation of threads */
  
   /*******  Synchronization  ***********/
-  SHARED volatile int64_t * s_can_send; /*!< length THREADS on each thread (one for each of the send buffers). */
+  SHARED int64_t * s_can_send; /*!< length THREADS on each thread (one for each of the send buffers). */
                                          /*!< 1 means safe to send this buffer i.e. the receiver is ready */
                                          /*!< 0 means buffer is not safe to send yet i.e. the receiver has not popped your last sent buffer */
-  volatile int64_t * l_can_send;        /*!< local pointer to the shared array of buffer states */
+  int64_t * l_can_send;        /*!< local pointer to the shared array of buffer states */
   // the sending thread sets l_can_send[pe] to 0 after sending a buffer to mark that the buffer can be used
   // when the popping pe finishes popping said buffer it globally resets it to 1
   // This is shared volatile as part of the barrier free synchronization
@@ -169,14 +169,14 @@ typedef struct exstack2_t {
   /*******  Message Queue  ***********/
   int64_t msg_Q_mask;      /*!< the queue is a circular queue of length a power of 2 that is greater */
                            /* than (2*THREADS). We can do "mod" the queue length with this mask */
-  SHARED volatile int64_t * s_msg_queue; /*!< keeps track of the order of pull requests on each thread */
-  volatile int64_t * l_msg_queue;      /*!< local pointer to s_msg_queue */
+  SHARED int64_t * s_msg_queue; /*!< keeps track of the order of pull requests on each thread */
+  int64_t * l_msg_queue;      /*!< local pointer to s_msg_queue */
   // This is shared volatile as part of the barrier free synchronization
   // The sender put the message on the receivers queue, the receiver uses it locally to pop the stacks
 
-  SHARED volatile int64_t * s_num_msgs;  /*!< keeps track of total number of pull requests received on this thread  */
+  SHARED int64_t * s_num_msgs;  /*!< keeps track of total number of pull requests received on this thread  */
                                          /*!< This is the head of the msg_queue. It is updated with a fetch_and_add */
-  volatile int64_t * l_num_msgs;         /*!< my local pointer to s_num_msgs */
+  int64_t * l_num_msgs;         /*!< my local pointer to s_num_msgs */
   int64_t num_popped;                    /*!< keeps track of the total number of stacks popped.  This is the tail of the queue */
 
   int64_t * active_buffer_queue; /*!< array of indices into the msg_queue for active (=unpopped and recvd) buffers. */

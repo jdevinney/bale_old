@@ -148,6 +148,7 @@ int main(int argc, char * argv[]) {
     index[i] = indx;                 
     lindx = indx / THREADS;
     pe  = indx % THREADS;
+    printf("%d: -> %ld %ld\n",MYTHREAD,  pe, index[i]);
     pckindx[i]  =  (lindx << 16L) | (pe & 0xffff);
   }
   double volume_per_node = (8*l_num_ups*cores_per_node)*(1.0E-9);
@@ -179,6 +180,7 @@ int main(int argc, char * argv[]) {
     case EXSTACK2_Model:
       T0_fprintf(stderr," Exstack2: ");
       laptime = histo_exstack2(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
+      printf("%d ALL DONE\n", MYTHREAD);
       num_models++;
       lgp_barrier();
       break;
