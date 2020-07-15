@@ -39,10 +39,14 @@ All of Bale is supported and has been tested on:
 - Cray UPC (cce 8.7.3)
 - GNU UPC (5.2.0.1)
 - Clang UPC (3.9.1-1)
-- (not working yet) OpenMPI (OSHMEM) 3.0.6 
-- (all but conveyors) Sandia OpenSHMEM (SOS) (1.4.5)
+- OpenMPI (OSHMEM) 3.0.6 with UCX on infiniband
 - Cray SHMEM (7.7.2)
 - Cray openshmemX ?
+
+There are problems with the following...
+- OpenMPI (OSHMEM) 3.0.6 with UCX on an SMP (progress issues)
+- Sandia OpenSHMEM (SOS) (1.4.5) without MCA (all but conveyors)
+
 
 Each of the applications in bale are implemented in multiple ways to showcase the pros and cons of each. In general the models used are:
 

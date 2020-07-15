@@ -20,7 +20,8 @@ randpermp (create a random permutation of {0,...,n-1} in parallel).
 * Kronecker Product Graphs
 * I/O using Matrix Market format
 
-## Erdos-Renyi The Erdos-Renyi random graph model with parameter p for
+### Erdos-Renyi
+The Erdos-Renyi random graph model with parameter p for
 n vertices flips a weighted coin (heads with probability p) for every
 potential edge in the graph. The edge is inserted into the graph if
 the coin flip results in a heads, and left out otherwise. In
@@ -45,16 +46,17 @@ bale. Also note that one can create a directed graph with this model
 but flipping a coin for each potential directed edge between two
 vertices.
 
-## Geometric Random Graphs This random graph model is rather
-simple. Similar to the Erdos Renyi model, it has a single parameter r
-(between 0 and 1). For each vertex, a point is randomly placed in the
-unit square. An edge is placed between vertices i and j if the points
-corresponding to these vertices are within distance r of each
-other. To generate a graph under this model we break the unit square
-into square sectors (usually of length and width r). This reduces the
-number of interpoint distances we need to calculate since edges can
-only exist between points in the same sector or in neighboring sectors
-(including diagonally neighboring).
+### Geometric Random Graphs
+
+This random graph model is rather simple. Similar to the Erdos Renyi
+model, it has a single parameter r (between 0 and 1). For each vertex,
+a point is randomly placed in the unit square. An edge is placed
+between vertices i and j if the points corresponding to these vertices
+are within distance r of each other. To generate a graph under this
+model we break the unit square into square sectors (usually of length
+and width r). This reduces the number of interpoint distances we need
+to calculate since edges can only exist between points in the same
+sector or in neighboring sectors (including diagonally neighboring).
 
 These graphs present an interesting alternate to the Erdos-Renyi
 random graph. Their generation in parallel is also interesting in its
@@ -83,17 +85,17 @@ think of on his/her first attempt. We want to see how different
 parallel programming models behave under the kinds of algorithms that
 people write as they evolve their algorithms.
 
-## Kronecker Product Graphs
+### Kronecker Product Graphs
 
 We chose to implement Kronecker product graphs in bale to test out our Triangle counting implementations.
 For more details see. The parallel generation of these graphs is not particularly challenging or interesting. See
 "Design, Generation, and Validation of Extreme Scale Power-Law Graphs"
 by Kepner et. al. for more details.
 
-## Matrix Market Graphs
+### Matrix Market I/O
 
 The spmat library has the ability to read
-matrices in Matrix Market. This function reads the matrices in serial
+matrices in Matrix Market format. This function reads the matrices in serial
 using one PE and then distributes the resulting matrix to all PEs. For
 this reason it is not meant to scale to large matrices, but it is
 useful for debugging or sanity checking on known examples.
