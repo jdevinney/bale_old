@@ -43,24 +43,6 @@
 #include <spmat.h>
 #include <exstack.h>
 
-// struct to sort rows in a matrix with values
-typedef struct dbl_t{
-   int64_t row;
-   double col;
- }dbl_t;
-
-typedef struct triple_t{
-  int64_t row;
-  int64_t col;
-  double val;
-}triple_t;
-
-// struct to sort rows in a matrix with values
-typedef struct col_val_t{
-   int64_t col;
-   double value;
-}col_val_t;
-
 /*! \brief Produce a global array the holds a uniform random permutation.
  * \param N the global length of the permutaion
  * \param seed the seed for the random number generator
@@ -243,8 +225,8 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
   sh_data = lgp_all_alloc (THREADS*4, sizeof(int64_t));
 
   int64_t * rowcount;
-  dbl_t * dbl;
-  triple_t * tri;
+  edge_t * edges;
+  w_edge_t * tri;
   while(!MYTHREAD){
     int fscanfret;
     int64_t * nnz_per_th = calloc(THREADS, sizeof(int64_t));
@@ -304,16 +286,16 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
     // read the data
     int64_t row, col, val, pos = 0;
     if(value == 0){
-      dbl = calloc(nnz, sizeof(dbl_t));
+      edges = calloc(nnz, sizeof(edge_t));
       while(fscanf(fp,"%"PRId64" %"PRId64"\n", &row, &col) != EOF){
-        dbl[pos].row   = row - 1;
-        dbl[pos++].col = col - 1;
+        edges[pos].row   = row - 1;
+        edges[pos++].col = col - 1;
         nnz_per_th[row % THREADS]++;
         rowcount[row]++;
       }
-      qsort( dbl, nnz, sizeof(dbl_t), dbl_comp);
+      qsort( edges, nnz, sizeof(edge_t), edge_comp);
     }else{
-      tri = calloc(nnz, sizeof(triple_t));    
+      tri = calloc(nnz, sizeof(w_edge_t));    
       while(fscanf(fp,"%"PRId64" %"PRId64" %"PRId64"\n", &row, &col, &val) != EOF){
         tri[pos].row = row - 1;
         tri[pos].col = col - 1;
@@ -321,7 +303,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
         nnz_per_th[row % THREADS]++;
         rowcount[row]++;
       }
-      qsort( tri, nnz, sizeof(triple_t), triple_comp);
+      qsort( tri, nnz, sizeof(w_edge_t), w_edge_comp);
     }
     
     fclose(fp);
@@ -375,8 +357,8 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
   }
 
   int64_t fromth;
-  triple_t pkg;
-  exstack_t * ex = exstack_init(256, sizeof(triple_t));
+  w_edge_t pkg;
+  exstack_t * ex = exstack_init(256, sizeof(w_edge_t));
   if( ex == NULL ) return(NULL);
   
   /* distribute the matrix to all other PEs */
@@ -386,8 +368,8 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
   while(exstack_proceed(ex, (i == nnz))){
     while(i < nnz){
       if(value == 0){
-        pkg.row = dbl[i].row;
-        pkg.col = dbl[i].col;
+        pkg.row = edges[i].row;
+        pkg.col = edges[i].col;
       }else{
         pkg.row = tri[i].row;
         pkg.col = tri[i].col;
@@ -410,7 +392,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
   lgp_barrier();
   if(!MYTHREAD){
     if(value == 0)
-      free(dbl);
+      free(edges);
     else
       free(tri);
   }
@@ -616,8 +598,8 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     // determine the r that will lead to the desired edge density
     // Expected degree = n*pi*r^2
     // The expected number of edges E = n^2*pi*r^2/2
-    // for undirected d = E/(n choose 2)
-    // for directed   d = E/(n^2 - n)
+    // for undirected density = E/(n choose 2)
+    // for directed   density = E/(n^2 - n)
     r = sqrt(edge_density/M_PI);
     if (edgetype == DIRECTED || edgetype == DIRECTED_WEIGHTED){
       edge_type t;
@@ -663,294 +645,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
   }
 
 }
-typedef struct point_t{
-  double x;
-  double y;
-  int64_t index;
-}point_t;
 
-// returns the square of the L2 distance
-double dist(point_t a, point_t b){
-  return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
-}
-
- /*! \brief Generates the adjacency matrix for a random geometric graph. 
-  * 
-  * See https://en.wikipedia.org/wiki/Random_geometric_graph
-  * Each vertex corresponds to a point randomly placed in the unit square. Two vertices
-  * are adjancent if their corresponding points are within distance r of each other.
-  * 
-  * \param n The number of vertices
-  * \param r The size of the neighborhoods that determine edges.
-  * \param type See edge_type. If undirected, this routine returns a lower triangular matrix.
-  * \param loops See self_loops. Are there self loops?
-  * \param seed A seed for the RNG. This should be a single across all PEs (it will be modified by each PE individually).
-  * \return An adjacency matrix (or lower portion of in the undirected case).
-  */
-sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed){
-  
-  // We generate n points (p_i) uniformly at random over the unit square.
-  // Each point corresponds to a vertex (v_i).
-  // There is an edge between v_A and v_B if the distance between the p_A and p_B is less than r.
-  // To do this in parallel, we break up the unit square into chunks that are rxr grid.  
-  // Each processor is responsible for some number of chunks.
-  // We calculate edges by comparing distances between each point and every other point in
-  // its own sector and in neighboring sectors.
-  
-  int64_t i, j, k, l;
-  double r2 = r*r;
-  int64_t nsectors_across = ceil(1.0/r);
-  int64_t nsectors = nsectors_across*nsectors_across;
-  T0_printf("GEOMETRIC with r = %lf number of sectors = %ld\n", r, nsectors);
-
-  // The PEs will get sectors in a round-robin fashion
-
-  // Step 1. Each PE generates n/NPES random sector destinations
-  // to create a distributed histogram of counts in each sector.
-  
-  srand(seed + MYTHREAD + 1);
-  /* now we allocate a shared array to hold all the points */
-  SHARED int64_t * sector_offsets = lgp_all_alloc(nsectors + THREADS, sizeof(int64_t));
-  int64_t * lsector_offsets = lgp_local_part(int64_t, sector_offsets);
-  
-  //SHARED sector_t * sectors = lgp_all_alloc(nsectors, sizeof(sector_t));
-  //sector_t * lsectors = lgp_local_part(sector_t, sectors);
-  int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
-  //for(i = 0; i < lnsectors; i++){
-  // lsectors[i].numpoints = 0;
-  //}
-
-  lgp_barrier();
-
-  SHARED int64_t * counts = lgp_all_alloc(nsectors,sizeof(int64_t));
-  int64_t * lcounts = lgp_local_part(int64_t, counts);
-  for(i = 0; i < lnsectors; i++)
-    lcounts[i] = 0;
-  lgp_barrier();
-  
-  int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
-  for(i = 0; i < ln; i++){
-    int64_t row = rand() % nsectors_across;
-    int64_t col = rand() % nsectors_across;
-    assert(row*nsectors_across + col < n);
-    lgp_atomic_add(counts, row*nsectors_across + col, 1L);
-  }
-
-  lgp_barrier();
-
-  // Step 2. Figure out how many points landed in your sectors
-  int64_t my_total_points = 0;
-  lsector_offsets[0] = 0;
-  for(i = 0; i < lnsectors; i++){
-    my_total_points += lcounts[i];
-    lsector_offsets[i+1] = lsector_offsets[i] + lcounts[i];
-    //lsectors[i].numpoints = lcounts[i];    
-  }
-  
-  // allocate space for the points
-  int64_t max_lnum_points = lgp_reduce_max_l(my_total_points);
-  SHARED point_t * points = lgp_all_alloc(max_lnum_points, sizeof(point_t));
-  
-  point_t * lpoints = lgp_local_part(point_t, points);
-  // Step 3. Each PE generates the points for their own sector.
-  int64_t pt = 0;
-  for(i = 0; i < lnsectors; i++){
-    for(j = 0; j < lcounts[i]; j++){
-      assert(pt < my_total_points);
-      lpoints[pt].x = ((double)rand()/RAND_MAX)*r;
-      lpoints[pt].y = ((double)rand()/RAND_MAX)*r;
-      lpoints[pt].index = pt + lsector_offsets[i];
-      pt++;
-    }
-  }
-  assert(pt == my_total_points);
-  lgp_barrier();
-
-  // Step 4. Now count the total number of edges in the graph
-  int64_t lnedges = 0;
-  for(i = 0; i < lnsectors; i++){
-    int64_t global_index = (i*THREADS + MYTHREAD);
-    int64_t global_row = global_index / nsectors;
-    int64_t global_col = global_index % nsectors;
-
-    for(j = 0; j < lcounts[i]; j++){
-
-      if(loops == LOOPS)
-        lnedges++;
-
-      // count the ends to lower-indexed nodes within this sector
-      for(l = 0; l < j; l++){
-	if(dist(lpoints[j], lpoints[l]) < r2)
-	  lnedges++;
-      }
-
-      point_t tmp;
-      // count the edges to lower-indexed nodes outside the sector
-      // to do this, we need to look at sectors to the W, NW, N, and NE.
-      // W
-      if(global_col > 0){
-	int64_t sector_index = global_index - 1;       
-	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
-        first_point_index = first_point_index*THREADS + sector_index % THREADS;
-	int64_t num = lgp_get_int64(counts, sector_index);
-	for(l = 0; l < num; l++){
-          assert(first_point_index + l < n);
-	  lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
-	  if(dist(lpoints[j], tmp) < r2)
-	    lnedges++;
-	}
-      }
-
-      // NW
-      if(global_row > 0 && global_col > 0){
-	int64_t sector_index = (global_row - 1)*nsectors_across + (global_col - 1);
-	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
-        first_point_index = first_point_index*THREADS + sector_index % THREADS;
-	int64_t num = lgp_get_int64(counts, sector_index);
-	for(l = 0; l < num; l++){
-	  lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
-	  if(dist(lpoints[j], tmp) < r2)
-	    lnedges++;
-	}
-      }
-
-      // N
-      if(global_row > 0){
-	int64_t sector_index = (global_row - 1)*nsectors_across + global_col;
-	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
-        first_point_index = first_point_index*THREADS + sector_index % THREADS;
-	int64_t num = lgp_get_int64(counts, sector_index);
-	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
-	  if(dist(lpoints[j], tmp) < r2)
-	    lnedges++;
-	}
-      }
-
-      // NE
-      if(global_row > 0 && global_col < (nsectors_across - 1)){
-	int64_t sector_index = (global_row - 1)*nsectors_across + (global_col + 1);
-	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
-        first_point_index = first_point_index*THREADS + sector_index % THREADS;
-	int64_t num = lgp_get_int64(counts, sector_index);
-	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
-	  if(dist(lpoints[j], tmp) < r2)
-	    lnedges++;
-	}
-      }
-      
-    }
-  }
-  printf("lnedges = %ld\n", lnedges);
-  int weighted = (edge_type == DIRECTED_WEIGHTED || edge_type == UNDIRECTED_WEIGHTED);
-  sparsemat_t * A = init_matrix(n, n, lnedges, weighted);
-  A->loffset[0] = 0;
-  
-  // Step 5. Go back and repeat the above loops, but this time populate the adjacency matrix
-  lnedges = 0;
-  for(i = 0; i < lnsectors; i++){
-    int64_t global_index = (i*THREADS + MYTHREAD);
-    int64_t global_row = global_index / nsectors;
-    int64_t global_col = global_index % nsectors;    
-    
-    for(j = 0; j < lcounts[i]; j++){
-
-      int64_t this_point_index = lsector_offsets[i] + j;
-
-      if(loops == LOOPS){
-	A->lnonzero[lnedges] = this_point_index*THREADS + MYTHREAD;
-	if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;
-	lnedges++;
-      }
-      
-      // count the ends to lower-indexed nodes within this sector
-      for(l = 0; l < j; l++){
-	if(dist(lpoints[j], lpoints[l]) < r2){
-	  A->lnonzero[lnedges] = (lsector_offsets[i] + l)*THREADS + MYTHREAD;
-	  if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
-	  lnedges++;
-        }
-      }
-	
-      point_t tmp;      
-      // count the edges to lower-indexed nodes outside the sector
-      // to do this, we need to look at sectors to the W, NW, N, and NE.
-      // W
-      if(global_col > 0){
-	int64_t sector_index = global_index - 1;
-	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
-        first_point_index = first_point_index*THREADS + sector_index % THREADS;
-	int64_t num = lgp_get_int64(counts, sector_index);
-	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
-	  if(dist(lpoints[j], tmp) < r2){
-	    A->lnonzero[lnedges] = first_point_index + l;
-	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
-	    lnedges++;
-	  }
-	}
-      }
-
-      // NW
-      if(global_row > 0 && global_col > 0){
-	int64_t sector_index = (global_row - 1)*nsectors_across + (global_col - 1);
-	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
-        first_point_index = first_point_index*THREADS + sector_index % THREADS;
-	int64_t num = lgp_get_int64(counts, sector_index);
-	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
-	  if(dist(lpoints[j], tmp) < r2){
-	    A->lnonzero[lnedges] = first_point_index + l;
-	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
-	    lnedges++;
-	  }
-	}
-      }
-      
-      // N
-      if(global_row > 0){
-	int64_t sector_index = (global_row - 1)*nsectors_across + global_col;
-	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
-        first_point_index = first_point_index*THREADS + sector_index % THREADS;
-	int64_t num = lgp_get_int64(counts, sector_index);
-	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
-	  if(dist(lpoints[j], tmp) < r2){
-	    A->lnonzero[lnedges] = first_point_index + l;
-	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
-	    lnedges++;
-	  }
-	}
-      }
-
-      // NE
-      if(global_row > 0 && global_col < (nsectors_across - 1)){
-	int64_t sector_index = (global_row - 1)*nsectors_across + (global_col + 1);
-	int64_t first_point_index = lgp_get_int64(sector_offsets, sector_index);
-        first_point_index = first_point_index*THREADS + sector_index % THREADS;
-	int64_t num = lgp_get_int64(counts, sector_index);
-	for(l = 0; l < num; l++){
-          lgp_memget(&tmp, points, sizeof(point_t), first_point_index + l*THREADS);
-	  if(dist(lpoints[j], tmp) < r2){
-	    A->lnonzero[lnedges] = first_point_index + l;
-	    if(weighted) A->lvalue[lnedges] = (double)rand()/RAND_MAX;	  
-	    lnedges++;
-	  }
-	}
-      }
-      A->loffset[this_point_index + 1] = lnedges;
-    }
-  }
-  printf("lnedges = %ld lnnz = %ld\n", lnedges, A->lnnz);
-  assert(lnedges == A->lnnz);
-  printf("Hi1!\n"); fflush(0);
-  sort_nonzeros(A);
-
-  lgp_barrier();
-  printf("Hi2!\n"); fflush(0);
-  return(A);
-}
 /*! \brief Generates the lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
  * graph. This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
  * by Batageli and Brandes appearing in Physical Review 2005. 
@@ -1578,6 +1273,27 @@ sparsemat_t * init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz) {
   return(mat);
 }
 
+edge_list_t * init_edge_list(int64_t nalloc){
+  edge_list_t * el = calloc(1, sizeof(edge_list_t));
+  el->num = 0;
+  el->nalloc = nalloc;
+  el->edges = calloc(nalloc, sizeof(edge_t));
+  return(el);
+}
+
+triples_t * init_triples(int64_t numrows, int64_t numcols, int64_t nalloc, int weighted){
+  triples_t * T = calloc(1, sizeof(triples_t));
+  T->numrows = numrows;
+  T->numcols = numcols;
+  T->lnnz = 0;
+  T->nalloc = nalloc;
+  T->row = calloc(T->nalloc, sizeof(int64_t));
+  T->col = calloc(T->nalloc, sizeof(int64_t));
+  if(weighted) T->val = calloc(T->nalloc, sizeof(double));
+  else T->val = NULL;
+  return(T);
+}
+
 /*! \brief frees the space allocated for a sparse matrix
  * \param mat pointer to the sparse matrix
  * \ingroup spmatgrp
@@ -1592,6 +1308,89 @@ void clear_matrix(sparsemat_t * mat) {
   }
 }
 
+/*! \brief frees the space allocated for a triples_t
+ * \param mat pointer to the triples_t
+ * \ingroup spmatgrp
+ */
+void clear_triples(triples_t * T) {
+  free(T->val);
+  free(T->row);
+  free(T->col);
+}
+
+/*! \brief Append a triple to a triples_t struct and expand the storage if necessary
+ *
+ * \param T The triples_t struct
+ * \param row The row index of the triple
+ * \param col The column index of the triples
+ * \param val If T->val is not NULL, the value of the triple.
+ * \return The number of triples after this triple was appended.
+ */
+int64_t append_triple(triples_t * T, int64_t row, int64_t col, double val){
+  if(T->nalloc == T->lnnz){
+    // we need to expand our allocations!
+    if(T->nalloc < 10000)
+      T->nalloc = 2*T->nalloc;
+    else
+      T->nalloc = T->nalloc*1.25;
+    T->row = realloc(T->row, T->nalloc*sizeof(int64_t));
+    T->col = realloc(T->col, T->nalloc*sizeof(int64_t));
+    if(T->val)T->val = realloc(T->val, T->nalloc*sizeof(double));
+  }
+  T->row[T->lnnz] = row;
+  T->col[T->lnnz] = col;
+  if(T->val)T->val[T->lnnz] = val;
+  T->lnnz++;
+  return(T->lnnz);
+}
+
+int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
+  if(el->nalloc == el->num){
+    // we need to expand our allocations!
+    if(el->nalloc < 10000)
+      el->nalloc = 2*el->nalloc;
+    else
+      el->nalloc = el->nalloc*1.25;
+    el->edges = realloc(el->edges, el->nalloc*sizeof(int64_t));
+  }
+  el->edges[el->num].row = row;
+  el->edges[el->num].col = col;
+  el->num++;
+  return(el->num);
+}
+
+/* \brief Convert a triples_t to a sparsemat_t.
+ * 
+ * \param T A triples_t struct.
+ * \return The sparsemat_t version of T-> Or NULL on error.
+ */
+sparsemat_t * triples_to_sparsemat(triples_t * T){
+
+  int64_t i, j;
+  // get rowcounts (to create tmp offset array)
+  int64_t * tmp = calloc(T->lnumrows + 1, sizeof(int64_t));
+  for(i = 0; i < T->lnnz; i++){
+    tmp[T->row[i] + 1]++;
+  }
+  for(i = 0; i < T->lnumrows; i++)
+    tmp[i+1] += tmp[i];
+
+  sparsemat_t * A = init_matrix(T->numrows, T->numcols, T->lnnz, (T->val != NULL));
+  if(!A){printf("ERROR: triples_to_sparsemat: init failed.\n"); return(NULL);}
+
+  // copy tmp array to A
+  for(i = 0; i <= T->lnumrows; i++)
+    A->loffset[i] = tmp[i];
+  
+  for(i = 0; i < T->lnnz; i++){
+    j = tmp[T->row[i]];
+    A->lnonzero[j] = T->col[i];
+    if(T->val) A->value[j] = T->val[i];
+  }
+  free(tmp);
+  
+  return(A);
+}
 /*!
  * \brief returns the number of nonzeros in a row of the localize part of a sparse matrix
  * \param *mat pointer to the sparse matrix 
@@ -1729,25 +1528,24 @@ int col_val_comp(const void *a, const void *b) {
  * sequentially in one pass. We sort on the columns so that
  * the matrix will be "tidy"
  */
-int dbl_comp(const void *a, const void *b) 
+int edge_comp(const void *a, const void *b) 
 {
-  dbl_t * eltA = (dbl_t *)a;
-  dbl_t * eltB = (dbl_t *)b;
+  edge_t * eltA = (edge_t *)a;
+  edge_t * eltB = (edge_t *)b;
   if( (eltA->row - eltB->row) == 0 )
     return( eltA->col - eltB->col );
   return( eltA->row - eltB->row );
 }
 
-/*! \brief the compare function for qsort called while reading 
- * a MatrixMarket format (for matrix with values).
+/*! \brief the compare function for qsort of w_edge_t structs.
  * NB. We sort on the rows so that we can fill the offset array
  * sequentially in one pass. We sort on the columns so that
  * the matrix will be "tidy"
  */
-int triple_comp(const void *a, const void *b) 
+int w_edge_comp(const void *a, const void *b) 
 {
-  triple_t * A = (triple_t *)a;
-  triple_t * B = (triple_t *)b;
+  w_edge_t * A = (w_edge_t *)a;
+  w_edge_t * B = (w_edge_t *)b;
   if( (A->row - B->row) == 0 )
     return( A->col - B->col );
   return( A->row - B->row );
