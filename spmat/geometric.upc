@@ -41,11 +41,12 @@
  */
 #include <spmat.h>
 #include <exstack.h>
+int64_t sector_max;
 
 typedef struct point_t{
   double x;
   double y;
-  int64_t index;
+  //int64_t index;
 }point_t;
 
 // returns the square of the L2 distance
@@ -53,8 +54,9 @@ double dist(point_t a, point_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
+// 
 // Input: a global point index and the total number of points
-// Output: A local offset and PE number when the PEs are BLOCK distributed.
+// Output: A local offset and PE number when the points are BLOCK distributed.
 int64_t get_point_pe_and_offset(int64_t pindex, int64_t n, int64_t * pe){
   int64_t idx;
   int64_t upper_points_per_pe = n / THREADS + ((n % THREADS > 0) ? 1 : 0);
@@ -74,6 +76,10 @@ int64_t get_point_pe_and_offset(int64_t pindex, int64_t n, int64_t * pe){
 // pe: is output: the destination pe
 // n: the number of points total
 // inedge: the edge to distribute.
+
+// Or could we just name points by sector and offset?
+// I say this because global point index is going to be annoying to compute.
+
 edge_t distribute_edge(int64_t * pe, int64_t n, edge_t * inedge){
   int64_t rowpe, colpe;
   int64_t row_off, col_off;
@@ -92,18 +98,20 @@ edge_t distribute_edge(int64_t * pe, int64_t n, edge_t * inedge){
 edge_t append_edges_between_sectors(int64_t this_sec_idx,
                                     int64_t other_sec_idx,
                                     SHARED point_t * points,
-                                    SHARED int64_t * sector_offsets,
+                                    SHARED int64_t * first_point_in_sector,
+                                    SHARED int64_t * counts,
                                     double r2,
                                     int directed,
                                     edge_list_t * el){
   edge_t e;
   int64_t j, l;
   point_t tmp;
-  int64_t * lsec_offsets = lgp_local_part(int64_t, sector_offsets);
+  int64_t * lcounts = lgp_local_part(int64_t, counts);
+  int64_t * lfirst_point_in_sector = lgp_local_part(int64_t, first_point_in_sector);
   point_t * lpoints = lgp_local_part(point_t, points);
   int64_t other_sec_pe = other_sec_idx % THREADS;
-  int64_t first_point_this = lsec_offsets[this_sec_idx];
-  int64_t npts_this = lsec_offsets[this_sec_idx + 1] - first_point_this;
+  int64_t first_point_this = lfirst_point_in_sector[this_sec_idx/THREADS];
+  int64_t npts_this = lcounts[this_sec_idx/THREADS];
 
   // set lpoints to the beginning of points for this sector.
   lpoints = &lpoints[first_point_this];
@@ -111,9 +119,9 @@ edge_t append_edges_between_sectors(int64_t this_sec_idx,
   if(this_sec_idx == other_sec_idx){
     // We are finding edges between points within the same sector.
     for(j = 0; j < npts_this; j++){
-      int64_t point_indexA = (first_point_this + j)*THREADS + MYTHREAD;
+      int64_t point_indexA = first_point_this + j;
       for(l = 0; l < j; l++){
-        int64_t point_indexB = (first_point_this + l)*THREADS + MYTHREAD;
+        int64_t point_indexB = first_point_this + l;
         if(dist(lpoints[j], lpoints[l]) < r2){
           if(directed && ((double)rand()/RAND_MAX > 0.5)){
             append_edge(el, point_indexB, point_indexA);
@@ -124,20 +132,21 @@ edge_t append_edges_between_sectors(int64_t this_sec_idx,
       }
     }
   }else{
-    
-    int64_t first_point_other = lgp_get_int64(sector_offsets, other_sec_idx);
-    int64_t first_point_other_next = lgp_get_int64(sector_offsets, other_sec_idx + THREADS);
-    int64_t num_pts_other = first_point_other_next - first_point_other;
-    point_t tmp;
-    first_point_other = first_point_other*THREADS + other_sec_pe;
+    /* the other sector is not necessarily on our PE ... it could be, 
+       but we won't worry about figuring that out. Just assume it is not local. */
+    int64_t first_point_other = lgp_get_int64(first_point_in_sector, other_sec_idx);
+    int64_t num_pts_other = lgp_get_int64(counts, other_sec_idx);
 
+    /* get all the points from the other sector in one transfer */
+    point_t * other_sec_pts = calloc(num_pts_other, sizeof(point_t));
+    int64_t sector_start = sector_max*(other_sec_idx/THREADS);
+    lgp_memget(other_sec_pts, points, num_pts_other*sizeof(point_t), sector_start);
+    
     for(j = 0; j < npts_this; j++){
-      int64_t point_indexA = (first_point_this + j)*THREADS + MYTHREAD;
-      point_t this_point = lpoints[j];
+      int64_t point_indexA = first_point_this + j;
       for(l = 0; l < num_pts_other; l++){
-        int64_t point_indexB = (first_point_other + l)*THREADS + other_sec_pe;
-        lgp_memget(&tmp, points, sizeof(point_t), first_point_other + l*THREADS);
-        if(dist(this_point, tmp) < r2){
+        int64_t point_indexB = first_point_other + l;
+        if(dist(lpoints[j], other_sec_pts[l]) < r2){
           if(directed && (rand()/RAND_MAX > 0.5)){
             append_edge(el, point_indexB, point_indexA);
           }else{
@@ -146,7 +155,70 @@ edge_t append_edges_between_sectors(int64_t this_sec_idx,
         }
       }
     }
+    free(other_sec_pts);
   }
+}
+
+SHARED int64_t * calculate_npoints_per_sector(int64_t n, double r, int flattening_mode){
+  int64_t i;
+  int64_t nsectors_across = ceil(1.0/r);
+  int64_t nsectors = nsectors_across*nsectors_across;
+  int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
+  int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
+  T0_printf("GEOMETRIC with r = %lf number of sectors = %ld\n", r, nsectors);
+
+  SHARED int64_t * counts = lgp_all_alloc(nsectors,sizeof(int64_t));
+  int64_t * lcounts = lgp_local_part(int64_t, counts);
+  
+  if(flattening_mode == 0){
+    for(i = 0; i < lnsectors; i++)
+      lcounts[i] = (ln + lnsectors - i - 1)/lnsectors;
+  }else{
+    srand(seed + MYTHREAD + 1);
+
+    for(i = 0; i < lnsectors; i++)
+      lcounts[i] = 0;
+    lgp_barrier();    
+
+    for(i = 0; i < ln; i++){
+      int64_t row = rand() % nsectors_across;
+      int64_t col = rand() % nsectors_across;
+      assert(row*nsectors_across + col < n);
+      lgp_atomic_add(counts, row*nsectors_across + col, 1L);
+    }
+  }
+    
+  lgp_barrier();
+  
+  return(counts);
+}
+
+// This is the Hillis and Steele algorithm as presented on wikipedia.
+SHARED int64_t * prefix_scan(SHARED int64_t * counts, int64_t n){
+  int64_t i, j;
+  SHARED int64_t * cumsum = lgp_all_alloc(n, sizeof(int64_t));
+  int64_t * lcumsum = lgp_local_part(int64_t, cumsum);
+  for(i = 0; i < (n + THREADS - MYTHREAD - 1)/THREADS; i++)
+    lcumsum[i] = 0;
+
+  lgp_barrier();
+  
+  int64_t tn = n;
+  int64_t lgn = 0;
+  while(tn > 0){
+    tn = tn >> 1;
+    lgn++;
+  }
+  for(i = 0; i < lgn; i++){
+    for(j = 0; j < n; j++){
+      int64_t twoj = 1L<<j;
+      if((j >= twoj) && ((j % n) == MYTHREAD)){
+        lcumsum[j] += lgp_get_int64(cumsum, j-twoj);
+      }
+    }
+    lgp_barrier();
+  }
+  return(cumsum);
 }
 
 /*! \brief Generates the adjacency matrix for a random geometric graph. 
@@ -185,56 +257,43 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   double r2 = r*r;
   int64_t nsectors_across = ceil(1.0/r);
   int64_t nsectors = nsectors_across*nsectors_across;
-  T0_printf("GEOMETRIC with r = %lf number of sectors = %ld\n", r, nsectors);
+  int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
+  int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
+  
 
+  // TODO: Distribute in BLOCK order!
+  // TODO: permute matrix at end to get Zmorton order (which would improve locality)
+  //       or round-robin point order (which would destroy locality)
   
   // The PEs will get sectors in a round-robin fashion
   // Step 1. We count how many points land in each sector.
   // If flattening mode = 0, this is just n/nsectors.
   // O.w. each PE generates n/NPES random sector destinations
   // to create a distributed histogram of counts in each sector.
-  SHARED int64_t * counts = lgp_all_alloc(nsectors,sizeof(int64_t));
+  //
+  SHARED int64_t * counts = calculate_npoints_per_sector(n, r, flattening_mode);
   int64_t * lcounts = lgp_local_part(int64_t, counts);
-  int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
-  int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
-  if(flattening_mode == 0){
-    for(i = 0; i < lnsectors; i++)
-      lcounts[i] = (ln + lnsectors - i - 1)/lnsectors;
-  }else{
-    srand(seed + MYTHREAD + 1);
-
-    for(i = 0; i < lnsectors; i++)
-      lcounts[i] = 0;
-    lgp_barrier();    
-
-    for(i = 0; i < ln; i++){
-      int64_t row = rand() % nsectors_across;
-      int64_t col = rand() % nsectors_across;
-      assert(row*nsectors_across + col < n);
-      lgp_atomic_add(counts, row*nsectors_across + col, 1L);
-    }
-  }
-  
-  lgp_barrier();
   
   // Step 2. Figure out how many points landed in your sectors
-  SHARED int64_t * first_pt_this_sector = lgp_all_alloc(nsectors, sizeof(int64_t));
-  SHARED int64_t * sector_offsets = lgp_all_alloc(nsectors + THREADS, sizeof(int64_t));
-  int64_t * lsector_offsets = lgp_local_part(int64_t, sector_offsets);
+  //SHARED int64_t * sector_offsets = lgp_all_alloc(nsectors + THREADS, sizeof(int64_t));
+  //int64_t * lsector_offsets = lgp_local_part(int64_t, sector_offsets);
   
   int64_t my_total_points = 0;
-  lsector_offsets[0] = 0;
+  int64_t my_sector_max = 0;
+  //lsector_offsets[0] = 0;
   for(i = 0; i < lnsectors; i++){
     my_total_points += lcounts[i];
-    lsector_offsets[i+1] = lsector_offsets[i] + lcounts[i];
+    my_sector_max = (my_sector_max < lcounts[i] ? lcounts[i] : my_sector_max);
+    //lsector_offsets[i+1] = lsector_offsets[i] + lcounts[i];
   }
   
   // allocate space for the points
-  int64_t max_lnum_points = lgp_reduce_max_l(my_total_points);
+  // sector_max is a global variable ...yuck.
+  sector_max = lgp_reduce_max_l(my_sector_max);
   int64_t sum = lgp_reduce_add_l(my_total_points);
   assert(sum == n);
   
-  SHARED point_t * points = lgp_all_alloc(max_lnum_points, sizeof(point_t));  
+  SHARED point_t * points = lgp_all_alloc(sector_max*nsectors, sizeof(point_t));  
   point_t * lpoints = lgp_local_part(point_t, points);
   
   // Step 3. Each PE generates the points for their own sectors.
@@ -244,23 +303,40 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       assert(pt < my_total_points);
       lpoints[pt].x = ((double)rand()/RAND_MAX)*r; //sector width + sector_start
       lpoints[pt].y = ((double)rand()/RAND_MAX)*r; //
-      lpoints[pt].index = pt + lsector_offsets[i];
+      //lpoints[pt].index = pt + lsector_offsets[i];
       pt++;
     }
   }
   assert(pt == my_total_points);
   lgp_barrier();
 
+  //get global first point in each sector
+  SHARED int64_t * first_point_in_sector = prefix_scan(counts, nsectors);
+  int64_t * lfirst_point_in_sector = lgp_local_part(int64_t, first_point_in_sector);
+  for(i = 0; i < n; i++)
+    T0_printf("%ld ", lgp_get_int64(counts, i));
+  T0_printf("\n");
+  for(i = 0; i < n; i++)
+    T0_printf("%ld ", lgp_get_int64(first_point_in_sector, i));
+  T0_printf("\n");
   int weighted = (edge_type == DIRECTED_WEIGHTED || edge_type == UNDIRECTED_WEIGHTED);
   int directed = (edge_type == DIRECTED) || (edge_type == DIRECTED_WEIGHTED);
-  
+
+  /******************************/
   // Determine Edges
+  /******************************/
+  
   int64_t space = ceil(1.1*my_total_points*(n*M_PI*r*r)/2.0);
-  edge_list_t * el = init_edge_list(n, n, space);
+  edge_list_t * el = init_edge_list(space);
   if(el == NULL){
     printf("ERROR: geometric graph: el is NULL\n");
     return(NULL);
   }
+
+  /* For each of our local sectors we compute all
+     edges between points in that sector and 
+     * that sector
+     * sectors to the W, NW, N, and NE.*/
   int64_t point_index = 0;
   int64_t row, col;
   double val;
@@ -268,11 +344,13 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     int64_t global_sector_index = (i*THREADS + MYTHREAD);
     int64_t sector_row = global_sector_index / nsectors;
     int64_t sector_col = global_sector_index % nsectors;    
+    int64_t first_point_this_sector = lfirst_point_in_sector[global_sector_index/THREADS];
 
     // add loops
     if(loops == LOOPS){
       for(i = 0; i < lcounts[i]; i++){
-        int64_t point_index = (lsector_offsets[i] + j)*THREADS + MYTHREAD;
+        //int64_t point_index = (lsector_offsets[i] + j)*THREADS + MYTHREAD;
+        int64_t point_index = first_point_this_sector + i;
         append_edge(el, point_index, point_index);
       }
     }
@@ -280,43 +358,40 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     
     // add edges between points within this sector
     append_edges_between_sectors(global_sector_index, global_sector_index,
-                                 points, sector_offsets, r2, directed, el);
+                                 points, first_point_in_sector, counts, r2, directed, el);
 
     // add edges between this sector and its neighbor to the West
     if(sector_col > 0){
       int64_t nbr_sector_index = global_sector_index - 1;
       append_edges_between_sectors(global_sector_index, nbr_sector_index,
-                                   points, sector_offsets, r2, directed, el);
+                                   points, first_point_in_sector, counts, r2, directed, el);
     }
 
     // add edges between this sector and its neighbor to the NorthWest
     if(sector_row > 0 && sector_col > 0){
       int64_t nbr_sector_index = (sector_row - 1)*nsectors_across + (sector_col - 1);
       append_edges_between_sectors(global_sector_index, nbr_sector_index,
-                                   points, sector_offsets, r2, directed, el);
+                                   points, first_point_in_sector, counts, r2, directed, el);
     }
     
     // add edges between this sector and its neighbor to the North
     if(sector_row > 0){
       int64_t nbr_sector_index = (sector_row - 1)*nsectors_across + sector_col;
       append_edges_between_sectors(global_sector_index, nbr_sector_index,
-                                   points, sector_offsets, r2, directed, el);
+                                   points, first_point_in_sector, counts, r2, directed, el);
     }
 
     // add edges between this sector and its neighbor to the NorthEast
     if(sector_row > 0 && sector_col < (nsectors_across - 1)){
       int64_t nbr_sector_index = (sector_row - 1)*nsectors_across + sector_col + 1;
       append_edges_between_sectors(global_sector_index, nbr_sector_index,
-                                   points, sector_offsets, r2, directed, el);
+                                   points, first_point_in_sector, counts, r2, directed, el);
     }
     
 
   }
   
   T0_printf("After comparing inter-point distances: lnnz = %ld\n",el->num);
-
-  // Redistribute points to PEs. We will dole out points block-wise to
-  // flatten the number of points per PE.
 
   // Do a histogram like thing to get row counts
   SHARED int64_t * row_counts = lgp_all_alloc(n, sizeof(int64_t));
@@ -332,15 +407,43 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 
   lgp_barrier();
 
+  
+  // We need to redistribute points to PEs. We will dole out points block-wise to
+  // flatten the number of points per PE.
+#if 0 
   // now get the row counts for the points you will receive
-  int64_t lrow = 0;
-  lrow_counts = calloc(ln, sizeof(int64_t));  
-  for(i = 0; i < lnsectors; i++){
-    for(j = 0; j < lcounts[i]; j++){
-      int64_t point_index = (lsector_offsets[i] + j)*THREADS + MYTHREAD;
-      lrow_counts[lrow++] = lgp_get_int64(row_counts, point_index);
+  int64_t my_first_point = 0;
+  for(i = 0; i < MYTHREAD; i++) my_first_point += (n + THREADS - i - 1)/THREADS;
+
+  int64_t first_point_index = 0;
+  for(sector = 0; sector < nsectors; sector++){
+    int64_t fp = lgp_get_int64(first_point_in_sector, sector);
+    if(my_first_point < fp){
+      first_point_index = fp - my_first_point;
+      break;
     }
   }
+  int64_t my_first_sector = i;
+
+  j = first_point_index;  
+  int64_t npts = 0;
+  while(npts < ln){
+    for(; sector < nsectors; sector++){
+      for(; (npts < ln) && (j < num_pts_this_sector); j++; npts++){
+        lnnz += lgp_get_int64(row_counts, first_point_this_sector + j);
+      }
+      j = 0;
+    }
+  }
+#endif
+  
+  int64_t lnnz = 0;
+  int64_t * lrow_counts = calloc(ln + 1, sizeof(int64_t));
+  for(i = 0; i < ln; i++){
+    lrow_counts[i] = lgp_get_int64(row_counts, my_first_point + i);
+    lnnz += lrow_counts[i];
+  }
+  
   lgp_barrier();
   
   lgp_all_free(row_counts);
