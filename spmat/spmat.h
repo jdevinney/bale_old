@@ -100,7 +100,8 @@ typedef struct triples_t{
 
 typedef enum graph_model {FLAT, GEOMETRIC} graph_model;
 typedef enum edge_type {DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED} edge_type;
-typedef enum self_loops {LOOPS, NOLOOPS} self_loops;
+typedef enum self_loops {NOLOOPS, LOOPS} self_loops;
+typedef enum layout {BLOCK, CYCLIC} layout;
 
 typedef struct w_edge_t{
   int64_t row;
@@ -125,6 +126,12 @@ typedef struct col_val_t{
    int64_t col;
    double value;
 }col_val_t;
+
+// struct to represent a point on the plane. (for geometric graphs)
+typedef struct point_t{
+  double x;
+  double y;
+}point_t;
 
 
 
@@ -225,6 +232,7 @@ sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_
 
 int sort_nonzeros( sparsemat_t *mat);
 int nz_comp(const void *a, const void *b);
+int point_comp(const void *a, const void *b);
 int col_val_comp(const void *a, const void *b);
 //int dbl_comp(const void *a, const void *b);
 int edge_comp(const void *a, const void *b);

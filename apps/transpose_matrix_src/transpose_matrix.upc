@@ -129,7 +129,7 @@ int main(int argc, char * argv[])
   }else if(nz_per_row == -1){
     nz_per_row = erdos_renyi_prob*numrows;
   }
-  erdos_renyi_prob = (2.0*(nz_per_row - 1))/numrows;
+  erdos_renyi_prob = (2.0*nz_per_row)/(numrows-1);
   if(erdos_renyi_prob > 1.0)
     erdos_renyi_prob = 1.0;
 
@@ -147,11 +147,12 @@ int main(int argc, char * argv[])
   minavgmaxD_t stat[1];
   int64_t error = 0;
     
-  inmat =random_graph(numrows, model, DIRECTED, 0, erdos_renyi_prob, seed + 2);
+  inmat = random_graph(numrows, model, DIRECTED, NOLOOPS, erdos_renyi_prob, seed + 2);
   if(inmat == NULL){
     T0_printf("ERROR: inmat is null!\n");
     return(-1);
   }
+  
   int64_t use_model;
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();

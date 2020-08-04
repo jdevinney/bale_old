@@ -389,7 +389,7 @@ int main(int argc, char * argv[]) {
     switch( use_model & models_mask ) {
     case AGI_Model:
       T0_fprintf(stderr,"      AGI: ");
-      laptime = triangle_agi(&tri_cnt, &sh_refs, L, U, alg);      
+      laptime = triangle_agi(&tri_cnt, &sh_refs, L, U, alg); 
       break;
     
     case EXSTACK_Model:

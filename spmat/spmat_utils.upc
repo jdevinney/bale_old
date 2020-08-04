@@ -600,43 +600,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     // The expected number of edges E = n^2*pi*r^2/2
     // for undirected density = E/(n choose 2)
     // for directed   density = E/(n^2 - n)
-    r = sqrt(edge_density/M_PI);
-    if (edgetype == DIRECTED || edgetype == DIRECTED_WEIGHTED){
-      edge_type t;
-      int val = 0;
-      if(edgetype == DIRECTED)
-        t = UNDIRECTED;
-      else if(edgetype == DIRECTED_WEIGHTED){
-        t = UNDIRECTED_WEIGHTED;
-        val = 1;
-      }
-      sparsemat_t * L = geometric_random_graph(n, r, t, loops, seed);
-      sparsemat_t * L2 = geometric_random_graph(n, r, t, loops, seed + 1);
-      sparsemat_t * U = transpose_matrix(L2);
-      clear_matrix(L2);
-      int64_t i, j;
-
-      int64_t lnnz = L->lnnz + U->lnnz;
-      sparsemat_t * A2 = init_matrix(n, n, lnnz, val);
-      if(!A2){T0_printf("ERROR: gen_er_graph_dist: A2 is NULL!\n"); return(NULL);}
-      
-      A2->loffset[0] = 0;
-      lnnz = 0;
-      for(i = 0; i < L->lnumrows; i++){
-        int64_t global_row = i*THREADS + MYTHREAD;
-        for(j = L->loffset[i]; j < L->loffset[i+1]; j++)
-          A2->lnonzero[lnnz++] = L->lnonzero[j];
-        for(j = U->loffset[i]; j < U->loffset[i+1]; j++){
-          if(U->lnonzero[j] != global_row) // don't copy the diagonal element twice!
-            A2->lnonzero[lnnz++] = U->lnonzero[j];
-        }
-        A2->loffset[i+1] = lnnz;
-      }
-      clear_matrix(L);
-      clear_matrix(U);
-      return(A2);
-    }
-    
+    r = sqrt((n-1)*edge_density/(M_PI*n));
     return(geometric_random_graph(n, r, edgetype, loops, seed));
     
   }else{
@@ -1346,12 +1310,14 @@ int64_t append_triple(triples_t * T, int64_t row, int64_t col, double val){
 
 int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
   if(el->nalloc == el->num){
+    printf("PE %d: out of space! nalloc = %ld\n", MYTHREAD, el->nalloc);
     // we need to expand our allocations!
     if(el->nalloc < 10000)
       el->nalloc = 2*el->nalloc;
     else
       el->nalloc = el->nalloc*1.25;
-    el->edges = realloc(el->edges, el->nalloc*sizeof(int64_t));
+    printf("PE %d: new space! nalloc = %ld\n", MYTHREAD, el->nalloc);
+    el->edges = realloc(el->edges, el->nalloc*sizeof(edge_t));
   }
   el->edges[el->num].row = row;
   el->edges[el->num].col = col;
@@ -1514,6 +1480,16 @@ void incr_S_nxnz( nxnz_t *nxz, int64_t S_row ) {
  */
 int nz_comp(const void *a, const void *b) {
   return( *(uint64_t *)a - *(uint64_t *)b );
+}
+
+int point_comp(const void *a, const void *b) {
+  point_t *p1 = (point_t *)a;
+  point_t *p2 = (point_t *)b;
+  if(p1->x > p2->x) return 1;
+  else if(p1->x == p2->x)
+    if (p1->y > p2->y)
+      return 1;
+  return(-1);
 }
 
 int col_val_comp(const void *a, const void *b) {
