@@ -40,6 +40,8 @@ biconvey_begin(biconvey_t* self, size_t query_bytes, size_t reply_bytes,
       self->replies->state != convey_DORMANT)
     return convey_error_STATE;
 
+  self->query_bytes = query_bytes;
+  self->reply_bytes = reply_bytes;
   self->answer = answer;
   self->context = context;
   int result = self->_class_->begin(self, query_bytes, reply_bytes);
@@ -99,7 +101,7 @@ biconvey_new(size_t max_bytes, size_t n_local,
   convey_parameters(max_bytes, n_local, &capacity, &n_buffers, &sync, &order);
 
   if (sync)
-    return biconvey_new_simple(capacity, alloc, NULL, options);
+    return NULL; // biconvey_new_simple(capacity, alloc, NULL, options);
   else
     return biconvey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
 }

@@ -280,7 +280,7 @@ convey_error_string(convey_t* self, int error)
   const char* string = NULL;
   if (-error < sizeof(error_strings) / sizeof(const char*))
     string = error_strings[-error];
-  else if (self->_class_->error_string)
+  else if (self != NULL && self->_class_->error_string)
     string = self->_class_->error_string(self, error);
   return string ? string : "unknown error";
 }

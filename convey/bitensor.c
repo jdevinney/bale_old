@@ -1,4 +1,6 @@
+#include <assert.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "biconvey_impl.h"
@@ -27,6 +29,25 @@ struct bitensor {
 };
 
 
+/*** Default Allocator for Reorder Buffer ***/
+
+static void*
+local_alloc(void* alc8r, size_t size, const char* tag, uint64_t value)
+{
+  return malloc(size);
+}
+
+static void
+local_free(void* alc8r, void* ptr)
+{
+  free(ptr);
+}
+
+static const convey_alc8r_t local_alc8r = {
+  .alc8r = NULL, .grab = &local_alloc, .free = &local_free,
+};
+
+
 /*** Working Methods ***/
 
 static inline uint32_t
@@ -46,7 +67,7 @@ bitensor_push(biconvey_t* self, const void* query, int64_t to)
   convey_t* q = b->biconvey.queries;
   packet_t* packet = b->query;
   packet->token = easy_mod(b->await + inflight, b->limit);
-  memcpy(packet->item, query, q->item_size);
+  memcpy(packet->item, query, b->biconvey.query_bytes);
 
   int result = convey_push(q, packet, to);
   if (result == convey_OK)
@@ -67,7 +88,7 @@ bitensor_pull(biconvey_t* self, void* item)
   b->present[await >> 6] = word & ~bit;
   b->await = easy_mod(await + 1, b->limit);
   b->inflight -= 1;
-  size_t item_size = b->biconvey.replies->item_size;
+  size_t item_size = b->biconvey.reply_bytes;
   memcpy(item, b->reorder + await * item_size, item_size);
   return convey_OK;
 }
@@ -93,6 +114,7 @@ bitensor_advance(biconvey_t* self, bool done)
     packet_t* reply = b->reply;
     while ((query = convey_apull(q, &from)) != NULL) {
       reply->token = query->token;
+      assert(b->biconvey.answer != NULL);
       b->biconvey.answer(query->item, reply->item, b->biconvey.context);
       // FIXME: can we ensure this push will succeed?
       if (convey_push(r, reply, from) != convey_OK) {
@@ -103,10 +125,10 @@ bitensor_advance(biconvey_t* self, bool done)
   }
 
   packet_t* reply;
+  size_t item_size = b->biconvey.reply_bytes;
   while ((reply = convey_apull(r, NULL)) != NULL) {
     uint32_t token = reply->token;
     b->present[token >> 6] |= UINT64_C(1) << (token & 63);
-    size_t item_size = r->item_size;
     memcpy(b->reorder + token * item_size, reply->item, item_size);
   }
 
@@ -140,7 +162,7 @@ bitensor_begin(biconvey_t* self, size_t query_bytes, size_t reply_bytes)
   bitensor_t* b = (bitensor_t*) self;
   // the caller has checked that query_bytes and reply_bytes are positive
   size_t capacity = b->reorder_bytes / reply_bytes;
-  if (capacity == 0)
+  if (capacity < 2)
     return convey_error_OFLO;
   if (b->dynamic && !alloc_reorder(b))
     return convey_error_ALLOC;
@@ -156,10 +178,11 @@ bitensor_begin(biconvey_t* self, size_t query_bytes, size_t reply_bytes)
   b->inflight = 0;
   b->await = 0;
 
-  int result = convey_begin(b->biconvey.queries, query_bytes);
+  const int token_bytes = sizeof(uint32_t);
+  int result = convey_begin(b->biconvey.queries, token_bytes + query_bytes);
   if (result < 0)
     return result;
-  return convey_begin(b->biconvey.replies, reply_bytes);
+  return convey_begin(b->biconvey.replies, token_bytes + reply_bytes);
 }
 
 static int
@@ -207,6 +230,7 @@ biconvey_new_tensor(size_t capacity, int order, size_t n_local, size_t n_buffers
   bool quiet = (options & convey_opt_QUIET);
   size_t reorder_bytes =
     convey_memory_usage(capacity, false, order, PROCS, n_local, n_buffers);
+  mprint(0, 0, "biconveyor will use %zu bytes for reordering\n", reorder_bytes);
 
   bitensor_t* b = malloc(sizeof(bitensor_t));
   if (b == NULL)
@@ -215,11 +239,12 @@ biconvey_new_tensor(size_t capacity, int order, size_t n_local, size_t n_buffers
     .biconvey = { ._class_ = &bitensor_methods },
     .reorder_bytes = reorder_bytes,
     .dynamic = (options & convey_opt_DYNAMIC),
-    .alloc = *alloc,
+    .alloc = (alloc ? *alloc : local_alc8r),
   };
 
   biconvey_t* self = &b->biconvey;
-  options |= convey_opt_PROGRESS;
+  options &= ~(convey_opt_NOALIGN * 0xFF);
+  options |= convey_opt_PROGRESS | CONVEY_OPT_ALIGN(4);
   self->queries = convey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
   self->replies = convey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
   bool ok = (self->queries && self->replies);

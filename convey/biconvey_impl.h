@@ -17,6 +17,8 @@ struct biconveyor {
   const biconvey_methods_t* _class_;
   convey_t* queries;
   convey_t* replies;
+  size_t query_bytes;
+  size_t reply_bytes;
   void (*answer)(const void*, void*, void*);
   void* context;
 };
