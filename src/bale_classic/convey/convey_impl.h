@@ -38,7 +38,8 @@
 
 // Negative error codes:
 enum convey_error {
-  convey_error_ZERO = -11, // item size is zero
+  convey_error_NOFUNC = -12,  // function pointer is NULL
+  convey_error_ZERO,       // item size is zero
   convey_error_OFLO,       // item is too large for conveyor
   convey_error_MISFIT,     // next item is wrong size for pull
   convey_error_RIGID,      // conveyor is not elastic
@@ -102,5 +103,11 @@ int convey_no_epush(convey_t* c, size_t bytes, const void* item, int64_t pe);
 int convey_no_epull(convey_t* c, convey_item_t* result);
 
 int convey_panic(convey_t* self, const char* where, int error);
+
+// choose good parameters using heuristics and environment variables
+void convey_parameters(size_t max_bytes, size_t n_local,
+		       size_t* capacity_, size_t* n_buffers_, int* sync_, int* order_);
+size_t convey_memory_usage(size_t capacity, bool sync, int order,
+			   size_t n_procs, size_t n_local, size_t n_buffers);
 
 #endif

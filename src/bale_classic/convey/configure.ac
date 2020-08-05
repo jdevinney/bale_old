@@ -34,7 +34,7 @@
 ## Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.63)
-AC_INIT([convey], [0.5.5], [bale@super.org])
+AC_INIT([convey], [0.6.0-a1], [bale@super.org])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([simple.c])
 AC_CONFIG_HEADERS([config.h])

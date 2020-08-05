@@ -267,6 +267,7 @@ static const char * const error_strings[] = {
   [-convey_error_MISFIT] = "item has wrong size for pull",
   [-convey_error_OFLO] = "item is too large for conveyor",
   [-convey_error_ZERO] = "item size is zero",
+  [-convey_error_NOFUNC] = "function pointer is NULL",
 };
 
 const char*
@@ -309,9 +310,9 @@ porter_usage(size_t capacity, size_t n_procs, size_t n_buffers)
 
 // Compute the amount of "symmetric" memory needed by a conveyor
 // with the given parameters.  (Can be a slight overestimate.)
-static size_t
-memory_usage(size_t capacity, bool sync, int order,
-             size_t n_procs, size_t n_local, size_t n_buffers)
+size_t
+convey_memory_usage(size_t capacity, bool sync, int order,
+		    size_t n_procs, size_t n_local, size_t n_buffers)
 {
   // Simple conveyors
   if (sync && order == 1)
@@ -338,8 +339,8 @@ memory_usage(size_t capacity, bool sync, int order,
   }
 }
 
-static void
-choose_parameters(size_t max_bytes, size_t n_local,
+void
+convey_parameters(size_t max_bytes, size_t n_local,
                   size_t* capacity_, size_t* n_buffers_, int* sync_, int* order_)
 {
   // Set up some default values
@@ -375,7 +376,7 @@ choose_parameters(size_t max_bytes, size_t n_local,
 
   if (max_bytes < SIZE_MAX)
     for (int step = 1; true; step++) {
-      size_t usage = memory_usage(capacity, sync, order, n_procs, n_local, n_buffers);
+      size_t usage = convey_memory_usage(capacity, sync, order, n_procs, n_local, n_buffers);
       if (usage <= max_bytes)
         break;
 
@@ -390,7 +391,7 @@ choose_parameters(size_t max_bytes, size_t n_local,
           while (new_local % 2 == 0 && new_local * new_local > 4 * n_procs)
             new_local >>= 1;
           if (new_local != n_local && n_procs > new_local) {
-            size_t try = memory_usage(capacity, true, 2, n_procs, new_local, 1);
+            size_t try = convey_memory_usage(capacity, true, 2, n_procs, new_local, 1);
             if (try < usage) {
               order = 2;
               n_local = new_local;
@@ -403,7 +404,7 @@ choose_parameters(size_t max_bytes, size_t n_local,
           while (new_local % 2 == 0 && new_local * new_local * new_local > 8 * n_procs)
             new_local >>= 1;
           if (new_local != n_local && n_procs > new_local * new_local) {
-            size_t try = memory_usage(capacity, false, 3, n_procs, new_local, 1);
+            size_t try = convey_memory_usage(capacity, false, 3, n_procs, new_local, 1);
             if (try < usage) {
               order = 3;
               n_local = new_local;
@@ -444,7 +445,7 @@ convey_new(size_t max_bytes, size_t n_local,
 
   size_t capacity, n_buffers;
   int sync, order;
-  choose_parameters(max_bytes, n_local, &capacity, &n_buffers, &sync, &order);
+  convey_parameters(max_bytes, n_local, &capacity, &n_buffers, &sync, &order);
 
   // Build the chosen conveyor
 #if 0
@@ -480,7 +481,7 @@ convey_new_elastic(size_t atom_bytes, size_t item_bound, size_t max_bytes,
   size_t item_size = 8 + 4 * ((atom_bytes + 3) >> 2);
   size_t buffer_bytes, n_buffers;
   int sync, order;
-  choose_parameters(max_bytes, n_local, &buffer_bytes, &n_buffers, &sync, &order);
+  convey_parameters(max_bytes, n_local, &buffer_bytes, &n_buffers, &sync, &order);
   if (sync)
     return NULL;
 

@@ -39,7 +39,7 @@ AM_CFLAGS = $(warning_flags)
 ## Things that will be built and/or installed:
 
 lib_LIBRARIES = libconvey.a
-include_HEADERS = convey.h convey_alc8r.h convey_codec.h
+include_HEADERS = convey.h convey_alc8r.h convey_codec.h biconvey.h
 if !WITH_UPC
   check_PROGRAMS = alltoallv histogram indexgather
   convey_tuner = alltoallv
@@ -80,6 +80,8 @@ convey_headers = bolite.h convey.h convey_alc8r.h convey_codec.h convey_impl.h \
     common.h pivot.h porter.h porter_impl.h private.h router.h sorter.h tensor.h
 convey_sources = circle.c codata.c common.c convey.c elastic.c packer.c porter.c \
     simple.c squeeze.c tensor.c trivial.c twohop.c $(codelet_sources)
+convey_headers += biconvey.h biconvey_impl.h
+convey_sources += biconvey.c bitensor.c
 
 if WITH_SHMEM
   convey_sources += putport.c
