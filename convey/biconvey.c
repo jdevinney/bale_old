@@ -1,7 +1,18 @@
 #include "biconvey_impl.h"
 #include "private.h"
-#define PANIC(ERR) convey_panic(self->queries, __func__, ERR)
+#define PANIC(ERR) biconvey_panic(self, __func__, ERR)
 
+static int
+biconvey_panic(biconvey_t* self, const char* where, int error)
+{
+  bool in_range = (-error > 0 && -error < 64);
+  if (in_range && (self->suppress >> -error & 1))
+    return error;
+  mprint(MY_PROC, 0, "%s: %s\n", where, convey_error_string(NULL, error));
+  if (in_range)
+    self->suppress |= UINT64_C(1) << -error;
+  return error;
+}
 
 int
 biconvey_push(biconvey_t* self, const void* query, int64_t to)
@@ -36,9 +47,6 @@ biconvey_begin(biconvey_t* self, size_t query_bytes, size_t reply_bytes,
     return PANIC(convey_error_NOFUNC);
   if (query_bytes == 0 || reply_bytes == 0)
     return PANIC(convey_error_ZERO);
-  if (self->queries->state != convey_DORMANT ||
-      self->replies->state != convey_DORMANT)
-    return convey_error_STATE;
 
   self->query_bytes = query_bytes;
   self->reply_bytes = reply_bytes;
@@ -53,13 +61,7 @@ biconvey_reset(biconvey_t* self)
 {
   if (self == NULL)
     return convey_error_NULL;
-  int err = convey_reset(self->queries);
-  if (err != convey_OK)
-    return err;
-  err = convey_reset(self->replies);
-  if (err != convey_OK)
-    return err;
-  err = self->_class_->reset(self);
+  int err = self->_class_->reset(self);
   return (err < 0) ? PANIC(err) : err;
 }
 
@@ -68,19 +70,8 @@ biconvey_free(biconvey_t* self)
 {
   if (self == NULL)
     return convey_OK;
-
-  int err = convey_free(self->replies);
-  if (err != convey_OK)
-    return err;
-  self->replies = NULL;
-
-  err = convey_free(self->queries);
-  if (err != convey_OK)
-    return err;
-  self->queries = NULL;
-
   self->answer = NULL;
-  err = self->_class_->free(self);
+  int err = self->_class_->free(self);
   return (err < 0) ? PANIC(err) : err;
 }
 

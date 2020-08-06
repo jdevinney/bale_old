@@ -16,6 +16,8 @@ struct packet {
 
 struct bitensor {
   biconvey_t biconvey;
+  convey_t* queries;
+  convey_t* replies;
   size_t reorder_bytes;
   PARALLEL(char*, reorder);
   uint64_t* present;
@@ -64,7 +66,7 @@ bitensor_push(biconvey_t* self, const void* query, int64_t to)
   if (inflight + 1 == b->limit)
     return convey_FAIL;
 
-  convey_t* q = b->biconvey.queries;
+  convey_t* q = b->queries;
   packet_t* packet = b->query;
   packet->token = easy_mod(b->await + inflight, b->limit);
   memcpy(packet->item, query, b->biconvey.query_bytes);
@@ -97,8 +99,8 @@ static int
 bitensor_advance(biconvey_t* self, bool done)
 {
   bitensor_t* b = (bitensor_t*) self;
-  convey_t* q = b->biconvey.queries;
-  convey_t* r = b->biconvey.replies;
+  convey_t* q = b->queries;
+  convey_t* r = b->replies;
 
   int result = convey_advance(q, done);
   if (result < 0)
@@ -160,6 +162,10 @@ static int
 bitensor_begin(biconvey_t* self, size_t query_bytes, size_t reply_bytes)
 {
   bitensor_t* b = (bitensor_t*) self;
+  if (b->queries->state != convey_DORMANT ||
+      b->replies->state != convey_DORMANT)
+    return convey_error_STATE;
+
   // the caller has checked that query_bytes and reply_bytes are positive
   size_t capacity = b->reorder_bytes / reply_bytes;
   if (capacity < 2)
@@ -179,16 +185,23 @@ bitensor_begin(biconvey_t* self, size_t query_bytes, size_t reply_bytes)
   b->await = 0;
 
   const int token_bytes = sizeof(uint32_t);
-  int result = convey_begin(b->biconvey.queries, token_bytes + query_bytes);
+  int result = convey_begin(b->queries, token_bytes + query_bytes);
   if (result < 0)
     return result;
-  return convey_begin(b->biconvey.replies, token_bytes + reply_bytes);
+  return convey_begin(b->replies, token_bytes + reply_bytes);
 }
 
 static int
 bitensor_reset(biconvey_t* self)
 {
   bitensor_t* b = (bitensor_t*) self;
+  int err = convey_reset(b->queries);
+  if (err != convey_OK)
+    return err;
+  err = convey_reset(b->replies);
+  if (err != convey_OK)
+    return err;
+
   free(b->reply);
   free(b->query);
   free(b->present);
@@ -204,7 +217,19 @@ static int
 bitensor_free(biconvey_t* self)
 {
   bitensor_t* b = (bitensor_t*) self;
-  bitensor_reset(&b->biconvey);
+  int err = bitensor_reset(&b->biconvey);
+  if (err < 0)
+    return err;
+
+  err = convey_free(b->replies);
+  if (err != convey_OK)
+    return err;
+  b->replies = NULL;
+  err = convey_free(b->queries);
+  if (err != convey_OK)
+    return err;
+  b->queries = NULL;
+
   if (!b->dynamic)
     dealloc_reorder(b);
   free(b);
@@ -242,20 +267,19 @@ biconvey_new_tensor(size_t capacity, int order, size_t n_local, size_t n_buffers
     .alloc = (alloc ? *alloc : local_alc8r),
   };
 
-  biconvey_t* self = &b->biconvey;
   options &= ~(convey_opt_NOALIGN * 0xFF);
   options |= convey_opt_PROGRESS | CONVEY_OPT_ALIGN(4);
-  self->queries = convey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
-  self->replies = convey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
-  bool ok = (self->queries && self->replies);
+  b->queries = convey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
+  b->replies = convey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
+  bool ok = (b->queries && b->replies);
   if (ok && !b->dynamic)
     ok = alloc_reorder(b);
   if (!ok) {
-    convey_free(self->replies);
-    convey_free(self->queries);
+    convey_free(b->replies);
+    convey_free(b->queries);
     free(b);
     CONVEY_REJECT(quiet, "symmetric allocation failed");
   }
 
-  return self;
+  return &b->biconvey;
 }
