@@ -41,7 +41,7 @@ AM_CFLAGS = $(warning_flags)
 lib_LIBRARIES = libconvey.a
 include_HEADERS = convey.h convey_alc8r.h convey_codec.h biconvey.h
 if !WITH_UPC
-  check_PROGRAMS = alltoallv histogram indexgather bigather
+  check_PROGRAMS = alltoallv histogram indexgather bigather meld
   convey_tuner = alltoallv
 else
   # Because these programs will be linked differently, with $(UPCLINK),
@@ -141,10 +141,12 @@ if !WITH_UPC
   histogram_SOURCES = examples/histo.c examples/example.h bolite.h convey.h
   indexgather_SOURCES = examples/gather.c examples/example.h bolite.h convey.h
   bigather_SOURCES = examples/bigather.c examples/example.h bolite.h convey.h biconvey.h
+  meld_SOURCES = examples/meld.c examples/example.h bolite.h convey.h biconvey.h
   alltoallv_LDADD = libconvey.a
   histogram_LDADD = libconvey.a
   indexgather_LDADD = libconvey.a
   bigather_LDADD = libconvey.a
+  meld_LDADD = libconvey.a
 else
   alltoallu_SOURCES = bolite.h convey.h
   histogupc_SOURCES = examples/example.h bolite.h convey.h
