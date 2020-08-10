@@ -63,7 +63,7 @@ double randperm_generic(int64_t l, uint32_t s)
   int64_t *p;
   tm = wall_seconds();
  
-  p = rand_perm(l, s);
+  p = rand_perm(l, s);          // from the sparsemat library
  
   tm = wall_seconds() - tm;
   if(!is_perm(p, l)){
@@ -179,8 +179,12 @@ double randperm_sort(int64_t l, uint32_t seed)
     p[i] = idxkey[i].idx;
   
   tm = wall_seconds() - tm;
-  free(idxkey);
+  if(!is_perm(p, l)){
+     fprintf(stderr, "ERROR: sorting not a permutation\n");
+     exit(1);
+  }
   free(p);
+  free(idxkey);
   return(tm);
 }
 
@@ -238,5 +242,6 @@ int main(int argc, char * argv[])
     }
     if(!quiet) printf("  %8.3lf seconds \n", laptime);
   }
+	return(0);
 }
 
