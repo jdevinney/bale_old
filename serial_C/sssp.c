@@ -46,6 +46,32 @@
 
 #include "spmat_utils.h"
 
+sparsemat_t * LUmat_from_L(sparsemat_t * L)
+{
+	int64_t i, l, k, pos;
+	sparsemat_t *U  = transpose_matrix(L);
+	sparsemat_t *retmat = init_matrix(L->numrows, L->numrows, 2*(L->nnz), 1);
+
+	pos = 0;
+	retmat->offset[0] = 0;
+	for(i=0; i<L->numrows; i++){
+    for(l=L->offset[i]; l<L->offset[i+1]; l++){
+			retmat->nonzero[pos] = L->nonzero[l];
+			retmat->value[pos] = L->value[l];
+			pos++;
+		}
+    for(k=U->offset[i]; k<U->offset[i+1]; k++){
+			retmat->nonzero[pos] = U->nonzero[k];
+			retmat->value[pos] = U->value[k];
+			pos++;
+		}
+		retmat->offset[i+1] = pos;
+	}
+	clear_matrix(U);
+	free(U);
+  return(retmat);	
+}
+
 /*!
  * \brief This routine implements generic serial version of Dijkstra's algorithm
  * \param *L sparsemat_t that holds the graph as a weighted lower triangular matrix
@@ -56,61 +82,52 @@
  * The alogrithm modifies the array dist[], which hold the best know weight of a path
  * from the given vertex to all other vertices. 
  */
-double sssp_generic(sparsemat_t * L, sparsemat_t * U, int64_t v0)
+double sssp_generic(sparsemat_t * L, int64_t v0)
 {
 	int64_t i, k, vn;
-	int64_t n = L->numrows;
-	double * dist = malloc(n*sizeof(double));
+	int64_t numrows = L->numrows;
+	double * dist = malloc(numrows*sizeof(double));
 	double minwt, curwt;
 	int64_t minidx;
 
-	for(i=0; i<n; i++)
+  sparsemat_t *LU = LUmat_from_L(L);
+	dump_matrix(LU,20, "LU.out");
+
+	for(i=0; i<numrows; i++)
 		dist[i] = INFINITY;
+	for(k = LU->offset[v0];  k < LU->offset[v0+1]; k++)
+		dist[ LU->nonzero[k] ] = LU->value[k];
+  dist[v0] = -0.0;
+	printf("dist[v0] = %lg\n", dist[v0]);
 
-	for(k = L->offset[v0];  k < L->offset[v0+1]; k++){
-		vn = L->nonzero[k];
-		dist[vn] = L->value[k];
-	}
-	for(k = U->offset[v0];  k < U->offset[v0+1]; k++){
-		vn = U->nonzero[k];
-		dist[vn] = U->value[k];
-	}
-  dist[v0] = -INFINITY;
-
-	printf("dist[v0] = 0.0\n");
 	while( 1 ) {
 		// find the smallest tentative distance
 	  minwt = INFINITY;
-		minidx = n;
-	  for(i=0; i<n; i++){
+		minidx = numrows;
+	  for(i=0; i<numrows; i++){
       if( dist[i] > 0 && dist[i] < minwt ){
 			  minwt = dist[i];
 			  minidx = i;
 		  }
 		}
-		if( minidx == n ) // all the distance are negative, i.e. all distances have be computed
+		if( minidx == numrows )    // all distances have be computed
 			break;
 
     curwt = dist[minidx];
 		
-		for(k = L->offset[minidx];  k < L->offset[minidx+1]; k++){
-			vn = L->nonzero[k];
+		for(k = LU->offset[minidx];  k < LU->offset[minidx+1]; k++){
+			vn = LU->nonzero[k];
       if( dist[vn] > curwt + L->value[k] )
 				dist[vn] = curwt + L->value[k];
 		}
-		for(k = U->offset[minidx];  k < U->offset[minidx+1]; k++){
-			vn = U->nonzero[k];
-      if( dist[vn] > curwt + U->value[k] )
-				dist[vn] = curwt + U->value[k];
-		}
-		printf("dist[%ld] = %lg\n", minidx, dist[minidx]);
+		printf("dist[%ld] = %lg\n", minidx, curwt);
     dist[minidx] = -dist[minidx];
   }
-	for(i=0; i<n; i++)
-		dist[i] = -dist[i];
-  dist[v0] = 0.0;
 
-	for(i=0; i<n; i++)
+	for(i=0; i<numrows; i++)
+		dist[i] = -dist[i];
+
+	for(i=0; i<numrows; i++)
 		printf("%ld %g\n",i, dist[i]);
 
 	return(0.0);
@@ -159,11 +176,6 @@ int main(int argc, char * argv[])
     if(!mat){printf("ERROR: triangles: erdos_renyi_graph Failed\n"); exit(1);}
   }
 
-	// mat is the lower triangle of the adjacency matrix
-	// Djysktra's algorithm works more easily if we have the full
-	// matrix so we will get the upper triangular part from the transpose.
-  tmat = transpose_matrix(mat); 
-
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of sssp\n");
     fprintf(stderr,"Number of rows    (-n) %ld\n", numrows);
@@ -178,6 +190,9 @@ int main(int argc, char * argv[])
       return(0);
   }
 
+	// mat is the lower triangle of the adjacency matrix
+  tmat = transpose_matrix(mat); 
+	// debug info
   if(dump_files) {
 		dump_matrix(mat,20, "L.out");
 		dump_matrix(tmat,20, "U.out");
@@ -191,6 +206,7 @@ int main(int argc, char * argv[])
 		deg[i] += mat->offset[i+1] - mat->offset[i];
 		deg[i] += tmat->offset[i+1] - tmat->offset[i];
 	}
+	// worry about the graph being non-connected
   printf("Deg: ");
 	for(i=0; i<numrows; i++)
 		printf(" %ld, ", deg[i]);
@@ -200,8 +216,8 @@ int main(int argc, char * argv[])
   for(use_model=1; use_model < ALL_Models; use_model *=2 ){
     switch( use_model & models_mask ){
     case GENERIC_Model:
-      if( !quiet ) printf("Generic          sssp: ");
-      laptime = sssp_generic(mat, tmat, 0);
+      if( !quiet ) printf("Generic          sssp:\n");
+      laptime = sssp_generic(mat, 0);
       break;
     default:
       continue;
