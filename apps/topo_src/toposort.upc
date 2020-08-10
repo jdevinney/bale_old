@@ -183,7 +183,7 @@ sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double
   T0_fprintf(stderr,"Creating input matrix for toposort\n");fflush(stderr);
   double t = wall_seconds();
   omat = random_graph(numrows, model, UNDIRECTED, LOOPS, edge_prob, rand_seed);
-  T0_printf("generate ER graph time %lf\n", wall_seconds() - t);
+  T0_printf("generate graph time %lf\n", wall_seconds() - t);
   if(!omat) {printf("Error! omat is NULL");return(NULL);}
   if(!is_lower_triangular(omat, 1)){printf("ERROR: Not LT\n");return(NULL);}
 
