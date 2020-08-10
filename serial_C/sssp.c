@@ -110,7 +110,9 @@ double sssp_generic(sparsemat_t * L, int64_t v0)
 			  minidx = i;
 		  }
 		}
-		if( minidx == numrows )    // all distances have be computed
+		if(minidx == numrows)    // done: all distances have be computed
+			break;
+		if(minwt == INFINITY)    // fail?: graph is not connected
 			break;
 
     curwt = dist[minidx];
