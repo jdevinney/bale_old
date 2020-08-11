@@ -77,7 +77,7 @@ int main(int argc, char * argv[])
   write_matrix_mm(graph, "tidy_demo.mm.out");
   clear_matrix(graph);
 
-#if 0
+#if 1
   printf("Generate a Kronecker Product of Stars\n");
   kron_args_t * kron_args = kron_args_init("2: 2 2");
   printf("-- input %s\n", kron_args->str);

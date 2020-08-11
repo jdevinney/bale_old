@@ -140,15 +140,10 @@ int64_t          dump_matrix(sparsemat_t * A, int64_t maxrows, char * name);
 sparsemat_t *    erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
 sparsemat_t *    erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
 
-//sparsemat_t *    geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed);
-//kron_args_t *    kron_args_init(char *str);
-//sparsemat_t *    kronecker_product_graph(kron_args_t * K);
-//int64_t          tri_count_kron_graph(kron_args_t *K);
-
 sparsemat_t *    geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
-sparsemat_t *    kronecker_product_graph(int64_t M, int64_t * m, int mode);
-int64_t          num_triangles_from_theory(int64_t M, int64_t * m, int mode);
-
+kron_args_t *    kron_args_init(char *str);
+sparsemat_t *    kronecker_product_graph(kron_args_t * K);
+int64_t          tri_count_kron_graph(kron_args_t *K);
 
 sparsemat_t *    init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values);
 
