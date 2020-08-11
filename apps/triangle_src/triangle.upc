@@ -105,11 +105,11 @@ static void usage(void) {
 Usage:\n\
 triangle [-h][-a 0,1][-e prob][-K str][-f filename]\n\
 - -a = 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L)\n\
-- -e = p: specify the Erdos-Renyi probability p\n\
+- -e = p: specify the Edge probability p\n\
 - -h print this message\n\
 - -K = str: Generate a Kronecker product graph with specified parameters. See below\n\
 - -M mask is the or of 1,2,4,8,16 for the models: agi,exstack,exstack2,conveyor,alternate\n\
-- -N = n: Specify the number of rows_per_thread in the matrix (if using the Erdos-Renyi generator)\n\
+- -N = n: Specify the number of rows_per_thread in the matrix (if using the random_graph generator)\n\
 - -f filename : Specify a filename containing a matrix in MatrixMarket format to read as input\n\
 - -b = count: Specify the number of packages in an exstack(2) stack\n\
 \n\
@@ -144,7 +144,7 @@ In our example above we would produce the product of K(3,4) and K(5,9).\n\
 have few triangles.
 * \return A distributed matrix which represents the adjacency matrix for the Kronecker product of all the stars (B and C lists).
  */
-
+#if 1
 sparsemat_t * generate_kronecker_graph(int64_t * B_spec, int64_t B_num, int64_t * C_spec, int64_t C_num, int mode){
 
   T0_fprintf(stderr,"Generating Mode %d Kronecker Product graph (A = B X C) with parameters:  ", mode);
@@ -153,8 +153,8 @@ sparsemat_t * generate_kronecker_graph(int64_t * B_spec, int64_t B_num, int64_t 
   for(int i = 0; i < C_num; i++) T0_fprintf(stderr,"%"PRId64" ", C_spec[i]);   
   T0_fprintf(stderr,"\n");
 
-  sparsemat_t * B = gen_local_mat_from_stars(B_num, B_spec, mode);
-  sparsemat_t * C = gen_local_mat_from_stars(C_num, C_spec, mode);   
+  sparsemat_t * B = kronecker_product_of_stars(B_num, B_spec, mode);
+  sparsemat_t * C = kronecker_product_of_stars(C_num, C_spec, mode);   
   if(!B || !C){
     T0_fprintf(stderr,"ERROR: triangles: error generating input!\n"); lgp_global_exit(1);
   }
@@ -162,10 +162,11 @@ sparsemat_t * generate_kronecker_graph(int64_t * B_spec, int64_t B_num, int64_t 
   T0_fprintf(stderr,"B has %"PRId64" rows/cols and %"PRId64" nnz\n", B->numrows, B->lnnz);
   T0_fprintf(stderr,"C has %"PRId64" rows/cols and %"PRId64" nnz\n", C->numrows, C->lnnz);
   
-  sparsemat_t * A = kron_prod_dist(B, C, 1);
+  sparsemat_t * A = kronecker_product_graph_dist(B, C);
   
   return(A);
 }
+#endif
 
 int main(int argc, char * argv[]) {
 
@@ -174,7 +175,7 @@ int main(int argc, char * argv[]) {
   int64_t buf_cnt = 1024;
   int64_t models_mask = ALL_Models;  // default is running all models
   int64_t l_numrows = 10000;         // number of a rows per thread
-  int64_t nz_per_row = 35;           // target number of nonzeros per row (only for Erdos-Renyi)
+  int64_t nz_per_row = 35;           // target number of nonzeros per row (Random graph only)
   int64_t read_graph = 0L;           // read graph from a file
   char filename[64];
   int64_t cores_per_node = 0;
@@ -186,21 +187,24 @@ int main(int argc, char * argv[]) {
   int kron_graph_mode = 0;
   char * kron_graph_string;
   double erdos_renyi_prob = 0.0;
-  
+  graph_model model = FLAT;
+  int64_t seed = 1231;
   int printhelp = 0;
   int opt; 
-  while( (opt = getopt(argc, argv, "hb:c:M:n:f:a:e:K:")) != -1 ) {
+  while( (opt = getopt(argc, argv, "hb:c:M:n:f:FGa:e:K:s:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
+    case 'a': sscanf(optarg,"%"PRId64"", &alg); break;
     case 'b': sscanf(optarg,"%"PRId64"", &buf_cnt);  break;
     case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
+    case 'e': sscanf(optarg,"%lg", &erdos_renyi_prob); break;
+    case 'f': read_graph = 1; sscanf(optarg,"%s", filename); break;      
+    case 'F': model = FLAT; break;
+    case 'G': model = GEOMETRIC; break;  
+    case 'K': gen_kron_graph = 1; kron_graph_string = optarg; break;
     case 'M': sscanf(optarg,"%"PRId64"", &models_mask);  break;
     case 'n': sscanf(optarg,"%"PRId64"", &l_numrows); break;
-    case 'f': read_graph = 1; sscanf(optarg,"%s", filename); break;
-
-    case 'a': sscanf(optarg,"%"PRId64"", &alg); break;
-    case 'e': sscanf(optarg,"%lg", &erdos_renyi_prob); break;
-    case 'K': gen_kron_graph = 1; kron_graph_string = optarg; break;
+    case 's': sscanf(optarg,"%"PRId64"", &seed); break;
     default:  break;
     }
   }
@@ -217,11 +221,14 @@ int main(int argc, char * argv[]) {
   
   T0_fprintf(stderr,"Running triangle on %d threads\n", THREADS);
   if(!read_graph && !gen_kron_graph){
-    T0_fprintf(stderr,"Number of rows per thread   (-N)   %"PRId64"\n", l_numrows);
-    T0_fprintf(stderr,"Erdos Renyi prob (-e)   %g\n", erdos_renyi_prob);
+    T0_fprintf(stderr,"Number of rows per thread   (-N)  %"PRId64"\n", l_numrows);
+    T0_fprintf(stderr,"Edge prob                   (-e)  %g\n", erdos_renyi_prob);
+    T0_fprintf(stderr,"Graph Model           (-F or -G)  %s\n", (model == FLAT ? "FLAT" : "GEOMETRIC"));
+    T0_fprintf(stderr,"Seed                        (-s)  %"PRId64"\n", seed); 
   }
   T0_fprintf(stderr,"Model mask (M) = %"PRId64" (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);  
   T0_fprintf(stderr,"algorithm (a) = %"PRId64" (0 for L & L*U, 1 for L & U*L)\n", alg);
+  
   
   if( printhelp )
     lgp_global_exit(0);
@@ -299,7 +306,7 @@ int main(int argc, char * argv[]) {
     
     L = generate_kronecker_graph(kron_specs, half, &kron_specs[half], num_ints - half, kron_graph_mode);
   }else{
-    L = gen_erdos_renyi_graph_dist(numrows, erdos_renyi_prob, 0, 1, 12345);
+    L = random_graph(numrows, model, UNDIRECTED, 0, erdos_renyi_prob, seed);
   }
 
   lgp_barrier();
@@ -382,7 +389,7 @@ int main(int argc, char * argv[]) {
     switch( use_model & models_mask ) {
     case AGI_Model:
       T0_fprintf(stderr,"      AGI: ");
-      laptime = triangle_agi(&tri_cnt, &sh_refs, L, U, alg);      
+      laptime = triangle_agi(&tri_cnt, &sh_refs, L, U, alg); 
       break;
     
     case EXSTACK_Model:

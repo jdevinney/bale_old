@@ -188,6 +188,7 @@ double toposort_matrix_exstack2(SHARED int64_t *rperm, SHARED int64_t *cperm, sp
     level++;
   }
   
+  level = lgp_reduce_max_l(level);
   lgp_barrier();
   exstack2_reset(ex4);
 
@@ -226,6 +227,7 @@ double toposort_matrix_exstack2(SHARED int64_t *rperm, SHARED int64_t *cperm, sp
   free(lrowqueue);
   free(lrowsum);
   free(lrowcnt);
+  T0_fprintf(stderr, "num levels = %ld ", level+1);
   //T0_printf( "done\n");
   return(stat->avg);
 }
