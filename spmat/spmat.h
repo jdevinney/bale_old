@@ -75,15 +75,64 @@ typedef struct sparsemat_t {
   int64_t numrows;              //!< the total number of rows in the matrix
   int64_t lnumrows;             //!< the number of rows on this PE 
                                 // note lnumrows = (numrows / NPES) + {0 or 1} 
-                                //    depending on numrows % NPES
+                                //    depending on numrows % NPES  
   int64_t numcols;              //!< the nonzeros have values between 0 and numcols
   int64_t nnz;                  //!< total number of nonzeros in the matrix
   int64_t lnnz;                 //!< the number of nonzeros on this PE
   SHARED int64_t * offset;      //!< the row offsets into the array of nonzeros
   int64_t * loffset;            //!< the row offsets for the row with affinity to this PE
-  SHARED int64_t * nonzero;     //!< the global array of nonzeros
-  int64_t * lnonzero;           //!< the nonzeros with affinity to this PE
+  SHARED int64_t * nonzero;     //!< the global array of column indices of nonzeros
+  int64_t * lnonzero;           //!< local array of column indices (for rows on this PE).
+  SHARED double * value;        //!< the global array of values of nonzeros. Optional.
+  double * lvalue;              //!< local array of values (values for rows on this PE)
 }sparsemat_t;
+
+typedef struct triples_t{
+  int64_t * row;
+  int64_t * col;
+  double * val;
+  int64_t numrows;
+  int64_t lnumrows;
+  int64_t numcols;
+  int64_t lnnz;
+  int64_t nalloc;
+} triples_t;
+
+typedef enum graph_model {FLAT, GEOMETRIC} graph_model;
+typedef enum edge_type {DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED} edge_type;
+typedef enum self_loops {NOLOOPS, LOOPS} self_loops;
+typedef enum layout {BLOCK, CYCLIC} layout;
+
+typedef struct w_edge_t{
+  int64_t row;
+  int64_t col;
+  double val;
+}w_edge_t;
+
+
+typedef struct edge_t{
+  int64_t row;
+  int64_t col;
+}edge_t;
+
+typedef struct edge_list_t{
+  edge_t * edges;
+  int64_t nalloc;
+  int64_t num;
+}edge_list_t;
+
+// struct to sort rows in a matrix with values
+typedef struct col_val_t{
+   int64_t col;
+   double value;
+}col_val_t;
+
+// struct to represent a point on the plane. (for geometric graphs)
+typedef struct point_t{
+  double x;
+  double y;
+}point_t;
+
 
 
 /*! \struct nxnz_t spmat.h
@@ -112,63 +161,81 @@ void incr_S_nxnz( nxnz_t *nxz, int64_t S_row );
 int64_t rowcount_l( sparsemat_t *mat, int64_t l_row );
 int64_t rowcount_S( sparsemat_t *mat, int64_t S_row );
 
-SHARED int64_t * rand_permp_conveyor(int64_t N, int seed);
-SHARED int64_t * rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt);
-SHARED int64_t * rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
-SHARED int64_t * rand_permp_agi(int64_t N, int seed);
+int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
+int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
+void                clear_matrix(sparsemat_t * mat);
+void                clear_triples(triples_t * T);
 
-sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
-sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
-sparsemat_t * permute_matrix_exstack(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
-sparsemat_t * permute_matrix_agi(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
+int                 compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
+sparsemat_t *       copy_matrix(sparsemat_t *srcmat);
 
-sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A);
-sparsemat_t * transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);
-sparsemat_t * transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt);
-sparsemat_t * transpose_matrix_agi(sparsemat_t * A);
+sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed);
+sparsemat_t *       gen_star_graph(int64_t m, int mode);
+sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
 
-int64_t write_sparse_matrix_agi( char * datadir, sparsemat_t * mat);
-int64_t write_sparse_matrix_exstack( char * datadir, sparsemat_t * mat, int64_t buf_cnt);
+edge_list_t *       init_edge_list(int64_t nalloc);
+sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted);
+triples_t *         init_triples(int64_t numrows, int64_t numcols, int64_t lnnz, int weighted);
+sparsemat_t *       init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz);
 
-/* wrapper functions */
-SHARED int64_t * rand_permp(int64_t N, int seed, int64_t buf_cnt);
-sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv, int64_t buf_cnt);
-sparsemat_t * transpose_matrix(sparsemat_t *omat, int64_t buf_cnt);
+int                 is_upper_triangular(sparsemat_t *A, int64_t unit_diagonal);
+int                 is_lower_triangular(sparsemat_t *A, int64_t unit_diagonal);
+int                 is_perm(SHARED int64_t * perm, int64_t N);
 
+sparsemat_t *       kronecker_product_of_stars(int64_t M, int64_t * m, int mode);
+sparsemat_t *       kronecker_product_graph_local(sparsemat_t * B, sparsemat_t * C);
+sparsemat_t *       kronecker_product_graph_dist(sparsemat_t * B, sparsemat_t * C);
+
+sparsemat_t *       permute_matrix(sparsemat_t * A, SHARED int64_t *rperminv, SHARED int64_t *cperminv);
+sparsemat_t *       permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
+sparsemat_t *       permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
+sparsemat_t *       permute_matrix_exstack(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
+sparsemat_t *       permute_matrix_agi(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
+
+SHARED int64_t *    rand_permp(int64_t N, int seed);
+SHARED int64_t *    rand_permp_conveyor(int64_t N, int seed);
+SHARED int64_t *    rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt);
+SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
+SHARED int64_t *    rand_permp_agi(int64_t N, int seed);
+sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
+                                 double edge_density, int64_t seed);
+
+sparsemat_t *       transpose_matrix(sparsemat_t * A);
+sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
+sparsemat_t *       transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);
+sparsemat_t *       transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt);
+sparsemat_t *       transpose_matrix_agi(sparsemat_t * A);
+sparsemat_t *       triples_to_sparsemat(triples_t * T);
+
+int64_t             write_sparse_matrix_agi( char * datadir, sparsemat_t * mat);
+int64_t             write_sparse_matrix_exstack( char * datadir, sparsemat_t * mat, int64_t buf_cnt);
 
 /* misc utility functions */
 //int write_matrix(sparsemat_t * A, int maxrows, char * name);
-int write_matrix_mm(sparsemat_t * A, char * name);
-sparsemat_t * read_matrix_mm_to_dist(char * name);
-int64_t write_sparse_matrix_metadata(char * dirname, sparsemat_t * A);
-int64_t read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t *nwriters);
-sparsemat_t * read_sparse_matrix_agi(char * datadir);
+int                 write_matrix_mm(sparsemat_t * A, char * name);
+sparsemat_t *       read_matrix_mm_to_dist(char * name);
+int64_t             write_sparse_matrix_metadata(char * dirname, sparsemat_t * A);
+int64_t             read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t *nwriters);
+sparsemat_t *       read_sparse_matrix_agi(char * datadir);
 
 
 int64_t tril(sparsemat_t * A, int64_t k);
-int64_t tril(sparsemat_t * A, int64_t k);
-int is_upper_triangular(sparsemat_t *A, int64_t unit_diagonal);
-int is_lower_triangular(sparsemat_t *A, int64_t unit_diagonal);
-int is_perm(SHARED int64_t * perm, int64_t N);
+int64_t triu(sparsemat_t * A, int64_t k);
 
-int nz_comp(const void *a, const void *b);
-sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, int64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, int64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, int64_t seed);
 
-sparsemat_t * kron_prod_dist(sparsemat_t * B, sparsemat_t * C, int64_t lower);
-sparsemat_t * kron_prod(sparsemat_t * B, sparsemat_t * C);
-sparsemat_t * gen_star(int64_t m, int mode);
-sparsemat_t * gen_local_mat_from_stars(int64_t M, int64_t * m, int mode);
+sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
+sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
+sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, uint64_t seed);
 
-int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
-sparsemat_t * copy_matrix(sparsemat_t *srcmat);
+
 int sort_nonzeros( sparsemat_t *mat);
+int nz_comp(const void *a, const void *b);
+int point_comp(const void *a, const void *b);
+int col_val_comp(const void *a, const void *b);
+//int dbl_comp(const void *a, const void *b);
+int edge_comp(const void *a, const void *b);
+int w_edge_comp(const void *a, const void *b);
 
-sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread);
-sparsemat_t * init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz);
-
-void clear_matrix(sparsemat_t * mat);
 
 #define spmat_INCLUDED
 #endif

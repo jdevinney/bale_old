@@ -72,7 +72,9 @@ Usage:\n\
 histo [-h][-b count][-M mask][-n num][-T tabsize][-c num]\n\
 -h prints this help message\n\
 -b count is the number of packages in an exstack(2) buffer\n\
--e=p Set the Erdos-Renyi probability to p.\n\
+-e=p Set the Edge probability to p.\n\
+-F Set the graph model to FLAT\n\
+-G Set the graph model to GEOMETRIC\n\
 -M=m Set the models mask (1,2,4,8,16,32 for AGI, exstack ,exstack2,conveyor,alternate)\n\
 -n=n Set the number of rows per PE to n (default = 1000).\n\
 -s=s Set a seed for the random number generation.\n\
@@ -98,15 +100,18 @@ int main(int argc, char * argv[])
   int64_t seed = 101892+MYTHREAD;
   sparsemat_t * inmat, * outmat;
   int64_t cores_per_node = 1;  
-
+  graph_model model = FLAT;
+  
   int opt; 
-  while( (opt = getopt(argc, argv, "hb:c:Ce:n:M:s:Z:")) != -1 ) {
+  while( (opt = getopt(argc, argv, "hb:c:Ce:FGn:M:s:Z:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
     case 'b': sscanf(optarg,"%"PRId64"", &buf_cnt);  break;
     case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
     case 'C': check = 0; break;
     case 'e': sscanf(optarg,"%lf", &erdos_renyi_prob); break;
+    case 'F': model = FLAT; break;
+    case 'G': model = GEOMETRIC; break;  
     case 'n': sscanf(optarg,"%"PRId64"", &l_numrows);   break;
     case 'M': sscanf(optarg,"%"PRId64"", &models_mask);  break;
     case 's': sscanf(optarg,"%"PRId64"", &seed); break;
@@ -124,13 +129,14 @@ int main(int argc, char * argv[])
   }else if(nz_per_row == -1){
     nz_per_row = erdos_renyi_prob*numrows;
   }
-  erdos_renyi_prob = (2.0*(nz_per_row - 1))/numrows;
+  erdos_renyi_prob = (2.0*nz_per_row)/(numrows-1);
   if(erdos_renyi_prob > 1.0)
     erdos_renyi_prob = 1.0;
 
   T0_fprintf(stderr,"Running transpose_matrix on %d threads\n", THREADS);
   T0_fprintf(stderr,"buf_cnt (stack size)        (-b) = %"PRId64"\n", buf_cnt);
-  T0_fprintf(stderr,"Erdos-Renyi edge probability(-e) = %lf\n", erdos_renyi_prob);
+  T0_fprintf(stderr,"Edge probability            (-e) = %lf\n", erdos_renyi_prob);
+  T0_fprintf(stderr,"Graph Model           (-F or -G)   %s\n", (model == FLAT ? "FLAT" : "GEOMETRIC"));
   T0_fprintf(stderr,"rows per PE (-n)                 = %"PRId64"\n", l_numrows);
   T0_fprintf(stderr,"models_mask (-M)                 = %"PRId64" or of 1,2,4,8,16 for gets,classic,exstack2,conveyor,alternate\n", models_mask);
   T0_fprintf(stderr,"seed (-s)                        = %"PRId64"\n", seed);
@@ -141,11 +147,12 @@ int main(int argc, char * argv[])
   minavgmaxD_t stat[1];
   int64_t error = 0;
     
-  inmat = gen_erdos_renyi_graph_dist(numrows, erdos_renyi_prob, 0, 3, seed + 2);
+  inmat = random_graph(numrows, model, DIRECTED, NOLOOPS, erdos_renyi_prob, seed + 2);
   if(inmat == NULL){
     T0_printf("ERROR: inmat is null!\n");
     return(-1);
   }
+  
   int64_t use_model;
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();

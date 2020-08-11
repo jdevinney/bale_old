@@ -58,23 +58,19 @@ and width r). This reduces the number of interpoint distances we need
 to calculate since edges can only exist between points in the same
 sector or in neighboring sectors (including diagonally neighboring).
 
-These graphs present an interesting alternate to the Erdos-Renyi
+These graphs present an interesting alternative to the Erdos-Renyi
 random graph. Their generation in parallel is also interesting in its
 own right. The assignment of points to PEs during the edge generation
-to reduce the amount of communication is an interesting discussion, as
-is the assignment of rows of the adjacency matrix once the edges are
-determined. These need not be the same and in fact it would be
-difficult to make them so given the sparse matrix data structure's
-requirment that the rows of a matrix must be evenly distributed to the
-PEs (with any remainder rows going to the lowest indexed PEs). Our
-current implementation assigns points to sectors starting with the top
-left sector and working left-to-right and wrapping to the next row
-down at the end of a row of sectors. Point numbers increase with
-sector number. We assign sectors in round-robin order to PEs for edge
-generation. Then, to create the matrix, points are distributed in
-block order (the first k points go to PE 0, the next k go to PE 1,
-etc). This allows us to evenly distribute the points to PEs while
-maintaining some of the locality inherent in these graphs.
+in order to reduce the amount of communication is an interesting
+discussion, as is the assignment of rows of the adjacency matrix once
+the edges are determined. These need not be the same and in fact it
+would be difficult to make them so given bale's sparse matrix data
+structure's requirment that the rows of a matrix must be evenly
+distributed to the PEs (with any remainder rows going to the lowest
+indexed PEs). Our current implementation assigns sectors to PEs in a
+BLOCK fashion and places sectors in lexiographic order by column
+(starting with the left side of the unit square) and then row
+(starting with th e bottom of the unit square).
 
 While we know there exist communication-free algorithms for generating
 geometric random graphs, we decided to implement an algorithm that

@@ -12,6 +12,7 @@ SRC= spmat_utils.h spmat_utils.c
   SRC+=unionfind.c 
   SRC+=transpose_matrix.c
   SRC+=permute_matrix.c
+  SRC+=sssp.c
   SRC+=demo_spmat.c
 
 EXE= histo 
@@ -22,6 +23,7 @@ EXE= histo
   EXE+=unionfind
   EXE+=transpose_matrix
   EXE+=permute_matrix
+  EXE+=sssp
   EXE+=demo_spmat
 
 DOC= mainpage.h Doxyfile
@@ -61,6 +63,9 @@ permute_matrix: permute_matrix.c spmat_utils.o
 
 transpose_matrix: transpose_matrix.c spmat_utils.o
 	${CC} transpose_matrix.c spmat_utils.o ${LFLAGS} -o transpose_matrix
+
+sssp: sssp.c spmat_utils.o
+	${CC} sssp.c spmat_utils.o ${LFLAGS} -o sssp
 
 doc:
 	doxygen

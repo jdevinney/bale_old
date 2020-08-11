@@ -274,15 +274,14 @@ sparsemat_t  *read_matrix_mm(char * name)
   char object[24], format[24], field[24];
   int fscanfret;
 
-  // Read the header line of the MasterMarket format 
+  // Read the header line of the MatrixMarket format 
   FILE * fp = fopen(name, "r");
   if( fp == NULL ){
     fprintf(stderr,"read_matrix_mm: can't open file %s \n", name);
     exit(1);
   }
-  //The only format we need to be able to read requires the first line to be:
-  //"%%MasterMarket matrix coordinate position"
-  fscanfret = fscanf(fp,"%%%%MasterMarket %s %s %s\n", object, format, field);
+    
+  fscanfret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
   if( (fscanfret != 3 ) || strncmp(object,"matrix",24) || strncmp(format,"coordinate",24) ){
     fprintf(stderr,"read_matrix_mm: Incompatible matrix market format.\n");
     fprintf(stderr,"                First line should be either:\n");
@@ -418,7 +417,7 @@ sparsemat_t  *read_matrix_mm(char * name)
  * \param cperminv pointer to the global array holding the inverse of the column permutation
  * rperminv[i] = j means that row i of A goes to row j in matrix Ap
  * cperminv[i] = j means that col i of A goes to col j in matrix Ap
- * \return a pointer to the matrix that has been produced or NULL if the model can't be used
+ * \return a pointer to the matrix that has been produced 
  */
 sparsemat_t * permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cperminv) 
 {
@@ -489,7 +488,8 @@ sparsemat_t * transpose_matrix(sparsemat_t *A)
     for(j=A->offset[row]; j<A->offset[row+1]; j++){
       col = A->nonzero[j];
       At->nonzero[ tmpoffset[col] ] = row;
-      if(A->value) At->value[ tmpoffset[col] ] = A->value[j];
+      if(A->value)  // expect (or hope) that the compiler would pull this out of the loop
+				At->value[ tmpoffset[col] ] = A->value[j];
       tmpoffset[col]++;
     }
   }
@@ -1095,7 +1095,7 @@ double dist(points_t a, points_t b){
   * \param seed A seed for the RNG.
   * \return An adjacency matrix (or lower portion of in the undirected case).
   */
-sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, int64_t seed){
+sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed){
   int64_t i, j, k, l;
   double r2 = r*r;
   // We break up the unit square into chunks that are rxr grid.
@@ -1316,7 +1316,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
  *
  * \param n The total number of vertices in the graph (rows in the matrix).
  * \param p The probability that each non-loop edge is present.
- * \param type See edge_type.
+ * \param edge_type See edge_type. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops.
  * \param seed A random seed.
  * \return A sparsemat_t
@@ -1403,7 +1403,7 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
  * It flips a coin for each possible edge.
  * \param n The total number of vertices in the graph (rows in the matrix).
  * \param p The probability that each non-loop edge is present.
- * \param type See edge_type.
+ * \param edge_type See edge_type.
  * \param loops See self_loops.
  * \param seed A random seed.
  * \return A sparsemat_t

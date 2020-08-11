@@ -109,7 +109,7 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
   double t1 = wall_seconds();
 
   int64_t r_and_c_done = 0;
-  int64_t num_levels = 0, col_level;
+  int64_t max_level = 0, col_level;
   pkg_topo_t pkg, pkg_ptr;
   while(convey_advance(conv, (r_and_c_done == (lnr + lnc)))){
     
@@ -162,11 +162,13 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
       }else{
         lrowsum[pkg_ptr.row] -= pkg_ptr.col;
         lrowcnt[pkg_ptr.row]--;
-        /* update the level for this row */
-        if(pkg_ptr.level >= level[pkg_ptr.row]){
+        /* update the level for this row 
+         If this ancestor was at level i, 
+         it must be at least level i+1. */
+        if(pkg_ptr.level + 1 > level[pkg_ptr.row]){
           level[pkg_ptr.row] = pkg_ptr.level + 1;
-          if((pkg_ptr.level+1) > num_levels)
-            num_levels = pkg_ptr.level + 1;
+          if((pkg_ptr.level+1) > max_level)
+            max_level = pkg_ptr.level + 1;
         }
         if(lrowcnt[pkg_ptr.row] == 1){
           lrowqueue[rowlast++] = pkg_ptr.row;
@@ -177,12 +179,12 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
   
   //convey_reset(conv);
   convey_free(conv);
-
-  num_levels++;
+  
   /* at this point we know for each row its level and the column it was matched with.
      we need to create cperm and rperm from this information */
-  num_levels = lgp_reduce_max_l(num_levels);
+  max_level = lgp_reduce_max_l(max_level);
 
+  int64_t num_levels = max_level + 1;
   int64_t * level_sizes = calloc(num_levels, sizeof(int64_t));
   int64_t * level_start = calloc(num_levels, sizeof(int64_t));
   
@@ -234,7 +236,7 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
   free(lrowsum);
   free(lrowqueue);
   free(lcolqueue);
-  
+  T0_fprintf(stderr, "num levels = %ld ", num_levels);
   return(stat->avg);
 }
 
