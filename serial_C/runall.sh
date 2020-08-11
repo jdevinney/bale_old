@@ -63,7 +63,7 @@ echo; echo XXXXXXXXXXXX demo_spmat XXXXXXXXXXXXXXX
 ./demo_spmat
 
 
-for app in histo ig topo randperm permute_matrix transpose_matrix triangles unionfind
+for app in histo ig topo randperm permute_matrix transpose_matrix triangles unionfind sssp
 do
     # just run the command with -h
     echo; echo XXXXXXXXXXXX $app XXXXXXXXXXXXXXX

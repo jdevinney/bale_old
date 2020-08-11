@@ -70,16 +70,11 @@ sssp: sssp.c spmat_utils.o
 doc:
 	doxygen
 
-ci:
-	ci Makefile  ${SRC} ${GRAPHS} ${DOC} runall.sh
-co: 
-	co ${SRC} ${GRAPHS} ${DOC} runall.sh
-
 tar: 
 	mkdir -p Bale_C
-	cp Makefile ${SRC} ${GRAPHS} ${DOC} runall.sh Bale_C
+	cp Makefile ${SRC} ${GRAPHS} ${DOC} runall.sh README.md Bale_C
 	tar cfv Bale_C.tar Bale_C
 	rm -r Bale_C
 
 clean:
-	rm -f *.out ${EXE} ${OBJ}
+	rm  *.out ${EXE} ${OBJ}
