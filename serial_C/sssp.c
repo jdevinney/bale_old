@@ -93,6 +93,9 @@ double sssp_generic(sparsemat_t * L, int64_t v0)
   sparsemat_t *LU = LUmat_from_L(L);
 	dump_matrix(LU,20, "LU.out");
 
+	// Start timing here so we don't count making the LU matrix
+  double t1 = wall_seconds();
+	
 	for(i=0; i<numrows; i++)
 		dist[i] = INFINITY;
 	for(k = LU->offset[v0];  k < LU->offset[v0+1]; k++)
@@ -115,24 +118,33 @@ double sssp_generic(sparsemat_t * L, int64_t v0)
 		if(minwt == INFINITY)    // fail?: graph is not connected
 			break;
 
+    // Update the path length for all of the vertices that are adjacent to of the 
+		// newly found min vertex.
+		// Note: This automatically skips vertices that have been resolved,
+	  // because we flag them by making their distance negative.
     curwt = dist[minidx];
-		
 		for(k = LU->offset[minidx];  k < LU->offset[minidx+1]; k++){
 			vn = LU->nonzero[k];
-      if( dist[vn] > curwt + L->value[k] )
+      if(dist[vn] > curwt + L->value[k]) 
 				dist[vn] = curwt + L->value[k];
 		}
 		printf("dist[%ld] = %lg\n", minidx, curwt);
     dist[minidx] = -dist[minidx];
   }
 
+	// Restore the sign of the path lengths
 	for(i=0; i<numrows; i++)
 		dist[i] = -dist[i];
 
+	// Stop the timing
+  t1 = wall_seconds() - t1;
+
 	for(i=0; i<numrows; i++)
 		printf("%ld %g\n",i, dist[i]);
+  clear_matrix(LU);
+	free(LU);
 
-	return(0.0);
+	return(t1);
 }
 
 int main(int argc, char * argv[]) 
