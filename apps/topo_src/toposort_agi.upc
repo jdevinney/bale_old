@@ -141,6 +141,8 @@ double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsem
     end = lS_end[0];
     work_to_do = lgp_reduce_add_l(end - start);
   }
+
+  level = lgp_reduce_max_l(level);
   
   minavgmaxD_t stat[1];
   t1 = wall_seconds() - t1;
@@ -151,6 +153,7 @@ double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsem
     printf("ERROR! toposort_matrix_upc_orig: found %"PRId64" pivots but expected %"PRId64"!\n", pivots[0], nr);
     exit(1);
   }
+  T0_fprintf(stderr, "num levels = %ld ", level+1);
   lgp_all_free(queue);
   lgp_all_free(rowsum);
   lgp_all_free(rowcnt);

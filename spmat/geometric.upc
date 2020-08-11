@@ -149,7 +149,6 @@ void append_edges_between_sectors(uint64_t this_sec_idx,
     
     for(j = 0; j < npts_this; j++){
       int64_t point_indexA = first_point_this + j;
-      //assert(point_indexA < 10);
       // If we are looking within the same sector, only compare
       // points where l < j.
       for(l = 0; l < npts_other; l++){
@@ -249,29 +248,6 @@ void append_edges_for_sector(int64_t sector,
 }
                              
 
-// The purpose of this function is to produce a histogram with the number
-// of points in each sector. The function returns the counts array.
-// We do this by having each PE generate n/THREADS random sector indices,
-// incrementing the count for each.
-SHARED int64_t * calculate_npoints_per_sector(int64_t n, int64_t nsectors){
-  int64_t i;
-  int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
-  SHARED int64_t * counts = lgp_all_alloc(nsectors,sizeof(int64_t));
-  int64_t * lcounts = lgp_local_part(int64_t, counts);
-  int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
-  
-  for(i = 0; i < lnsectors; i++) lcounts[i] = 0;
-
-  lgp_barrier();    
-  
-  for(i = 0; i < ln; i++){
-    lgp_atomic_add(counts, rand() % nsectors, 1L);
-  }
-    
-  lgp_barrier();
-  
-  return(counts);
-}
 
 // This is the Hillis and Steele algorithm as presented on wikipedia.
 SHARED int64_t * prefix_scan(SHARED int64_t * counts, int64_t n){
@@ -331,6 +307,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   int64_t nsectors = nsectors_across*nsectors_across;
   int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
+  int weighted = (edge_type == DIRECTED_WEIGHTED || edge_type == UNDIRECTED_WEIGHTED);
+  int directed = (edge_type == DIRECTED) || (edge_type == DIRECTED_WEIGHTED);
+  
   T0_printf("GEOMETRIC GRAPH: r = %lf number of sectors = %ld sector_width = %lf\n",
             r, nsectors, sector_width);
   T0_printf("                 edge_type = %ld loops = %d\n", edge_type, loops);
@@ -340,13 +319,23 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   // TODO: permute matrix at end to get Zmorton order (which would improve locality)
   //       or round-robin point order (which would destroy locality)
 
-  // Step 1. Figure out how many points land in every sector.
-  SHARED int64_t * counts = calculate_npoints_per_sector(n, nsectors);
+  // Step 1. Figure out how many points land in every sector. We do
+  // this by having each PE generate n/THREADS random sector indices,
+  // incrementing the count for each.
+  SHARED int64_t * counts = lgp_all_alloc(nsectors, sizeof(int64_t));
   int64_t * lcounts = lgp_local_part(int64_t, counts);
+
+  for(i = 0; i < lnsectors; i++) lcounts[i] = 0;
+
+  lgp_barrier();    
   
+  for(i = 0; i < ln; i++) lgp_atomic_add(counts, rand() % nsectors, 1L);
+    
+  lgp_barrier();
+
   // Step 2. Figure out how many points landed in your sectors.
   // Note: We are not attaching sectors to anywhere in particular in
-  // the unit square yet.  
+  // the unit square yet.
   int64_t my_total_points = 0;
   int64_t my_sector_max = 0;
   for(i = 0; i < lnsectors; i++){
@@ -357,7 +346,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   assert(sum == n);
   
   // Step 3. Allocate space for global array of points.
-  // sector_max is a global variable ...yuck.
+  // sector_max is a global variable ...yuck. 
   sector_max = lgp_reduce_max_l(my_sector_max);
   int64_t max_lnsectors = (nsectors + THREADS - 1)/THREADS; 
   SHARED point_t * points = lgp_all_alloc(sector_max*max_lnsectors*THREADS, sizeof(point_t));
@@ -365,13 +354,15 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   lgp_barrier();
 
-  // Step 4.
-  // We assign sectors to PEs and order sectors here. Sectors are assigned to PEs
-  // in BLOCK (i.e not CYCLIC) fashion. The sectors will be laid out in the unit square in columns
-  // starting with the sector whose lower left index is (0,0), proceeding up the column,
-  // and then moving over to the bottom of the next column and repeating.
+  // Step 4. We compute the global index of the first point in each sector.
+  //
+  // We assign sectors to PEs and put an ordering on sectors here. Sectors are assigned to PEs
+  // in BLOCK (i.e not CYCLIC) fashion. The sectors will be ordered lexiographically by column and then row
+  // in the unit square starting with the sector whose lower left index is (0,0).
+  //
+  // Points within a sector are given a set of contiguous indices and all
+  // points in a sector have lower/higher indices than sectors with higher/lower indices.
 
-  // Here we compute the global index of the first point in each sector.
   int64_t my_first_sector = 0;
   for(i = 0; i < MYTHREAD; i++)
     my_first_sector += (nsectors + THREADS - i - 1)/THREADS;
@@ -387,7 +378,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   lgp_barrier();
 
 
-  // Step 4. Each PE generates the points for their own sectors.
+  // Step 5. Each PE generates the points for their own sectors.
   int64_t pt = 0;
   for(i = 0; i < lnsectors; i++){
     int64_t sector = my_first_sector + i;
@@ -403,12 +394,8 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     //qsort(&lpoints[i*sector_max], lcounts[i], sizeof(point_t), point_comp);
   }
 
-
-  int weighted = (edge_type == DIRECTED_WEIGHTED || edge_type == UNDIRECTED_WEIGHTED);
-  int directed = (edge_type == DIRECTED) || (edge_type == DIRECTED_WEIGHTED);
-  //T0_printf("Calculating edges...\n");fflush(0);
   
-  // Step 6. Determine Edges
+  // Step 6. Determine which edges are present
   int64_t space = ceil(1.1*my_total_points*(n*M_PI*r*r));
   printf("PE %d: Initial allocation: %ld\n", MYTHREAD, space);
   edge_list_t * el = init_edge_list(space);
@@ -417,7 +404,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     return(NULL);
   }
 
-  /* For each of our local sectors we compute all possible edges */  
+  /* For each of our local sectors we compute all possible edges */ 
   for(i = 0; i < lnsectors; i++){
     append_edges_for_sector(my_first_sector + i, my_first_sector,
                             nsectors, points, first_point_in_sector,
@@ -445,7 +432,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   //
   // Once we relabel points, we can get rid of the unnecessary edges (those that represent nonzeros
   // above the diagonal).
-  //
+
 
   int64_t pe;
   int64_t toss = 0, keep = 0;

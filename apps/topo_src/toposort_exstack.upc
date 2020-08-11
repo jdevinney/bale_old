@@ -246,7 +246,7 @@ double toposort_matrix_exstack(SHARED int64_t *rperm, SHARED int64_t *cperm, spa
   free(lcolqueue);
   free(level_start);
   free(level_sizes);
-
+  T0_fprintf(stderr, "num levels = %ld ", num_levels);
   return(stat->avg);
   
 }
