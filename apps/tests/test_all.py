@@ -15,8 +15,7 @@ def determine_launcher():
 # parameters to this script are handled in conftest.py
 # --path : specify a path to executables
 def test_all(path, node_range, implementation_mask):
-    apps = ["histo", "ig", "topo", "randperm"]
-    print("Hi")
+    apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix"]
     launcher = determine_launcher()
     print(launcher)
     if node_range is not None:
