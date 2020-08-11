@@ -312,7 +312,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   T0_printf("GEOMETRIC GRAPH: r = %lf number of sectors = %ld sector_width = %lf\n",
             r, nsectors, sector_width);
-  T0_printf("                 edge_type = %ld loops = %d\n", edge_type, loops);
+  T0_printf("                 edge_type = %d loops = %d\n", edge_type, loops);
 
   
   srand(seed + MYTHREAD + 1);
@@ -397,7 +397,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   // Step 6. Determine which edges are present
   int64_t space = ceil(1.1*my_total_points*(n*M_PI*r*r));
-  printf("PE %d: Initial allocation: %ld\n", MYTHREAD, space);
+  //printf("PE %d: Initial allocation: %ld\n", MYTHREAD, space);
   edge_list_t * el = init_edge_list(space);
   if(el == NULL){
     printf("ERROR: geometric graph: el is NULL\n");
