@@ -420,7 +420,7 @@ sparsemat_t  *read_matrix_mm(char * name)
  * \param cperminv pointer to the global array holding the inverse of the column permutation
  * rperminv[i] = j means that row i of A goes to row j in matrix Ap
  * cperminv[i] = j means that col i of A goes to col j in matrix Ap
- * \return a pointer to the matrix that has been produced or NULL if the model can't be used
+ * \return a pointer to the matrix that has been produced 
  */
 sparsemat_t * permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cperminv) 
 {
@@ -491,7 +491,8 @@ sparsemat_t * transpose_matrix(sparsemat_t *A)
     for(j=A->offset[row]; j<A->offset[row+1]; j++){
       col = A->nonzero[j];
       At->nonzero[ tmpoffset[col] ] = row;
-      if(A->value) At->value[ tmpoffset[col] ] = A->value[j];
+      if(A->value)  // expect (or hope) that the compiler would pull this out of the loop
+				At->value[ tmpoffset[col] ] = A->value[j];
       tmpoffset[col]++;
     }
   }

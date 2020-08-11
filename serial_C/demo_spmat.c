@@ -77,4 +77,5 @@ int main(int argc, char * argv[])
   write_matrix_mm(graph, "tidy_demo.mm.out");
   clear_matrix(graph);
 
+	return(0);
 }
