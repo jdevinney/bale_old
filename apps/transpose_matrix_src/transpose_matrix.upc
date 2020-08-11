@@ -185,7 +185,7 @@ int main(int argc, char * argv[])
 
     /* correctness check */
     if(check){      
-      sparsemat_t * outmatT = transpose_matrix(outmat, buf_cnt);
+      sparsemat_t * outmatT = transpose_matrix(outmat);
       if(compare_matrix(outmatT, inmat)){
         T0_fprintf(stderr,"ERROR: transpose of transpose does not match!\n");
       }
