@@ -61,10 +61,10 @@
  * This gives a random permutation with spaces in it, then you squeeze out the spaces.
  * \ingroup spmatgrp
  */
-SHARED int64_t * rand_permp(int64_t N, int seed, int64_t buf_cnt) {
+SHARED int64_t * rand_permp(int64_t N, int seed) {
   SHARED int64_t * p;
   //p = rand_permp_agi(N, seed);
-  p = rand_permp_exstack(N, seed, buf_cnt);
+  p = rand_permp_exstack(N, seed, 128);
   //p = rand_permp_exstack2(N, seed, 1024);
   
   if(!is_perm(p, N)){
@@ -91,9 +91,9 @@ SHARED int64_t * rand_permp(int64_t N, int seed, int64_t buf_cnt) {
  *
  * \ingroup spmatgrp
  */
-sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv, int64_t buf_cnt) {
+sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {
   //return( permute_matrix_agi(omat, rperminv, cperminv) );
-    return( permute_matrix_exstack(omat, rperminv, cperminv, buf_cnt) );
+    return( permute_matrix_exstack(omat, rperminv, cperminv, 128) );
   //return( permute_matrix_exstack2(omat, rperminv, cperminv, 1024) );
   //return( permute_matrix_conveyor(omat, rperminv, cperminv) );
 }
@@ -109,10 +109,10 @@ sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED
  *
  * \ingroup spmatgrp
  */
-sparsemat_t * transpose_matrix(sparsemat_t *omat, int64_t buf_cnt) {
+sparsemat_t * transpose_matrix(sparsemat_t *omat) {
   sparsemat_t * A;
   //A = transpose_matrix_agi(omat);
-  A = transpose_matrix_exstack(omat, buf_cnt);
+  A = transpose_matrix_exstack(omat, 128);
   //A = transpose_matrix_exstack2(omat, 1024);
   //A = transpose_matrix_conveyor(omat);
   if(!A){return(NULL);}
@@ -1312,13 +1312,13 @@ int64_t append_triple(triples_t * T, int64_t row, int64_t col, double val){
 
 int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
   if(el->nalloc == el->num){
-    printf("PE %d: out of space! nalloc = %ld\n", MYTHREAD, el->nalloc);
+    //printf("PE %d: out of space! nalloc = %ld\n", MYTHREAD, el->nalloc);
     // we need to expand our allocations!
     if(el->nalloc < 10000)
       el->nalloc = 2*el->nalloc;
     else
       el->nalloc = el->nalloc*1.25;
-    printf("PE %d: new space! nalloc = %ld\n", MYTHREAD, el->nalloc);
+    //printf("PE %d: new space! nalloc = %ld\n", MYTHREAD, el->nalloc);
     el->edges = realloc(el->edges, el->nalloc*sizeof(edge_t));
   }
   el->edges[el->num].row = row;

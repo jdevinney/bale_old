@@ -159,7 +159,7 @@ int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64
     T0_fprintf(stderr,"ERROR: check_is_triangle is_perm(rperminv2) = %d is_perm(cperminv2) = %d\n",rf,cf);
     return(1);
   }
-  mat2 = permute_matrix(mat, rperminv, cperminv, 500);
+  mat2 = permute_matrix(mat, rperminv, cperminv);
   if(!is_upper_triangular(mat2, 1)) {
     T0_fprintf(stderr,"ERROR: check_is_triangle fails\n");
     ret = 1;
@@ -193,8 +193,8 @@ sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double
   
   // get row and column permutations
   t = wall_seconds();
-  SHARED int64_t * rperminv = rand_permp(numrows, 1230+MYTHREAD, buf_cnt);
-  SHARED int64_t * cperminv = rand_permp(numcols, 45+MYTHREAD, buf_cnt);
+  SHARED int64_t * rperminv = rand_permp(numrows, 1230+MYTHREAD);
+  SHARED int64_t * cperminv = rand_permp(numcols, 45+MYTHREAD);
   T0_printf("generate perms time %lf\n", wall_seconds() - t);
   lgp_barrier();
 
@@ -264,7 +264,10 @@ int main(int argc, char * argv[]) {
     case 'Z': sscanf(optarg,"%lf" , &nz_per_row);  break;
     case 'e': sscanf(optarg,"%lf" , &erdos_renyi_prob);  break;
     case 'D': dump_files = 1; break;
-    default:  break;
+    default:
+      T0_fprintf(stderr,"Error: Usage error!\n");
+      lgp_global_exit(1);
+      break;
     }
   }
   if(printhelp) usage();

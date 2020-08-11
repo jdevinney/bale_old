@@ -149,8 +149,8 @@ int main(int argc, char * argv[]) {
   minavgmaxD_t stat[1];
   int64_t error = 0;
   
-  SHARED int64_t * rp = rand_permp(numrows, seed, buf_cnt);
-  SHARED int64_t * cp = rand_permp(numrows, seed + 1, buf_cnt);  
+  SHARED int64_t * rp = rand_permp(numrows, seed);
+  SHARED int64_t * cp = rand_permp(numrows, seed + 1);  
   
   sparsemat_t * inmat = random_graph(numrows, model, DIRECTED, 0, erdos_renyi_prob, seed + 2);
   if(inmat == NULL){
