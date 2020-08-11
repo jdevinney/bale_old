@@ -302,10 +302,10 @@ exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast)
   shmem_atomic_add(&Xstk2->s_can_send[pe], -1L, MYTHREAD);
   
   if(Xstk2->push_cnt[pe] > 0L){ // flushing might call send() with an empty buffer
-    //shmem_putmem(&Xstk2->s_rcv_buffer[MYTHREAD*Xstk2->pkg_size*Xstk2->buf_cnt],
-    //Xstk2->l_snd_buffer[pe],
-    //             Xstk2->push_cnt[pe]*Xstk2->pkg_size,
-    //             pe);
+    shmem_putmem(&Xstk2->s_rcv_buffer[MYTHREAD*Xstk2->pkg_size*Xstk2->buf_cnt],
+                 Xstk2->l_snd_buffer[pe],
+                 Xstk2->push_cnt[pe]*Xstk2->pkg_size,
+                 pe);
   }
   //printf("%d sending to %ld islast=%d cnt= %ld\n", MYTHREAD, pe, islast, Xstk2->push_cnt[pe]);
 
@@ -454,7 +454,7 @@ void *exstack2_pull(exstack2_t * Xstk2, int64_t *from_pe) // sets pointer to pkg
   if(Xstk2->pop_pe != -1L){ // We have a buffer queued up... 
     if(Xstk2->pop_cnt[Xstk2->pop_pe] > 0L){  // there is something to pop
 
-      ret =  Xstk2->pop_ptr[Xstk2->pop_pe];
+      ret = Xstk2->pop_ptr[Xstk2->pop_pe];
       if( from_pe != NULL )
         *from_pe = Xstk2->pop_pe;
       
