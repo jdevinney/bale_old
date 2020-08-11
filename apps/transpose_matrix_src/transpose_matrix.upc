@@ -116,7 +116,9 @@ int main(int argc, char * argv[])
     case 'M': sscanf(optarg,"%"PRId64"", &models_mask);  break;
     case 's': sscanf(optarg,"%"PRId64"", &seed); break;
     case 'Z': sscanf(optarg,"%"PRId64"", &nz_per_row);  break;
-    default:  break;
+    default:
+      T0_fprintf(stderr,"Error: Usage error.\n");
+      break;
     }
   }
   if(printhelp) usage();
@@ -146,7 +148,7 @@ int main(int argc, char * argv[])
   double t1;
   minavgmaxD_t stat[1];
   int64_t error = 0;
-    
+  
   inmat = random_graph(numrows, model, DIRECTED, NOLOOPS, erdos_renyi_prob, seed + 2);
   if(inmat == NULL){
     T0_printf("ERROR: inmat is null!\n");
