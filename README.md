@@ -13,7 +13,7 @@ The other pillar of bale are three libraries that provide the programmer with an
 We hope that bale can lead to improved parallel programmer productivity (including existing and/or new programming models) and performance. 
 
 
-## Nitty Gritty
+## Nitty Gritty of Bale Proper
 
 ### What language? Where does it run?
 Bale is written in C and can be compiled with UPC or link against OpenSHMEM 1.4. Bale has been tested on a variety of architectures including Cray XC30, clusters with Infiniband, and SMP Linux.
@@ -56,13 +56,18 @@ Each of the applications in bale are implemented in multiple ways to showcase th
 4. conveyors: a more mature and sophisticated asynchronous model that is independent of exstack and exstack2.
 5. In some applications we have included other variants in the "alternatives" directory.   
 
-## Build Instructions
+### Build Instructions
 There is an install script (called install.sh) to make building easier for most people. Follow the directions in INSTALL. 
 
-## Testing
+### Testing
 We are working on a new test script that uses pytest as a harness. To run this test, go to
 the apps directory and run
     pytest -s -P=<path/to/bale/binaries> --node_range=0,10,2 -M 15
 
-## Documentation
+### Documentation
 Bale is documented using Doxygen. See INSTALL for directions on how to generate the documentation.
+
+
+## Other Implementation of Bale
+
+### [serial_C](serial_C/README.md) is a simple implementation of the bale apps and the sparse matrix library written in C.
