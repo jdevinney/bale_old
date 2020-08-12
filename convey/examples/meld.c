@@ -186,8 +186,10 @@ main(int argc, char* argv[])
   convey_free(convey);
 
   // Now do the real test
-  biconvey_t* f = biconvey_new(SIZE_MAX, 0, NULL, convey_opt_ALERT);
-  biconvey_t* g = biconvey_new(SIZE_MAX, 0, NULL, convey_opt_ALERT);
+  // biconvey_t* f = biconvey_new(SIZE_MAX, 0, NULL, convey_opt_ALERT);
+  // biconvey_t* g = biconvey_new(SIZE_MAX, 0, NULL, convey_opt_ALERT);
+  biconvey_t* f = biconvey_new_simple(10000, NULL, NULL, convey_opt_ALERT);
+  biconvey_t* g = biconvey_new_simple(10000, NULL, NULL, convey_opt_ALERT);
   uint64_t ticks = 0;
   
   for (int loop = 0; loop < 10; loop++) {

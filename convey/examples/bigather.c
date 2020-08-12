@@ -87,7 +87,8 @@ main(int argc, char* argv[])
     }
   }
 
-  biconvey_t* bike = biconvey_new(SIZE_MAX, 0, NULL, convey_opt_ALERT);
+  // biconvey_t* bike = biconvey_new(SIZE_MAX, 0, NULL, convey_opt_ALERT);
+  biconvey_t* bike = biconvey_new_simple(100, NULL, NULL, convey_opt_ALERT);
 
   if (bike && index && source && target) {
     // Transpose, then perform inverse transpose
