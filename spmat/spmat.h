@@ -173,7 +173,7 @@ sparsemat_t *       direct_undirected_graph(sparsemat_t * L);
 
 sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed);
 sparsemat_t *       gen_star_graph(int64_t m, int mode);
-sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
+sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
 
 edge_list_t *       init_edge_list(int64_t nalloc);
 sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted);

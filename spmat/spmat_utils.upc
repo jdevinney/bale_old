@@ -601,20 +601,29 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
       et = UNDIRECTED;
     else if(et == DIRECTED_WEIGHTED)
       et = UNDIRECTED_WEIGHTED;
-    
+
+    SHARED point_t * op;
     double r;
     // determine the r that will lead to the desired edge density
     // Expected degree = n*pi*r^2
     // The expected number of edges E = n^2*pi*r^2/2
     // for undirected density = E/(n choose 2)
     // for directed   density = E/(n^2 - n)
-    r = sqrt((n-1)*edge_density/(M_PI*n));    
-    sparsemat_t * L = geometric_random_graph(n, r, et, loops, seed);
+    r = sqrt((n-1)*edge_density/(M_PI*n));
+    //SHARED point_t * op = lgp_all_alloc(n, sizeof(point_t));
+    sparsemat_t * L = geometric_random_graph(n, r, et, loops, seed, NULL);// &op);
     if(L == NULL){
       T0_fprintf(stderr,"Error: random_graph: geometric_r_g returned NULL!\n");
       return(NULL);
     }
-    
+    lgp_barrier();
+    if(!MYTHREAD && 0){
+      point_t pt;
+      for(int i = 0; i < n; i++){
+        lgp_memget(&pt, op, sizeof(point_t), i);
+        //printf("%ld: %lf %lf\n", i, pt.x, pt.y);
+      }
+    }
     if(edgetype == DIRECTED || edgetype == DIRECTED_WEIGHTED){
       sparsemat_t * A = direct_undirected_graph(L);
       clear_matrix(L);
@@ -1232,6 +1241,7 @@ sparsemat_t * direct_undirected_graph(sparsemat_t * L){
     A->lnonzero[pos] = el->edges[i].col;
   }
 
+  sort_nonzeros(A);
   free(lrowcounts);
   free(el);
 

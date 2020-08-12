@@ -261,13 +261,12 @@ SHARED int64_t * prefix_scan(SHARED int64_t * counts, int64_t n){
   * \param type See edge_type. Must be UNDIRECTED or UNDIRECTED_WEIGHTED.
   * \param loops See self_loops. Are there self loops?
   * \param seed A seed for the RNG. This should be a single across all PEs (it will be modified by each PE individually).
+  * \param points (Optional) If you supply this pointer, the routine will populate it with the points associated with the vertices in the graph. 
   * \return An adjacency matrix (or lower portion of in the undirected case).
   */
 
 // TODO: add optional return that gives back the geometric positions of points
-// TODO: fix directed version (take directed out of here) and add function that randomly directs all edges of an undirected graph
-
-sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed){
+sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points){
   
   // We generate n points (p_i) uniformly at random over the unit square.
   // Each point corresponds to a vertex (v_i).
@@ -395,7 +394,6 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   }
 
   lgp_barrier();
-  lgp_all_free(points);
   
   //printf("PE %d: After comparing inter-point distances: lnnz = %ld\n",MYTHREAD, el->num);
   int64_t nnz = lgp_reduce_add_l(el->num);
@@ -435,6 +433,26 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       el->edges[i].col = col_index;
     }    
   }
+
+  // If the calling function wanted the geometric points too, we fill in that array now.
+  if(out_points){
+    printf("Hi!\n");
+    int64_t point_index = points_before_my_block;
+    SHARED point_t * op = lgp_all_alloc(n, sizeof(point_t));
+    lgp_barrier();
+    
+    for(i = 0; i < lnsectors; i++){
+      for(j = 0; j < lcounts[i]; j++){
+        int64_t off = global_index_to_pe_and_offset(point_index, n, &pe, BLOCK);
+        int64_t new_index = pe_and_offset_to_global_index(pe, off, n, CYCLIC);
+        lgp_memput(op, &lpoints[i*sector_max + j], sizeof(point_t), new_index);
+        point_index++;
+      }
+    }
+    *out_points = op;
+  }
+  lgp_barrier();
+  lgp_all_free(points);
   
   // Step 8. Do a histogram to get vertex degrees (aka row_counts)
   SHARED int64_t * row_counts = lgp_all_alloc(n, sizeof(int64_t));
