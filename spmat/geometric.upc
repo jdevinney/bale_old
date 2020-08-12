@@ -57,7 +57,7 @@ double dist(point_t a, point_t b){
 // The layout is either BLOCK or CYLIC.
 //
 // Output: A local offset and PE number.
-int64_t get_pe_and_offset(int64_t pindex, int64_t n, int64_t * pe, layout layout){
+int64_t global_index_to_pe_and_offset(int64_t pindex, int64_t n, int64_t * pe, layout layout){
 
   if(layout == CYCLIC){
     *pe = pindex % THREADS;
@@ -78,36 +78,23 @@ int64_t get_pe_and_offset(int64_t pindex, int64_t n, int64_t * pe, layout layout
   return(idx);
 }
 
-int64_t get_global_index_from_pe_and_offset(int64_t pe, int64_t offset){
-  return(offset*THREADS + pe);
+// Input: An item's local offset and the PE.
+// Output: The global index of the item, assuming BLOCK or CYCLIC ordering.
+// If BLOCK, we assume items are distributed evenly.
+int64_t pe_and_offset_to_global_index(int64_t pe, int64_t offset, int64_t n, layout layout){
+
+  if(layout == CYCLIC)
+    return(offset*THREADS + pe);
+  else{
+    int64_t i, index = 0;
+    for(i = 0; i < pe; i++)
+      index += (n + THREADS - i - 1)/THREADS;
+    index += offset;
+    return(index);
+  }
+  
 }
 
-// This takes edges with global indices and remaps the points to PEs in a BLOCK fashion.
-// The edges are relabled to populate the distributed sparse adjacency matrix.
-// pe: is output: the destination pe
-// n: the number of points total
-// inedge: the edge to distribute.
-
-// Or could we just name points by sector and offset?
-// I say this because global point index is going to be annoying to compute.
-
-edge_t distribute_edge(int64_t * pe, int64_t n, edge_t * inedge){
-  int64_t rowpe, colpe;
-  int64_t row_off, col_off;
-  edge_t e;
-
-
-  assert(inedge->row < n);
-  row_off = get_pe_and_offset(inedge->row, n, &rowpe, BLOCK);
-
-  // maybe write this in SHMEM style
-  e.row = get_global_index_from_pe_and_offset(rowpe, row_off);
-  e.col = inedge->col;
-  //printf("Distributing edge %ld %ld...to %ld\n", inedge->row, inedge->col, e.row);
-  *pe = rowpe;
-  //printf("to %ld %ld on pe %ld\n", e.row, e.col, rowpe);
-  return(e);
-}
 
 void append_edges_between_sectors(uint64_t this_sec_idx,
                                   uint64_t other_sec_idx,
@@ -117,7 +104,6 @@ void append_edges_between_sectors(uint64_t this_sec_idx,
                                   SHARED int64_t * first_point_in_sector,
                                   SHARED int64_t * counts,
                                   double r2,
-                                  int directed,
                                   self_loops loops,
                                   edge_list_t * el){
   
@@ -162,21 +148,16 @@ void append_edges_between_sectors(uint64_t this_sec_idx,
         int64_t point_indexB = first_point_other + l;
         // assert(point_indexB < 10);
         if(dist(lpoints_this[j], lpoints_other[l]) < r2){
-          //printf("PE %d: L (%ld) appending edge %ld %ld\n", MYTHREAD,this_sec_idx, point_indexA, point_indexB);
-          if(directed && ((double)rand()/RAND_MAX > 0.5)){
-            append_edge(el, point_indexB, point_indexA);
-          }else{
-            append_edge(el, point_indexA, point_indexB);
-          }
+          append_edge(el, point_indexA, point_indexB);          
         }
       }
     }
   }else{
     /* the other sector is not on our PE */
     int64_t other_sec_pe;
-    int64_t other_sec_local_idx = get_pe_and_offset(other_sec_idx, nsectors, &other_sec_pe, BLOCK);
+    int64_t other_sec_local_idx = global_index_to_pe_and_offset(other_sec_idx, nsectors, &other_sec_pe, BLOCK);
     int64_t first_point_other = lgp_get_int64(first_point_in_sector, other_sec_local_idx*THREADS + other_sec_pe);
-    int64_t num_pts_other = lgp_get_int64(counts, get_global_index_from_pe_and_offset(other_sec_pe,other_sec_local_idx));
+    int64_t num_pts_other = lgp_get_int64(counts, pe_and_offset_to_global_index(other_sec_pe, other_sec_local_idx, nsectors, CYCLIC));
     if(num_pts_other == 0)
       return;
     /* get all the points from the other sector in one transfer */
@@ -189,12 +170,7 @@ void append_edges_between_sectors(uint64_t this_sec_idx,
       for(l = 0; l < num_pts_other; l++){
         int64_t point_indexB = first_point_other + l;
         if(dist(lpoints_this[j], other_sec_pts[l]) < r2){
-          //printf("PE %d: appending edge %ld %ld\n", MYTHREAD, point_indexA, point_indexB);
-          if(directed && (rand()/RAND_MAX > 0.5)){
-            append_edge(el, point_indexB, point_indexA);
-          }else{
-            append_edge(el, point_indexA, point_indexB);
-          }
+          append_edge(el, point_indexA, point_indexB);        
         }
       }
     }
@@ -214,7 +190,6 @@ void append_edges_for_sector(int64_t sector,
                              SHARED int64_t * first_point_in_sector,
                              SHARED int64_t * counts,
                              double r,
-                             int directed,
                              self_loops loops,
                              edge_list_t * el){
 
@@ -236,12 +211,10 @@ void append_edges_for_sector(int64_t sector,
       if(nbrsector_row < 0 || nbrsector_row == nsectors_across)
         continue;
       int64_t nbr_sector_index = (nbrsector_col)*nsectors_across + (nbrsector_row);
-      //      if(MYTHREAD == 1)
-        //        printf("appending edges between %ld and %ld\n", sector, nbr_sector_index);
       append_edges_between_sectors(sector, nbr_sector_index,
                                    my_first_sector, nsectors,
                                    points, first_point_in_sector,
-                                   counts, r2, directed, loops, el);      
+                                   counts, r2, loops, el);      
     }
   }
   
@@ -285,11 +258,15 @@ SHARED int64_t * prefix_scan(SHARED int64_t * counts, int64_t n){
   * 
   * \param n The number of vertices
   * \param r The size of the neighborhoods that determine edges.
-  * \param type See edge_type. If undirected, this routine returns a lower triangular matrix.
+  * \param type See edge_type. Must be UNDIRECTED or UNDIRECTED_WEIGHTED.
   * \param loops See self_loops. Are there self loops?
   * \param seed A seed for the RNG. This should be a single across all PEs (it will be modified by each PE individually).
   * \return An adjacency matrix (or lower portion of in the undirected case).
   */
+
+// TODO: add optional return that gives back the geometric positions of points
+// TODO: fix directed version (take directed out of here) and add function that randomly directs all edges of an undirected graph
+
 sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed){
   
   // We generate n points (p_i) uniformly at random over the unit square.
@@ -300,6 +277,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   // We calculate edges by comparing distances between each point and every other point in
   // its own sector and in neighboring sectors.
 
+  
   int64_t i, j, k, l;
   double r2 = r*r;
   int64_t nsectors_across = floor(1.0/r);
@@ -308,7 +286,11 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
   int weighted = (edge_type == DIRECTED_WEIGHTED || edge_type == UNDIRECTED_WEIGHTED);
-  int directed = (edge_type == DIRECTED) || (edge_type == DIRECTED_WEIGHTED);
+
+  if((edge_type == DIRECTED) || (edge_type == DIRECTED_WEIGHTED)){
+    T0_fprintf(stderr,"Error!: geometric random graphs can only be undirected!");
+    return(NULL);
+  }
   
   T0_printf("GEOMETRIC GRAPH: r = %lf number of sectors = %ld sector_width = %lf\n",
             r, nsectors, sector_width);
@@ -387,7 +369,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     pt = i*sector_max;
     for(j = 0; j < lcounts[i]; j++){    
       lpoints[pt].x = ((double)rand()/RAND_MAX)*sector_width + x_off;
-      lpoints[pt].y = ((double)rand()/RAND_MAX)*sector_width + y_off; 
+      lpoints[pt].y = ((double)rand()/RAND_MAX)*sector_width + y_off;
       pt++;
     }
     //Sort the points in each sector lexiographically
@@ -408,7 +390,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   for(i = 0; i < lnsectors; i++){
     append_edges_for_sector(my_first_sector + i, my_first_sector,
                             nsectors, points, first_point_in_sector,
-                            counts, r, directed, loops, el);
+                            counts, r, loops, el);
     
   }
 
@@ -437,15 +419,13 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   int64_t pe;
   int64_t toss = 0, keep = 0;
   for(i = 0; i < el->num; i++){
-    // Calling get_pe_and_offset gives us the PE and offset of a point if distribute the points
+    // Calling global_index_to_pe_and_offset gives us the PE and offset of a point if distribute the points
     // to PEs evenly and in BLOCK fashion.
     // We then convert that pe and offset into a new global index based on CYCLIC row layout.
-    // Can we name these functions something better?
-    int64_t roffset = get_pe_and_offset(el->edges[i].row, n, &pe, BLOCK);
-    int64_t row_index = get_global_index_from_pe_and_offset(pe, roffset);
-    int64_t coffset = get_pe_and_offset(el->edges[i].col, n, &pe, BLOCK);
-    int64_t col_index = get_global_index_from_pe_and_offset(pe, coffset);
-    //printf("PE %d: %ld,%ld goes to %ld,%ld\n", MYTHREAD,  el->edges[i].row, el->edges[i].col, row_index, col_index);
+    int64_t roffset = global_index_to_pe_and_offset(el->edges[i].row, n, &pe, BLOCK);
+    int64_t row_index = pe_and_offset_to_global_index(pe, roffset, n, CYCLIC);
+    int64_t coffset = global_index_to_pe_and_offset(el->edges[i].col, n, &pe, BLOCK);
+    int64_t col_index = pe_and_offset_to_global_index(pe, coffset, n, CYCLIC);
     if ( col_index > row_index) {
       el->edges[i].row = -1; // mark as NULL since this edge represents a 1 above the diagonal in the adjacency matrix.
       toss++;
@@ -502,7 +482,6 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   i = 0;
   while(exstack_proceed(ex, (i == el->num))){
     for(; i < el->num; i++){
-      //edge_t e = distribute_edge(&pe, n, &el->edges[i]);
       edge_t e = el->edges[i];
       if(e.row < 0) continue;
       pe = e.row % THREADS;
@@ -543,18 +522,10 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   sort_nonzeros(A);
   
-  // print the matrix
 #if 0
-  T0_printf("Printing matrix in geometric...");
-  for(i = 0; i < A->numrows; i++){
-    T0_printf("row %ld: ",i);
-    for(j = A->offset[i]; j < A->offset[i+THREADS]; j++){
-      T0_printf("%ld ", A->nonzero[j*THREADS + i%THREADS]);
-    }
-    T0_printf("\n");
-  }
+  print_matrix(A);
 #endif
-
+  
   lgp_barrier();
 
   return(A);

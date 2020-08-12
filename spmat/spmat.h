@@ -169,6 +169,8 @@ void                clear_triples(triples_t * T);
 int                 compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
 sparsemat_t *       copy_matrix(sparsemat_t *srcmat);
 
+sparsemat_t *       direct_undirected_graph(sparsemat_t * L);
+
 sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed);
 sparsemat_t *       gen_star_graph(int64_t m, int mode);
 sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
@@ -191,6 +193,8 @@ sparsemat_t *       permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rp
 sparsemat_t *       permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
 sparsemat_t *       permute_matrix_exstack(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
 sparsemat_t *       permute_matrix_agi(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
+
+void                print_matrix(sparsemat_t * A);
 
 SHARED int64_t *    rand_permp(int64_t N, int seed);
 SHARED int64_t *    rand_permp_conveyor(int64_t N, int seed);

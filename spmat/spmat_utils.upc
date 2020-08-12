@@ -596,17 +596,36 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     return(erdos_renyi_random_graph(n, edge_density, edgetype, loops, seed));
     
   }else if(model == GEOMETRIC){
+    edge_type et = edgetype;
+    if(et == DIRECTED)
+      et = UNDIRECTED;
+    else if(et == DIRECTED_WEIGHTED)
+      et = UNDIRECTED_WEIGHTED;
+    
     double r;
     // determine the r that will lead to the desired edge density
     // Expected degree = n*pi*r^2
     // The expected number of edges E = n^2*pi*r^2/2
     // for undirected density = E/(n choose 2)
     // for directed   density = E/(n^2 - n)
-    r = sqrt((n-1)*edge_density/(M_PI*n));
-    return(geometric_random_graph(n, r, edgetype, loops, seed));
+    r = sqrt((n-1)*edge_density/(M_PI*n));    
+    sparsemat_t * L = geometric_random_graph(n, r, et, loops, seed);
+    if(L == NULL){
+      T0_fprintf(stderr,"Error: random_graph: geometric_r_g returned NULL!\n");
+      return(NULL);
+    }
+    
+    if(edgetype == DIRECTED || edgetype == DIRECTED_WEIGHTED){
+      sparsemat_t * A = direct_undirected_graph(L);
+      clear_matrix(L);
+      //print_matrix(A);
+      return(A);
+    }
+    
+    return(L);
     
   }else{
-    T0_printf("ERROR: random_graph: Unknown model!\n");
+    T0_fprintf(stderr,"ERROR: random_graph: Unknown model!\n");
     return(NULL);
   }
 
@@ -1142,6 +1161,84 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
   return(0);
 }
 
+
+// Given the adjacency matrix for an undirected graph (should be lower triangular)
+// We randomly orient each edge and return the new adjacency matrix.
+sparsemat_t * direct_undirected_graph(sparsemat_t * L){
+  int64_t i, j;
+  edge_list_t * el = init_edge_list(L->lnnz);
+
+  exstack_t * ex = exstack_init(128, sizeof(edge_t));
+  if(ex == NULL){return(NULL);}
+
+  edge_t edge;
+  int64_t pe, col, row = 0;
+
+  i = 0;
+  //while((row < L->lnumrows) && (i >= L->loffset[row+1])){
+  //row++;
+  //}
+  while(exstack_proceed(ex, (i == L->lnnz))){
+    for(; i < L->lnnz; i++){
+      while((row < L->lnumrows) && (i >= L->loffset[row+1]))
+        row++;
+      if(rand() & 1L){
+        //printf("i %ld row %ld off %ld\n", i, row, L->loffset[row+1]);
+        //printf("A Appending edge %ld %ld\n", row*THREADS + MYTHREAD, L->lnonzero[i]);
+        append_edge(el, row*THREADS + MYTHREAD, L->lnonzero[i]);
+      }else{
+        edge.row = L->lnonzero[i];
+        edge.col = row*THREADS + MYTHREAD;
+        pe = edge.row % THREADS;
+        if(exstack_push(ex, &edge, pe) == 0L)
+          break;
+      }
+    }
+    
+    exstack_exchange(ex);
+
+    while(exstack_pop(ex, &edge, NULL)){
+      //printf("B Appending edge %ld %ld\n", edge.row, edge.col);
+      append_edge(el, edge.row, edge.col);
+    }
+  }
+
+  lgp_barrier();
+  exstack_clear(ex);
+  
+  sparsemat_t * A = init_matrix(L->numrows, L->numcols, el->num, L->value!=NULL);
+  if(!A){
+    T0_fprintf(stderr,"ERROR: direct_undirected_graph: Could not initialize A\n");
+    return(NULL);
+  }
+
+  int64_t * lrowcounts = calloc(A->lnumrows, sizeof(int64_t));  
+  for(i = 0; i < el->num; i++){
+    lrowcounts[el->edges[i].row/THREADS]++;
+  }
+  
+  // initialize the offsets for the sparse matrix
+  A->loffset[0] = 0;
+  for(i = 1; i <= A->lnumrows; i++){
+    A->loffset[i] = A->loffset[i - 1] + lrowcounts[i-1];
+    lrowcounts[i-1] = 0;
+  }
+  assert(A->loffset[A->lnumrows] == el->num);
+
+  // populate A
+  for(i = 0; i < el->num; i++){
+    row = el->edges[i].row/THREADS;
+    int64_t pos = A->loffset[row] + lrowcounts[row]++;
+    A->lnonzero[pos] = el->edges[i].col;
+  }
+
+  free(lrowcounts);
+  free(el);
+
+  return(A);
+  
+}
+
 /*! \brief makes an exact copy of a given sparse matrices
  * \param srcmat pointer to the original sparse matrix
  * \return A pointer to the cloned sparse matrix
@@ -1359,6 +1456,19 @@ sparsemat_t * triples_to_sparsemat(triples_t * T){
   
   return(A);
 }
+
+void print_matrix(sparsemat_t * A){
+  int64_t i, j;
+
+  for(i = 0; i < A->numrows; i++){
+    T0_printf("row %ld: ",i);
+    for(j = A->offset[i]; j < A->offset[i+THREADS]; j++){
+      T0_printf("%ld ", A->nonzero[j*THREADS + i%THREADS]);
+    }
+    T0_printf("\n");
+  }
+}
+
 /*!
  * \brief returns the number of nonzeros in a row of the localize part of a sparse matrix
  * \param *mat pointer to the sparse matrix 
