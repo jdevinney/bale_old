@@ -77,11 +77,11 @@ CASES = @CASES@
 ## The pieces of the library:
 
 convey_headers = bolite.h convey.h convey_alc8r.h convey_codec.h convey_impl.h \
-    common.h pivot.h porter.h porter_impl.h private.h router.h sorter.h tensor.h
+    common.h pivot.h porter.h porter_impl.h private.h router.h simple.h sorter.h tensor.h
 convey_sources = circle.c codata.c common.c convey.c elastic.c packer.c porter.c \
     simple.c squeeze.c tensor.c trivial.c twohop.c $(codelet_sources)
 convey_headers += biconvey.h biconvey_impl.h
-convey_sources += biconvey.c bitensor.c
+convey_sources += biconvey.c bisimple.c bitensor.c
 
 if WITH_SHMEM
   convey_sources += putport.c

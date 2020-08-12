@@ -1,4 +1,4 @@
-// Copyright (c) 2019, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -267,6 +267,7 @@ static const char * const error_strings[] = {
   [-convey_error_MISFIT] = "item has wrong size for pull",
   [-convey_error_OFLO] = "item is too large for conveyor",
   [-convey_error_ZERO] = "item size is zero",
+  [-convey_error_TOOBIG] = "number of buffered items is too large",
   [-convey_error_NOFUNC] = "function pointer is NULL",
 };
 

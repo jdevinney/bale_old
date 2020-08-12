@@ -92,7 +92,7 @@ biconvey_new(size_t max_bytes, size_t n_local,
   convey_parameters(max_bytes, n_local, &capacity, &n_buffers, &sync, &order);
 
   if (sync)
-    return NULL; // biconvey_new_simple(capacity, alloc, NULL, options);
+    return biconvey_new_simple(capacity, alloc, NULL, options);
   else
     return biconvey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
 }

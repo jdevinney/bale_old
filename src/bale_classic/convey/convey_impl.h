@@ -1,4 +1,4 @@
-// Copyright (c) 2019, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -38,7 +38,8 @@
 
 // Negative error codes:
 enum convey_error {
-  convey_error_NOFUNC = -12,  // function pointer is NULL
+  convey_error_NOFUNC = -13,  // function pointer is NULL
+  convey_error_TOOBIG,     // total buffer capacity is too large
   convey_error_ZERO,       // item size is zero
   convey_error_OFLO,       // item is too large for conveyor
   convey_error_MISFIT,     // next item is wrong size for pull

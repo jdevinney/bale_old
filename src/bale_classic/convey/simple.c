@@ -38,44 +38,7 @@
 
 #include "convey_impl.h"
 #include "private.h"
-#include "sorter.h"
-
-#ifdef MPP_USE_MPI
-typedef int a2a_off_t;
-#else
-typedef size_t a2a_off_t;
-#endif
-
-typedef struct simple {
-  convey_t convey;
-  sorter_t* sorter;      // for distributing items into buffers
-  bool nonempty;         // is there anything in any buffer?
-  bool overflow;         // has any buffer filled up?
-  bool quiet;            // are communications finished?
-  bool own_a2a;          // did we create the a2a?
-  bool dynamic;          // deallocate buffers when dormant?
-  bool scatter;          // do we want a sorter?
-  bool flip;             // which sync array should we use next?
-  int64_t pull_from;     // draw from which recv buffer?
-  size_t capacity;
-  size_t buffer_bytes;
-  size_t buffer_limit;   // item_size * capacity
-  area_t* send;          // current state of send buffers
-  area_t* recv;          // current state of recv buffers
-  PARALLEL(size_t*, send_sizes);
-  PARALLEL(size_t*, recv_sizes);
-  PARALLEL(char*, send_buffers);
-  PARALLEL(char*, recv_buffers);
-  // Symmetric (in SHMEM case) but not shared (in UPC case):
-  a2a_off_t* offsets;   // offsets (displacements) for alltoallv
-  // Miscellaneous fields
-  convey_alc8r_t alloc;
-  const mpp_alltoall_t* a2a;
-  int* perm;             // for xshmem_alltoallv or upcx_alltoallv
-  long* sync[2];         // for shmemx_alltoallv
-  mpp_comm_t comm;       // for error checking and MPI_Alltoallv
-  int64_t stats[convey_imp_N_STATS];
-} simple_t;
+#include "simple.h"
 
 
 /*** UTILITY FUNCTIONS ***/
@@ -118,7 +81,7 @@ simple_perm_new(int n_procs, int my_proc)
 }
 #endif
 
-static int
+int
 simple_alltoallv(simple_t* simple)
 {
   const size_t n_procs = simple->convey.n_procs;
@@ -287,8 +250,8 @@ simple_unpull(convey_t* self)
   return convey_FAIL;
 }
 
-static void
-reset_send_buffers(simple_t* simple)
+void
+simple_reset_send_buffers(simple_t* simple)
 {
   const size_t n_procs = simple->convey.n_procs;
   const size_t buffer_bytes = simple->buffer_bytes;
@@ -341,7 +304,7 @@ simple_advance(convey_t* self, bool done)
   int result = simple_alltoallv(simple);
   if (result != convey_OK)
     return result;
-  reset_send_buffers(simple);
+  simple_reset_send_buffers(simple);
 
   simple->quiet = !further_comm;
   return simple->quiet ? convey_NEAR : convey_OK;
@@ -416,7 +379,7 @@ simple_begin(convey_t* self, size_t item_size)
 
   if (simple->dynamic && !alloc_buffers(simple))
     return convey_error_ALLOC;
-  reset_send_buffers(simple);
+  simple_reset_send_buffers(simple);
   reset_recv_buffers(simple);
   simple->quiet = false;
   mpp_barrier(1);
