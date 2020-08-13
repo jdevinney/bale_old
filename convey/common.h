@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -49,7 +49,6 @@
 # define CONVEY_INTRANODE 1
 #endif
 
-
 #if MPP_USE_UPC
 # include "mpp2upc.h"
 #else
@@ -58,9 +57,12 @@
 # elif MPP_RAW_MPI
 #  include "mpp2mpi.h"
 #  define MPP_USE_MPI 1
-# else
+# elif MPP_RAW_SHMEM
 #  include "mpp2shmem.h"
 #  define MPP_USE_SHMEM 1
+# else
+#  include "mpp2nil.h"
+#  define MPP_NO_MIMD 1
 # endif
 # define PARALLEL(TYPE,FIELD) TYPE FIELD
 # define PARALLEL_ALLOC(OBJECT,FIELD,ALLOC,SIZE,TYPE) \

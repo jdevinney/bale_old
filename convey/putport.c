@@ -81,7 +81,7 @@ symmetric_alloc(void* alc8r, size_t size, const char* tag, uint64_t value)
 {
 #if HAVE_SHMEM_ALIGN
   return shmem_align(CONVEY_MAX_ALIGN, size);
-#elif MPP_HAVE_SHMEM
+#elif MPP_USE_SHMEM
   return shmemalign(CONVEY_MAX_ALIGN, size);
 #else
   return NULL;
@@ -91,7 +91,7 @@ symmetric_alloc(void* alc8r, size_t size, const char* tag, uint64_t value)
 static void
 symmetric_free(void* alc8r, void* ptr)
 {
-#if MPP_HAVE_SHMEM
+#if HAVE_SHMEM_ALIGN || MPP_USE_SHMEM
   if (ptr)
     shmem_free(ptr);
 #endif
@@ -320,8 +320,8 @@ static const porter_methods_t standard_methods = {
 
 typedef struct nbrhood {
   // The following arrays of pointers have length n_ranks and are indexed by rank
-  char** buffer_ptrs;      // remote 'recv_buffers' translated by shmem_ptr()
-  uint64_t** signal_ptrs;  // remote 'received' translated by shmem_ptr()
+  char** buffer_ptrs;             // remote 'recv_buffers' translated by shmem_ptr()
+  atomic_uint64_t** signal_ptrs;  // remote 'received' translated by shmem_ptr()
 } nbrhood_t;
 
 static bool
@@ -332,7 +332,7 @@ nbrhood_init(put_porter_t* putp, nbrhood_t* nbrhood)
   for (int i = 0; ok && i < n; i++) {
     int pe = putp->friends[i];
     if (pe >= 0) {
-      uint64_t* p = shmem_ptr(putp->received, pe);
+      atomic_uint64_t* p = shmem_ptr(putp->received, pe);
       nbrhood->signal_ptrs[i] = p;
       char* q = shmem_ptr(putp->porter.recv_buffers, pe);
       nbrhood->buffer_ptrs[i] = q;
@@ -368,7 +368,7 @@ local_send(porter_t* self, int dest, uint64_t level, size_t n_bytes,
   }
 
   // Need local address of remote 'received' array
-  atomic_uint64_t* notify = (atomic_uint64_t *)(nbrhood->signal_ptrs[dest] + rank);
+  atomic_uint64_t* notify = nbrhood->signal_ptrs[dest] + rank;
   atomic_store(notify, signal);
   return true;
 }

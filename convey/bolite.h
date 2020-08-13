@@ -79,8 +79,8 @@ static inline int64_t _trailz(uint64_t x)
 #ifdef __GNUC__
 
 #define _popcnt __builtin_popcountll
-#define _leadz  __builtin_clzll
-#define _trailz __builtin_ctzll
+#define _leadz(x) (((x) == 0) ? 64 : __builtin_clzll(x))
+#define _trailz(x) (((x) == 0) ? 64 : __builtin_ctzll(x))
 
 #else
 

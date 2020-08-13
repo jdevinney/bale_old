@@ -27,9 +27,10 @@ checking before and/or after invoking the appropriate method for the given
 conveyor.
 
 Most of the conveyor code is written as if mpp_utilV4 were the substrate.
-In UPC mode, raw SHMEM mode, or raw MPI mode, the header file mpp2upc.h,
-mpp2shmem.h, or mpp2mpi.h, respectively, is included to redefine the
-necessary mpp_util functions in terms of UPC, SHMEM, or MPI operations.
+In UPC mode, raw SHMEM mode, or raw MPI mode, or trivial mode, the header
+file mpp2upc.h, mpp2shmem.h, mpp2mpi.h, or mpp2nil.h, respectively, is
+included to redefine the necessary mpp_util functions in terms of UPC,
+SHMEM, MPI, or plain C operations.
 
 
 PORTERS AND SORTERS
@@ -108,7 +109,7 @@ discussion of how to set the LAUNCH variable.
 
 COPYRIGHT
 
-Copyright (c) 2019, Institute for Defense Analyses
+Copyright (c) 2020, Institute for Defense Analyses
 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 This material may be reproduced by or for the U.S. Government 
 pursuant to the copyright license under the clauses at DFARS 

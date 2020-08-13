@@ -1,4 +1,4 @@
-// Copyright (c) 2018, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -94,7 +94,7 @@ main(int argc, char* argv[])
         }
 
         packet_t* p;
-        long from;
+        int64_t from;
         while (p = convey_apull(request, &from)) {
           packet_t packet = { .slot = p->slot, .value = source[p->value] };
           if (! convey_push(reply, &packet, from)) {

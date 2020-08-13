@@ -1,4 +1,4 @@
-# Copyright (c) 2019, Institute for Defense Analyses
+# Copyright (c) 2020, Institute for Defense Analyses
 # 4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 # This material may be reproduced by or for the U.S. Government 
 # pursuant to the copyright license under the clauses at DFARS 
@@ -92,17 +92,25 @@ if WITH_UPC
 endif
 
 if !WITH_MPP_UTIL
-if WITH_SHMEM
-  convey_headers += mpp2shmem.h
-  convey_sources += mpp2shmem.c
-endif
 if WITH_MPI
   convey_headers += mpp2mpi.h
   convey_sources += mpp2mpi.c
 endif
+if WITH_SHMEM
+  convey_headers += mpp2shmem.h
+  convey_sources += mpp2shmem.c
+endif
 if WITH_UPC
   convey_headers += mpp2upc.h
   convey_sources += mpp2upc.c
+endif
+if !WITH_MPI
+if !WITH_SHMEM
+if !WITH_UPC
+  convey_headers += mpp2nil.h
+  convey_sources += mpp2nil.c
+endif
+endif
 endif
 endif
 

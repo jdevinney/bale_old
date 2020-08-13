@@ -31,44 +31,29 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-#include <inttypes.h>
-#include <math.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include "mpp2nil.h"
 
-#include "convey.h"
-#if HAVE_CONFIG_H
-# include "config.h"
-#endif
-#include "bolite.h"
 
-#if MPP_USE_UPC
-# define PROCS THREADS
-# define MY_PROC MYTHREAD
-# define example_start()
-# define example_end()
-#elif HAVE_MPP_UTIL
-# include "mpp_utilV4.h"
-# define example_start() argc = mpp_util_init(argc, argv, NULL)
-# define example_end() mpp_util_fin()
-#elif MPP_RAW_MPI
-# include <mpi.h>
-extern long xmpi_n_procs, xmpi_my_proc;
-extern int xmpi_init(int argc, char* argv[]);
-# define PROCS xmpi_n_procs
-# define MY_PROC xmpi_my_proc
-# define example_start() xmpi_init(argc,argv)
-# define example_end() MPI_Finalize()
-#elif MPP_RAW_SHMEM
-# include <shmem.h>
-# define PROCS shmem_n_pes()
-# define MY_PROC shmem_my_pe()
-# define example_start() shmem_init()
-# define example_end() shmem_finalize()
-#else
-# define PROCS (1L)
-# define MY_PROC (0L)
-# define example_start()
-# define example_end()
-#endif
+void*
+xnil_alloc_align(size_t align, size_t size)
+{
+  void* ptr = NULL;
+  posix_memalign(&ptr, align, size);
+  return ptr;
+}
+
+void
+xnil_mfprint(FILE* stream, int prefix, const char* func, const char* format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  if (prefix)
+    fprintf(stream, "%s> ", func);
+  vfprintf(stream, format, args);
+  va_end(args);
+  fflush(stream);
+}
+

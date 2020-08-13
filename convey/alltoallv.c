@@ -142,9 +142,9 @@ communicate(convey_t* conveyor, brand_t* prng, double load, size_t size,
     memcpy(varying, valid, 8 * n_words);
 
   const size_t n_procs = PROCS;
-  const size_t mask = _maskr(64 - _leadz(n_procs - 1));
   const size_t bulk = ceil(load * n_procs);
   const uint64_t self = MY_PROC;
+  const uint64_t mask = _maskr(64 - _leadz(n_procs - 1));
   // make sure data generation is deterministic
   size_t i, sent = 0;
   int64_t pe = 0;
@@ -724,14 +724,16 @@ report_config(void)
   const char* model = "UPC";
 #elif MPP_RAW_MPI
   const char* model = "MPI";
+#elif MPP_RAW_SHMEM
+  const char* model = "SHMEM";
 #elif MPP_USE_MPI
   const char* model = "MPP_UTIL/MPI";
-#elif MPP_NO_MIMD
-  const char* model = "MPP_UTIL/NONE";
-#elif HAVE_MPP_UTIL
+#elif MPP_USE_SHMEM
   const char* model = "MPP_UTIL/SHMEM";
+#elif HAVE_MPP_UTIL
+  const char* model = "MPP_UTIL/NONE";
 #else
-  const char* model = "SHMEM";
+  const char* model = "TRIVIAL";
 #endif
 
 #if ENABLE_PROFILING
@@ -1040,7 +1042,7 @@ alltoallv(int argc, char* argv[])
   }
 
   brand_t _prng;
-  brand_init(&_prng, seed ^ (uint64_t)MY_PROC << 32);
+  brand_init(&_prng, seed ^ ((uint64_t)MY_PROC << 32));
   uint64_t* table = (gather || histo)
     ? global_table_init(echo_size, entries, &_prng) : NULL;
 
