@@ -779,7 +779,7 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
  // triangle: kron_graph (special lower triangular), or any random lower triangular, or read in
  // SSSP: random non-symmetric square with values
 
- /*! \brief A routine to generate the adjacency matrix of a random graph.
+/*! \brief A routine to generate the adjacency matrix of a random graph.
   * If the graph is undirected, this routine only returns a lower-triangular
   * adjancency matrix (since the adjancency matrix would be symmetric and we don't need
   * the redundant entries).
@@ -791,8 +791,9 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
   * \param edge_density: d in [0, 1), target fraction of edges present.
   * \param seed: RNG seed.
   */
- sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
-                            double edge_density, int64_t seed){
+sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
+                            double edge_density, int64_t seed)
+{
 
    if(model == FLAT){
      
@@ -819,7 +820,7 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
      return(NULL);
    }
    
- }
+}
 
  /*! \brief Subroutine to create a random sparse matrix.
   * 
