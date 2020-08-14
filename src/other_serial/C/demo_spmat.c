@@ -83,7 +83,7 @@ int main(int argc, char * argv[])
   printf("-- input %s\n", kron_args->str);
   printf("-- mode %"PRId64"\n", kron_args->mode);
   printf("-- num_stars %"PRId64"\n", kron_args->num_stars);
-  for(int i=0; i<kron_args->num_stars; i++)
+  for(i=0; i<kron_args->num_stars; i++)
     printf("%"PRId64" ", kron_args->star_size[i]); 
   printf("\n-- numrows %"PRId64"\n", kron_args->numrows);
   printf("Known number of triangles = %"PRId64"\n", tri_count_kron_graph(kron_args));
