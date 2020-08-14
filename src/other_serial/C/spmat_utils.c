@@ -499,6 +499,52 @@ sparsemat_t * transpose_matrix(sparsemat_t *A)
 }
 
 
+/*!
+ * \brief builds a full symmetric matrix from a lower triangular matrix
+ * \param *L sparsemat_t that holds a lower triangular matrix (no diagonal elements) 
+ * \return the full matrix
+ */
+sparsemat_t * make_symmetric_from_lower(sparsemat_t * L)
+{
+	int64_t i, l, k, pos;
+	sparsemat_t *U  = transpose_matrix(L);
+  int hasvalues = (L->value == NULL) ? 0 : 1;
+	sparsemat_t *retmat = init_matrix(L->numrows, L->numrows, 2*(L->nnz), hasvalues);
+
+  pos = 0;
+  retmat->offset[0] = 0;
+  for(i=0; i<L->numrows; i++){
+    for(l=L->offset[i]; l<L->offset[i+1]; l++){
+      retmat->nonzero[pos] = L->nonzero[l];
+      pos++;
+    }
+    for(k=U->offset[i]; k<U->offset[i+1]; k++){
+      retmat->nonzero[pos] = U->nonzero[k];
+      pos++;
+    }
+    retmat->offset[i+1] = pos;
+  }
+
+  if(hasvalues) {
+    pos = 0;
+    for(i=0; i<L->numrows; i++){
+      for(l=L->offset[i]; l<L->offset[i+1]; l++){
+        retmat->value[pos] = L->value[l];
+        pos++;
+      }
+      for(k=U->offset[i]; k<U->offset[i+1]; k++){
+        retmat->value[pos] = U->value[k];
+        pos++;
+      }
+    }
+  } 
+
+	clear_matrix(U);
+	free(U);
+  return(retmat);	
+}
+
+
 /*! \brief checks that the sparse matrix is (strictly, i.e. zero on diagonal) lower triangluar
  * \param A pointer to the sparse matrix
  * \return 0 on success, non-0 on error.
@@ -733,7 +779,7 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
  // triangle: kron_graph (special lower triangular), or any random lower triangular, or read in
  // SSSP: random non-symmetric square with values
 
- /*! \brief A routine to generate the adjacency matrix of a random graph.
+/*! \brief A routine to generate the adjacency matrix of a random graph.
   * If the graph is undirected, this routine only returns a lower-triangular
   * adjancency matrix (since the adjancency matrix would be symmetric and we don't need
   * the redundant entries).
@@ -745,8 +791,9 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
   * \param edge_density: d in [0, 1), target fraction of edges present.
   * \param seed: RNG seed.
   */
- sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
-                            double edge_density, int64_t seed){
+sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
+                            double edge_density, int64_t seed)
+{
 
    if(model == FLAT){
      
@@ -773,7 +820,7 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
      return(NULL);
    }
    
- }
+}
 
  /*! \brief Subroutine to create a random sparse matrix.
   * 
