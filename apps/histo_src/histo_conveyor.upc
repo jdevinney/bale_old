@@ -72,8 +72,8 @@ double histo_conveyor(histo_t * data){
   i = 0UL;
   while(convey_advance(conveyor, i == data->l_num_ups)) {
     for(; i< data->l_num_ups; i++){
-      col = data->pckindx[i] >> 16;
-      pe  = data->pckindx[i] & 0xffff;
+      col = data->pckindx[i] >> 20;
+      pe  = data->pckindx[i] & 0xfffff;
       assert(pe < THREADS);
       if( !convey_push(conveyor, &col, pe))
 	    break;

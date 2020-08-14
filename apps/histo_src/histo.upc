@@ -154,9 +154,9 @@ int main(int argc, char * argv[]) {
     pe  = indx % THREADS;
     assert(indx < data.num_counts);
     assert(lindx < data.lnum_counts);
-    assert(lindx < (1L<<48));
-    assert(pe < (1L<<16));
-    data.pckindx[i]  =  (lindx << 16L) | (pe & 0xffff);
+    assert(lindx < (1L<<44));
+    assert(pe < (1L<<20));
+    data.pckindx[i]  =  (lindx << 20L) | (pe & 0xfffff);
   }
   double volume_per_node = (8*l_num_ups*cores_per_node)*(1.0E-9);
   
