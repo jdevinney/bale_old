@@ -65,8 +65,8 @@ double histo_exstack(histo_t * data, int64_t buf_cnt){
   while( exstack_proceed(ex, (i==data->l_num_ups)) ){
     int64_t popped = 0;
     for( ; i < data->l_num_ups; i++){
-      col = data->pckindx[i] >> 16;
-      pe  = data->pckindx[i] & 0xffff;
+      col = data->pckindx[i] >> 20;
+      pe  = data->pckindx[i] & 0xfffff;
       assert(pe < THREADS);
       if( !exstack_push(ex, &col, pe) )
         break;
