@@ -499,6 +499,52 @@ sparsemat_t * transpose_matrix(sparsemat_t *A)
 }
 
 
+/*!
+ * \brief builds a full symmetric matrix from a lower triangular matrix
+ * \param *L sparsemat_t that holds a lower triangular matrix (no diagonal elements) 
+ * \return the full matrix
+ */
+sparsemat_t * make_symmetric_from_lower(sparsemat_t * L)
+{
+	int64_t i, l, k, pos;
+	sparsemat_t *U  = transpose_matrix(L);
+  int hasvalues = (L->value == NULL) ? 0 : 1;
+	sparsemat_t *retmat = init_matrix(L->numrows, L->numrows, 2*(L->nnz), hasvalues);
+
+  pos = 0;
+  retmat->offset[0] = 0;
+  for(i=0; i<L->numrows; i++){
+    for(l=L->offset[i]; l<L->offset[i+1]; l++){
+      retmat->nonzero[pos] = L->nonzero[l];
+      pos++;
+    }
+    for(k=U->offset[i]; k<U->offset[i+1]; k++){
+      retmat->nonzero[pos] = U->nonzero[k];
+      pos++;
+    }
+    retmat->offset[i+1] = pos;
+  }
+
+  if(hasvalues) {
+    pos = 0;
+    for(i=0; i<L->numrows; i++){
+      for(l=L->offset[i]; l<L->offset[i+1]; l++){
+        retmat->value[pos] = L->value[l];
+        pos++;
+      }
+      for(k=U->offset[i]; k<U->offset[i+1]; k++){
+        retmat->value[pos] = U->value[k];
+        pos++;
+      }
+    }
+  } 
+
+	clear_matrix(U);
+	free(U);
+  return(retmat);	
+}
+
+
 /*! \brief checks that the sparse matrix is (strictly, i.e. zero on diagonal) lower triangluar
  * \param A pointer to the sparse matrix
  * \return 0 on success, non-0 on error.

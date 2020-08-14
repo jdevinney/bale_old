@@ -163,6 +163,7 @@ sparsemat_t *    read_matrix_mm(char * name);
 int64_t          sort_nonzeros( sparsemat_t *mat);
 void             spmat_stats(sparsemat_t *mat);
 sparsemat_t *    transpose_matrix(sparsemat_t *A);
+sparsemat_t *    make_symmetric_from_lower(sparsemat_t * L);
 int64_t          write_matrix_mm(sparsemat_t * A, char * name);
 
 
