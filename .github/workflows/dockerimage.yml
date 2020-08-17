@@ -16,7 +16,7 @@ jobs:
     - uses: actions/checkout@v2
 
     - name: Build the oshmem Docker image
-      run: docker build . --file oshmem/Dockerfile_github_action --tag bale_test_oshmem:gh_action
+      run: docker build . --file src/bale_classic/docker/oshmem/Dockerfile_github_action --tag bale_test_oshmem:gh_action
     - name: Run the oshmem Docker image
       run: docker run bale_test_oshmem:gh_action su bale_user - -c "oshrun -n 1 build_oshmem/bin/histo -M 1 -c 1"
 
