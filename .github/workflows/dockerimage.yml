@@ -19,9 +19,9 @@ jobs:
       run: docker build . --file src/bale_classic/docker/oshmem/Dockerfile_github_action --tag bale_test_oshmem:gh_action
     - name: Run the oshmem Docker image
       run: docker run bale_test_oshmem:gh_action su bale_user - -c "oshrun -n 1 build_oshmem/bin/histo -M 1 -c 1"
-    - name: Test with pytest
+    - name: Run pytest in oshmem Docker container
       run: |
-        pytest -s -P=/opt/bale_private/build_oshmem/bin/ --node_range=0,4,2 -M 3 apps/
+        docker run bale_test_oshmem:gh_action su bale_user - -c "pytest -s -P=/opt/bale_private/build_oshmem/bin/ --node_range=0,4,2 -M 3 apps/"
     - name: Build the gupc Docker image
       run: docker build . --file src/bale_classic/docker/gupc/Dockerfile_github_action --tag bale_test_gupc:gh_action
     - name: Run the gupc Docker image

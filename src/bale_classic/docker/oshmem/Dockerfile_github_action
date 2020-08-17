@@ -11,7 +11,6 @@ RUN ln -s /usr/bin/python3 /usr/bin/python && \
 
 RUN pip install pytest 
 
-
 COPY . /opt/bale_private
 
 WORKDIR /opt/bale_private/src/bale_classic
