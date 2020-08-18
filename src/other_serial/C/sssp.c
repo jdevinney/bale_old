@@ -49,6 +49,7 @@
 
 double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0);
 double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0);
+double sssp_bellmanford_dp(sparsemat_t *dmat, double *dist, int64_t r0);
 
 int main(int argc, char * argv[]) 
 {
@@ -58,7 +59,7 @@ int main(int argc, char * argv[])
   uint32_t seed = 123456789;
   int64_t readgraph = 0;
   char filename[256]={"filename"};
-  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, ALL_Models=4};
+  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, BELLMAN = 4, ALL_Models=8};
   uint32_t use_model;
   uint32_t models_mask=ALL_Models - 1;
   int printhelp = 0;
@@ -156,6 +157,13 @@ int main(int argc, char * argv[])
       if( !quiet ) printf("Dijsktra Heap    sssp:\n");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
       laptime = sssp_dijsktra_heap(dmat, dist, 5);
+	    for(i=0; i<numrows; i++)
+		    printf("%ld %g\n",i, dist[i]);
+      break;
+    case BELLMAN:
+      if( !quiet ) printf("Bellman Ford     sssp:\n");
+      for(i=0;i<numrows; i++) dist[i] = INFINITY;
+      laptime = sssp_bellmanford_dp(dmat, dist, 5);
 	    for(i=0; i<numrows; i++)
 		    printf("%ld %g\n",i, dist[i]);
       break;

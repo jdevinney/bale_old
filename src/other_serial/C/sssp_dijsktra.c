@@ -68,47 +68,47 @@
  */
 double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0)
 {
-	int64_t i, k, rn;
-	int64_t numrows = mat->numrows;
-	double minwt, curwt;
-	int64_t minidx;
+  int64_t i, k, rn;
+  int64_t numrows = mat->numrows;
+  double minwt, curwt;
+  int64_t minidx;
 
-	for(i=0; i<numrows; i++)
-		dist[i] = INFINITY;
-	for(k = mat->offset[v0];  k < mat->offset[v0+1]; k++)
-		dist[ mat->nonzero[k] ] = mat->value[k];
+  for(i=0; i<numrows; i++)
+    dist[i] = INFINITY;
+  for(k = mat->offset[v0];  k < mat->offset[v0+1]; k++)
+    dist[ mat->nonzero[k] ] = mat->value[k];
   dist[v0] = -0.0;
-	printf("dist[v0] = %lg\n", dist[v0]);
+  printf("dist[v0] = %lg\n", dist[v0]);
 
-	while( 1 ) {
-		// find the smallest tentative distance
-	  minwt = INFINITY;
-		minidx = numrows;
-	  for(i=0; i<numrows; i++){
+  while( 1 ) {
+    // find the smallest tentative distance
+    minwt = INFINITY;
+    minidx = numrows;
+    for(i=0; i<numrows; i++){
       if(dist[i] > 0 && dist[i] < minwt){
-			  minwt = dist[i];
-			  minidx = i;
-		  }
-		}
+        minwt = dist[i];
+        minidx = i;
+      }
+    }
     // done if all connected vertices have been resolved
-		if( (minidx == numrows) || (minwt == INFINITY) ) 
-			break;
+    if( (minidx == numrows) || (minwt == INFINITY) ) 
+      break;
 
     // update tentative distance from the current vertex
     curwt = dist[minidx];
-		for(k = mat->offset[minidx];  k < mat->offset[minidx+1]; k++){
-			rn = mat->nonzero[k];
+    for(k = mat->offset[minidx];  k < mat->offset[minidx+1]; k++){
+      rn = mat->nonzero[k];
       if(dist[rn] > curwt + mat->value[k])
-				dist[rn] = curwt + mat->value[k];
-		}
-		//printf("dist[%ld] = %lg\n", minidx, curwt);
+        dist[rn] = curwt + mat->value[k];
+    }
+    //printf("dist[%ld] = %lg\n", minidx, curwt);
     dist[minidx] = -dist[minidx];
   }
 
-	for(i=0; i<numrows; i++)
-		dist[i] = -dist[i];
+  for(i=0; i<numrows; i++)
+    dist[i] = -dist[i];
 
-	return(0.0);
+  return(0.0);
 }
 
 /*! Brief The min-heap implementation.
@@ -119,8 +119,8 @@ double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0)
  * in the graph as rows (of the matrix).  
  * The coupling is maintained by the arrays row[] and node[]. 
  * row[] and node[] are inverses of each other. 
- * row[] gives a look up to find the row when the heap changes it from tentative to resolved
- * node[] gives a look up into the heap to update row's tentative weight
+ * row[n] gives a way look up the row when the heap node n reaches the root of the heap
+ * node[r] gives a way look up the heap node that currently handles row r's tentative weight
  */
 typedef struct PQ_t {
   int64_t numrows; // the number of vertices in the graph, rows in the matrix
@@ -140,11 +140,13 @@ int64_t check_pqueue(PQ_t * pq);
 
 /*! Brief initialize the heap
  * Note the indexing into the queue will be "1-up" so the parent and children are easy to calculate.
- * As a convenience, we will use the zero node in the heap for the initial row.
+ * A given parent, p, has kids 2*p and 2*p+1, and the parent of kid, k, is \floor(k/2) 
+ * As a convenience, we will use the zero node in the heap for the initial row (starting vertex).
  * We allocate an extra node so that numrows is a safe index.
- * We also use node[] to flag rows: 
+ * That allows us to use node[] to flag rows: 
  *   node[row] == numrows means the row is unvisited
  *   node[row] == 0 means the row is resolved
+ *   otherwise node[row] is the index of the entry in the heap that holds the tentative weight of row.
  */  
 PQ_t * init_pqueue(int64_t numrows)
 {
@@ -159,8 +161,8 @@ PQ_t * init_pqueue(int64_t numrows)
 
 /*! Brief bubble up a given node to return the heap to a legal state
  * Since a tentative weight only changes if it gets smaller
- * and we change only one node at a time.
- * We only need to bubble up the changed node until it satisfies the  heap property.
+ * and we change only one node at a time, it is enough 
+ * to bubble up the changed node until it is not smaller than its parent.
  * \param pq the priority queue
  * \param nd the index of the node that has changed
  */  
@@ -171,8 +173,7 @@ void bubble_up(PQ_t *pq, int64_t nd)
    while( nd > 1 ){
      if( pq->wt[ nd/2 ] <= pq->wt[nd] )
        return; 
-     printf("swap %ld and %ld\n", nd, nd/2);
-     //swap the kid node with the parent node
+     //printf("swap kid %ld and paren %ld\n", nd/2, nd);
      w = pq->wt[nd];
      pq->wt[nd] = pq->wt[nd/2];
      pq->wt[nd/2] = w;
@@ -192,11 +193,12 @@ void bubble_up(PQ_t *pq, int64_t nd)
   return;
 }
 
-/*! Brief remove the root node, 
- *  replace it with the last node in the heap 
- *  and restore the heap property.
- * \param pq the priority queue
- * \return 0 if the heap is empty, 1 otherwise
+/*! Brief remove the root node of the heap 
+ *  Replace it with the last node in the heap (making the heap one node shorter).
+ *  Then restore the heap property by bubbling the root node down until
+ *  it is not bigger than either of its children.
+ *  \param pq the priority queue
+ *  \return 0 if the heap is empty, 1 otherwise
  */  
 int delete_root(PQ_t * pq)
 {
@@ -210,7 +212,7 @@ int delete_root(PQ_t * pq)
   pq->node[pq->row[1]] = 0;           // mark this row as resolved
   pq->row[1] = pq->row[ pq->tail];
   pq->wt[1] = pq->wt[ pq->tail];
-  pq->wt[pq->tail] = 99.0;            // pq->tail is non available
+  pq->wt[pq->tail] = 99.0;            // pq->tail is now available
   pq->row[pq->tail] = pq->numrows;
   printf("delete root:\n");
   print_queue(pq);
@@ -228,8 +230,7 @@ int delete_root(PQ_t * pq)
     } else {
       kid_nd = 2*par_nd + 1;
     }
-    //swap the kid node with the parent node
-    printf("bubble down: swap %ld with %ld\n", par_nd, kid_nd);
+    printf("bubble down: swap parent %ld with kid %ld\n", par_nd, kid_nd);
     w = pq->wt[par_nd];
     pq->wt[par_nd] = pq->wt[kid_nd];
     pq->wt[kid_nd] = w;
@@ -257,9 +258,8 @@ int delete_root(PQ_t * pq)
  */
 double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
 {
-	int64_t i, k;
-	int64_t numrows = mat->numrows;
-
+  int64_t i, k;
+  int64_t numrows = mat->numrows;
 
   // initialize the heap 
   PQ_t * pq = init_pqueue(numrows);
@@ -302,11 +302,11 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
       row = mat->nonzero[k];
       e_wt  = mat->value[k];
       nd   = pq->node[row];
-      if(nd == 0){                  // row is done
+      if(nd == 0){                               // row is done
         printf("explore (%2ld,%2ld): done with row (%ld)\n", rn, row, row);
         continue;
       }
-      if( nd == numrows ) {        // row is new
+      if( nd == numrows ) {                      // row is new
         nd = pq->tail;
         pq->node[row] = nd;
         pq->wt[nd] = vn_wt + e_wt;
@@ -315,7 +315,7 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
         printf("explore (%2ld,%2ld): new row %ld with wt %lg at node %ld\n", rn, row, row, pq->wt[nd], nd);
         bubble_up(pq, nd);
         print_queue(pq);
-      } else if( pq->wt[nd] > (vn_wt + e_wt)) {  // improved the weight
+      } else if(pq->wt[nd] > (vn_wt + e_wt)) {          // improved the weight
         pq->wt[nd] = vn_wt + e_wt;
         printf("explore (%2ld,%2ld): updated row %ld with wt %lg at node %ld\n", rn, row, row, pq->wt[nd], nd);
         bubble_up(pq, nd);
@@ -324,12 +324,11 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
         printf("explore (%2ld,%2ld): no change\n", rn, row);
       }
     }
-
-    if(delete_root(pq) == 0 )
+    if(delete_root(pq) == 0)                           // nothing else in the heap
       break;
   };
 
-	return(0.0);
+  return(0.0);
 }
 
 
@@ -339,7 +338,7 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
  */
 
 // start at the top and bubble down
-// going to assume that a bunch of sort is out of order
+// going to assume that a bunch of the node are  out of order
 void heapify_pqueue(PQ_t * pq)
 {
   int64_t k;
@@ -352,7 +351,7 @@ void heapify_pqueue(PQ_t * pq)
 }
 
 
-// check that the wt of a parent is always never greater than either child
+// check that the wt of a parent is never greater than either child
 int64_t check_pqueue(PQ_t * pq)
 {
   int64_t p, ret_ok=1;
@@ -366,6 +365,8 @@ int64_t check_pqueue(PQ_t * pq)
   return(ret_ok);
 }
 
+// just dump the entries in the heap it three consecutive lines.
+// numrows needs to be small
 void print_queue(PQ_t * pq)
 {
   int i;

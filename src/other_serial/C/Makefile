@@ -13,6 +13,8 @@ SRC= spmat_utils.h spmat_utils.c
   SRC+=transpose_matrix.c
   SRC+=permute_matrix.c
   SRC+=sssp.c
+  SRC+=sssp_dijsktra.c
+  SRC+=sssp_bellmanford.c
   SRC+=demo_spmat.c
 
 EXE= histo 
@@ -64,8 +66,8 @@ permute_matrix: permute_matrix.c spmat_utils.o
 transpose_matrix: transpose_matrix.c spmat_utils.o
 	${CC} transpose_matrix.c spmat_utils.o ${LFLAGS} -o transpose_matrix
 
-sssp: sssp.c sssp_dijsktra.c spmat_utils.o
-	${CC} sssp.c sssp_dijsktra.c spmat_utils.o ${LFLAGS} -o sssp
+sssp: sssp.c sssp_dijsktra.c sssp_bellmanford.c spmat_utils.o
+	${CC} sssp.c sssp_dijsktra.c sssp_bellmanford.c spmat_utils.o ${LFLAGS} -o sssp
 
 doc:
 	doxygen
