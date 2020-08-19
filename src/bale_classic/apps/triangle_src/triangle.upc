@@ -175,7 +175,7 @@ int main(int argc, char * argv[]) {
   int64_t buf_cnt = 1024;
   int64_t models_mask = ALL_Models;  // default is running all models
   int64_t l_numrows = 10000;         // number of a rows per thread
-  int64_t nz_per_row = 35;           // target number of nonzeros per row (Random graph only)
+  //int64_t nz_per_row = 35;           // target number of nonzeros per row (Random graph only)
   int64_t read_graph = 0L;           // read graph from a file
   char filename[64];
   int64_t cores_per_node = 0;
@@ -187,11 +187,12 @@ int main(int argc, char * argv[]) {
   int kron_graph_mode = 0;
   char * kron_graph_string;
   double erdos_renyi_prob = 0.0;
+  int64_t nz_per_row = -1;
   graph_model model = FLAT;
   int64_t seed = 1231;
   int printhelp = 0;
   int opt; 
-  while( (opt = getopt(argc, argv, "hb:c:M:n:f:FGa:e:K:s:")) != -1 ) {
+  while( (opt = getopt(argc, argv, "hb:c:M:n:f:FGa:e:K:s:Z:")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
     case 'a': sscanf(optarg,"%"PRId64"", &alg); break;
@@ -205,14 +206,23 @@ int main(int argc, char * argv[]) {
     case 'M': sscanf(optarg,"%"PRId64"", &models_mask);  break;
     case 'n': sscanf(optarg,"%"PRId64"", &l_numrows); break;
     case 's': sscanf(optarg,"%"PRId64"", &seed); break;
-    default:  break;
+    case 'Z': sscanf(optarg,"%"PRId64"", &nz_per_row);  break;
+    default:
+      T0_fprintf(stderr, "ERROR: Illegal usage\n");
+      return(1);
     }
   }
   if( printhelp ) usage(); 
 
   int64_t numrows = l_numrows * THREADS;
-  if(erdos_renyi_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
-    erdos_renyi_prob = (2.0*(nz_per_row - 1))/numrows;
+  if((gen_kron_graph == 0) && (read_graph == 0) &&
+     (erdos_renyi_prob == 0.0)){ // use nz_per_row to get erdos_renyi_prob
+    if(nz_per_row != -1){
+      erdos_renyi_prob = (2.0*(nz_per_row - 1))/numrows;
+    }else{
+      T0_fprintf(stderr,"ERROR: must supply an ER edge density (-e) or nz_per_row (-Z)\n");
+      return(1);
+    }
     if(erdos_renyi_prob > 1.0)
       erdos_renyi_prob = 1.0;
   } else {                     // use erdos_renyi_prob to get nz_per_row
@@ -229,9 +239,10 @@ int main(int argc, char * argv[]) {
   T0_fprintf(stderr,"Model mask (M) = %"PRId64" (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);  
   T0_fprintf(stderr,"algorithm (a) = %"PRId64" (0 for L & L*U, 1 for L & U*L)\n", alg);
   
+  lgp_barrier();
   
   if( printhelp )
-    lgp_global_exit(0);
+    return(0);
 
   // alg = 0 only needs L
   // alg = 1 needs both U and L
