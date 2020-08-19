@@ -8,7 +8,7 @@ RUN apt-get -y update \
 
 COPY . /opt/bale_private
 
-WORKDIR /opt/bale_private
+WORKDIR /opt/bale_private/src/bale_classic
 
 RUN ./run_autoreconf
 ENV UPC gupc

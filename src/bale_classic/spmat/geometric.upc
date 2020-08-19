@@ -46,10 +46,7 @@ int64_t sector_max;
 
 // returns the square of the L2 distance
 double dist(point_t a, point_t b){
-
-  double d = (a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y);
-  //printf("comparing (%lf,%lf) and (%lf, %lf)...distance = %lf\n",a.x,a.y,b.x,b.y, d);
-  return(d);
+  return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
 // 

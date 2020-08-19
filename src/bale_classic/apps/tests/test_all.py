@@ -15,7 +15,8 @@ def determine_launcher():
 # parameters to this script are handled in conftest.py
 # --path : specify a path to executables
 def test_all(path, node_range, implementation_mask):
-    apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix"]
+    apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles"]
+    #apps = ['triangles']
     launcher = determine_launcher()
     print(launcher)
     if node_range is not None:
@@ -32,16 +33,38 @@ def test_all(path, node_range, implementation_mask):
         node_range = range(1,4)
     print(node_range)
 
-    runs = []
-    runs.append("-b 16 -n 1000 -M "+implementation_mask)    
-    runs.append("-b 35 -n 813 -T 103 -M "+implementation_mask)
-    for app in apps:        
+
+    for app in apps:
+        runs = []
+        runs.append("-h ")
+        if app == 'histo' or app == 'ig':
+            runs.append("-b 16 -n 1000 ")
+            runs.append("-b 35 -n 813 ")
+            runs.append("-b 35 -n 2344 -T 10 ")
+            runs.append("-b 120 -n 19988 -T 10000 ")
+        if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles':
+            runs.append("- -b 120 -n 1000 -F -Z 2")
+            runs.append("- -b 120 -n 1042 -G -Z 4 ")
+            runs.append("- -b 31 -n 3042 -F -Z 4 ")
+            runs.append("- -b 31 -n 3042 -F -Z 6 ")
+            runs.append("- -b 140 -n 34042 -F -Z 30 ")
+        if app == 'randperm':
+            runs.append("-b 16 -n 1000  ")
+            runs.append("-b 35 -n 813 ")
+            runs.append("-b 35 -n 2344 ")
+            runs.append("-b 120 -n 19988 ")
+        if app == 'triangles':
+            runs.append("-b 244 -K '0 3 4 5' ")
+            runs.append("-b 244 -K '1 3 4 5' ")
+            runs.append("-b 244 -K '2 3 4 5' ")
+            runs.append("-b 345 -K '0 2 4 7' ")
+            runs.append("-b 345 -K '1 2 4 7' ")
+            runs.append("-b 345 -K '2 2 4 7' ")
+            
         for pes in node_range:
             if pes == 0: continue
             for run in runs:
-                if run.count('-T'):
-                    continue
-                cmd = launcher.format(os.path.join(path,app),pes) +" "+run
+                cmd = launcher.format(os.path.join(path,app),pes) +" "+run+" -M "+implementation_mask
                 print(cmd)
                 cp = subprocess.run(cmd, shell=True)
                 assert(cp.returncode == 0)
