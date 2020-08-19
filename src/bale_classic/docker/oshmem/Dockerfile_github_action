@@ -4,11 +4,16 @@ FROM npmolino/bale_public_oshmem4.0.3:v1
 
 RUN apt-get -y update \
     && apt-get install -y --no-install-recommends \
-	vim less curl
+	vim less curl python3 python3-pip
+
+RUN ln -s /usr/bin/python3 /usr/bin/python && \
+    ln -s /usr/bin/pip3 /usr/bin/pip
+
+RUN pip install pytest 
 
 COPY . /opt/bale_private
 
-WORKDIR /opt/bale_private
+WORKDIR /opt/bale_private/src/bale_classic
 
 RUN ./run_autoreconf
 ENV CC oshcc 

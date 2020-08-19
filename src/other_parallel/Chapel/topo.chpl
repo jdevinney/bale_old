@@ -3,6 +3,7 @@ use CyclicDist;
 use BlockDist;
 use PrivateDist;
 use Barriers;
+use PeekPoke;
 use Time;
 
 // How data is laid out
@@ -19,6 +20,9 @@ use Time;
 // 4. Is there a way to do a global (+ reduce x) in the middle of a SPMD like loop?
 // 5. I think it would be nice to have a better way to get task locale subdomains
 
+const numTasksPerLocale = if dataParTasksPerLocale > 0 then dataParTasksPerLocale
+                                                       else here.maxTaskPar;
+const numTasks = numLocales * numTasksPerLocale;
 
 class Sparsemat{
   // you could try to make this a record if performance suffers
@@ -35,7 +39,7 @@ class Sparsemat{
   
   /******************************************************************/
   proc init(nr:int, nc:int){
-    var th_per_locale = dataParTasksPerLocale;
+    var th_per_locale = numTasksPerLocale;
     var ntasks = th_per_locale*numLocales;
     this.nr  = nr;
     this.nc = nc;
@@ -57,7 +61,7 @@ class Sparsemat{
   /******************************************************************/
   proc init(nr:int, nc:int, nnz_per_locale:[]int){
     var max_nnz_per_locale = (max reduce nnz_per_locale);   
-    var th_per_locale = dataParTasksPerLocale;
+    var th_per_locale = numTasksPerLocale;
     var ntasks = th_per_locale*numLocales;
     this.nr  = nr;
     this.nc = nc;
@@ -72,7 +76,7 @@ class Sparsemat{
         var local_off_dom = off_dom.localSubdomain();
         coforall t in 0..#th_per_locale{
           var my_rank = l.id*th_per_locale + t;
-          this.first_row_per_task[my_rank] = local_off_dom.low + my_first_thing(l_nr, t, th_per_locale, 0)*local_off_dom.stride;
+          this.first_row_per_task[my_rank] = local_off_dom.alignedLow + my_first_thing(l_nr, t, th_per_locale, 0)*local_off_dom.stride;
           this.num_rows_per_task[my_rank] = my_num_things(l_nr, t, th_per_locale);
           this.row_stride_per_task[my_rank] = local_off_dom.stride;
         }
@@ -94,20 +98,20 @@ class Sparsemat{
         const local_offset_inds = this.offset.localSubdomain();
         ref loffset = this.offset.localSlice[local_offset_inds((l.id + numLocales)..)];
         loffset = (+ scan lrowcounts);
-        this.offset.localSlice[local_offset_inds] += this.nonzero.localSubdomain().low; //add block offset
+	this.offset.localSlice[local_offset_inds] += this.nonzero.localSubdomain().alignedLow; //add block offset
       }    
   }
   /******************************************************************/
   proc transpose(){
-    var th_per_locale = dataParTasksPerLocale;
+    var th_per_locale = numTasksPerLocale;
     
     // get column counts
     var D = newCyclicDom(0..#this.nc);
     var colcounts: [D] atomic int;
     var cc: [D] int;
 
-    forall nz in this{
-      colcounts[nz[2]].add(1);
+    forall (_, col) in this{
+      colcounts[col].add(1);
     }
 
     // copy colcounts into non-atomic array
@@ -209,7 +213,7 @@ class Sparsemat{
   }
   /******************************************************************/
   iter rows(param tag: iterKind) where tag == iterKind.standalone{ //parallel row iterator
-    var th_per_locale = dataParTasksPerLocale;
+    var th_per_locale = numTasksPerLocale;
     coforall l in Locales do on l{
         coforall t in (0..#th_per_locale){
           var my_rank = l.id*th_per_locale + t;
@@ -266,9 +270,9 @@ class Sparsemat{
       
       if(detail == 3){
         for row in this.rows(){
-          stdout.write("row ", row, ": ");
+          write("row ", row, ": ");
           for col in this.row_nz(row){
-            stdout.write(col, ",");
+            write(col, ",");
           }
           writeln();
         }
@@ -317,18 +321,18 @@ iter task_local_inds(arr, my_task_rank, num_tasks){
 //}
 
 proc generate_erdos_renyi_half(const n: int, const p:real, const seed=1208, const upper=true, const unit_diagonal=true){
-  var th_per_locale = dataParTasksPerLocale;
+  var th_per_locale = numTasksPerLocale;
   var rowcounts = newCyclicArr(0..#n, int);  
   rowcounts = 0;
   var lnnz = newCyclicArr(0..#numLocales, int);
   coforall l in Locales do on l{
-      var tot: [0..#dataParTasksPerLocale] int;
+      var tot: [0..#numTasksPerLocale] int;
       ref lrc = rowcounts.localSlice[rowcounts.localSubdomain()];      
-      coforall t in 0..#dataParTasksPerLocale{
-        var my_rank = l.id*dataParTasksPerLocale + t;
+      coforall t in 0..#numTasksPerLocale{
+        var my_rank = l.id*numTasksPerLocale + t;
         var rndstream = new owned RandomStream(real, seed + my_rank, parSafe=false);
         var lq = log(1 - p);
-        for row in task_local_inds(rowcounts, t, dataParTasksPerLocale){
+        for row in task_local_inds(rowcounts, t, numTasksPerLocale){
           var cnt = if unit_diagonal then 1 else 0;
           var col = if upper then row+1 else 0;
           var bound = if upper then n else row-1;
@@ -354,11 +358,11 @@ proc generate_erdos_renyi_half(const n: int, const p:real, const seed=1208, cons
       const local_nonzero_inds = A.nonzero.localSubdomain();
       ref lnonzero = A.nonzero.localSlice[local_nonzero_inds];
       ref loffset = A.offset.localSlice[A.offset.localSubdomain()];
-      coforall t in 0..#dataParTasksPerLocale{
-        var my_rank = l.id*dataParTasksPerLocale + t;
+      coforall t in 0..#numTasksPerLocale{
+        var my_rank = l.id*numTasksPerLocale + t;
         var rndstream = new owned RandomStream(real, seed + my_rank, parSafe=false);
         var lq = log(1 - p);
-        for row in task_local_inds(rowcounts, t, dataParTasksPerLocale){
+        for row in task_local_inds(rowcounts, t, numTasksPerLocale){
           var nzpos = loffset[row];
           var col = if upper then row+1 else 0;
           var bound = if upper then n else row-1;
@@ -393,7 +397,7 @@ proc rand_permp(N:int, seed:int) : []int{
   }
   if(0){
     coforall l in Locales do on l{
-        var th_per_locale = dataParTasksPerLocale;      
+        var th_per_locale = numTasksPerLocale;
         coforall t in (0..#th_per_locale){
           var my_rank = l.id*th_per_locale + t;
           var rndstream = new owned RandomStream(real, seed + my_rank, parSafe=false);
@@ -401,7 +405,7 @@ proc rand_permp(N:int, seed:int) : []int{
           var npes = th_per_locale*numLocales;
           while( i < N ){
             var r = (rndstream.getNext() * 2*N): int;
-            if(target[r].compareExchange(-1, i)){
+            if(target[r].compareAndSwap(-1, i)){
               i += npes;
             }
           }
@@ -434,11 +438,11 @@ proc rand_permp(N:int, seed:int) : []int{
       }
   }else{
     // new try
-    var thpl = dataParTasksPerLocale;
+    var thpl = numTasksPerLocale;
     var b = new Barrier(numLocales*thpl);
     var offset = newBlockArr(0..numLocales*thpl, int);
     coforall l in Locales do on l{
-        var th_per_locale = dataParTasksPerLocale;
+        var th_per_locale = numTasksPerLocale;
         coforall t in (0..#th_per_locale){
           var npes = numLocales*th_per_locale;
           var my_rank = l.id*th_per_locale + t;
@@ -446,7 +450,7 @@ proc rand_permp(N:int, seed:int) : []int{
           // throw the darts
           for i in my_rank..(N-1) by npes{
             do{ var r = (rndstream.getNext() * 2*N): int;
-            }while(!target[r].compareExchange(-1, i));
+            }while(!target[r].compareAndSwap(-1, i));
           }
         
           b.barrier();
@@ -463,7 +467,7 @@ proc rand_permp(N:int, seed:int) : []int{
 
     // redistribute the darts in a CYCLIC fashion to create the final permutation
     coforall l in Locales do on l{
-        var th_per_locale = dataParTasksPerLocale;
+        var th_per_locale = numTasksPerLocale;
         coforall t in (0..#th_per_locale){
           var my_rank = l.id*th_per_locale + t;
           var npes = numLocales*th_per_locale;
@@ -522,7 +526,7 @@ proc is_perm(perm) : bool{
 /***************************************************************/
 // why can't I put ": Sparsemat" as a return type?
 proc permute_matrix(A: Sparsemat, rperm: []int, cperm: []int){
-  var th_per_locale = dataParTasksPerLocale;
+  var th_per_locale = numTasksPerLocale;
   
   // get the rowcounts array for the original matrix
   var rowcounts_orig = A.getrowcounts();
@@ -567,7 +571,7 @@ proc permute_matrix(A: Sparsemat, rperm: []int, cperm: []int){
 }
 
 proc toposort(A: Sparsemat) {
-  var th_per_locale = dataParTasksPerLocale;
+  var th_per_locale = numTasksPerLocale;
   var rp = newCyclicArr(0..#A.nr, int);
   var cp = newCyclicArr(0..#A.nc, int);
   var pos: atomic int;
@@ -666,7 +670,7 @@ proc toposort(A: Sparsemat) {
 
 proc toposort2(A: Sparsemat){
 
-  var th_per_locale = dataParTasksPerLocale;
+  var th_per_locale = numTasksPerLocale;
   var rp = newCyclicArr(0..#A.nr, int);
   var cp = newCyclicArr(0..#A.nc, int);
   var pos: atomic int;
@@ -730,55 +734,59 @@ proc toposort2(A: Sparsemat){
   return(rp, cp);
 }
 
+config const detail = 0;
+config const timers = true;
+
+var t: Timer;
+proc printTimer(section) {
+  if !timers then return;
+  t.stop();
+  writeln(section, " time ", t.elapsed() ," secs");
+  t.clear();
+  t.start();
+}
 /*****************************************************************/
 /*                           MAIN                                */
 /*****************************************************************/
 
-config const N = 12;
+config const nPerTask = 10;
+config const N = nPerTask * numTasks;
 //config const p = 0.1;
 config const Z = 30.0;
 config const seed = 1038;
-config const detail = 0;
 
 var p: real;
 p = (2.0*Z)/(N-1);
 if(p > 1.0){p = 1.0;}
 
-var t: Timer;
 t.start();
-
 var A = generate_erdos_renyi_half(N, p, seed, true,true);
 A.print(detail);
+printTimer("Matrix generation");
 
-t.stop();writeln("Matrix generation time ", t.elapsed()," secs");t.clear();
-t.start();
 var rowperm = rand_permp(N, seed*2);
 var colperm = rand_permp(N, seed*3);
 if(detail > 1){
   writeln("rowperm = ", rowperm);
   writeln("colperm = ", colperm);
 }
-t.stop();writeln("Permutation generation time ", t.elapsed()," secs");t.clear();
-t.start();
+printTimer("Permutation generation");
 
 var Ap = permute_matrix(A, rowperm, colperm);
 Ap.print(detail);
-t.stop();writeln("Permute Matrix time ", t.elapsed()," secs");t.clear();
-t.start();
+printTimer("Permute Matrix");
 
 
-var rpcp = toposort(Ap);
+var (rp, cp) = toposort(Ap);
 if(detail > 1){
-  writeln("topo rowperm = ",rpcp[1]);
-  writeln("topo colperm = ",rpcp[2]);
+  writeln("topo rowperm = ",rp);
+  writeln("topo colperm = ",cp);
 }
-t.stop();writeln("Toposort time ", t.elapsed()," secs");t.clear();
-t.start();
+printTimer("Toposort");
 
-var App = permute_matrix(Ap, rpcp[1], rpcp[2]);
+var App = permute_matrix(Ap, rp, cp);
 App.print(detail);
-t.stop();writeln("Permute Matrix(2) time ", t.elapsed()," secs");t.clear();
-t.start();
+printTimer("Permute Matrix(2)");
 
 if(App.is_unit_upper_triangular()){
   writeln("Success!");

@@ -4,21 +4,21 @@ A collection of buffered communication libraries and some mini-applications.
 
 ### The elevator pitch
 
-The bale effort is, first and foremost, a vehicle for discussion for parallel programming productivity.  
+The bale effort is, first and foremost, *a vehicle for discussion for parallel programming productivity*.  
 
-One pillar of bale is a directory of "apps" that exhibit interesting communication patterns and programming demands. The apps can be written with aggregated communication as opposed to fine-grained point-to-point communication. We think aggregation is and will remain vital to getting top performance on parallel computers, but we don't like how difficult it is to write programs that use aggregation. Each app is written in multiple ways to demonstrate the pros and cons of each.
+One pillar of bale is a directory of [apps](apps/README.md) that exhibit interesting communication patterns and programming demands. The apps can be written with aggregated communication as opposed to fine-grained point-to-point communication. We think aggregation is and will remain vital to getting top performance on parallel computers, but we don't like how difficult it is to write programs that use aggregation. Each app is written in multiple ways to demonstrate the pros and cons of each.
 
-The other pillar of bale are three libraries that provide the programmer with an API to aggregate communications within application code. These libraries are: exstack, exstack2, and conveyors.
+The other pillar of bale are three libraries that provide the programmer with an API to aggregate communications within application code. These libraries are: exstack, exstack2, and conveyors. And while their API's are quite similar, they differ in their underlying implementations and behaviors.
 
 We hope that bale can lead to improved parallel programmer productivity (including existing and/or new programming models) and performance. 
 
 Note: We call this directory bale classic because this collection of code is the evolution of the original bale release. bale as a repository now contains lots of "flavors" of bale that are inspired by bale classic.
 
 
-## Nitty Gritty of Bale Proper
+## Nitty Gritty of Bale Classic
 
 ### What language? Where does it run?
-Bale is written in C and can be compiled with UPC or link against OpenSHMEM 1.4. Bale has been tested on a variety of architectures including Cray XC30, clusters with Infiniband, and SMP Linux.
+Bale is written in C and can be compiled with UPC or linked against OpenSHMEM 1.4. Bale has been tested on a variety of architectures including Cray XC30, clusters with Infiniband, and SMP Linux.
 
 The main components are :
 
@@ -26,12 +26,12 @@ The main components are :
 - INSTALL  - instructions for building bale
 - [libgetput](libgetput/README.md)  - parallel programming utility library. libgetput is a library that can be compiled on top of UPC or SHMEM and implements puts, gets, collectives, and atomics. Everything in bale except conveyors is built on top of libgetput.
 - [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
-- convey - The conveyor library for aggregating communication
+- [convey](convey/README.md) - The conveyor library for aggregating communication
 - [spmat](spmat/README.md)  -  a sparse matrix library
-- apps  -  the applications directory. Includes [histogram](apps/histo_src/README.md), 
+- [apps](apps/README.md)  -  the applications directory. Includes [histogram](apps/histo_src/README.md), 
    [indexgather](apps/ig_src/README.md), [toposort](apps/topo_src/README.md), [transpose_matrix](apps/transpose_matrix_src/README.md), [triangle counting](apps/triangle_src/README.md), [randperm](apps/randperm_src/README.md), etc.
 - install.sh - the build and install script
-- runall.sh - a test script that runs all applications
+- runall.sh - a demo script that runs all applications
 - Doxyfile - the main file for building the documentation with doxygen
 - mainpage.h - The main documentation page.
 - clang_upc_run.sh - a script to add "-fupc-threads-N" as appropriate when using clang-upc
