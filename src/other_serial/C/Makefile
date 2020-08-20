@@ -1,5 +1,5 @@
 
-CFLAGS= -O3
+#CFLAGS= -O3
 LFLAGS= -lm
 CC= gcc -Wall ${CFLAGS}
 
@@ -64,8 +64,8 @@ permute_matrix: permute_matrix.c spmat_utils.o
 transpose_matrix: transpose_matrix.c spmat_utils.o
 	${CC} transpose_matrix.c spmat_utils.o ${LFLAGS} -o transpose_matrix
 
-sssp: sssp.c sssp_dijsktra.c spmat_utils.o
-	${CC} sssp.c sssp_dijsktra.c spmat_utils.o ${LFLAGS} -o sssp
+sssp: sssp.c sssp_dijsktra.c sssp_delta.c spmat_utils.o
+	${CC} -g sssp.c sssp_dijsktra.c sssp_delta.c spmat_utils.o ${LFLAGS} -o sssp
 
 doc:
 	doxygen
