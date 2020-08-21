@@ -7,50 +7,10 @@ typedef struct llnode_t{
   struct llnode_t * prev;
 }llnode_t;
 
-typedef struct request_t{
-  int64_t w;
-  double x;
-}request_t;
-
-#if 0
-request_t find_requests(int64_t bin, int light, llnode_t ** bins, sparsemat_t * mat){
-  int64_t j;
-  llnode_t * node;
-  while(node != NULL){
-    int64_t v = node->index;
-    for(j = mat->offset[v]; j < mat->offset[v+1]; j++){
-      if
-    }
-    node = node->next;
-  }
-  
-}
-#endif
-
-double relax_edge(sparsemat_t * mat, int64_t u, int64_t v, double * tent){
-
-  /* find weight of edge(u, v) */
-  double c_uv = -1;
-	int64_t i;
-  for(i = mat->offset[u]; i < mat->offset[u+1]; i++)
-    if(mat->nonzero[i] == v)
-      c_uv = mat->value[i];
-
-  if(c_uv == -1){
-    printf("ERROR: relax edge: illegal u,v pair (%"PRId64" %"PRId64")\n", u, v);
-    return (1);
-  }
-
-  if( tent[v] < (tent[u] + c_uv)){
-    tent[v] = tent[u] + c_uv;
-  }
-  return(0);
-}
-
 
 void remove_node_from_bucket(llnode_t * v, int64_t i, llnode_t ** B){
   llnode_t * next = v->next;
-  printf("Removing %"PRId64" from bucket %"PRId64"\n", v->index, i);
+  //printf("Removing %"PRId64" from bucket %"PRId64"\n", v->index, i);
   if(v->prev)
     v->prev->next = next;
   else
@@ -75,7 +35,7 @@ void move_node_from_bucket_i_to_j(llnode_t * w, int64_t i, int64_t j, llnode_t *
   }
   
   /* insert w into the front of B[j] */
-  printf("Adding %"PRId64" to bucket %"PRId64"\n", w->index, j);
+  //printf("Adding %"PRId64" to bucket %"PRId64"\n", w->index, j);
   w->next = NULL;
   w->prev = NULL;
   if(B[j]){
@@ -87,7 +47,7 @@ void move_node_from_bucket_i_to_j(llnode_t * w, int64_t i, int64_t j, llnode_t *
 
 
 void relax(int64_t windex, double x, double delta, double * tent, llnode_t * nodes, llnode_t ** B){
-  printf("relax w=%"PRId64" x = %lf < %lf?\n", windex, x, tent[windex]);
+  //printf("relax w=%"PRId64" x = %lf < %lf?\n", windex, x, tent[windex]);
   if ( x < tent[windex] ){
     /* if w is in B[floor(tent[windex]/delta)], remove it from that bucket */
     move_node_from_bucket_i_to_j(&nodes[windex], (int64_t)floor(tent[windex]/delta), (int64_t)floor(x/delta), nodes, B);
@@ -139,7 +99,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
   /* set the source distance to 0 */
   tent[r0] = 0;
   B[0] = &nodes[r0];
-    
+  
   /* main loop */
   int64_t min_bucket = 0;
   int64_t num_deleted = 0;
@@ -149,7 +109,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
     for(min_bucket = 0; min_bucket < num_buckets; min_bucket++)
       if(B[min_bucket])
         break;
-    printf("Starting inner loop: working on bucket %"PRId64"\n", min_bucket);
+    //printf("Starting inner loop: working on bucket %"PRId64"\n", min_bucket);
     if(min_bucket == num_buckets)
       break;
     
@@ -159,7 +119,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
     llnode_t * v = B[min_bucket];
     
     while(v != NULL){
-      printf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v->index, min_bucket);
+      //printf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v->index, min_bucket);
 
       /* take v out of B[min_bucket]??? */
       remove_node_from_bucket(v, min_bucket, B);
@@ -176,7 +136,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
         deleted[v->index] = 1;
         R[end++] = v->index;
         num_deleted++;
-        printf("deleted %"PRId64"s\n", v->index);
+        //printf("deleted %"PRId64"s\n", v->index);
       }
       
       v = v->next;
@@ -194,7 +154,10 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
     
   }// end main loop
 
-  
+  free(deleted);
+  free(R);
+  free(nodes);
+  free(B);
   
   return(0.0);
 }
