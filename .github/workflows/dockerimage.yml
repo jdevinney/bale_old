@@ -22,10 +22,17 @@ jobs:
     - name: Run pwd and ls
       run: |
         docker run bale_test_oshmem:gh_action su bale_user - -c "pwd && ls"
-    #- name: Run pytest in oshmem Docker container
-      #run: |
-        #docker run bale_test_oshmem:gh_action su bale_user - -c "pytest -s -p no:cacheprovider -P=/opt/bale_private/build_oshmem/bin/ --node_range=0,4,2 -M 3 apps/"
+    - name: Run pytest in oshmem Docker container
+      run: |
+        docker run bale_test_oshmem:gh_action su bale_user - -c "pytest -s -p no:cacheprovider -P=/opt/bale_private/src/bale_classic/build_oshmem/bin/ --node_range=0,4,2 -M 3 apps/"
     - name: Build the gupc Docker image
       run: docker build . --file src/bale_classic/docker/gupc/Dockerfile_github_action --tag bale_test_gupc:gh_action
     - name: Run the gupc Docker image
       run: docker run bale_test_gupc:gh_action su bale_user - -c "build_gupc/bin/histo -n 1"
+    - name: Run pwd and ls in gupc container
+      run: |
+        docker run bale_test_gupc:gh_action su bale_user - -c "pwd && ls"
+    #- name: Run pytest in gupc Docker container
+    #  run: |
+    #    docker run bale_test_gupc:gh_action su bale_user - -c "pytest -s -p no:cacheprovider -P=/opt/bale_private/src/bale_classic/build_gupc/bin/ --node_range=0,4,2 -M 3 apps/"
+
