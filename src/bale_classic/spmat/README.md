@@ -70,6 +70,8 @@ vertices.
 
 ### Geometric Random Graphs
 
+<img src="GeometricGraph.png" alt="Example of a geometric random graph" style="height: 300px; width:130px;"/>
+
 This random graph model is rather simple. Similar to the Erdos Renyi
 model, it has a single parameter r (between 0 and 1). For each vertex,
 a point is randomly placed in the unit square. An edge is placed
