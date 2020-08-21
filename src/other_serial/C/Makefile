@@ -1,5 +1,6 @@
 
 #CFLAGS= -O3
+#CFLAGS= -std=c99
 LFLAGS= -lm
 CC= gcc -Wall ${CFLAGS}
 

@@ -31,7 +31,8 @@ double relax_edge(sparsemat_t * mat, int64_t u, int64_t v, double * tent){
 
   /* find weight of edge(u, v) */
   double c_uv = -1;
-  for(int64_t i = mat->offset[u]; i < mat->offset[u+1]; i++)
+	int64_t i;
+  for(i = mat->offset[u]; i < mat->offset[u+1]; i++)
     if(mat->nonzero[i] == v)
       c_uv = mat->value[i];
 
