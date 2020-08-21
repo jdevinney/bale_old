@@ -64,7 +64,7 @@ exstack_t * exstack_init( int64_t buf_cnt, size_t pkg_size)
   for(i=0; i<THREADS; i++) 
     XStk->put_order[i] = i;
   for(j=THREADS-1; j>1; j--) {
-    k               = rand()%(j-1);
+    k               = rand()%(j+1);
     tmp             = XStk->put_order[k];
     XStk->put_order[k] = XStk->put_order[j];
     XStk->put_order[j] = tmp;
@@ -132,7 +132,7 @@ int64_t exstack_proceed(exstack_t *Xstk , int im_done) {
   if( im_done && !Xstk->notify_done ) {
     // If I am done pushing and I haven't notified everyone, do so now.
     for(i=0; i<THREADS; i++) 
-      lgp_put_int64(Xstk->wait_done, MYTHREAD*THREADS + i, 1L);
+      lgp_put_int64(Xstk->wait_done, MYTHREAD*THREADS + Xstk->put_order[i], 1L);
     Xstk->notify_done = 1;
   }
   lgp_barrier();

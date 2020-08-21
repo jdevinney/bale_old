@@ -2,7 +2,7 @@
 
 This is another rather simple application. Just like histogram, it is
 important because it represents a pattern of communication that is
-frequently used in parallel applications; asynchronous reading data 
+frequently used in parallel applications; asynchronous reading of data 
 from a distributed data structure.
 
 In SHMEM, indexgather looks like this:
@@ -31,7 +31,7 @@ In phase 3, we receive our processed requests and record their values in our tgt
             break; 
           i++;
        }   
-
+    
        exstack_exchange(ex);
     
        while(exstack_pop(ex, &idx , &fromth)) {
@@ -42,7 +42,7 @@ In phase 3, we receive our processed requests and record their values in our tgt
        lgp_barrier();
        
        exstack_exchange(ex);
-  
+      
        for(j=i0; j<i; j++) {  // retrace the requests
           fromth = pckindx[j] & 0xffff;
           exstack_pop_thread(ex, &idx, (uint64_t)fromth);
@@ -53,5 +53,5 @@ In phase 3, we receive our processed requests and record their values in our tgt
 
 Because exstack is synchronous and we are gathering a single word, 
 we can get reuse the same exstack for both the request and the response.
-This is not possible with exstack2 or conveyors however since they are asynchronous.
+This is not possible with exstack2 or conveyors however since they are asynchronous. This makes indexgather (and any generalizations of it) especially interesting. It is extremely simple, yet frustratingly complicated to write code that aggregates the task.
 

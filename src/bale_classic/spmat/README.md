@@ -1,13 +1,35 @@
 # spmat (Sparse Matrix library)
 
-The main data structure in this library is a distributed sparse matrix
-(implemented as Compressed Sparse Row (CSR)). The rows are distributed
-to PEs in a round-robin fashion and all nonzeros of any given row have
-affinity to a single PE. Besides their uses in physical sciences,
-sparse matrices are also useful in representing the adjacency matrix
-of a graph. This library is mostly a collection of functions that act
-on sparse matrices or graphs. There are also a few functions that act
-on or create permutations of the numbers {0,..., n-1}.
+Besides their uses in physical sciences, sparse matrices are also useful in representing the adjacency matrix of a graph. This library is mostly a collection of functions that act on sparse matrices or graphs. There are also a few functions that act on or create permutations of the numbers {0,..., n-1}.
+
+The main data structure in this library is a distributed sparse matrix (implemented as Compressed Sparse Row (CSR)). The rows are distributed to PEs in a round-robin (CYCLIC) fashion and all nonzeros of any given row have affinity to a single PE. The sparse matrix data structure also has a
+pointer to the local slice of the matrix for each PE. So to look at the nonzeros on your own PE the code looks like this:
+
+    sparsemat_t * A;
+    ...
+    for(i = 0; i < A->lnumrows; i++)
+      for(j = A->loffset[i]; j < A->loffset[i+1]; j++)
+        column_index = A->lnonzero[j];
+
+To look at the nonzeros in a row that is not necessarily local to your PE, the code looks like this...
+
+    sparsemat_t * A;
+    int64_t row;
+    ...
+    int64_t pe = row % THREADS;
+    int64_t rowstart = lgp_get_int64(A->offset, row);
+    int64_t rowstart_next = lgp_get_int64(A->offset, row + THREADS);
+    for(j = rowstart; j < rowstart_next; j++)
+      column_index = lgp_get_int64(A->nonzero, j*THREADS + pe);
+
+Note that we use the convention that local slices of distributed
+arrays are named the same as the parent array, just prefixed with an
+'l'.
+
+Sparse matrices in bale usually do not have explicit stored values. In
+that case, we assume every nonzero is a 1. The sparsemat_t data
+structure does have the ability to store explicit values as floating
+point however for applications that require values. 
 
 Several functions in this library are instructive enough that they are
 implemented in a variety of ways (AGI, exstack, exstack2, and
@@ -32,9 +54,9 @@ pseudo-code :
     for i = 0...n
       for j = 0...i
         if(random() < p)
-	   A[i][j] = 1
-	else
-	   A[i][j] = 0
+       A[i][j] = 1
+    else
+       A[i][j] = 0
 
 Generating a large graph according to this psuedo-code is inefficient
 as it requires O(n^2) random numbers to be generated. A better way is

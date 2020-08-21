@@ -51,6 +51,7 @@ double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0);
 double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0);
 double sssp_bellmanford_dp(sparsemat_t *dmat, double *dist, int64_t r0);
 double sssp_bellmanford_one(sparsemat_t *dmat, double *dist, int64_t r0);
+double sssp_delta_stepping(sparsemat_t *dmat, double *dist, int64_t r0);
 
 int main(int argc, char * argv[]) 
 {
@@ -60,7 +61,7 @@ int main(int argc, char * argv[])
   uint32_t seed = 123456789;
   int64_t readgraph = 0;
   char filename[256]={"filename"};
-  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, BELLMAN=4, BELLMAN_ONE=8, ALL_Models=16};
+  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING=4, BELLMAN=8, BELLMAN_ONE=16, ALL_Models=32};
   uint32_t use_model;
   uint32_t models_mask=ALL_Models - 1;
   int printhelp = 0;
@@ -75,7 +76,7 @@ int main(int argc, char * argv[])
   while( (opt = getopt(argc, argv, "hn:s:e:M:f:Dq")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%ld" ,&numrows ); break;
+    case 'n': sscanf(optarg,"%"PRId64 ,&numrows ); break;
     case 's': sscanf(optarg,"%d" ,&seed ); break;
     case 'e': sscanf(optarg,"%lg", &edge_prob); break;
     case 'M': sscanf(optarg,"%d" , &models_mask); break;
@@ -107,7 +108,8 @@ int main(int argc, char * argv[])
     if(!mat){printf("ERROR: sssp: read graph from %s Failed\n", filename); exit(1);}
   } else {
     //mat = erdos_renyi_tri(numrows, er_prob, ER_TRI_L, seed);
-		//graph_model model = FLAT;
+                //graph_model model = FLAT;
+    // JGD: SHOULD WE ALLOW BOTH UNDIRECTED and DIRECTED? 
     mat = random_graph(numrows, FLAT, UNDIRECTED_WEIGHTED, NOLOOPS, edge_prob, seed);
     if(!mat){
       printf("ERROR: triangles: erdos_renyi_graph Failed\n"); 
@@ -117,70 +119,96 @@ int main(int argc, char * argv[])
 
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of sssp\n");
-    fprintf(stderr,"Number of rows    (-n) %ld\n", numrows);
+    fprintf(stderr,"Number of rows    (-n) %"PRId64"\n", numrows);
     fprintf(stderr,"random seed     (-s)= %d\n", seed);
     fprintf(stderr,"erdos_renyi_prob   (-e)= %lg\n", edge_prob);
     fprintf(stderr,"models_mask     (-M)= %d\n", models_mask);
     fprintf(stderr,"readgraph      (-f [%s])\n", filename); 
-    fprintf(stderr,"dump_files      (-D)=%ld\n", dump_files);
+    fprintf(stderr,"dump_files      (-D)=%"PRId64"\n", dump_files);
     fprintf(stderr,"quiet        (-q)= %d\n", quiet);
  
     if(printhelp)
       return(0);
   }
 
+  // why???
   for(i=0; i< mat->nnz; i++) {
-    mat->value[i] = floor( 20 * mat->value[i]);
+    //  mat->value[i] = floor( 20 * mat->value[i]);
   }
-	// mat is the lower triangle of the adjacency matrix
+  // mat is the lower triangle of the adjacency matrix
   // we use the full symmetric matrix in Dijsktra's algorithm
   dmat = make_symmetric_from_lower(mat);
-	// debug info
+  // debug info
   if(dump_files) {
-		dump_matrix(mat,20, "L.out");
-		dump_matrix(dmat,20, "Full.out");
-	}
+    dump_matrix(mat,20, "L.out");
+    dump_matrix(dmat,20, "Full.out");
+  }
 
-	double * dist = malloc(numrows*sizeof(double));
+
+  double * compdist = NULL;
+  double * dist = malloc(numrows*sizeof(double));
   for(i=0;i<numrows; i++) dist[i] = INFINITY;
-
+  
   double laptime = 0.0;
   for(use_model=1; use_model < ALL_Models; use_model *=2 ){
     switch( use_model & models_mask ){
     case GENERIC_Model:
       if( !quiet ) printf("Generic          sssp:\n");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
-      laptime = sssp_dijsktra_linear(dmat, dist, 5);
-	    for(i=0; i<numrows; i++)
-		    printf("%ld %g\n",i, dist[i]);
+      laptime = sssp_dijsktra_linear(dmat, dist, 0);
+      compdist = calloc(numrows, sizeof(double));
+      for(i=0; i<numrows; i++){
+        compdist[i] = dist[i];
+        printf("%"PRId64" %g\n",i, dist[i]);
+      }
       break;
     case DIJSKTRA_HEAP:
       if( !quiet ) printf("Dijsktra Heap    sssp:\n");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
-      laptime = sssp_dijsktra_heap(dmat, dist, 5);
-	    for(i=0; i<numrows; i++)
-		    printf("%ld %g\n",i, dist[i]);
+      laptime = sssp_dijsktra_heap(dmat, dist, 0);
+      if(compdist == NULL){
+        compdist = calloc(numrows, sizeof(double));
+        for(i=0; i<numrows; i++) compdist[i] = dist[i];
+      }else{
+        for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
+      }
+      printf("Dijkstra Heap: Success!\n");
+      break;
+    case DELTA_STEPPING:
+      if( !quiet ) printf("Delta Stepping   sssp:\n");
+      for(i=0;i<numrows; i++) dist[i] = INFINITY;
+      laptime = sssp_delta_stepping(dmat, dist, 0);
+      if(compdist == NULL){
+        compdist = calloc(numrows, sizeof(double));
+        for(i=0; i<numrows; i++) compdist[i] = dist[i];
+      }else{
+        for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
+      }
+      printf("Delta Stepping: Success!\n");
       break;
     case BELLMAN:
       if( !quiet ) printf("Bellman Ford dp  sssp:\n");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
       laptime = sssp_bellmanford_dp(dmat, dist, 5);
-	    for(i=0; i<numrows; i++)
-		    printf("%ld %g\n",i, dist[i]);
+      for(i=0; i<numrows; i++)
+        printf("%ld %g\n",i, dist[i]);
       break;
     case BELLMAN_ONE:
       if( !quiet ) printf("Bellman Ford one sssp:\n");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
       laptime = sssp_bellmanford_one(dmat, dist, 5);
-	    for(i=0; i<numrows; i++)
-		    printf("%ld %g\n",i, dist[i]);
+      for(i=0; i<numrows; i++)
+        printf("%ld %g\n",i, dist[i]);
       break;
     default:
       continue;
     }
   }
-
-	printf("done: %g\n", laptime);
+  
+  free(dist);
+  free(compdist);
+  
+  printf("done: %g\n", laptime);
   clear_matrix(mat);
   clear_matrix(dmat);
   return(0);

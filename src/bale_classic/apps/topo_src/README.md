@@ -3,33 +3,20 @@
 The toposort application is a step up in complexity from histogram and indexgather.
 Depending on its input, it typically enjoys a significant amount of parallelism, but it 
 is not completely order and latency tolerant.
-The input to toposort is a sparse matrix A, where A is "morally upper-triangular".
 
-To prepare the input to the toposort algorithm, 
-we start we an upper-triangular matrix *T* with ones on the diagonal. 
-We don't care about the values of the non-zeros in the matrix, only their position.
-Next, we randomly (and separately) permute the rows and columns of *T* 
-to get a matrix *M*.  The matrix *M* has been called a morally triangular matrix.
+The input to toposort is a sparse matrix A, where A is "morally unit-upper-triangular". That is,
+we start we an upper-triangular matrix *T* with ones on the diagonal (that's the "unit" part of the name). We don't care about the values of the non-zeros in the matrix, only their position. Next, we randomly (and separately) permute the rows and columns of *T* to get a matrix *M*.  The matrix *M* has been called a morally triangular matrix.
 
-Given a morally triangular matrix, *M*, the goal of toposort is 
-to create row and column permutations such that when these 
-permutations are applied to *M*,
-the result is an upper triangular matrix with ones on the diagonal.
-Note, the answer need not be unique and 
-Since *M* is a row and column permutation of *T*, there must be a solution.
-However, the solution need not be unique.
+Given a morally unit-upper-triangular matrix, *M*, the goal of toposort is to create row and column permutations such that when these permutations are applied to *M*, the result is an unit-upper triangular matrix. The answer need not be unique but since *M* is a row and column permutation of *T*, we know T is a solution.
 
 We use a breadth first search algorithm based on the following observations:
 
 * The rows (and columns) of a sparse matrix partition the set of non-zeros in the matrix.
 * Row and column permutations preserve both partitions.
 
-For example, if you create a set of the nonzeros in a particular row;
-a column permutation might change the labels of the elements in the set,
-but doesn't change the cardinality of the set. Likewise for columns.
-Hence, there must be a row in *M* with a single non-zero.
-If we remove that row and column, we are left with smaller, 
-morally upper triangular matrix. This is the motivation behind a simple algorithm.
+For example, if you observe the set of the column labels of nonzeros in a particular row;
+a column permutation might change the labels of the elements in the set, but doesn't change the cardinality of the set. Likewise for columns. Hence, there must be a row in *M* with a single non-zero.
+If we remove that row and the column it intersects, we are left with smaller, morally upper triangular matrix. This is the motivation behind a simple algorithm (and the outline of an induction proof of its correctness).
 
 The outline of the algorithm is as follows:
 
@@ -60,7 +47,7 @@ Threads race to pick their position in *rperm* and *cperm*.
 One could handle this race for the pivots with a fetch_and_add,
 instead we use parallel prefix to claim enough room for the pivots 
 in the current level on each thread then assign them in order per thread.
-   
+
 Threads race to update the *rowcnt* and *rowsum* arrays. 
 We handle this with levels and atomic memory operations.
 

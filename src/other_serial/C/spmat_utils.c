@@ -140,7 +140,7 @@ int64_t dump_array(int64_t *A, int64_t len, int64_t maxdisp, char * name)
 
   FILE * fp = fopen(name, "w");
   for(i=0; i<len; i = (i<stoprow || i>=startrow)? i+1: startrow){
-    fprintf(fp, "%3ld\n", A[i]);
+    fprintf(fp, "%3"PRId64"\n", A[i]);
   }
   fclose(fp);
   return(0);
@@ -168,19 +168,19 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
   FILE * fp = fopen(name, "w");
   fprintf(fp,"\n----- offsets:\n");
   for(i=0; i<stoprow; i++) 
-    fprintf(fp, "%3ld ", A->offset[i]);
+    fprintf(fp, "%3"PRId64" ", A->offset[i]);
   if( stoprow < startrow)
     fprintf(fp, " ... ");
   for(i=startrow; i<A->numrows; i++) 
-    fprintf(fp, "%3ld ", A->offset[i]);
-  fprintf(fp, "%3ld ", A->offset[A->numrows]);
+    fprintf(fp, "%3"PRId64" ", A->offset[i]);
+  fprintf(fp, "%3"PRId64" ", A->offset[A->numrows]);
 
   fprintf(fp,"\n--------- nonzeros:\n");
   for(i=0; i<stoprow; i++){
     off    = A->offset[i];
     nxtoff = A->offset[i+1];
     for(j=off; j < nxtoff;j++){
-      fprintf(fp, "%9ld %9ld",i, A->nonzero[j] );
+      fprintf(fp, "%9"PRId64" %9"PRId64"",i, A->nonzero[j] );
       if(A->value)
         fprintf(fp," %9.5f\n",A->value[j]);
       else
@@ -193,7 +193,7 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
     off    = A->offset[i];
     nxtoff = A->offset[i+1];
     for(j=off; j < nxtoff;j++){
-      fprintf(fp, "%9ld %9ld",i, A->nonzero[j] );
+      fprintf(fp, "%9"PRId64" %9"PRId64"",i, A->nonzero[j] );
       if(A->value)
         fprintf(fp," %9.5f\n",A->value[j]);
       else
@@ -217,14 +217,14 @@ int64_t write_matrix_mm(sparsemat_t *A, char * name){
     fprintf(fp,"%%%%MasterMarket matrix coordinate real\n");
   else
     fprintf(fp,"%%%%MasterMarket matrix coordinate pattern\n");
-  fprintf(fp, "%ld %ld %ld\n", A->numrows, A->numcols, A->nnz);
+  fprintf(fp, "%"PRId64" %"PRId64" %"PRId64"\n", A->numrows, A->numcols, A->nnz);
 
   for(i=0; i<A->numrows; i++){
     for(j=A->offset[i]; j < A->offset[i+1];j++)
       if(A->value)
-        fprintf(fp, "%ld %ld %lf\n",i+1, A->nonzero[j]+1, A->value[j]);
+        fprintf(fp, "%"PRId64" %"PRId64" %lf\n",i+1, A->nonzero[j]+1, A->value[j]);
       else
-        fprintf(fp, "%ld %ld\n",i+1, A->nonzero[j]+1);
+        fprintf(fp, "%"PRId64" %"PRId64"\n",i+1, A->nonzero[j]+1);
   }
   fclose(fp);
   return(0);
@@ -332,7 +332,7 @@ sparsemat_t  *read_matrix_mm(char * name)
     for(i=0; i<nnz; i++){
       fscanfret = fscanf(fp,"%"SCNd64" %"SCNd64"\n", &(elts[i].row), &(elts[i].col));
       assert (fscanfret == 2);
-      //fprintf(stderr,"--- %ld %ld\n",  elts[i].row, elts[i].col);
+      //fprintf(stderr,"--- %"PRId64" %"PRId64"\n",  elts[i].row, elts[i].col);
       assert ( 0<elts[i].row && elts[i].row <=nr);
       assert ( 0<elts[i].col && elts[i].col <=nc);
       elts[i].row -=1;    // MasterMarket format is 1-up, not 0-up
@@ -658,47 +658,47 @@ int64_t compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat)
   }
   
   if( lmat->numrows != rmat->numrows ){
-    printf("(lmat->numrows = %ld)  != (rmat->numrows = %ld)", lmat->numrows, rmat->numrows );
+    printf("(lmat->numrows = %"PRId64")  != (rmat->numrows = %"PRId64")", lmat->numrows, rmat->numrows );
     return(1);
   }
   if( lmat->numrows != rmat->numrows ){
-    printf("(lmat->numrows = %ld)  != (rmat->numrows = %ld)", lmat->numrows, rmat->numrows );
+    printf("(lmat->numrows = %"PRId64")  != (rmat->numrows = %"PRId64")", lmat->numrows, rmat->numrows );
     return(1);
   }
   if( lmat->numcols != rmat->numcols ){
-    printf("(lmat->numcols = %ld)  != (rmat->numcols = %ld)", lmat->numcols, rmat->numcols );
+    printf("(lmat->numcols = %"PRId64")  != (rmat->numcols = %"PRId64")", lmat->numcols, rmat->numcols );
     return(1);
   }
   if( lmat->nnz != rmat->nnz ){
-    printf("(lmat->nnz = %ld)  != (rmat->nnz = %ld)", lmat->nnz, rmat->nnz );
+    printf("(lmat->nnz = %"PRId64")  != (rmat->nnz = %"PRId64")", lmat->nnz, rmat->nnz );
     return(1);
   }
   if( lmat->nnz != rmat->nnz ){
-    printf("(lmat->lnnz = %ld) != (rmat->lnnz = %ld)", lmat->nnz, rmat->nnz );
+    printf("(lmat->lnnz = %"PRId64") != (rmat->lnnz = %"PRId64")", lmat->nnz, rmat->nnz );
     return(1);
   }
 
   if( lmat->offset[0] != 0 || rmat->offset[0] != 0 || (lmat->offset[0] != rmat->offset[0] ) ){
-    printf("(lmat->offset[0] = %ld)  != (rmat->offset[0] = %ld)", lmat->offset[0], rmat->offset[0] );
+    printf("(lmat->offset[0] = %"PRId64")  != (rmat->offset[0] = %"PRId64")", lmat->offset[0], rmat->offset[0] );
     return(1);
   }
   
   for(i = 0; i < lmat->numrows; i++){
     if( lmat->offset[i+1] != rmat->offset[i+1] ){
-      printf("(lmat->offset[%ld] = %ld)  != (rmat->offset[%ld] = %ld)", i+1, lmat->offset[i+1], i+1, rmat->offset[i+1] );
+      printf("(lmat->offset[%"PRId64"] = %"PRId64")  != (rmat->offset[%"PRId64"] = %"PRId64")", i+1, lmat->offset[i+1], i+1, rmat->offset[i+1] );
       return(1);
     }
   }
   
   for(j=0; j< lmat->nnz; j++){
     if( lmat->nonzero[j] != rmat->nonzero[j] ){
-      printf("(lmat->nonzero[%ld] = %ld)  != (rmat->nonzero[%ld] = %ld)", j,
+      printf("(lmat->nonzero[%"PRId64"] = %"PRId64")  != (rmat->nonzero[%"PRId64"] = %"PRId64")", j,
              lmat->nonzero[j], j, rmat->nonzero[j] );      
       return(1);
     }
     if(values){
       if( lmat->value[j] != rmat->value[j] ){
-        printf("(lmat->value[%ld] = %lf)  != (rmat->value[%ld] = %lf)", j,
+        printf("(lmat->value[%"PRId64"] = %lf)  != (rmat->value[%"PRId64"] = %lf)", j,
                lmat->value[j], j, rmat->value[j] );
         return(1);
       }
