@@ -119,33 +119,18 @@ double sssp_bellmanford_one(sparsemat_t * mat, double *dist, int64_t v0)
 	int64_t i, j, k, loop;
 	int64_t numrows = mat->numrows;
 
-  double * d1 =  (double*) malloc( numrows * sizeof(double) );
-  double * d2 =  (double*) malloc( numrows * sizeof(double) );
-  double *oldd, *newd, *swap;
-  oldd = d1;
-  newd = d2;
 	for(i=0; i<numrows; i++)
-		oldd[i] = INFINITY;
-  oldd[v0] = 0.0;
+		dist[i] = INFINITY;
+  dist[v0] = 0.0;
 
   for(loop=0; loop<numrows; loop++){
-	  for(i=0; i<numrows; i++)
-	  	newd[i] = oldd[i];
     for(i=0; i<numrows; i++){ 
       for(k = mat->offset[i]; k < mat->offset[i+1]; k++){
 			  j = mat->nonzero[k];
-        if(newd[j] < oldd[i] + mat->value[k])
-          newd[j] = oldd[i] + mat->value[k];
+        dist[j] = (dist[j] > dist[i] + mat->value[k]) ? (dist[i] + mat->value[k]) : dist[j];
       }
     }
-    swap = oldd;
-    oldd = newd;
-    newd = swap;
   }
-
-	for(i=0; i<numrows; i++)
-		dist[i] = oldd[i];
-
 
 	return(0.0);
 }
