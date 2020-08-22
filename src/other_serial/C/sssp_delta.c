@@ -111,7 +111,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
   for(i = 0; i < mat->nnz; i++)
     if(max_edge_weight < mat->value[i])
       max_edge_weight = mat->value[i];
-  printf("max edge weight = %lf\n", max_edge_weight);
+  //printf("max edge weight = %lf\n", max_edge_weight);
   assert(max_degree > 0.0);
   delta = 1.0/max_degree;
   
@@ -127,7 +127,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
 
   // TODO: need to be able to tell if a node is in a bucket or not!
   
-  printf("num_buckets = %"PRId64" delta = %lf max_degree = %"PRId64"\n", num_buckets, delta, max_degree);
+  //printf("num_buckets = %"PRId64" delta = %lf max_degree = %"PRId64"\n", num_buckets, delta, max_degree);
   for(i = 0; i < num_buckets; i++){
     buckets->B[i] = NULL;
     buckets->empty[i] = 1;
@@ -145,27 +145,30 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
   
   /* main loop */
   int64_t min_bucket = 0;
+  int64_t current_bucket = 0;
   int64_t num_deleted = 0;
   while(1){
 
     /* find the minimum indexed non-empty bucket */
-    for(min_bucket = 0; min_bucket < buckets->num_buckets; min_bucket++)
-      if(buckets->empty[min_bucket] == 0)
+    for(i = 0; i < buckets->num_buckets; i++)
+      if(buckets->empty[(current_bucket + i) % buckets->num_buckets] == 0)
         break;
-    //printf("Starting inner loop: working on bucket %"PRId64"\n", min_bucket);
-    if(min_bucket == num_buckets)
-      break;
     
+    if(i == num_buckets)
+      break;
+    current_bucket = (current_bucket + i) % num_buckets;
+    //printf("Starting inner loop: working on bucket %"PRId64"\n", current_bucket);
+    min_bucket = i + 1;
     // inner loop
     int64_t start = 0;
     int64_t end = 0;
-    llnode_t * v = buckets->B[min_bucket];
+    llnode_t * v = buckets->B[current_bucket];
     
     while(v != NULL){
-      //printf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v->index, min_bucket);
+      //printf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v->index, current_bucket);
 
-      /* take v out of B[min_bucket]??? */
-      remove_node_from_bucket(v, min_bucket, buckets);
+      /* take v out of B[current_bucket]??? */
+      remove_node_from_bucket(v, current_bucket, buckets);
       
       /* find light requests for v */
       for(j = mat->offset[v->index]; j < mat->offset[v->index + 1]; j++){
@@ -182,7 +185,8 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
         //printf("deleted %"PRId64"s\n", v->index);
       }
       
-      v = v->next;
+      //v = v->next;
+      v = buckets->B[current_bucket];
     }// end inner loop
 
     /* find heavy requests for everything in R */
@@ -194,7 +198,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
         }
       }      
     }
-    
+    current_bucket++;
   }// end main loop
   free(buckets->B);
   free(buckets->nodes);
