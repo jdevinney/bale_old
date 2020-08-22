@@ -51,13 +51,17 @@
 #
 # BUILD AND INSTALL ###################################################
 #
-# bale uses autotools. To make building and
-# installing easier, we have included the install.sh script. Simply run
-# the install.sh script. This script visits each subpackage in bale and
-# runs configure, make, and make install. You could of course do this
-# yourself. The default build and install directory is
-# $BALEDIR/build_$PLATFORM. There are several important options for the
-# script...
+# bale uses autotools.
+#
+# To make building and installing easier, we have included a few scripts.
+#
+# First, in the bale_classic directory, run the run_autoreconf script.
+#
+# Next, simply run the install.sh script. This script visits each
+# subpackage in bale and runs configure, make, and make install. You
+# could of course do this yourself. The default build and install
+# directory is $BALEDIR/build_$PLATFORM. There are several important
+# options for the script...
 #
 # -u OR -s : specify you would like to build libgetput on top of UPC or SHMEM. default: UPC
 # -p : specify an alternate install dir

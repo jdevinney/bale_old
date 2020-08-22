@@ -78,7 +78,7 @@ double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0)
   for(k = mat->offset[v0];  k < mat->offset[v0+1]; k++)
     dist[ mat->nonzero[k] ] = mat->value[k];
   dist[v0] = -0.0;
-  printf("dist[v0] = %lg\n", dist[v0]);
+  //printf("dist[v0] = %lg\n", dist[v0]);
 
   while( 1 ) {
     // find the smallest tentative distance
@@ -173,7 +173,7 @@ void bubble_up(PQ_t *pq, int64_t nd)
    while( nd > 1 ){
      if( pq->wt[ nd/2 ] <= pq->wt[nd] )
        return; 
-     printf("swap kid %"PRId64" and parent %"PRId64"\n", nd/2, nd);
+     //printf("swap kid %"PRId64" and parent %"PRId64"\n", nd/2, nd);
      w = pq->wt[nd];
      pq->wt[nd] = pq->wt[nd/2];
      pq->wt[nd/2] = w;
@@ -214,15 +214,15 @@ int delete_root(PQ_t * pq)
   pq->wt[1] = pq->wt[ pq->tail];
   pq->wt[pq->tail] = 99.0;            // pq->tail is now available
   pq->row[pq->tail] = pq->numrows;
-  printf("delete root:\n");
-  print_queue(pq);
+  //printf("delete root:\n");
+  //print_queue(pq);
 
   // recursively, if the parent node is not less than both it's children, then swap parent with smaller child
   // note: if right child is not in the heap (ie. pq->tail is the right child), 
   // then that nodes exists (even though it is not active) and its wt is INFINITY.  
   // We don't have to determine and make a special case if there is only a left child.
   par_nd = 1;
-  printf("bubble down: %lg : %lg, %lg\n", pq->wt[par_nd], pq->wt[2*par_nd], pq->wt[2*par_nd + 1]);
+  //printf("bubble down: %lg : %lg, %lg\n", pq->wt[par_nd], pq->wt[2*par_nd], pq->wt[2*par_nd + 1]);
   while( (2*par_nd + 1 <= pq->tail) && 
          ((pq->wt[ 2*par_nd ] <  pq->wt[par_nd]) || (pq->wt[ 2*par_nd + 1 ] <  pq->wt[par_nd]) ) ) {
     if( pq->wt[2*par_nd] < pq->wt[2*par_nd + 1] ){
@@ -230,7 +230,7 @@ int delete_root(PQ_t * pq)
     } else {
       kid_nd = 2*par_nd + 1;
     }
-    printf("bubble down: swap parent  %"PRId64" with kid %"PRId64"\n", par_nd, kid_nd);
+    //printf("bubble down: swap parent  %"PRId64" with kid %"PRId64"\n", par_nd, kid_nd);
     w = pq->wt[par_nd];
     pq->wt[par_nd] = pq->wt[kid_nd];
     pq->wt[kid_nd] = w;
@@ -245,7 +245,7 @@ int delete_root(PQ_t * pq)
    
     par_nd = kid_nd;
   }
-  print_queue(pq);
+  //print_queue(pq);
 
   return(1);
 }
@@ -273,7 +273,7 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
   pq->node[r0] = 0;
 
   dist[r0] = 0.0;
-  printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", r0, dist[r0]);
+  //printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", r0, dist[r0]);
 
   int64_t rn, row, nd;
   double e_wt, vn_wt;
@@ -286,24 +286,24 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
     pq->wt[nd] = e_wt;
     pq->row[nd] = row;
     pq->tail++;
-    printf("explore (%2"PRId64",%2"PRId64"): new row %"PRId64" with wt %lg at node %"PRId64"\n", r0, row, row, pq->wt[nd], nd);
+    //printf("explore (%2"PRId64",%2"PRId64"): new row %"PRId64" with wt %lg at node %"PRId64"\n", r0, row, row, pq->wt[nd], nd);
     bubble_up(pq, nd);
-    print_queue(pq);
+    //print_queue(pq);
   }
-  print_queue(pq);
-  printf("\n");
+  //print_queue(pq);
+  //printf("\n");
 
   while(1){
     rn     = pq->row[1];
     vn_wt  = pq->wt[1];
     dist[rn] = vn_wt;
-    printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", rn, vn_wt);
+    //printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", rn, vn_wt);
     for(k = mat->offset[rn];  k < mat->offset[rn+1]; k++){
       row = mat->nonzero[k];
       e_wt  = mat->value[k];
       nd   = pq->node[row];
       if(nd == 0){                  // row is done
-        printf("explore (%2"PRId64",%2"PRId64"): done with row (%"PRId64")\n", rn, row, row);
+        //printf("explore (%2"PRId64",%2"PRId64"): done with row (%"PRId64")\n", rn, row, row);
         continue;
       }
       if( nd == numrows ) {                      // row is new
@@ -312,16 +312,16 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
         pq->wt[nd] = vn_wt + e_wt;
         pq->row[nd] = row;
         pq->tail++;
-        printf("explore (%2"PRId64",%2"PRId64"): new row %"PRId64" with wt %lg at node %"PRId64"\n", rn, row, row, pq->wt[nd], nd);
+        //printf("explore (%2"PRId64",%2"PRId64"): new row %"PRId64" with wt %lg at node %"PRId64"\n", rn, row, row, pq->wt[nd], nd);
         bubble_up(pq, nd);
-        print_queue(pq);
+        //print_queue(pq);
       } else if(pq->wt[nd] > (vn_wt + e_wt)) {          // improved the weight
         pq->wt[nd] = vn_wt + e_wt;
-        printf("explore (%2"PRId64",%2"PRId64"): updated row %"PRId64" with wt %lg at node %"PRId64"\n", rn, row, row, pq->wt[nd], nd);
+        //printf("explore (%2"PRId64",%2"PRId64"): updated row %"PRId64" with wt %lg at node %"PRId64"\n", rn, row, row, pq->wt[nd], nd);
         bubble_up(pq, nd);
-        print_queue(pq);
+        //print_queue(pq);
       } else {
-        printf("explore (%2"PRId64",%2"PRId64"): no change\n", rn, row);
+        //printf("explore (%2"PRId64",%2"PRId64"): no change\n", rn, row);
       }
     }
     if(delete_root(pq) == 0)                           // nothing else in the heap
@@ -343,11 +343,11 @@ void heapify_pqueue(PQ_t * pq)
 {
   int64_t k;
 
-  printf("heapify:\n");
+  //printf("heapify:\n");
   for(k=2;  k < pq->tail; k++) {
     bubble_up(pq, k);
   }
-  print_queue(pq);
+  //print_queue(pq);
 }
 
 
