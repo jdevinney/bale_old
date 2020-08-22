@@ -87,7 +87,6 @@ histo [-h][-b count][-M mask][-n num][-T tabsize][-c num]\n\
 - -c num number of cores/node is a scaling factor to adjust the update rate to handle multi-core nodes\n\
 \n");
   lgp_finalize();
-  lgp_global_exit(0);
 }
 
 
@@ -115,7 +114,7 @@ int main(int argc, char * argv[]) {
     default:  break;
     }
   }
-  if( printhelp ) usage(); 
+  if( printhelp ){usage();return(0);} 
 
   T0_fprintf(stderr,"Running histo on %d threads\n", THREADS);
   T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %"PRId64"\n", buf_cnt);
