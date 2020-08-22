@@ -70,7 +70,7 @@ vertices.
 
 ### Geometric Random Graphs
 
-<img src="../../../images/GeometricGraph.png" alt="Example of a geometric random graph" style="height: 300px; width:130px;"/>
+<img src="../../../images/GeometricGraph2.png" alt="Example of a geometric random graph" align=left style="height: 200px; width:200px;"/>
 
 This random graph model is rather simple. Similar to the Erdos Renyi
 model, it has a single parameter r (between 0 and 1). For each vertex,
