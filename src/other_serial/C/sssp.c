@@ -109,7 +109,6 @@ int main(int argc, char * argv[])
   } else {
     //mat = erdos_renyi_tri(numrows, er_prob, ER_TRI_L, seed);
                 //graph_model model = FLAT;
-    // JGD: SHOULD WE ALLOW BOTH UNDIRECTED and DIRECTED? 
     mat = random_graph(numrows, FLAT, UNDIRECTED_WEIGHTED, NOLOOPS, edge_prob, seed);
     if(!mat){
       printf("ERROR: triangles: erdos_renyi_graph Failed\n"); 
@@ -159,7 +158,7 @@ int main(int argc, char * argv[])
       compdist = calloc(numrows, sizeof(double));
       for(i=0; i<numrows; i++){
         compdist[i] = dist[i];
-        printf("%"PRId64" %g\n",i, dist[i]);
+        //printf("%"PRId64" %g\n",i, dist[i]);
       }
       break;
     case DIJSKTRA_HEAP:
@@ -182,23 +181,32 @@ int main(int argc, char * argv[])
         compdist = calloc(numrows, sizeof(double));
         for(i=0; i<numrows; i++) compdist[i] = dist[i];
       }else{
-        for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
+        //for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
+	int64_t error = 0;
+	for(i=0; i<numrows; i++){
+	  if(dist[i] != compdist[i]){
+	    error++;
+	    printf("%ld %g %g\n",i, dist[i], compdist[i]);
+	  }
+	}
+	assert(error == 0);
       }
       printf("Delta Stepping: Success!\n");
+      
       break;
     case BELLMAN:
       if( !quiet ) printf("Bellman Ford dp  sssp:\n");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
       laptime = sssp_bellmanford_dp(dmat, dist, 5);
-      for(i=0; i<numrows; i++)
-        printf("%ld %g\n",i, dist[i]);
+      //for(i=0; i<numrows; i++)
+      //printf("%ld %g\n",i, dist[i]);
       break;
     case BELLMAN_ONE:
       if( !quiet ) printf("Bellman Ford one sssp:\n");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
       laptime = sssp_bellmanford_one(dmat, dist, 5);
-      for(i=0; i<numrows; i++)
-        printf("%ld %g\n",i, dist[i]);
+      //for(i=0; i<numrows; i++)
+      //printf("%ld %g\n",i, dist[i]);
       break;
     default:
       continue;
@@ -207,7 +215,6 @@ int main(int argc, char * argv[])
   
   free(dist);
   free(compdist);
-  
   printf("done: %g\n", laptime);
   clear_matrix(mat);
   clear_matrix(dmat);
