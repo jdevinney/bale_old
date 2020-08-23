@@ -185,8 +185,10 @@ int main(int argc, char * argv[])
 	int64_t error = 0;
 	for(i=0; i<numrows; i++){
 	  if(dist[i] != compdist[i]){
-	    error++;
-	    printf("%ld %g %g\n",i, dist[i], compdist[i]);
+	    if(dist[i] != INFINITY || compdist[i] != -INFINITY){
+	      error++;
+	      printf("%"PRId64" %g %g\n", i, dist[i], compdist[i]);
+	    }
 	  }
 	}
 	assert(error == 0);
