@@ -54,6 +54,13 @@
  *
  */
 
+static void relax( double *tw, double *tv, double weight )
+ {
+   if( *tw > *tv + weight ){
+     *tw = *tv + weight;
+   }
+ }
+
 
 /*!
  * \brief This routine implements the most naive version of Dijkstra's algorithm
@@ -68,36 +75,36 @@
  */
 double sssp_bellmanford_dp(sparsemat_t * mat, double *dist, int64_t v0)
 {
-	int64_t i, j, k, loop;
+	int64_t i, k, loop;
 	int64_t numrows = mat->numrows;
 
-  double * d1 =  (double*) malloc( numrows * sizeof(double) );
-  double * d2 =  (double*) malloc( numrows * sizeof(double) );
-  double *oldd, *newd, *swap;
-  oldd = d1;
-  newd = d2;
+  double * tent1 =  (double*) malloc( numrows * sizeof(double) );
+  double * tent2 =  (double*) malloc( numrows * sizeof(double) );
+  double *tent_old, *tent_new, *swap;
+  tent_old = tent1;
+  tent_new = tent2;
 	for(i=0; i<numrows; i++)
-		oldd[i] = INFINITY;
-  oldd[v0] = 0.0;
+		tent_old[i] = INFINITY;
+  tent_old[v0] = 0.0;
 
   for(loop=0; loop<numrows; loop++){
 	  for(i=0; i<numrows; i++)
-	  	newd[i] = oldd[i];
-    for(i=0; i<numrows; i++){ 
+	  	tent_new[i] = tent_old[i];
+    for(i=0; i<numrows; i++){
       for(k = mat->offset[i]; k < mat->offset[i+1]; k++){
-			  j = mat->nonzero[k];
-        if(newd[j] > oldd[i] + mat->value[k])
-          newd[j] = oldd[i] + mat->value[k];
+        relax( &(tent_new[ mat->nonzero[k] ]), &(tent_old[i]), mat->value[k]);
       }
     }
-    swap = oldd;
-    oldd = newd;
-    newd = swap;
+    swap = tent_old;
+    tent_old = tent_new;
+    tent_new = swap;
   }
 
 	for(i=0; i<numrows; i++)
-		dist[i] = oldd[i];
+		dist[i] = tent_old[i];
 
+  free(tent1);
+  free(tent2);
 
 	return(0.0);
 }
@@ -114,20 +121,19 @@ double sssp_bellmanford_dp(sparsemat_t * mat, double *dist, int64_t v0)
  * \param v0 is the starting vertex
  * \return runtime
  */
-double sssp_bellmanford_one(sparsemat_t * mat, double *dist, int64_t v0)
+double sssp_bellmanford_one(sparsemat_t * mat, double *tent, int64_t v0)
 {
-	int64_t i, j, k, loop;
+	int64_t i, k, loop;
 	int64_t numrows = mat->numrows;
 
 	for(i=0; i<numrows; i++)
-		dist[i] = INFINITY;
-  dist[v0] = 0.0;
+		tent[i] = INFINITY;
+  tent[v0] = 0.0;
 
   for(loop=0; loop<numrows; loop++){
     for(i=0; i<numrows; i++){ 
       for(k = mat->offset[i]; k < mat->offset[i+1]; k++){
-			  j = mat->nonzero[k];
-        dist[j] = (dist[j] > dist[i] + mat->value[k]) ? (dist[i] + mat->value[k]) : dist[j];
+        relax( &(tent[ mat->nonzero[k] ]), &(tent[i]), mat->value[k]);
       }
     }
   }
