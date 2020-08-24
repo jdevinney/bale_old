@@ -220,8 +220,9 @@ int main(int argc, char * argv[]) {
     if(nz_per_row != -1){
       erdos_renyi_prob = (2.0*(nz_per_row - 1))/numrows;
     }else{
-      T0_fprintf(stderr,"ERROR: must supply an ER edge density (-e) or nz_per_row (-Z)\n");
-      return(1);
+      // all right... just assume nz_per_row = 10
+      nz_per_row = 10;
+      erdos_renyi_prob = (2.0*(nz_per_row - 1))/numrows;
     }
     if(erdos_renyi_prob > 1.0)
       erdos_renyi_prob = 1.0;
