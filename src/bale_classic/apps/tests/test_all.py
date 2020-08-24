@@ -16,7 +16,6 @@ def determine_launcher():
 # --path : specify a path to executables
 def test_all(path, node_range, implementation_mask):
     apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles"]
-    apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix"]#, "triangles"]
     #apps = ['triangles']
     launcher = determine_launcher()
     print(launcher)
