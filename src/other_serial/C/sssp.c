@@ -182,16 +182,16 @@ int main(int argc, char * argv[])
         for(i=0; i<numrows; i++) compdist[i] = dist[i];
       }else{
         //for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
-	int64_t error = 0;
-	for(i=0; i<numrows; i++){
-	  if(dist[i] != compdist[i]){
-	    if(dist[i] != INFINITY || compdist[i] != -INFINITY){
-	      error++;
-	      printf("%"PRId64" %g %g\n", i, dist[i], compdist[i]);
-	    }
-	  }
-	}
-	assert(error == 0);
+        int64_t error = 0;
+        for(i=0; i<numrows; i++){
+          if(dist[i] != compdist[i]){
+            if(dist[i] != INFINITY || compdist[i] != -INFINITY){
+              error++;
+              printf("%"PRId64" %g %g\n", i, dist[i], compdist[i]);
+            }
+          }
+        }
+        assert(error == 0);
       }
       printf("Delta Stepping: Success!\n");
       
@@ -199,16 +199,26 @@ int main(int argc, char * argv[])
     case BELLMAN:
       if( !quiet ) printf("Bellman Ford dp  sssp:\n");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
-      laptime = sssp_bellmanford_dp(dmat, dist, 5);
-      //for(i=0; i<numrows; i++)
-      //printf("%ld %g\n",i, dist[i]);
+      laptime = sssp_bellmanford_dp(dmat, dist, 0);
+      if(compdist == NULL){
+        compdist = calloc(numrows, sizeof(double));
+        for(i=0; i<numrows; i++) compdist[i] = dist[i];
+      }else{
+        for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
+      }
+      printf("Bellman DynProg: Success!\n");
       break;
     case BELLMAN_ONE:
       if( !quiet ) printf("Bellman Ford one sssp:\n");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
-      laptime = sssp_bellmanford_one(dmat, dist, 5);
-      //for(i=0; i<numrows; i++)
-      //printf("%ld %g\n",i, dist[i]);
+      laptime = sssp_bellmanford_one(dmat, dist, 0);
+      if(compdist == NULL){
+        compdist = calloc(numrows, sizeof(double));
+        for(i=0; i<numrows; i++) compdist[i] = dist[i];
+      }else{
+        for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
+      }
+      printf("Bellman: Success!\n");
       break;
     default:
       continue;
