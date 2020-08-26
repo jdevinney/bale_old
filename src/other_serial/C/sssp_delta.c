@@ -45,13 +45,13 @@ void insert_node_in_bucket(llnode_t * w, int64_t i, buckets_t * buckets){
   if(buckets->in_bucket[w->index] == actual_i){
     //this node is already in this bucket
     if(buckets->level[actual_i] != (actual_i % buckets->num_buckets))
-      Dprintf("%ld %ld\n", buckets->level[actual_i], (actual_i % buckets->num_buckets));
+      Dprintf("%"PRId64" %"PRId64"\n", buckets->level[actual_i], (actual_i % buckets->num_buckets));
     assert(buckets->level[actual_i] == (actual_i % buckets->num_buckets));
     return; 
   }
 
   if(buckets->in_bucket[w->index] != -1){
-    printf("AAAhhh: %ld\n", buckets->in_bucket[w->index]);
+    printf("AAAhhh: %"PRId64"\n", buckets->in_bucket[w->index]);
   }
   assert(buckets->in_bucket[w->index] == -1);
   
@@ -61,7 +61,7 @@ void insert_node_in_bucket(llnode_t * w, int64_t i, buckets_t * buckets){
     assert(buckets->B[actual_i] == NULL);
     buckets->empty[actual_i] = 0;
   }else{
-    Dprintf("%lld %lld\n", buckets->level[actual_i], (actual_i % buckets->num_buckets));
+    Dprintf("%"PRId64" %"PRId64"\n", buckets->level[actual_i], (actual_i % buckets->num_buckets));
     assert(buckets->level[actual_i] == -1 || buckets->level[actual_i] == (actual_i % buckets->num_buckets));
   }
   
@@ -80,7 +80,7 @@ void insert_node_in_bucket(llnode_t * w, int64_t i, buckets_t * buckets){
 // Remove a node from bucket i and put it into bucket j
 void move_node_from_bucket_i_to_j(llnode_t * w, int64_t i, int64_t j, buckets_t * buckets){
 
-  Dprintf("Move (%ld which is in bucket %ld) from %lld to %lld\n", w->index, buckets->in_bucket[w->index],i, j);
+  Dprintf("Move (%"PRId64" which is in bucket %"PRId64") from %"PRId64" to %"PRId64"\n", w->index, buckets->in_bucket[w->index],i, j);
   if(i >= 0){
     i = i % buckets->num_buckets;
     if(buckets->in_bucket[w->index] == i){
@@ -176,7 +176,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
   tent[r0] = 0;
   
   /* main loop */
-  int64_t min_bucket = 0;
+  //int64_t min_bucket = 0;
   int64_t current_bucket = 0;
   int64_t num_deleted = 0;
   while(1){
@@ -190,7 +190,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
       break;
     current_bucket = (current_bucket + i) % num_buckets;
     Dprintf("Starting inner loop: working on bucket %"PRId64"\n", current_bucket);
-    min_bucket = i + 1;
+    //min_bucket = i + 1;
     // inner loop
     int64_t start = 0;
     int64_t end = 0;
