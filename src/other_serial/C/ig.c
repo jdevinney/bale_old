@@ -121,7 +121,7 @@ double ig_buffered(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *tabl
   tm = wall_seconds();
 
   for(i = 0; i < num_req; i++){
-    s = (index[i] >> (log_tab_size - 6));     
+    s = (index[i] >> (log_tab_size - 6));
     assert( (0 <= s) && (s<64));
     assert( (0 <= cnts[s]) && (cnts[s]<128));
     tgt_idx[s][cnts[s]] = i;
@@ -150,7 +150,6 @@ int main(int argc, char * argv[])
 {
   int64_t *table, *tgt;
   int64_t log_tab_size = 21;
-  int64_t tbl_size = (1<<log_tab_size);
   int64_t num_req  = 100000;
   int64_t *index;
   uint32_t seed = 0x1234567;
@@ -184,7 +183,8 @@ int main(int argc, char * argv[])
     if(printhelp) 
       return(0);
   }
-
+  int64_t tbl_size = (1<<log_tab_size);
+  
   table   = calloc(tbl_size, sizeof(int64_t));
   tgt     = calloc(num_req, sizeof(int64_t));
   index   = calloc(num_req, sizeof(int64_t));

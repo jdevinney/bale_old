@@ -189,6 +189,11 @@ int main(int argc, char * argv[])
      return(0);
   }
   
+  num_index_bits = 0;
+  while(tbl_size >> num_index_bits)
+    num_index_bits++;
+  printf("tbl_size = %ld num_index_bits = %ld\n", tbl_size, num_index_bits);
+  
   // index is an array of indices into the counts array.
   int64_t * index  = calloc(num_ups, sizeof(int64_t)); assert(index != NULL);
   int64_t * counts = calloc(tbl_size, sizeof(int64_t)); assert(counts != NULL);  

@@ -124,6 +124,8 @@ void relax(int64_t windex, double cand_dist, double * tent, buckets_t * buckets)
 double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
   int64_t i, j;
 
+  double tm = wall_seconds();
+  
   assert(r0 < mat->numrows);
   
   char * deleted = calloc(mat->numrows, sizeof(char));
@@ -245,5 +247,5 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
   free(deleted);
   free(R);
   
-  return(0.0);
+  return(wall_seconds() - tm);
 }

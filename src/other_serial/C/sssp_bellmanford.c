@@ -75,8 +75,9 @@ static void relax( double *tent_head, double *tent_tail, double edge_wt )
  */
 double sssp_bellmanford_dp(sparsemat_t * mat, double *dist, int64_t v0)
 {
-	int64_t i, k, loop;
-	int64_t numrows = mat->numrows;
+  double tm = wall_seconds();
+  int64_t i, k, loop;
+  int64_t numrows = mat->numrows;
 
   double * tent1 =  (double*) malloc( numrows * sizeof(double) );
   double * tent2 =  (double*) malloc( numrows * sizeof(double) );
@@ -106,7 +107,7 @@ double sssp_bellmanford_dp(sparsemat_t * mat, double *dist, int64_t v0)
   free(tent1);
   free(tent2);
 
-	return(0.0);
+  return(wall_seconds() - tm);
 }
 
 
@@ -123,11 +124,12 @@ double sssp_bellmanford_dp(sparsemat_t * mat, double *dist, int64_t v0)
  */
 double sssp_bellmanford_one(sparsemat_t * mat, double *tent, int64_t v0)
 {
-	int64_t i, k, loop;
-	int64_t numrows = mat->numrows;
-
-	for(i=0; i<numrows; i++)
-		tent[i] = INFINITY;
+  double tm = wall_seconds();
+  int64_t i, k, loop;
+  int64_t numrows = mat->numrows;
+  
+  for(i=0; i<numrows; i++)
+    tent[i] = INFINITY;
   tent[v0] = 0.0;
 
   for(loop=0; loop<numrows; loop++){
@@ -138,7 +140,7 @@ double sssp_bellmanford_one(sparsemat_t * mat, double *tent, int64_t v0)
     }
   }
 
-	return(0.0);
+  return(wall_seconds() - tm);
 }
 
 

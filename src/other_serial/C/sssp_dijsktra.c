@@ -68,6 +68,7 @@
  */
 double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0)
 {
+  double tm = wall_seconds();
   int64_t i, k, rn;
   int64_t numrows = mat->numrows;
   double minwt, curwt;
@@ -108,7 +109,7 @@ double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0)
   for(i=0; i<numrows; i++)
     dist[i] = -dist[i];
 
-  return(0.0);
+  return(wall_seconds() - tm);
 }
 
 /*! Brief The min-heap implementation.
@@ -258,6 +259,7 @@ int delete_root(PQ_t * pq)
  */
 double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
 {
+  double tm = wall_seconds();
   int64_t i, k;
   int64_t numrows = mat->numrows;
 
@@ -328,7 +330,7 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
       break;
   };
 
-  return(0.0);
+  return(wall_seconds() - tm);
 }
 
 
