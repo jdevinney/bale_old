@@ -54,12 +54,12 @@
  *
  */
 
-static void relax( double *tw, double *tv, double weight )
- {
-   if( *tw > *tv + weight ){
-     *tw = *tv + weight;
+static void relax( double *tent_head, double *tent_tail, double edge_wt )
+{
+   if( *tent_head > *tent_tail + edge_wt ){
+     *tent_head = *tent_tail + edge_wt;
    }
- }
+}
 
 
 /*!
