@@ -1,18 +1,16 @@
 # Bale Applications written in Rust
 
-This project explores the implementation of the Bale applications,
-[available here](https://github.com/jdevinney/bale), using the Rust
+This is the implementation of the Bale applications, using the Rust
 programming language.
 
 It builds on the rust conveyor library [available
-here](https://github.com/wwc559/convey_private).
+here](https://github.com/wwc559/convey_private). The
+build is setup to run correctly if you place convey_private
+in the same directory where you placed bale.  Modify Cargo.toml
+if you have placed it in a different location.
 
-**Note: This repository is currently private, please do not redistribute.**
-Open an 'issue' to get access for others.
-
-To build this just git clone both this repo and the conveyor rust
-library in the same parent directory and say `cargo build --release`
-and then you can run it with:
+To build this and say `cargo build --release` and then you can 
+run it with:
 
 ```
 oshrun -n 4 target/release/histo_convey
