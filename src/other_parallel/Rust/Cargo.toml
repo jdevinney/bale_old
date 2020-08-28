@@ -1,0 +1,23 @@
+[package]
+name = "bale"
+description = "Bale in Rust"
+version = "0.1.0"
+authors = ["Bill Carlson <wwc559@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+clap = "2.0"
+rand = "0.7"
+spmat = { path = "spmat" }
+convey_hpc = { path = "../convey_private" }
+
+[workspace]
+members = [
+    "spmat",
+    "toposort",
+    "triangle",
+]
+
+[profile.release]
+debug = true
+
