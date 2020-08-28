@@ -93,10 +93,17 @@ typedef struct next_nz {
  * \brief structure used while reading and writing the MatrixMarket format.
  * We only handle {0,1} matrices, so we don't need triples.
  */
-typedef struct element_t { 
-  int64_t row; //!< row
-  int64_t col; //!< col
-} element_t;
+
+typedef struct edge_t{
+  int64_t row;
+  int64_t col;
+}edge_t;
+
+typedef struct edge_list_t{
+  edge_t * edges;
+  int64_t nalloc;
+  int64_t num;
+}edge_list_t;
 
 // struct to sort rows in a matrix with values
 typedef struct col_val_t{
@@ -160,6 +167,8 @@ sparsemat_t *    random_graph(int64_t n, graph_model model, edge_type edge_type,
 sparsemat_t *    random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed);
 
 sparsemat_t *    read_matrix_mm(char * name);
+void             resolve_edge_prob_and_nz_per_row(double * edge_prob, int64_t * nz_per_row,
+                                                  int64_t numrows, self_loops loops);
 int64_t          sort_nonzeros( sparsemat_t *mat);
 void             spmat_stats(sparsemat_t *mat);
 

@@ -231,17 +231,16 @@ int64_t write_matrix_mm(sparsemat_t *A, char * name){
 }
 
 
-/*! \brief the compare function for qsort called while reading 
- * a MatrixMarket format.
+/*! \brief the compare function for edges for qsort called while reading 
+ * a MatrixMarket format (and other places).
  * NB. We sort on the rows so that we can fill the offset array
  * sequentially in one pass. We sort on the columns so that
  * the matrix will be "tidy"
  */
-int elt_comp(const void *a, const void *b) 
+int edge_comp(const void *a, const void *b) 
 {
-  element_t * eltA = (element_t *)a;
-  element_t * eltB = (element_t *)b;
-  //return( eltA->row - eltB->row );
+  edge_t * eltA = (edge_t *)a;
+  edge_t * eltB = (edge_t *)b;
   if( (eltA->row - eltB->row) == 0 )
     return( eltA->col - eltB->col );
   return( eltA->row - eltB->row );
@@ -323,7 +322,7 @@ sparsemat_t  *read_matrix_mm(char * name)
     
     // read all the nonzeros into the elts array of (row,col)
     // and sort them before building the sparsemat format
-    element_t * elts = calloc(nnz, sizeof(element_t));
+    edge_t * elts = calloc(nnz, sizeof(edge_t));
     if( elts == NULL ){
       fprintf(stderr,"read_matrix_mm: elts calloc failed\n");
       exit(1);
@@ -339,7 +338,7 @@ sparsemat_t  *read_matrix_mm(char * name)
       elts[i].col -=1;
     }
     
-    qsort( elts, nnz, sizeof(element_t), elt_comp);
+    qsort( elts, nnz, sizeof(edge_t), edge_comp);
 
     ret = init_matrix( nr, nc, nnz, (value > 0));
     if( ret == NULL ){
@@ -806,13 +805,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, se
      // The expected number of edges E = n^2*pi*r^2/2
      // for undirected d = E/(n choose 2)
      // for directed   d = E/(n^2 - n)
-     if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED){
-       r = sqrt(edge_density/M_PI);
-     }else{
-       printf("ERROR: directed geometric graphs are not supported yet.\n");
-       return(NULL);
-     }
-
+     r = sqrt((n-1)*edge_density/(M_PI*n));
      return(geometric_random_graph(n, r, edge_type, loops, seed));
      
    }else{
@@ -822,7 +815,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, se
    
 }
 
- /*! \brief Subroutine to create a random sparse matrix.
+/*! \brief Subroutine to create a random sparse matrix.
   * 
   * The matrix is formed using a Erdo-Renyi like method. A[i,j] is nonzero with a fixed probability p.
   * The value of p depends on the density specified.
@@ -1108,7 +1101,28 @@ int64_t tri_count_kron_graph(kron_args_t * K)
      return(-1); 
    }
 }
- 
+
+// IF we are given nz_per_row (z), we calculate edge_prob (e)
+// or if we are given edge_prob, we calculate nz_per_row
+// using with the following formulas
+// z*n = e*(n*(n-1)/2)
+// or
+// (z-1)*n = e*(n*(n-1)/2) (if we are forcing loops into the graph)
+//
+
+void resolve_edge_prob_and_nz_per_row(double * edge_prob, int64_t * nz_per_row, int64_t numrows, self_loops loops){
+  if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
+    if(loops == LOOPS)
+      *edge_prob = (2.0*(*nz_per_row-1))/(numrows-1);
+    else
+      *edge_prob = (2.0*(*nz_per_row))/(numrows-1);
+    if(*edge_prob > 1.0)
+      *edge_prob = 1.0;
+  } else {    // use erdos_renyi_prob to get nz_per_row
+    *nz_per_row = *edge_prob * ((numrows - 1)/2.0);
+  }
+  assert(*edge_prob <= 1.0);
+}
 
 //****************************** Geometric Graphs *********************************************/
  typedef struct points_t{
@@ -1127,8 +1141,37 @@ double dist(points_t a, points_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
+edge_list_t * init_edge_list(int64_t nalloc){
+  edge_list_t * el = calloc(1, sizeof(edge_list_t));
+  el->num = 0;
+  el->nalloc = nalloc;
+  el->edges = calloc(nalloc, sizeof(edge_t));
+  return(el);
+}
 
- 
+void clear_edge_list(edge_list_t * el){
+  free(el->edges);
+  free(el);
+}
+
+int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
+  if(el->nalloc == el->num){
+    //printf("out of space! nalloc = %ld\n", el->nalloc);
+    // we need to expand our allocations!
+    if(el->nalloc < 10000)
+      el->nalloc = 2*el->nalloc;
+    else
+      el->nalloc = el->nalloc*1.25;
+    //printf("new space! nalloc = %ld\n", el->nalloc);
+    el->edges = realloc(el->edges, el->nalloc*sizeof(edge_t));
+  }
+  //printf("appending %ld %ld\n", row, col);
+  el->edges[el->num].row = row;
+  el->edges[el->num].col = col;
+  el->num++;
+  return(el->num);
+}
+
  /*! \brief Generates the adjacency matrix for a random geometric graph. 
   * 
   * See https://en.wikipedia.org/wiki/Random_geometric_graph
@@ -1149,15 +1192,25 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   // We generate the points uniformly at random over the unit square.
   // We calculate edges by comparing distances between each point and every other point in
   // its own sector and in neighboring sectors.
+  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  int directed = (edge_type == DIRECTED || edge_type == DIRECTED_WEIGHTED);
+  int64_t nsectors_across = floor(1.0/r);
+  double sector_width = 1.0/nsectors_across;
+  int64_t nsectors = nsectors_across*nsectors_across;
+
+  printf("GEOMETRIC GRAPH: r = %lf number of sectors = %"PRId64" sector_width = %lf\n", r, nsectors,sector_width);
+  printf("                 edge_type = %d ", edge_type);
+  if(loops == NOLOOPS)
+    printf("no loops\n");
+  else
+    printf("with loops\n");
   
-  int64_t nsectors = ceil(1.0/r);
-  printf("GEOMETRIC with r = %lf number of sectors = %"PRId64"\n", r, nsectors);
-  sector_t ** sectors = calloc(nsectors, sizeof(sector_t*));
-  int64_t ** first_index_this_sector = calloc(nsectors, sizeof(int64_t*));
-  for(i = 0; i < nsectors; i++){
-    sectors[i] = calloc(nsectors, sizeof(sector_t));
-    first_index_this_sector[i] = calloc(nsectors, sizeof(int64_t));
-    for(j = 0; j < nsectors; j++)
+  sector_t ** sectors = calloc(nsectors_across, sizeof(sector_t*));
+  int64_t ** first_index_this_sector = calloc(nsectors_across, sizeof(int64_t*));
+  for(i = 0; i < nsectors_across; i++){
+    sectors[i] = calloc(nsectors_across, sizeof(sector_t));
+    first_index_this_sector[i] = calloc(nsectors_across, sizeof(int64_t));
+    for(j = 0; j < nsectors_across; j++)
       sectors[i][j].numpoints = 0;
   }
 
@@ -1167,27 +1220,27 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   for(i = 0; i < n; i++){
     double x = (double)rand()/RAND_MAX;
     double y = (double)rand()/RAND_MAX;
-    int64_t row = floor(y/r);
-    int64_t col = floor(x/r);
-    assert(row < nsectors);
-    assert(col < nsectors);
+    int64_t row = floor(y/sector_width);
+    int64_t col = floor(x/sector_width);
+    assert(row < nsectors_across);
+    assert(col < nsectors_across);
     sectors[row][col].numpoints++;
   }
 
   // initialize the struct to hold the points
-  for(i = 0; i < nsectors; i++){
-    for(j = 0; j < nsectors; j++){
+  for(i = 0; i < nsectors_across; i++){
+    for(j = 0; j < nsectors_across; j++){
       if(j > 0)
         first_index_this_sector[i][j] += first_index_this_sector[i][j-1] + sectors[i][j-1].numpoints;
       else if(i > 0)
-        first_index_this_sector[i][j] += first_index_this_sector[i-1][nsectors-1] + sectors[i-1][nsectors-1].numpoints;
+        first_index_this_sector[i][j] += first_index_this_sector[i-1][nsectors_across-1] + sectors[i-1][nsectors_across-1].numpoints;
       sectors[i][j].points = calloc(sectors[i][j].numpoints, sizeof(points_t));
     }
   }
 
   // reset numpoints
-  for(i = 0; i < nsectors; i++){
-    for(j = 0; j < nsectors; j++){
+  for(i = 0; i < nsectors_across; i++){
+    for(j = 0; j < nsectors_across; j++){
       sectors[i][j].numpoints = 0;
     }
   }
@@ -1196,8 +1249,8 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   for(i = 0; i < n; i++){
     double x = (double)rand()/RAND_MAX;
     double y = (double)rand()/RAND_MAX;
-    int64_t row = floor(y/r);
-    int64_t col = floor(x/r);
+    int64_t row = floor(y/sector_width);
+    int64_t col = floor(x/sector_width);
     int64_t li = sectors[row][col].numpoints;
     sectors[row][col].points[li].x = x;
     sectors[row][col].points[li].y = y;
@@ -1205,21 +1258,33 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     sectors[row][col].numpoints++;
   }
   
+  // next we calculate the edges that appear and put them in a list
+  int64_t this_node, other_node;
+  int64_t space = ceil(1.1*n*n*M_PI*r*r/2.0);
+  //printf("Initial allocation: %ld\n", space);
+  edge_list_t * el = init_edge_list(space);
   
-  // next we will count number of edges
-  int64_t node = 0;
-  int64_t nedges = 0;
-  for(i = 0; i < nsectors; i++){
-    for(j = 0; j < nsectors; j++){
+  for(i = 0; i < nsectors_across; i++){
+    for(j = 0; j < nsectors_across; j++){
       
       sector_t * sec = &sectors[i][j];
       int64_t m = sec->numpoints;
       for(k = 0; k < m; k++){
+        this_node = sec->points[k].index;
 
+        if(loops == LOOPS){
+          printf("huh?");
+          append_edge(el, this_node, this_node);
+        }
         // count the edges to lower-indexed nodes within this sector
         for(l = 0; l < k; l++){
-          if(dist(sec->points[k], sec->points[l]) < r2)
-            nedges++;
+          other_node = sec->points[l].index;
+          if(dist(sec->points[k], sec->points[l]) < r2){
+            if(directed && (rand() & 1L))
+              append_edge(el, other_node, this_node);
+            else
+              append_edge(el, this_node, other_node);
+          }
         }
 
         // count the edges to lower-indexed nodes outside the sector
@@ -1228,49 +1293,98 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
         if(j > 0){
           sector_t * sec2 = &sectors[i][j-1];
           for(l = 0; l < sec2->numpoints; l++){
-            if(dist(sec->points[k], sec2->points[l]) < r2)
-              nedges++;
+            other_node = sec2->points[l].index;
+            if(dist(sec->points[k], sec2->points[l]) < r2){
+              if(directed && (rand() & 1L))
+                append_edge(el, other_node, this_node);
+              else
+                append_edge(el, this_node, other_node);
+            }
           }
         } 
         // NW
         if(i > 0 && j > 0){
           sector_t * sec2 = &sectors[i-1][j-1];
           for(l = 0; l < sec2->numpoints; l++){
-            if(dist(sec->points[k], sec2->points[l]) < r2)
-              nedges++;
+            other_node = sec2->points[l].index;
+            if(dist(sec->points[k], sec2->points[l]) < r2){
+              if(directed && (rand() & 1L))
+                append_edge(el, other_node, this_node);
+              else
+                append_edge(el, this_node, other_node);
+            }
           }
         } 
         // N
         if(i > 0){
           sector_t * sec2 = &sectors[i-1][j];
           for(l = 0; l < sec2->numpoints; l++){
-            if(dist(sec->points[k], sec2->points[l]) < r2)
-              nedges++;
+            other_node = sec2->points[l].index;
+            if(dist(sec->points[k], sec2->points[l]) < r2){
+              if(directed && (rand() & 1L))
+                append_edge(el, other_node, this_node);
+              else
+                append_edge(el, this_node, other_node);
+            }
           }
         }
         // NE
-        if(i > 0 && j < (nsectors-1)){
+        if(i > 0 && j < (nsectors_across-1)){
           sector_t * sec2 = &sectors[i-1][j+1];
           for(l = 0; l < sec2->numpoints; l++){
-            if(dist(sec->points[k], sec2->points[l]) < r2)
-              nedges++;
+            other_node = sec2->points[l].index;
+            if(dist(sec->points[k], sec2->points[l]) < r2){
+              if(directed && (rand() & 1L))
+                append_edge(el, other_node, this_node);
+              else
+                append_edge(el, this_node, other_node);
+            }
           }
         } 
       }
     }
   }
   
-  if(loops == LOOPS)
-    nedges += n;
-  //printf("nedges = %"PRId64" %lf\n", nedges, nedges/((double)n*(n-1)/2.0));
-   
-  int weighted = (edge_type == UNDIRECTED_WEIGHTED);
-  sparsemat_t * A = init_matrix(n, n, nedges, weighted);
+  //printf("nedges = %"PRId64"\n", el->num);
+  
+  // Free up points and sectors
+  for(i = 0; i < nsectors_across; i++){
+    for(j = 0; j < nsectors_across; j++)
+      free(sectors[i][j].points);
+    free(first_index_this_sector[i]);
+    free(sectors[i]);
+  }
+  free(sectors);
+  free(first_index_this_sector);
+  
+  sparsemat_t * A = init_matrix(n, n, el->num, weighted);
 
+  // sort the edges in row / col order
+  qsort(el->edges, el->num, sizeof(edge_t), edge_comp);
+
+  int64_t row = 0;
+  for(i = 0; i < el->num; i++){
+    //printf("i %ld: %ld %ld\n", i, el->edges[i].row, el->edges[i].col);
+    while(row != el->edges[i].row){
+      row++;
+      assert(row < n);
+      A->offset[row] = i;
+    }
+    A->nonzero[i] = el->edges[i].col;
+    if(weighted) A->value[i] = (double)rand()/RAND_MAX;
+  }
+  
+  while(row <= n){
+    A->offset[row++] = el->num;
+  }
+
+  clear_edge_list(el);
+  
+#if 0
   // go back through the loop and populate the adjacency matrix
   nedges = 0;
-  for(i = 0; i < nsectors; i++){
-    for(j = 0; j < nsectors; j++){
+  for(i = 0; i < nsectors_across; i++){
+    for(j = 0; j < nsectors_across; j++){
        
        sector_t * sec = &sectors[i][j];
        int64_t m = sec->numpoints;
@@ -1333,7 +1447,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
            }
          }
          // NE
-         if(i > 0 && j < (nsectors-1)){
+         if(i > 0 && j < (nsectors_across-1)){
            sector_t * sec2 = &sectors[i-1][j+1];
            for(l = 0; l < sec2->numpoints; l++){
              if(dist(sec->points[k], sec2->points[l]) < r2){
@@ -1351,6 +1465,8 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
      }
    }
    sort_nonzeros(A);
+#endif
+   
    return(A);
  }
 

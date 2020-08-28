@@ -100,14 +100,16 @@ double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0)
     for(k = mat->offset[minidx];  k < mat->offset[minidx+1]; k++){
       rn = mat->nonzero[k];
       if(dist[rn] > curwt + mat->value[k])
-				dist[rn] = curwt + mat->value[k];
-		}
-		//printf("dist[%"PRId64"] = %lg\n", minidx, curwt);
+        dist[rn] = curwt + mat->value[k];
+    }
+    //printf("dist[%"PRId64"] = %lg\n", minidx, curwt);
     dist[minidx] = -dist[minidx];
   }
 
-  for(i=0; i<numrows; i++)
-    dist[i] = -dist[i];
+  for(i=0; i<numrows; i++){
+    if(dist[i] != INFINITY)
+      dist[i] = -dist[i];
+  }
 
   return(wall_seconds() - tm);
 }
