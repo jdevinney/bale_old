@@ -9,7 +9,7 @@ edition = "2018"
 clap = "2.0"
 rand = "0.7"
 spmat = { path = "spmat" }
-convey_hpc = { path = "../convey_private" }
+convey_hpc = { path = "../../../../convey_private" }
 
 [workspace]
 members = [
