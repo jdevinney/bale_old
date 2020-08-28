@@ -1,5 +1,6 @@
 # Ignore Emacs backup files
 *~
+\#*
 # Ignore files created by autoconf
 aclocal.m4
 autom4te.cache/
@@ -15,3 +16,9 @@ Makefile.in
 missing
 test-driver
 *.o
+
+# Ignore build directories
+build_*/
+target/
+html/
+latex/
