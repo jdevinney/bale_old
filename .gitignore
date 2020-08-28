@@ -20,3 +20,5 @@ test-driver
 # Ignore build directories
 build_*/
 target/
+html/
+latex/
