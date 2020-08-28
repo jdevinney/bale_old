@@ -1356,6 +1356,10 @@ edge_list_t * init_edge_list(int64_t nalloc){
   return(el);
 }
 
+void clear_edge_list(edge_list_t * el){
+  free(el->edges);
+  free(el);
+}
 
 
 triples_t * init_triples(int64_t numrows, int64_t numcols, int64_t nalloc, int weighted){
