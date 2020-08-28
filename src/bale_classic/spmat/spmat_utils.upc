@@ -1244,7 +1244,8 @@ sparsemat_t * direct_undirected_graph(sparsemat_t * L){
 
   sort_nonzeros(A);
   free(lrowcounts);
-  free(el);
+  clear_edge_list(el);
+  
 
   return(A);
   
@@ -1354,6 +1355,8 @@ edge_list_t * init_edge_list(int64_t nalloc){
   el->edges = calloc(nalloc, sizeof(edge_t));
   return(el);
 }
+
+
 
 triples_t * init_triples(int64_t numrows, int64_t numcols, int64_t nalloc, int weighted){
   triples_t * T = calloc(1, sizeof(triples_t));

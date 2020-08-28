@@ -163,6 +163,7 @@ int64_t rowcount_S( sparsemat_t *mat, int64_t S_row );
 
 int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
 int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
+void                clear_edge_list(edge_list_t * el);
 void                clear_matrix(sparsemat_t * mat);
 void                clear_triples(triples_t * T);
 
