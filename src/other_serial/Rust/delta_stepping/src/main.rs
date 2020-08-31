@@ -37,45 +37,44 @@
 *****************************************************************/
 
 use clap::{App, Arg};
-use delta_stepping::generate_sssp_input;
+use sparsemat::SparseMat;
 use delta_stepping::DeltaStepping;
 
 /*
- * 0-0 jg Demo application that finds an upper triangular form for a matrix.
- * That is, we are given a matrix that is a random row and column permutation
- * of a an upper triangular matrix (with ones on the diagonal).
- * This algorithm finds a row and column permutation that would return it
- * to an upper triangular form.
+ * Application that finds shortest path lengths from a single source in 
+ * a directed graph, using the Meyer/Sanders delta-stepping algorithm. 
+ * This serial Rust implementation is based on the serial C in bale,
+ * and is intended as a first step toward a Rust/Conveyors version.
  */
 
-/* 0-0 jg toposort_page Topologically sort a morally upper triangular matrix.
+/* Find single-source shortest path lengths in a directed graph.
 
-   First we generate the problem by generating an upper triangular matrix
-   and applying row and column permutations.
+   First we generate the problem by making a random directed graph with edge costs c(v,w).
 
-   The output of toposort is a row and a column permutation that, if applied,
-   would result in an upper triangular matrix.
+   Every vertex has a "tentative distance" during the algorithm. The source has tentative
+   distance 0, and all other vertices intially have have tentative distance inf. We
+   proceed by "relaxing" edges (in a clever order): relaxing edge (v,w) changes the
+   tentative distance of w, tent(w), to min(tent(w), tent(v) + c(v,w)). Eventually each
+   vertex's tent() distance becomes final, or "settled"; initially only the source is
+   settled.
 
-   We set the row and column permutations,  rperm and cperm, one pivot at a time.
-
-   N = number of rows
-   for( pos=N-1; pos > 0; pos-- ) {
-     pick a row, r, with a single nonzero, c.
-     say (r,c) is the pivot and set rperm[pos] = r and cprem[pos] = c
-     Note: a pivot always exists because the matrix is morally upper tri.
-
-     cross out that row r and col c
-   }
-
-   Meaning of cross out:
-   Rather than changing the matrix by deleting rows and column and then searching the
-   new matrix for the next pivot.  We do the obvious thing of keeping row counts, where
-   rowcnt[i] is the number of non-zeros in row i and we use a really cool trick
-   of keeping the sum of the live column indices for the non-zeros in each row.
-   That is, rowsum[i] is the sum of the column indices, not the sum of the non-zero elements,
-   for the non-zeros in row i.  To "delete a column" one decrements the rowcnt by one and
-   the rowsum by the corrsponding column index.
-   The cool trick is that, when the rowcnt gets to one, the rowsum is the column that is left.
+   Unsettled vertices are kept in "buckets" by tent() value; bucket i contains vertices 
+   with tent() at least i*\Delta and less than (i+1)*\Delta, where \Delta is a parameter.
+   The algorithm has three nested loops. 
+   
+   The outer (serial) loop is over buckets; an iteration processes vertices in the lowest 
+   nonempty bucket until it is empty. 
+   
+   The middle (serial) loop is over "phases"; a phase consists of removing all the vertices 
+   in the bucket and relaxing all the "light" edges out of them (an edge is "light" if it 
+   has cost at most \Delta, "heavy" otherwise). The edge relaxations in a phase may cause 
+   vertices to enter the active bucket; phases continue until the bucket is empty. At that 
+   point all the vertices that were in that bucket are settled.  Following the light-edge 
+   phases, one more phase relaxes all the heavy edges from vertices deleted from the active 
+   bucket; this cannot cause any vertices to go into that bucket. 
+   
+   The inner (potentially parallel) loop implements the edge relaxations in a single phase.
+   Those relaxations can be done in any order, provided they are done atomically.
 */
 
 fn main() {
@@ -115,12 +114,12 @@ fn main() {
     // input args, just constants for now
     let numrows: usize = matches
         .value_of("numrows")
-        .unwrap_or("2000")
+        .unwrap_or("10")
         .parse()
         .expect("numrows: not an integer");
     let erdos_renyi_prob: f64 = matches
         .value_of("er_prob")
-        .unwrap_or("0.01")
+        .unwrap_or("0.3")
         .parse()
         .expect("er_prob: not an float");
 
@@ -132,7 +131,7 @@ fn main() {
         println!("creating input matrix for delta_stepping");
     }
 
-    let mat = generate_sssp_input(numrows, erdos_renyi_prob, seed, dump_files);
+    let mat = SparseMat::erdos_renyi_graph(numrows, erdos_renyi_prob, false, seed);
 
     if !quiet {
         println!("input matrix stats:");
@@ -149,8 +148,7 @@ fn main() {
     if !quiet {
         println!("Running delta_stepping on mat ...");
     }
-    let tmat = mat.transpose(); // not for d-s, just for toposort test...
-    let matret = mat.delta_stepping(&tmat); // remove tmat for d-s
+    let matret = mat.delta_stepping(2);
 
     if !mat.check_result(&matret, dump_files) {
         println!("ERROR: check_result failed");
