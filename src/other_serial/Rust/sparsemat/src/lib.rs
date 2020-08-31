@@ -276,7 +276,7 @@ impl SparseMat {
     where
         W: Write,
     {
-        writeln!(writer, "%%MasterMarket matrix coordinate position")?;
+        writeln!(writer, "%%MatrixMarket matrix coordinate position")?;
         writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
 
         for i in 0..self.numrows {
@@ -287,7 +287,7 @@ impl SparseMat {
         Ok(())
     }
 
-    /// read a sparse matrix from a file in a MasterMarket ASCII format
+    /// read a sparse matrix from a file in a MatrixMarket ASCII format
     /// # Arguments
     /// * filename the file to be read
     pub fn read_mm_file(filename: &str) -> Result<SparseMat> {
@@ -302,7 +302,7 @@ impl SparseMat {
         R: BufRead,
     {
         let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
-        let re = Regex::new(r"^%%MasterMarket *matrix *coordinate *position")?;
+        let re = Regex::new(r"^%%MatrixMarket *matrix *coordinate *position")?;
         if !re.is_match(&line) {
             return Err(Sparsemat(ParseMmError::new(format!(
                 "invalid header {}",
