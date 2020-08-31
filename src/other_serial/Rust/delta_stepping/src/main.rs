@@ -37,18 +37,18 @@
 *****************************************************************/
 
 use clap::{App, Arg};
-use toposort::generate_toposort_input;
-use toposort::TopoSort;
+use delta_stepping::generate_sssp_input;
+use delta_stepping::DeltaStepping;
 
 /*
- * Demo application that finds an upper triangular form for a matrix.
+ * 0-0 jg Demo application that finds an upper triangular form for a matrix.
  * That is, we are given a matrix that is a random row and column permutation
  * of a an upper triangular matrix (with ones on the diagonal).
  * This algorithm finds a row and column permutation that would return it
  * to an upper triangular form.
  */
 
-/* toposort_page Topologically sort a morally upper triangular matrix.
+/* 0-0 jg toposort_page Topologically sort a morally upper triangular matrix.
 
    First we generate the problem by generating an upper triangular matrix
    and applying row and column permutations.
@@ -79,9 +79,9 @@ use toposort::TopoSort;
 */
 
 fn main() {
-    let matches = App::new("TopoSort")
+    let matches = App::new("DeltaStepping")
         .version("0.1.0")
-        .about("Implements a test of TopoSort")
+        .about("Implements a test of DeltaStepping")
         .arg(
             Arg::with_name("numrows")
                 .short("n")
@@ -129,10 +129,10 @@ fn main() {
     let dump_files = matches.is_present("dump_files");
 
     if !quiet {
-        println!("creating input matrix for toposort");
+        println!("creating input matrix for delta_stepping");
     }
 
-    let mat = generate_toposort_input(numrows, erdos_renyi_prob, seed, dump_files);
+    let mat = generate_sssp_input(numrows, erdos_renyi_prob, seed, dump_files);
 
     if !quiet {
         println!("input matrix stats:");
@@ -143,41 +143,19 @@ fn main() {
         mat.dump(20, "mat.out").expect("could not write mat.out");
     }
 
-    mat.write_mm_file("topo_mat.mm")
-        .expect("could not write topo_mat.mm");
-
-    let tmat = mat.transpose();
-
-    if dump_files {
-        tmat.dump(20, "trans.out")
-            .expect("could not write trans.out");
-    }
-
-    tmat.write_mm_file("topo_tmat.mm")
-        .expect("could not write topo_tmat.mm");
+    mat.write_mm_file("sssp_mat.mm")
+        .expect("could not write sssp_mat.mm");
 
     if !quiet {
-        println!("Running toposort on mat (and tmat) ...");
+        println!("Running delta_stepping on mat ...");
     }
+    let tmat = mat.transpose(); // not for d-s, just for toposort test...
+    let matret = mat.delta_stepping(&tmat); // remove tmat for d-s
 
-    let mut matret;
-    for i in 0..2 {
-        if i == 0 {
-            if !quiet {
-                print!("   using generic toposort: ");
-            }
-            matret = mat.toposort_queue(&tmat);
-        } else {
-            if !quiet {
-                print!("   using loop toposort: ");
-            }
-            matret = mat.toposort_loop(&tmat);
-        }
-        if !mat.check_result(&matret, dump_files) {
-            println!("ERROR: check_result failed");
-        }
-        if !quiet {
-            println!(" {} seconds", matret.laptime)
-        }
+    if !mat.check_result(&matret, dump_files) {
+        println!("ERROR: check_result failed");
+    }
+    if !quiet {
+        println!(" {} seconds", matret.laptime)
     }
 }

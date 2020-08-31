@@ -16,7 +16,7 @@ use sparsemat::SparseMat;
 /// then randomly permute the rows and the columns.  
 /// The toposort algorithm takes this matrix and finds one of the possibly many row and 
 /// column permutations that would bring the matrix back to an upper triangular form.
-pub fn generate_toposort_input(
+pub fn generate_sssp_input(
     numrows: usize,
     edge_prob: f64,
     seed: i64,
@@ -71,17 +71,17 @@ impl TopoInfo {
     }
 }
 
-pub trait TopoSort {
-    fn toposort_queue(&self, tmat: &SparseMat) -> TopoInfo;
+pub trait DeltaStepping {
+    fn delta_stepping(&self, tmat: &SparseMat) -> TopoInfo;
     fn toposort_loop(&self, tmat: &SparseMat) -> TopoInfo;
     fn check_result(&self, info: &TopoInfo, dump_files: bool) -> bool;
 }
 
-impl TopoSort for SparseMat {
+impl DeltaStepping for SparseMat {
     /// This routine implements the agi variant of toposort
     /// # Arguments
     /// * tmat the transpose of mat
-    fn toposort_queue(&self, tmat: &SparseMat) -> TopoInfo {
+    fn delta_stepping(&self, tmat: &SparseMat) -> TopoInfo {
         let nr = self.numrows;
         let nc = self.numcols;
         let mut ret = TopoInfo::new(nr);
