@@ -89,6 +89,13 @@ fn main() {
                 .help("The number of rows in test matrix"),
         )
         .arg(
+            Arg::with_name("source")
+                .short("s")
+                .long("source")
+                .takes_value(true)
+                .help("The number of the source vertex"),
+        )
+        .arg(
             Arg::with_name("er_prob")
                 .short("e")
                 .long("erdos_renyi_prob")
@@ -117,11 +124,16 @@ fn main() {
         .unwrap_or("10")
         .parse()
         .expect("numrows: not an integer");
+    let source: usize = matches
+        .value_of("source")
+        .unwrap_or("2")
+        .parse()
+        .expect("source: not an integer");
     let erdos_renyi_prob: f64 = matches
         .value_of("er_prob")
         .unwrap_or("0.3")
         .parse()
-        .expect("er_prob: not an float");
+        .expect("er_prob: not a float");
 
     let seed = 12346;
     let quiet = matches.is_present("quiet");
@@ -147,9 +159,9 @@ fn main() {
         .expect("could not write sssp_mat.mm");
 
     if !quiet {
-        println!("Running delta_stepping on mat ...");
+        println!("Running delta_stepping on mat from source {} ...", source);
     }
-    let matret = mat.delta_stepping(2);
+    let matret = mat.delta_stepping(source);
 
     if !mat.check_result(&matret, dump_files) {
         println!("ERROR: check_result failed");
