@@ -33,7 +33,6 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 
-use rand::Rng;
 use regex::Regex;
 use std::fs::File;
 use std::io::{BufRead, Write};
@@ -58,7 +57,7 @@ pub struct SparseMat {
     /// offset[nrows] is nnz
     pub offset: Vec<usize>,
     pub nonzero: Vec<usize>, // the global array of nonzero columns
-    pub value: Option<Vec<f64>>, // the global array of nonzero values, optional
+    // pub value: Option(Vec<usize>), // the global array of nonzero values, optional
 }
 
 /// struct to hold the state used to iterate across the row of a sparse matrix.
@@ -68,7 +67,6 @@ pub struct NextNz {
     pub idx: usize,
     pub stop: usize,
     pub col: usize,
-    pub val: Option<f64>,
 }
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -169,7 +167,7 @@ impl Perm {
 }
 
 impl SparseMat {
-    /// a new sparse matrix without values
+    /// a new sparse matrix
     pub fn new(numrows: usize, numcols: usize, nnz: usize) -> SparseMat {
         let offset: Vec<usize> = vec![0; numrows + 1];
         let nonzero: Vec<usize> = vec![0; nnz];
@@ -179,33 +177,7 @@ impl SparseMat {
             nnz,
             offset,
             nonzero,
-            value: None,
         }
-    }
-
-    /// a new sparse matrix with values
-    pub fn new_with_values(numrows: usize, numcols: usize, nnz: usize) -> SparseMat {
-        let offset: Vec<usize> = vec![0; numrows + 1];
-        let nonzero: Vec<usize> = vec![0; nnz];
-        let value: Option<Vec<f64>> = Some(vec![0.0; nnz]);
-        SparseMat {
-            numrows,
-            numcols,
-            nnz,
-            offset,
-            nonzero,
-            value,
-        }
-    }
-
-    /// give a sparse matrix random (uniform [0,1]) values
-    pub fn randomize_values(&mut self) {
-        let mut value = Vec::new();
-        let mut rng = rand::thread_rng();
-        for _ in 0..self.nnz {
-            value.push(rng.gen::<f64>());
-        }
-        self.value = Some(value);
     }
 
     /// returns an iterator over row counts, very useful in this library
@@ -236,49 +208,33 @@ impl SparseMat {
             self.numrows
         };
         let stop_row = if use_maxrow {
-            maxrows / 2 
+            maxrows / 2
         } else {
             self.numrows
         };
 
         writeln!(file, "\n--------- offsets:")?;
-        for off in &self.offset[0..stop_row+1] {
+        for off in &self.offset[0..stop_row] {
             write!(file, "{} ", off)?;
         }
         if use_maxrow {
-            write!(file, "... ")?;
-            for off in &self.offset[start_row..self.numrows+1] {
-                write!(file, "{} ", off)?;
+            write!(file, " ... ")?;
+            for off in &self.offset[start_row..self.numrows] {
+                write!(file, "{}", off)?;
             }
         }
 
-        writeln!(
-            file, 
-            "{}",
-            match &self.value {
-                None    => "\n--------- row col:",
-                Some(_) => "\n--------- row col val:",
-            },
-        )?;
-
+        writeln!(file, "\n--------- nonzeros:")?;
         for i in 0..stop_row {
-            for k in self.offset[i]..self.offset[i+1] {
-                if let Some(value) = &self.value {
-                    writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
-                } else {
-                    writeln!(file, "{} {}", i, self.nonzero[k])?;
-                }
+            for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
+                writeln!(file, "{} {}", i, nz)?;
             }
         }
         if use_maxrow {
             write!(file, ".\n.\n.\n")?;
             for i in start_row..self.numrows {
-                for k in self.offset[i]..self.offset[i+1] {
-                    if let Some(value) = &self.value {
-                        writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
-                    } else {
-                        writeln!(file, "{} {}", i, self.nonzero[k])?;
-                    }
+                for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
+                    writeln!(file, "{} {}", i, nz)?;
                 }
             }
         }
@@ -290,11 +246,6 @@ impl SparseMat {
         println!("   numrows  = {}", self.numrows);
         println!("   numcols  = {}", self.numcols);
         println!("   nnz      = {}", self.nnz);
-        if let Some(_) = self.value {
-            println!("    matrix with values");
-        } else {
-            println!("    matrix pattern only");
-        }
 
         // compute min, max, sum all at once for efficiency, only once thru itereator
         let (mindeg, maxdeg, sumdeg) = self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
@@ -303,7 +254,7 @@ impl SparseMat {
 
         let avgdeg = sumdeg as f64 / self.numrows as f64;
 
-        println!("    min, avg, max degree = {}, {}, {}", mindeg, avgdeg, maxdeg);
+        println!(" min, avg, max degree = {}, {}, {}", mindeg, avgdeg, maxdeg);
     }
 
     /// writes a sparse matrix to a file in a MatrixMarket ASCII formats
@@ -320,21 +271,12 @@ impl SparseMat {
     where
         W: Write,
     {
-        if let Some(value) = &self.value {
-            writeln!(writer, "%%MatrixMarket matrix coordinate real general")?;
-            writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
-            for i in 0..self.numrows {
-                for k in self.offset[i]..self.offset[i + 1] {
-                    writeln!(writer, "{} {} {}", i + 1, self.nonzero[k] + 1, value[k])?;
-                }
-            }
-        } else {
-            writeln!(writer, "%%MatrixMarket matrix coordinate pattern general")?;
-            writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
-            for i in 0..self.numrows {
-                for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
-                    writeln!(writer, "{} {}", i + 1, nz + 1)?;
-                }
+        writeln!(writer, "%%MatrixMarket matrix coordinate position")?;
+        writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
+
+        for i in 0..self.numrows {
+            for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
+                writeln!(writer, "{} {}", i + 1, nz + 1)?;
             }
         }
         Ok(())
@@ -350,7 +292,7 @@ impl SparseMat {
         SparseMat::read_mm(&mut reader)
     }
 
-    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat>  // 0-0 allow values jg
+    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat>
     where
         R: BufRead,
     {
@@ -442,7 +384,7 @@ impl SparseMat {
     /// *cperminv pointer to the global array holding the inverse of the column permutation
     ///     rperminv[i] = j means that row i of A goes to row j in matrix Ap
     ///     cperminv[i] = j means that col i of A goes to col j in matrix Ap
-    pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> SparseMat { // 0-0 allow values jg
+    pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> SparseMat {
         let mut ap = SparseMat::new(self.numrows, self.numcols, 0);
         let rperm = rperminv.inverse();
 
@@ -459,7 +401,7 @@ impl SparseMat {
     }
 
     /// produce the transpose of a sparse matrix
-    pub fn transpose(&self) -> SparseMat { // 0-0 allow values jg
+    pub fn transpose(&self) -> SparseMat {
         let mut colcounts: Vec<usize> = vec![0; self.numcols + 1];
         // histogram the column counts of A into colcounts
         for nz in &self.nonzero[0..self.nnz] {
@@ -511,7 +453,7 @@ impl SparseMat {
     }
 
     /// sort the non-zeros in each row of a sparse matrix
-    pub fn sort_nonzeros(&mut self) -> () { // 0-0 allow values jg
+    pub fn sort_nonzeros(&mut self) -> () {
         for row in 0..self.numrows {
             self.nonzero[self.offset[row]..self.offset[row + 1]].sort_by(|a, b| a.cmp(b));
         }
@@ -520,7 +462,7 @@ impl SparseMat {
     /// compare the structs that hold two sparse matrices
     /// # Arguments
     /// * rmat pointer to the right sparse matrix
-    pub fn compare(&self, rmat: &SparseMat) -> bool { // 0-0 allow values jg
+    pub fn compare(&self, rmat: &SparseMat) -> bool {
         if self.numrows != rmat.numrows {
             println!(
                 "(self.numrows = {})  != (rmat.numrows = {})",

@@ -1,2 +1,3 @@
 *.mm
 Cargo.lock
+*.out

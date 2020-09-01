@@ -131,7 +131,8 @@ fn main() {
         println!("creating input matrix for delta_stepping");
     }
 
-    let mat = SparseMat::erdos_renyi_graph(numrows, erdos_renyi_prob, false, seed);
+    let mut mat = SparseMat::erdos_renyi_graph(numrows, erdos_renyi_prob, false, seed);
+    mat.randomize_values();
 
     if !quiet {
         println!("input matrix stats:");
