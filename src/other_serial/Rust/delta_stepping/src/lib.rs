@@ -60,16 +60,20 @@ struct BucketSearcher {
     next_elt: Vec<usize>,        // forward link in list of vertices in each bucket (including bucket header)
     bucket_header: Vec<usize>,   // where in the list is this bucket header? (answer: nv+this bucket number)
     activated: Vec<bool>,        // has this vtx ever been activated? 
-    // (maybe activated_list isn't part of the struct, but just a thing in the main routine)
-    activated_list: Vec<usize>,  // list of unique vertices that have been activated in this middle loop iter
     bucket: Vec<Option<usize>>,  // what bucket if any is this vtx in? don't need except for debugging.
     bucket_size: Vec<usize>,     // number of vertices in this bucket
-    current_bucket: usize,       // active bucket, current outer loop iter (0..num_buckets, with reuse)
+    active_bucket: usize,        // active bucket, current outer loop iter (0..num_buckets, with reuse)
+
+    // iterator notes:
+    // BucketSearcher should also have an iterator that updates the active bucket, skipping to the
+    // next nonempty bucket (% num_buckets) and stopping when all buckets are empty.
+      
     // parallel notes: 
-    // Vertices belong to PEs in round-robin order. Each PE has its own copy of all the buckets.
+    // Vertices belong to PEs in round-robin order. 
+    // Each PE has its own copy of every bucket, but only containing vertices it owns.
     // (Say nv >= 100 * num_buckets * THREADS. Then storage for buckets is relatively small.)
     // Arrays indexed only by vtx are shared: tentative_dist, activated, bucket.
-    // Arrays bucket_size, bucket_header, and activated_list are local to each PE.
+    // Arrays bucket_size and bucket_header are local to each PE.
     // Arrays prev_elt and next_elt are shared, but link together only the vtxs on the local PE.
     // The bucket-header nodes at the end of prev_elt and next_elt have copies for each PE.
     // The parallelism all happens in relax_requests, where a request to relax an edge with head w
@@ -81,12 +85,10 @@ impl BucketSearcher {
     // Create a bucket structure for a weighted graph
     fn new(graph: &SparseMat, delta: f64) -> BucketSearcher {
         let nv = graph.numrows;
-        let mut max_edge_len = 0.0;
-        if let Some(edge_len) = graph.value { // jg 0-0 yuck!
+        let mut max_edge_len: f64 = 0.0;
+        if let Some(edge_len) = graph.value { // jg 0-0 yuck! and max_edge_len = edge_len.max(); fails
             for c in edge_len {
-                if c > max_edge_len {
-                    max_edge_len = c;
-                }
+                max_edge_len.max(c);
             }
         }
         // upper bound on number of buckets we will ever need at the same time
@@ -101,13 +103,12 @@ impl BucketSearcher {
         let bucket_header: Vec<usize> = (nv..nv+num_buckets).collect();
         // initially no vtx has ever been activated.
         let mut activated = vec![false; nv];
-        let mut activated_list: Vec<usize> = Vec::new();
         // initially every vtx is in no bucket.
         let mut bucket = vec![Option::<usize>::None; nv]; // 0-0 why Option::<> not Option<>?
         // initially every bucket contains zero vertices.
         let bucket_size = vec![0; num_buckets];
-        // the current bucket is 0, since it will contain the source.
-        let current_bucket = 0; 
+        // initially the active bucket is 0, since it will contain the source.
+        let active_bucket = 0; 
 
         //barrier here
 
@@ -120,10 +121,9 @@ impl BucketSearcher {
             next_elt,
             bucket_header,
             activated,
-            activated_list,
             bucket,
             bucket_size,
-            current_bucket,
+            active_bucket,
         }
     }
 
@@ -157,21 +157,34 @@ impl BucketSearcher {
         self.bucket[w] = Some(new_bucket);
     }
 
-    // make a list of all relaxation requests from light edges with tails in current bucket
-    // jg 0-0 make this a loop in main not a method, and also activate the vtxs and remove from bucket
-    fn find_light_requests(&self) -> Vec<Request> { 
+    // make a list of all relaxation requests from light edges with tails in bucket
+    // we need an iterator over vertices in a bucket (that lets you remove a vtx in flight)
+    fn find_light_requests(&self, bucket: usize) -> Vec<Request> { 
         let mut requests: Vec<Request> = Vec::new();
+        // 0-0
         requests
     }
 
-    // make a list of all relaxation requests from heavy edges with tails on activation list
-    // jg 0-0 make this a loop in main not a method
-    fn find_heavy_requests(&self) -> Vec<Request> { 
+    // make a list of all relaxation requests from heavy edges with tails on vtxlist
+    fn find_heavy_requests(&self, vtxlist: Vec<usize>) -> Vec<Request> { 
         let mut requests: Vec<Request> = Vec::new();
+        // 0-0
         requests
     }
 
-    // relax all the requests on the list from this phase (could be parallel)
+    // return vertices in bucket that have not been activated(removed from an active bucket) before
+    fn newly_active_vertices(&self, bucket: usize) -> mut Vec<usize> { 
+        let mut new_vtxs: Vec<usize> = Vec::new(); 
+        // 0-0
+        new_vtxs
+    }
+
+    // remove all vertices from the bucket and mark them activated
+    fn empty_bucket(&self, bucket: usize) { 
+        // 0-0
+    }
+
+    // relax all the requests from this phase (could be parallel)
     fn relax_requests(&self, requests: Vec<Request>) {
         // convey the request r=(w,d) to the PE that owns vtx w here, and have it call relax
         for r in requests {
@@ -181,10 +194,8 @@ impl BucketSearcher {
     }
 
     // relax an incoming edge to vtx r.w with new source distance r.dist, and rebucket r.w if necessary
+    // this will be called by r.w's PE, so there is no race on tent[r.w] 
     fn relax(&self, r: Request) {
-        // this will be called in parallel; we need to avoid races on tent[r.w], 
-        // but that will be okay because r.w's PE is doing its relaxes serially
-        // and no other PE is relaxing on r.w 
         if r.dist < self.tentative_dist[r.w] {
             let new_bucket = self.home_bucket(r.dist);
             if let Some(old_bucket) = self.bucket[r.w] {
@@ -220,27 +231,39 @@ impl DeltaStepping for SparseMat {
         let t1 = wall_seconds().expect("wall second error");
 
         // choose a value for delta, the bucket width
-        let delta = 1.0; // 0-0 need to fix this, prob 1/(max degree)
+        let delta = 1.0; // 0-0 need to fix this, probably 1/(max degree)
         
-        // initialize bucket lists, bucket sizes (optional), "activated" flags
+        // initialize buckets, activated flags, etc.
         let mut searcher = BucketSearcher::new(&self, delta);
 
         // use relax to set tent(source) to 0, which also puts it in bucket 0
         searcher.relax(Request{w: source, dist: 0.0});
 
         // outer loop: for each nonempty bucket in order ...
-        // need an iterator of some kind in BucketSearcher that starts current_bucket at 0,
-        // steps forward mod num_buckets to next nonempty bucket, and ends when all buckets empty.
+        // need an iterator in BucketSearcher that starts active_bucket at 0,
+        // steps forward (%num_buckets) to next nonempty bucket, and ends when all buckets empty.
+        // for (searcher.iter.first(), searcher.iter.next()) {
+            let mut removed: Vec<usize> = Vec::new(); // vertices removed from active bucket, R in paper
         
-            // initialize "activated" list (R in paper) to empty vector of vtxs
             // middle loop: while active bucket (B[i] in paper) is not empty ...
+            while searcher.bucket_size[active_bucket] > 0 { 
 
-                // find light requests from active bucket; at the same time
-                //    remove all vtxs from bucket, mark activated, put on activated list (R in paper)
-                // relax_requests(found requests)
+                // find light edges with tails in active bucket;
+                // empty active bucket, keeping a set "removed" of unique vtxs removed from this bucket;
+                // relax light edges, which may put some removed and other vtxs into the active bucket.
+
+                let requests = searcher.find_light_requests(active_bucket); 
+                removed.append(searcher.newly_active_vertices(active_bucket));
+                searcher.empty_bucket(active_bucket);
+                searcher.relax_requests(requests);
                 
-            // find heavy requests from activated list
-            // relax_requests(found requests)
+            } // end of middle looop
+            
+            // relax heavy edges with tails in removed set, which cannot add vtxs to active bucket
+            let requests = searcher.find_heavy_requests(removed);
+            searcher.relax_requests(requests);
+
+        // } end of outer loop
 
         // return the info struct, which will now own the distance array
         SsspInfo {

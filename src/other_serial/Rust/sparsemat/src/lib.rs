@@ -261,6 +261,7 @@ impl SparseMat {
             },
         )?;
 
+//      Should write this with a zipped iterator, not an index k jg 0-0
         for i in 0..stop_row {
             for k in self.offset[i]..self.offset[i+1] {
                 if let Some(value) = &self.value {
