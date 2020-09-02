@@ -64,27 +64,17 @@ double transpose_generic(sparsemat_t *A, int64_t dump_files)
 }
 
 typedef struct args_t{
-  int64_t numrows;
-  int readfile;  
-  char * filename;
-  graph_model model;
-  double edge_prob;
-  double nz_per_row;
   std_args_t std;
+  std_graph_args_t gstd;
 }args_t;
 
 static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
-    case 'e': args->edge_prob = atof(arg); break;
-    case 'f': args->readfile=1; args->filename = arg; break;
-    case 'F': args->model = FLAT; break;
-    case 'G': args->model = GEOMETRIC; break;
-    case 'n': args->numrows = atol(arg); break;
-    case 'z': args->nz_per_row = atof(arg); break;
     case ARGP_KEY_INIT:
       state->child_inputs[0] = &args->std;
+      state->child_inputs[1] = &args->gstd;
       break;
     }
   return(0);
@@ -92,14 +82,13 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
-    {0, 0, 0, 0, "Input (as file):", 1},
-    {"readfile",   'f', "FILE",  0, "Read input from a file"},
-    {0, 0, 0, 0, "Input (as random graph):", 2},
-    {"numrows",    'n', "NUM",   0, "Number of rows in a matrix"},
-    {"edge_prob",  'e', "EDGEP", 0, "Probability that an edge appears"},
-    {"flat",       'F', 0,       0, "Specify flat random graph model"},
-    {"geometric",  'G', 0,       0, "Specify geometric random graph model"},
-    {"nz_per_row", 'z', "NZPR",  0, "Avg. number of nonzeros per row"},
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
     {0}
   };
 
@@ -108,57 +97,45 @@ int main(int argc, char * argv[]){
   
   sparsemat_t *mat;
   double laptime = 0.0;
-  enum FLAVOR {GENERIC=1, ALL=2};
   uint32_t use_model;
+  enum FLAVOR {GENERIC=1, ALL=2};
 
-  /* specify defaults */  
-  args_t args;
-  args.model = FLAT;
-  args.edge_prob = 0.0;
-  args.nz_per_row = 10.0;
-  args.readfile = 0;
-  args.numrows = 1000;
-  
-  struct argp_child children_parsers[] =
-    {
-      {&std_options_argp, 0, "Standard Options", -2},
-      {0}
-    };
-
+  /* process command line */
+  args_t args;  
   struct argp argp = {options, parse_opt, 0, "Transpose a sparse matrix.", children_parsers};
-  int retval = argp_parse(&argp, argc, argv, 0, 0, &args);
+  argp_parse(&argp, argc, argv, 0, 0, &args);
+  
+  double nz_per_row = args.gstd.nz_per_row;
+  double edge_prob = args.gstd.edge_prob;
+  int64_t numrows = args.gstd.numrows;
 
-  double nz_per_row = args.nz_per_row;
-  double edge_prob = args.edge_prob;
-  int64_t numrows = args.numrows;
-
-  if(args.readfile == 0){
+  if(args.gstd.readfile == 0){
     resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, NOLOOPS);
   }
   
   if(!args.std.quiet ) {
     fprintf(stderr,"Running C version of transpose matrix\n");
-    if(args.readfile == 1)
-      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.filename);
+    if(args.gstd.readfile == 1)
+      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
     else{
-      if(args.model == FLAT)
+      if(args.gstd.model == FLAT)
         fprintf(stderr,"flat model           (-F)\n");
       else        
         fprintf(stderr,"geometric model      (-G)\n");
       fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
       fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
       fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
-      fprintf(stderr,"random seed          (-s)= %d\n",  args.std.seed);
+      fprintf(stderr,"random seed          (-s)= %ld\n",  args.std.seed);
     }
     fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
     fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
   }
   
-  if( args.readfile ) {
-     mat = read_matrix_mm(args.filename);     
-     if(!mat){printf("ERROR: transpose_matrix: read_matrix (%s) failed\n", args.filename); exit(1);}
+  if( args.gstd.readfile ) {
+     mat = read_matrix_mm(args.gstd.filename);     
+     if(!mat){printf("ERROR: transpose_matrix: read_matrix (%s) failed\n", args.gstd.filename); exit(1);}
   } else {
-    mat = random_graph(numrows, args.model, DIRECTED, NOLOOPS, edge_prob, args.std.seed);
+    mat = random_graph(numrows, args.gstd.model, DIRECTED, NOLOOPS, edge_prob, args.std.seed);
     if(!mat){printf("ERROR: transpose_matrix: erdos_renyi_graph failed\n"); exit(1);}
   }
 
@@ -180,7 +157,7 @@ int main(int argc, char * argv[]){
     }
     if(!args.std.quiet) printf("  %8.3lf seconds \n", laptime);
   }
-  
+
   return(0);
 }
 

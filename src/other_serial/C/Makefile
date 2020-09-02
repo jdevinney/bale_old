@@ -1,7 +1,7 @@
 
 #CFLAGS= -O3
 #CFLAGS= -std=c99
-LFLAGS= -lm -largp
+LFLAGS= -lm 
 CC= gcc -Wall ${CFLAGS}
 
 SRC= spmat_utils.h spmat_utils.c 
@@ -37,8 +37,8 @@ GRAPHS= demo.mm 10_ring.mm 2comps.mm
 
 all: std_options.o spmat_utils.o ${EXE}
 
-std_options.c: std_options.c std_options.h
-	${CC} -c std_options.c
+std_options.o: std_options.c std_options.h
+	${CC} -g -c std_options.c
 
 spmat_utils.o: spmat_utils.c spmat_utils.h
 	${CC} -c spmat_utils.c -lm
@@ -67,8 +67,8 @@ unionfind: unionfind.c spmat_utils.o
 permute_matrix: permute_matrix.c spmat_utils.o
 	${CC} permute_matrix.c spmat_utils.o ${LFLAGS} -o permute_matrix
 
-transpose_matrix: transpose_matrix.c spmat_utils.o
-	${CC} transpose_matrix.c spmat_utils.o std_options.o ${LFLAGS} -o transpose_matrix
+transpose_matrix: transpose_matrix.c std_options.o spmat_utils.o
+	${CC} -g transpose_matrix.c spmat_utils.o std_options.o ${LFLAGS} ${LDFLAGS} -o transpose_matrix
 
 sssp: sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c spmat_utils.o
 	${CC} sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c spmat_utils.o ${LFLAGS} -o sssp

@@ -40,6 +40,7 @@
  * \brief The header file for spmat library.
  */ 
 #ifndef spmat_utils_INCLUDED
+#define spmat_utils_INCLUDED
 
 #include <stdio.h>
 #include <stdint.h>
@@ -185,6 +186,5 @@ int64_t          write_matrix_mm(sparsemat_t * A, char * name);
 double wall_seconds();
 #define DEBUG 0
 #define Dprintf if(DEBUG) printf
-#define spmat_INCLUDED
 #endif
 
