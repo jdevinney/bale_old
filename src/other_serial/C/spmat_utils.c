@@ -1110,7 +1110,7 @@ int64_t tri_count_kron_graph(kron_args_t * K)
 // (z-1)*n = e*(n*(n-1)/2) (if we are forcing loops into the graph)
 //
 
-void resolve_edge_prob_and_nz_per_row(double * edge_prob, int64_t * nz_per_row, int64_t numrows, self_loops loops){
+void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, self_loops loops){
   if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
     if(loops == LOOPS)
       *edge_prob = (2.0*(*nz_per_row-1))/(numrows-1);
