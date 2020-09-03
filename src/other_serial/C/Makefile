@@ -46,8 +46,8 @@ spmat_utils.o: spmat_utils.c spmat_utils.h
 demo_spmat: demo_spmat.c spmat_utils.o 
 	${CC} demo_spmat.c spmat_utils.o ${LFLAGS} -o demo_spmat
 
-histo: histo.c spmat_utils.o 
-	${CC} histo.c spmat_utils.o ${LFLAGS} -o histo
+histo: histo.c std_options.o spmat_utils.o 
+	${CC} -g histo.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o histo
 
 ig: ig.c spmat_utils.o 
 	${CC} ig.c spmat_utils.o ${LFLAGS} -o ig
@@ -55,8 +55,8 @@ ig: ig.c spmat_utils.o
 randperm: randperm.c spmat_utils.o
 	${CC} randperm.c spmat_utils.o ${LFLAGS} -o randperm
 
-topo: toposort.c spmat_utils.o
-	${CC} toposort.c spmat_utils.o ${LFLAGS} -o topo
+topo: toposort.c std_options.o spmat_utils.o
+	${CC} toposort.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o topo
 
 triangles: triangle.c spmat_utils.o
 	${CC} triangle.c spmat_utils.o ${LFLAGS} -o triangles
@@ -64,8 +64,8 @@ triangles: triangle.c spmat_utils.o
 unionfind: unionfind.c spmat_utils.o
 	${CC} unionfind.c spmat_utils.o ${LFLAGS} -o unionfind
 
-permute_matrix: permute_matrix.c spmat_utils.o
-	${CC} permute_matrix.c spmat_utils.o ${LFLAGS} -o permute_matrix
+permute_matrix: permute_matrix.c std_options.o spmat_utils.o
+	${CC} permute_matrix.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o permute_matrix
 
 transpose_matrix: transpose_matrix.c std_options.o spmat_utils.o
 	${CC} -g transpose_matrix.c spmat_utils.o std_options.o ${LFLAGS} ${LDFLAGS} -o transpose_matrix

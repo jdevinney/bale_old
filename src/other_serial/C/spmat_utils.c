@@ -803,9 +803,13 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, se
      // determine the r that will lead to the desired edge density
      // Expected degree = n*pi*r^2
      // The expected number of edges E = n^2*pi*r^2/2
-     // for undirected d = E/(n choose 2)
-     // for directed   d = E/(n^2 - n)
-     r = sqrt((n-1)*edge_density/(M_PI*n));
+     // We solve for r by setting edge_prob = E / total possible edges
+     // for undirected edge_prob = E/(n choose 2)
+     // for directed   edge_prob = E/(n^2 - n)
+     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+       r = sqrt((n-1)*edge_density/(M_PI*n));
+     else
+       r = sqrt(2*(n-1)*edge_density/(M_PI*n));
      return(geometric_random_graph(n, r, edge_type, loops, seed));
      
    }else{
@@ -1104,18 +1108,24 @@ int64_t tri_count_kron_graph(kron_args_t * K)
 
 // IF we are given nz_per_row (z), we calculate edge_prob (e)
 // or if we are given edge_prob, we calculate nz_per_row
-// using with the following formulas
-// z*n = e*(n*(n-1)/2)
-// or
-// (z-1)*n = e*(n*(n-1)/2) (if we are forcing loops into the graph)
+// using with the following formulas:
+// WITH LOOPS:
+// z*n = e*(n*(n-1)/2) (for UNDIRECTED*) or z*n = e*(n(n-1)) for DIRECTED
+// WITHOUT LOOPS:
+// (z-1)*n = e*(n*(n-1)/2) (for UNDIRECTED*) or (z-1)*n = e*(n(n-1)) for DIRECTED
 //
 
-void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, self_loops loops){
+void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows,
+                                      edge_type edge_type, self_loops loops){
   if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
     if(loops == LOOPS)
-      *edge_prob = (2.0*(*nz_per_row-1))/(numrows-1);
+      *edge_prob = (*nz_per_row - 1)/(numrows - 1);
     else
-      *edge_prob = (2.0*(*nz_per_row))/(numrows-1);
+      *edge_prob = (*nz_per_row)/(numrows-1);
+    
+    if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      *edge_prob = *edge_prob*2;
+      
     if(*edge_prob > 1.0)
       *edge_prob = 1.0;
   } else {    // use erdos_renyi_prob to get nz_per_row

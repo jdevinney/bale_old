@@ -108,9 +108,11 @@ int main(int argc, char * argv[]){
   double nz_per_row = args.gstd.nz_per_row;
   double edge_prob = args.gstd.edge_prob;
   int64_t numrows = args.gstd.numrows;
-
+  edge_type edge_type = DIRECTED;
+  self_loops loops = NOLOOPS;
+  
   if(args.gstd.readfile == 0){
-    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, NOLOOPS);
+    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
   }
   
   if(!args.std.quiet ) {
@@ -135,7 +137,7 @@ int main(int argc, char * argv[]){
      mat = read_matrix_mm(args.gstd.filename);     
      if(!mat){printf("ERROR: transpose_matrix: read_matrix (%s) failed\n", args.gstd.filename); exit(1);}
   } else {
-    mat = random_graph(numrows, args.gstd.model, DIRECTED, NOLOOPS, edge_prob, args.std.seed);
+    mat = random_graph(numrows, args.gstd.model, edge_type, loops, edge_prob, args.std.seed);
     if(!mat){printf("ERROR: transpose_matrix: erdos_renyi_graph failed\n"); exit(1);}
   }
 

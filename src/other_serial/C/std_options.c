@@ -10,7 +10,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state){
   case ARGP_KEY_INIT:
     args->quiet = 0;
     args->seed = 122222;
-    args->models_mask = 1;
+    args->models_mask = 15;
     args->dump_files = 0;
     break;
   }
