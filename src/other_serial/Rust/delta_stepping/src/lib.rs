@@ -6,6 +6,19 @@ use std::io::Error;
 use std::ops::Range;
 use std::path::Path;
 
+// A helper function for dumping only part of a big data structure.
+// This should really go somewhere else than the delta_stepper lib.
+pub fn display_ranges(max_disp, num_items) -> Iterator<(<usize>, Vec<Range<usize>)> {
+        let mut ranges: Vec<Range<usize>> = Vec::new();
+        if max_disp <= num_items && max_disp > 0 {
+            ranges.push(0..max_disp/2);
+            ranges.push(num_items-max_disp/2..num_items);
+        } else {
+            ranges.push(0..num_items);
+        }
+        ranges.iter().enumerate()
+}
+
 // Output structure for single-source shortest path
 #[derive(Debug, Clone)]
 pub struct SsspInfo {
@@ -16,21 +29,15 @@ pub struct SsspInfo {
 
 impl SsspInfo {
     // Dump output distances to a file
-    pub fn dump(&self, maxdisp: usize, filename: &str) -> Result<(),Error> { //jg: why 2 outs when perm has 1?
+    pub fn dump(&self, max_disp: usize, filename: &str) -> Result<(),Error> { //jg: 2 outs but perm has 1??
         let path = Path::new(&filename);
         let mut file = File::create(path)?;
-
         write!(file, "vtx: dist\n")?;
-
-        let mut ranges: Vec<Range<usize>> = Vec::new();
-        if maxdisp <= self.distance.len() && maxdisp > 0 {
-            ranges.push(0..maxdisp/2);
-            ranges.push(self.distance.len()-maxdisp/2..self.distance.len());
-        } else {
-            ranges.push(0..self.distance.len());
-        }
-        for r in ranges {
-            for v in r { 
+        for (i, r) in display_ranges(max_disp, self.distance.len() {
+            if i > 0 {
+                writeln!("...");
+            }
+            for v in r {  // should use zip 0-0
                 write!(file, "{}: {}\n", v, self.distance[v])?;
             }
         }
@@ -62,11 +69,12 @@ struct BucketSearcher {
     activated: Vec<bool>,        // has this vtx ever been activated? 
     bucket: Vec<Option<usize>>,  // what bucket if any is this vtx in? don't need except for debugging.
     bucket_size: Vec<usize>,     // number of vertices in this bucket
-    active_bucket: usize,        // active bucket, current outer loop iter (0..num_buckets, with reuse)
 
     // iterator notes:
     // BucketSearcher should also have an iterator that updates the active bucket, skipping to the
     // next nonempty bucket (% num_buckets) and stopping when all buckets are empty.
+    // (Yes, but I'm not going to put active_bucket in the struct.)
+    // Also there should be an iterator that yields the vertices in a bucket.
       
     // parallel notes: 
     // Vertices belong to PEs in round-robin order. 
@@ -107,8 +115,6 @@ impl BucketSearcher {
         let mut bucket = vec![Option::<usize>::None; nv]; // 0-0 why Option::<> not Option<>?
         // initially every bucket contains zero vertices.
         let bucket_size = vec![0; num_buckets];
-        // initially the active bucket is 0, since it will contain the source.
-        let active_bucket = 0; 
 
         //barrier here
 
@@ -123,9 +129,52 @@ impl BucketSearcher {
             activated,
             bucket,
             bucket_size,
-            active_bucket,
         }
     }
+
+    // Dump bucket structure state to a file
+    fn dump(&self, max_disp: usize, filename: &str) -> Result<(),Error> { //jg: why 2 outs when perm has 1?
+        let path = Path::new(&filename);
+        let mut file = File::create(path)?;
+        let nv = self.graph.numrows;
+        writeln!(file, "==========================================================")?;
+        writeln!(file, "BucketSearcher: nv={}, num_buckets={}, delta={}", nv, self.num_buckets, self.delta)?;
+        writeln!(file, "elt: prev_elt next_elt bucket activated tentative_dist")?;
+        for (i,r) in display_ranges(max_disp, nv) {
+            if i > 0 {
+                writeln!("...");
+            }
+            for v in r {  // should be firstlist(r).zip(secondlist(r)) 0-0
+                writeln!(
+                    file, 
+                    "{}: {} {} {} {} {}", 
+                    self.prev_elt[v], 
+                    self.next_elt[v], 
+                    self.bucket[v], 
+                    self.activated[v], 
+                    self.tentative_dist[v]
+                )?;
+            }
+        }
+        for v in nv..nv+self.num_buckets {  // should use zip 0-0
+            writeln!(file, "{}: {} {}", self.prev_elt[v], self.next_elt[v])?;
+        }
+        writeln!(file, "bucket (bucket_size): elt elt ...")?;
+        for (i, r) in display_ranges(max_disp, self.num_buckets) {
+            if i > 0 {
+                writeln!("...")?;
+            }
+            for b in r {  
+                write!(file, "{} ({}):", b, self.bucket_size[b])?;
+                // for e in self.bucket_iter(b) {
+                //     write!(file, " {}", e)?;
+                // }
+                write!(file, "\n")?;
+            }
+        }
+        writeln!(file, "==========================================================")?;
+        Ok(())
+    }   
 
     // what bucket does a vtx with this tentative distance go in?
     fn home_bucket(&self, dist: f64) -> usize {
@@ -242,7 +291,9 @@ impl DeltaStepping for SparseMat {
         // outer loop: for each nonempty bucket in order ...
         // need an iterator in BucketSearcher that starts active_bucket at 0,
         // steps forward (%num_buckets) to next nonempty bucket, and ends when all buckets empty.
-        // for (searcher.iter.first(), searcher.iter.next()) {
+        // for active_bucket = 0; active_bucket = searcher.iter.next()) {
+        let active_bucket = 0; // just so this will compile without the iterator
+        {
             let mut removed: Vec<usize> = Vec::new(); // vertices removed from active bucket, R in paper
         
             // middle loop: while active bucket (B[i] in paper) is not empty ...
@@ -263,7 +314,7 @@ impl DeltaStepping for SparseMat {
             let requests = searcher.find_heavy_requests(removed);
             searcher.relax_requests(requests);
 
-        // } end of outer loop
+        } // end of outer loop
 
         // return the info struct, which will now own the distance array
         SsspInfo {
