@@ -125,15 +125,10 @@ int main(int argc, char * argv[])
   
   numrows = l_numrows * THREADS;
 
-  /* set erdos_renyi_prob and nz_per_row to be consistent */
-  if(nz_per_row == -1 && erdos_renyi_prob == 0){
-    nz_per_row = 10;
-  }else if(nz_per_row == -1){
-    nz_per_row = erdos_renyi_prob*numrows;
+  if(!readmat){
+    resolve_edge_prob_and_nz_per_row(&edge_density, &nz_per_row, numrows, NOLOOPS);
   }
-  erdos_renyi_prob = (2.0*nz_per_row)/(numrows-1);
-  if(erdos_renyi_prob > 1.0)
-    erdos_renyi_prob = 1.0;
+  
 
   T0_fprintf(stderr,"Running transpose_matrix on %d threads\n", THREADS);
   T0_fprintf(stderr,"buf_cnt (stack size)        (-b) = %"PRId64"\n", buf_cnt);

@@ -204,7 +204,7 @@ SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_agi(int64_t N, int seed);
 sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                                  double edge_density, int64_t seed);
-
+void                resolve_edge_prob_and_nz_per_row(double * edge_prob, int64_t * nz_per_row, int64_t numrows, self_loops loops);
 sparsemat_t *       transpose_matrix(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);

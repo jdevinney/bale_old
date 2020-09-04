@@ -1273,6 +1273,28 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat) {
   return(destmat);
 }
 
+// IF we are given nz_per_row (z), we calculate edge_prob (e)
+// or if we are given edge_prob, we calculate nz_per_row
+// using with the following formulas
+// z*n = e*(n*(n-1)/2)
+// or
+// (z-1)*n = e*(n*(n-1)/2) (if we are forcing loops into the graph)
+//
+
+void resolve_edge_prob_and_nz_per_row(double * edge_prob, int64_t * nz_per_row, int64_t numrows, self_loops loops){
+  if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
+    if(loops == LOOPS)
+      *edge_prob = (2.0*(*nz_per_row-1))/(numrows-1);
+    else
+      *edge_prob = (2.0*(*nz_per_row))/(numrows-1);
+    if(*edge_prob > 1.0)
+      *edge_prob = 1.0;
+  } else {    // use erdos_renyi_prob to get nz_per_row
+    *nz_per_row = *edge_prob * ((numrows - 1)/2.0);
+  }
+  assert(*edge_prob <= 1.0);
+}
+
 /*! \brief initializes the struct that holds a sparse matrix
  *    given the total number of rows and columns and the local number of non-zeros
  * \param numrows total number of rows
