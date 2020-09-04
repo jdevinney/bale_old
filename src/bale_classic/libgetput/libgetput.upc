@@ -227,7 +227,7 @@ void lgp_init(int argc, char *argv[]) {
   time_t now = time(NULL);
   struct tm *date = localtime(&now);
  
-  T0_fprintf(stderr,"Bale Version %d (OpenShmem version %d.%d): %04d-%02d-%02d.%02d:%02d\n",
+  T0_fprintf(stderr,"Bale Version %4.2f (OpenShmem version %d.%d): %04d-%02d-%02d.%02d:%02d\n",
 	     BALE_VERSION,
              SHMEM_MAJOR_VERSION, SHMEM_MINOR_VERSION,
              date->tm_year+1990, date->tm_mon+1, date->tm_mday, date->tm_hour, date->tm_min); 
