@@ -8,6 +8,8 @@ The bale effort is, first and foremost, a vehicle for discussion for parallel pr
 
 This is a self contained directory that does not depend on build process for the rest of bale.
 
+This code is here to help gain a basic understanding of some of the bale apps since the implementations here remove the complexity of parallelism. 
+
 ## Nitty Gritty
 
 ### Where does it run?
@@ -35,7 +37,12 @@ We have been using gcc, but this should run in C environment.
 - mainpage.h - The main documentation page.
 
 ## Build Instructions
-Should only need to type make.
+This is meant to be basic C, so hopefully just
+typing 'make' will work. However, we do use the argp library from the
+GNU standard library. This is usually present by default on most linux
+systems. On Mac, you will probably have to install it by hand (one way
+to do this is 'brew install argp-standalone') and then mess with your
+LD_LIBRARY_PATH and LDFLAGS variables.
 
 ## Testing
 We are working on a new test script that uses pytest as a harness. To run this test, go to

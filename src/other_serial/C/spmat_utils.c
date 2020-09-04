@@ -1283,7 +1283,6 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
         this_node = sec->points[k].index;
 
         if(loops == LOOPS){
-          printf("huh?");
           append_edge(el, this_node, this_node);
         }
         // count the edges to lower-indexed nodes within this sector
@@ -1374,7 +1373,6 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 
   int64_t row = 0;
   for(i = 0; i < el->num; i++){
-    //printf("i %ld: %ld %ld\n", i, el->edges[i].row, el->edges[i].col);
     while(row != el->edges[i].row){
       row++;
       assert(row < n);
@@ -1384,100 +1382,15 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     if(weighted) A->value[i] = (double)rand()/RAND_MAX;
   }
   
-  while(row <= n){
-    A->offset[row++] = el->num;
+  while(row < n){
+    row++;
+    A->offset[row] = el->num;
   }
 
   clear_edge_list(el);
   
-#if 0
-  // go back through the loop and populate the adjacency matrix
-  nedges = 0;
-  for(i = 0; i < nsectors_across; i++){
-    for(j = 0; j < nsectors_across; j++){
-       
-       sector_t * sec = &sectors[i][j];
-       int64_t m = sec->numpoints;
-       for(k = 0; k < m; k++){
-         
-         node = sec->points[k].index;
-
-         if(loops == LOOPS){
-           A->nonzero[nedges] = node;
-           if(weighted) A->value[nedges] = rand()/RAND_MAX;
-           nedges++;
-         }
-         
-         // count the edges to lower-indexed nodes within this sector
-         for(l = 0; l < k; l++){
-           if(dist(sec->points[k], sec->points[l]) < r2){
-             A->nonzero[nedges] = sec->points[l].index;
-             assert(node >= sec->points[l].index);
-             if(weighted) A->value[nedges] = rand()/RAND_MAX;
-             nedges++;
-           }
-         }
-
-         // count the edges to lower-indexed nodes outside the sector
-         // to do this, we need to look at sectors to the W, NW, N, and NE.
-         // W
-         if(j > 0){
-           sector_t * sec2 = &sectors[i][j-1];
-           for(l = 0; l < sec2->numpoints; l++){
-             if(dist(sec->points[k], sec2->points[l]) < r2){
-               A->nonzero[nedges] = sec2->points[l].index;
-               assert(node >= sec2->points[l].index);
-               if(weighted) A->value[nedges] = rand()/RAND_MAX;
-               nedges++;
-             }
-           }
-         } 
-         // NW
-         if(i > 0 && j > 0){
-           sector_t * sec2 = &sectors[i-1][j-1];
-           for(l = 0; l < sec2->numpoints; l++){
-             if(dist(sec->points[k], sec2->points[l]) < r2){
-               A->nonzero[nedges] = sec2->points[l].index;
-               assert(node >= sec2->points[l].index);
-               if(weighted) A->value[nedges] = rand()/RAND_MAX;
-               nedges++;
-             }
-           }
-         } 
-         // N
-         if(i > 0){
-           sector_t * sec2 = &sectors[i-1][j];
-           for(l = 0; l < sec2->numpoints; l++){
-             if(dist(sec->points[k], sec2->points[l]) < r2){
-               A->nonzero[nedges] = sec2->points[l].index;
-               assert(node >= sec2->points[l].index);
-               if(weighted) A->value[nedges] = rand()/RAND_MAX;
-               nedges++;
-             }
-           }
-         }
-         // NE
-         if(i > 0 && j < (nsectors_across-1)){
-           sector_t * sec2 = &sectors[i-1][j+1];
-           for(l = 0; l < sec2->numpoints; l++){
-             if(dist(sec->points[k], sec2->points[l]) < r2){
-               A->nonzero[nedges] = sec2->points[l].index;
-               assert(node >= sec2->points[l].index);
-               if(weighted) A->value[nedges] = rand()/RAND_MAX;
-               nedges++;
-             }
-           }
-         }
-         A->offset[node+1] = nedges;
-         node++;
-       }
-              
-     }
-   }
-   sort_nonzeros(A);
-#endif
-   
-   return(A);
+  return(A);
+  
  }
 
  
