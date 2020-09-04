@@ -40,7 +40,7 @@
  */
 
 #include "libgetput.h"
-#if __UPC_ATOMIC__
+#if __UPC__ && __UPC_ATOMIC__ && !( __cray__ || _CRAYC )
 // this is relevant for BUPC or GUPC
 #include <upc_atomic.h>
 upc_atomicdomain_t * lgp_atomic_domain;
@@ -57,7 +57,7 @@ void lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   int64_t pe = index % shmem_n_pes();
   //shmem_int64_atomic_add(&ptr[lindex], value, pe);
   shmem_atomic_add(&ptr[lindex], value, (int)pe);
-#elif _CRAYC 
+#elif __cray__ || _CRAYC
   _amo_aadd(&ptr[index], value);
 #elif __BERKELEY_UPC_RUNTIME__
   bupc_atomicI64_fetchadd_relaxed(&ptr[index], value);
@@ -76,7 +76,7 @@ void lgp_atomic_add_async(SHARED int64_t * ptr, int64_t index, int64_t value){
   int64_t pe = index % shmem_n_pes();
   //shmem_int64_atomic_add(&ptr[lindex], value, pe);
   shmem_atomic_add(&ptr[lindex], value, (int)pe);
-#elif _CRAYC
+#elif __cray__ || _CRAYC
 #pragma pgas defer_sync
   _amo_aadd_upc(&ptr[index], value);
 #elif __BERKELEY_UPC_RUNTIME__
@@ -95,7 +95,7 @@ int64_t lgp_fetch_and_inc(SHARED int64_t * ptr, int64_t index) {
   int64_t pe = index % shmem_n_pes();
   //ret = shmem_int64_atomic_fetch_inc(&ptr[lindex], pe);
   ret = shmem_atomic_fetch_inc(&ptr[lindex], (int)pe);
-#elif _CRAYC
+#elif __cray__ || _CRAYC
   ret = _amo_afadd(&ptr[index], 1L);
 #elif __BERKELEY_UPC_RUNTIME__
   ret = bupc_atomicI64_fetchadd_relaxed(&ptr[index], 1L);
@@ -116,7 +116,7 @@ int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   int64_t pe = index % shmem_n_pes();
   //ret = shmem_int64_atomic_fetch_add(&ptr[lindex], value, pe);
   ret = shmem_atomic_fetch_add(&ptr[lindex], value, (int)pe);
-#elif _CRAYC
+#elif __cray__ || _CRAYC
   ret = _amo_afadd(&ptr[index], value);
 #elif __BERKELEY_UPC_RUNTIME__
   ret = bupc_atomicI64_fetchadd_relaxed(&ptr[index], value);
@@ -138,7 +138,7 @@ int64_t lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, i
   int64_t pe = index % shmem_n_pes();
   //ret = shmem_int64_atomic_compare_swap(&ptr[lindex], cmp_val, swap_val, pe);
   ret = shmem_atomic_compare_swap(&ptr[lindex], cmp_val, swap_val, (int)pe);
-#elif _CRAYC
+#elif __cray__ || _CRAYC
   ret = _amo_acswap_upc(&ptr[index], cmp_val, swap_val);
 #elif __BERKELEY_UPC_RUNTIME__
   ret = bupc_atomicI64_cswap_relaxed(&ptr[index], cmp_val, swap_val);
@@ -180,7 +180,9 @@ void lgp_init(int argc, char *argv[]) {
 
   setlocale(LC_NUMERIC,"");
 
+#if __UPC_ATOMIC__ && !( __cray__ || _CRAYC )
   lgp_atomic_domain = upc_all_atomicdomain_alloc(UPC_INT64, UPC_ADD | UPC_INC | UPC_MAX | UPC_MIN | UPC_CSWAP, 0);
+#endif
 }
 
 /*!

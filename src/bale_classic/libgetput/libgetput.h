@@ -62,13 +62,13 @@
 #include "config.h"
 #endif
 
-#if _CRAYC
+#if __cray__ || _CRAYC
 #include <intrinsics.h>
 #else
 #define _rtc() 0  /*!< the realtime clock */
 #endif
 
-#if __UPC__
+#if __UPC__ && __UPC_ATOMIC__ && !( __cray__ || _CRAYC )
 extern upc_atomicdomain_t * lgp_atomic_domain;
 #endif
 
