@@ -75,22 +75,24 @@ struct BucketSearcher<'a> {
     // iterator notes:
     // BucketSearcher should also have an iterator that updates the active bucket, skipping to the
     // next nonempty bucket (% num_buckets) and stopping when all buckets are empty.
-    // (Yes, but I'm not going to put active_bucket in the struct.)
-    // Also there should be an iterator that yields the vertices in a bucket.
+    // (But I'm not going to put active_bucket in the struct.)
+    // Also there should be an iterator that yields the vertices in a bucket,
+    // and keeps working when its current vertex is removed from the bucket.
       
     // parallel notes: 
     // Vertices belong to PEs in round-robin order. 
     // Each PE has its own copy of every bucket, but only containing vertices it owns.
     // (Say nv >= 100 * num_buckets * THREADS. Then storage for buckets is relatively small.)
-    // Arrays indexed only by vtx are shared: tentative_dist, activated, bucket.
+    // Arrays indexed only by vtx are split among PEs (but don't have to be shared, I think): 
+    //     tentative_dist, activated, bucket.
     // Arrays bucket_size and bucket_header are local to each PE.
-    // Arrays prev_elt and next_elt are shared, but link together only the vtxs on the local PE.
-    // The bucket-header nodes at the end of prev_elt and next_elt have copies for each PE.
+    // Arrays prev_elt and next_elt are also split, linking together only the vtxs on the local PE.
+    // The bucket-header nodes at the end of prev_elt and next_elt have copies on each PE.
     // The parallelism all happens in relax_requests, where a request to relax an edge with head w
     // gets conveyed to the PE that owns w.
 }
 
-impl<'a> BucketSearcher<'a> { // this also compiled as impl BucketSearcher<'_> { (suggested by an error msg)
+impl<'a> BucketSearcher<'a> { 
 
     // Create a bucket structure for a weighted graph
     fn new(graph: &SparseMat, delta: f64) -> BucketSearcher { // I guess this uses lifetime elision
@@ -98,7 +100,7 @@ impl<'a> BucketSearcher<'a> { // this also compiled as impl BucketSearcher<'_> {
         let mut max_edge_len: f64 = 0.0;
         if let Some(edge_len) = &graph.value { // 0-0 yuck! and max_edge_len = edge_len.max(); fails
             for c in edge_len {
-                if *c > max_edge_len { // 0-0 the compiler want *c here, which I don't understand
+                if *c > max_edge_len { // 0-0 the compiler wants *c here, which I don't understand
                     max_edge_len = *c;
                 }
             }
@@ -157,7 +159,7 @@ impl<'a> BucketSearcher<'a> { // this also compiled as impl BucketSearcher<'_> {
                     v,
                     self.prev_elt[v], 
                     self.next_elt[v], 
-                    if let Some(b) = self.bucket[v] {b.to_string()} else {"None".to_string()},
+                    if let Some(b) = self.bucket[v] {b.to_string()} else {"N".to_string()},
                     self.activated[v], 
                     self.tentative_dist[v]
                 )?;
@@ -167,13 +169,18 @@ impl<'a> BucketSearcher<'a> { // this also compiled as impl BucketSearcher<'_> {
             writeln!(file, "{}: {} {}", v, self.prev_elt[v], self.next_elt[v])?;
         }
         writeln!(file, "bucket (bucket_size): elt elt ...")?;
-        // for (i, r) in display_ranges(max_disp, self.num_buckets) {
+        // for elt in display_ranges(max_disp, self.num_buckets) {
         //     if i > 0 {
         //         writeln!("...")?;
         //     }
         for r in display_ranges(max_disp, self.num_buckets) {
             for b in r {  
                 write!(file, "{} ({}):", b, self.bucket_size[b])?;
+                for elt in self.bucket[b] {
+                write!(file, " {}", elt)?;
+                }
+
+
                 // for e in self.bucket_iter(b) {
                 //     write!(file, " {}", e)?;
                 // }
@@ -278,8 +285,8 @@ pub trait DeltaStepping {
 
 impl DeltaStepping for SparseMat {
 
-    /// This routine implements the sequential AGI variant of delta stepping.
-    /// # Arguments: source vertex
+    /// This implements the sequential AGI variant of delta stepping.
+    /// # Argument: source vertex
     fn delta_stepping(&self, source: usize) -> SsspInfo {
         assert!(self.numrows == self.numcols);
         assert!(source < self.numrows);
@@ -295,11 +302,9 @@ impl DeltaStepping for SparseMat {
         // use relax to set tent(source) to 0, which also puts it in bucket 0
         searcher.relax(Request{w: source, dist: 0.0});
 
-        searcher.dump(20, "buckets.out");
+        searcher.dump(20, "buckets.out").expect("bucket dump failed");
 
         // outer loop: for each nonempty bucket in order ...
-        // need an iterator in BucketSearcher that starts active_bucket at 0,
-        // steps forward (%num_buckets) to next nonempty bucket, and ends when all buckets empty.
         // for active_bucket = 0; active_bucket = searcher.iter.next()) {
         let active_bucket = 0; // just so this will compile without the iterator
         {
@@ -313,8 +318,6 @@ impl DeltaStepping for SparseMat {
                 // relax light edges, which may put some removed and other vtxs into the active bucket.
 
                 let requests = searcher.find_light_requests(active_bucket); 
-                // let new_vtxs = searcher.newly_active_vertices(active_bucket);
-                // removed.append(&new_vtxs);
                 removed.append(&mut searcher.newly_active_vertices(active_bucket));
                 searcher.empty_bucket(active_bucket);
                 searcher.relax_requests(requests);
