@@ -64,7 +64,7 @@
 
 /*** Bit operations ***/
 
-#ifdef _CRAYC
+#if defined(_CRAYC) || defined(__cray__)
 
 #include <intrinsics.h>
 static inline int64_t _trailz(uint64_t x)
@@ -112,7 +112,7 @@ static inline int64_t _trailz (uint64_t x)
 
 #endif  // defined(__GNUC__)
 
-#endif  // defined(_CRAYC)
+#endif  // defined(_CRAYC) || defined(__cray__)
 
 
 /*** Prefetch exclusive (write intent) ***/

@@ -33,7 +33,7 @@
 #include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
-#if _CRAYC && __UPC__
+#if (__cray__ || _CRAYC) && __UPC__
 # include <upc_cray.h>
 # include <intrinsics.h>
 #endif
@@ -129,7 +129,7 @@ upcx_min_long(long myval)
 void
 upcx_all_free(shared void* ptr)
 {
-#if _CRAYC && __UPC__
+#if (__cray__ || _CRAYC) && __UPC__
   upc_all_free(ptr);
 #else
   // This barrier ensures that all threads are finished with the memory.
