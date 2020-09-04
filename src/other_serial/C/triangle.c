@@ -114,6 +114,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
+    {0, 0, 0, 0, "Input as a Kronecker graph:", 3},
     {"kronecker", 'K', 0, 0, "Specify the input to be a Kronecker Product graph"},
     {0}
   };
@@ -163,6 +164,7 @@ int main(int argc, char * argv[])
     }
     fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
     fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
+    fprintf(stderr,"---------------------------------------\n");
   }
 
   
@@ -194,6 +196,7 @@ int main(int argc, char * argv[])
     spmat_stats(mat);
     if(args.kronecker )
       printf("Kronecker model should have %"PRId64" triangles\n", tri_count_kron_graph(kron_args));
+    fprintf(stderr,"---------------------------------------\n");
   }
     
   if(args.std.dump_files){
@@ -205,14 +208,14 @@ int main(int argc, char * argv[])
     triangles = 0;
     switch( use_model & args.std.models_mask ){
     case GENERIC:
-      if( !quiet ) printf("Generic      Triangle: ");
+      if( !quiet ) printf("Generic Triangle: ");
         laptime = triangles_matrix(&triangles, mat);
       break;
     default:
       continue;
     }
     if( !quiet ) 
-      printf(" %12"PRId64" triangles : %8.3lf seconds\n", triangles, laptime);
+      printf(" %12"PRId64" triangles,  %8.3lf seconds\n", triangles, laptime);
   }
  
   if(args.kronecker) 

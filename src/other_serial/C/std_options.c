@@ -53,9 +53,9 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option graph_options[] =
   {
-    {0, 0, 0, 0, "Input (as file):", 1},
+    {0, 0, 0, 0, "Input (as file):", 5},
     {"readfile",   'f', "FILE",  0, "Read input from a file"},
-    {0, 0, 0, 0, "Input (as random graph):", 2},
+    {0, 0, 0, 0, "Input (as random graph):", 6},
     {"numrows",    'n', "NUM",   0, "Number of rows in a matrix"},
     {"edge_prob",  'e', "EDGEP", 0, "Probability that an edge appears"},
     {"flat",       'F', 0,       0, "Specify flat random graph model"},

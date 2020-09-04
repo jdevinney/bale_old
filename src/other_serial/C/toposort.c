@@ -379,16 +379,18 @@ int main(int argc, char * argv[])
     }
     fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
     fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
+    fprintf(stderr,"---------------------------------------\n");
   }
   
   
-  if(!quiet) printf("Creating input matrix for toposort\n");
+  //if(!quiet) printf("Creating input matrix for toposort\n");
   sparsemat_t * mat = generate_toposort_input (numrows, args.gstd.model, edge_prob, args.std.seed, args.std.dump_files);
   if(!mat){printf("ERROR: topo: generate_toposort_input failed\n"); exit(1);}
   
   if(!quiet){
     printf("Input matrix stats:\n");
     spmat_stats(mat);
+    fprintf(stderr,"---------------------------------------\n");
   }
   if(args.std.dump_files) dump_matrix(mat,20, "mat.out");
 
