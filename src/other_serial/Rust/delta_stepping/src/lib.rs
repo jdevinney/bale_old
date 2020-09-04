@@ -8,7 +8,7 @@ use std::path::Path;
 
 // A helper function for dumping only part of a big data structure.
 // This should really go somewhere else than the delta_stepper lib.
-pub fn display_ranges(max_disp, num_items) -> Iterator<(<usize>, Vec<Range<usize>)> {
+pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
         let mut ranges: Vec<Range<usize>> = Vec::new();
         if max_disp <= num_items && max_disp > 0 {
             ranges.push(0..max_disp/2);
@@ -16,7 +16,8 @@ pub fn display_ranges(max_disp, num_items) -> Iterator<(<usize>, Vec<Range<usize
         } else {
             ranges.push(0..num_items);
         }
-        ranges.iter().enumerate()
+        //ranges.iter().enumerate()
+        ranges
 }
 
 // Output structure for single-source shortest path
@@ -29,14 +30,15 @@ pub struct SsspInfo {
 
 impl SsspInfo {
     // Dump output distances to a file
-    pub fn dump(&self, max_disp: usize, filename: &str) -> Result<(),Error> { //jg: 2 outs but perm has 1??
+    pub fn dump(&self, max_disp: usize, filename: &str) -> Result<(),Error> { //2 outs but perm has 1??
         let path = Path::new(&filename);
         let mut file = File::create(path)?;
         write!(file, "vtx: dist\n")?;
-        for (i, r) in display_ranges(max_disp, self.distance.len() {
-            if i > 0 {
-                writeln!("...");
-            }
+        // for (i, r) in display_ranges(max_disp, self.distance.len()) {
+        //     if i > 0 {
+        //         writeln!("...");
+        //     }
+        for r in display_ranges(max_disp, self.distance.len()) {
             for v in r {  // should use zip 0-0
                 write!(file, "{}: {}\n", v, self.distance[v])?;
             }
@@ -58,8 +60,8 @@ struct Request {
 // A vertex's "elt" number is its vertex number.
 // The header of bucket i (with reuse) is "elt" number num_buckets + i.
 
-struct BucketSearcher {
-    graph: &SparseMat,           // the graph being searched
+struct BucketSearcher<'a> {
+    graph: &'a SparseMat,        // the graph being searched
     delta: f64,                  // width of a bucket
     num_buckets: usize,          // number of actual buckets, taking into account reuse
     tentative_dist: Vec<f64>,    // current tentative distance from source to this vtx
@@ -88,17 +90,20 @@ struct BucketSearcher {
     // gets conveyed to the PE that owns w.
 }
 
-impl BucketSearcher {
+impl<'a> BucketSearcher<'a> { // this also compiled as impl BucketSearcher<'_> { (suggested by an error msg)
 
     // Create a bucket structure for a weighted graph
-    fn new(graph: &SparseMat, delta: f64) -> BucketSearcher {
+    fn new(graph: &SparseMat, delta: f64) -> BucketSearcher { // I guess this uses lifetime elision
         let nv = graph.numrows;
         let mut max_edge_len: f64 = 0.0;
-        if let Some(edge_len) = graph.value { // jg 0-0 yuck! and max_edge_len = edge_len.max(); fails
+        if let Some(edge_len) = &graph.value { // 0-0 yuck! and max_edge_len = edge_len.max(); fails
             for c in edge_len {
-                max_edge_len.max(c);
+                if *c > max_edge_len { // 0-0 the compiler want *c here, which I don't understand
+                    max_edge_len = *c;
+                }
             }
         }
+        println!("max_edge_len = {}", max_edge_len);
         // upper bound on number of buckets we will ever need at the same time
         let num_buckets = (max_edge_len/delta).ceil() as usize + 1;
         // tentative distances all start out infinite, including source
@@ -133,37 +138,40 @@ impl BucketSearcher {
     }
 
     // Dump bucket structure state to a file
-    fn dump(&self, max_disp: usize, filename: &str) -> Result<(),Error> { //jg: why 2 outs when perm has 1?
+    fn dump(&self, max_disp: usize, filename: &str) -> Result<(),Error> { // why 2 outs when perm has 1?
         let path = Path::new(&filename);
         let mut file = File::create(path)?;
         let nv = self.graph.numrows;
         writeln!(file, "==========================================================")?;
         writeln!(file, "BucketSearcher: nv={}, num_buckets={}, delta={}", nv, self.num_buckets, self.delta)?;
         writeln!(file, "elt: prev_elt next_elt bucket activated tentative_dist")?;
-        for (i,r) in display_ranges(max_disp, nv) {
-            if i > 0 {
-                writeln!("...");
-            }
+        // for (i,r) in display_ranges(max_disp, nv) {
+        //     if i > 0 {
+        //         writeln!("...");
+        //     }
+        for r in display_ranges(max_disp, nv) {
             for v in r {  // should be firstlist(r).zip(secondlist(r)) 0-0
                 writeln!(
                     file, 
                     "{}: {} {} {} {} {}", 
+                    v,
                     self.prev_elt[v], 
                     self.next_elt[v], 
-                    self.bucket[v], 
+                    if let Some(b) = self.bucket[v] {b.to_string()} else {"None".to_string()},
                     self.activated[v], 
                     self.tentative_dist[v]
                 )?;
             }
         }
         for v in nv..nv+self.num_buckets {  // should use zip 0-0
-            writeln!(file, "{}: {} {}", self.prev_elt[v], self.next_elt[v])?;
+            writeln!(file, "{}: {} {}", v, self.prev_elt[v], self.next_elt[v])?;
         }
         writeln!(file, "bucket (bucket_size): elt elt ...")?;
-        for (i, r) in display_ranges(max_disp, self.num_buckets) {
-            if i > 0 {
-                writeln!("...")?;
-            }
+        // for (i, r) in display_ranges(max_disp, self.num_buckets) {
+        //     if i > 0 {
+        //         writeln!("...")?;
+        //     }
+        for r in display_ranges(max_disp, self.num_buckets) {
             for b in r {  
                 write!(file, "{} ({}):", b, self.bucket_size[b])?;
                 // for e in self.bucket_iter(b) {
@@ -182,7 +190,7 @@ impl BucketSearcher {
     }
 
     // remove a vtx from the bucket it's in. (harmless if not in a bucket)
-    fn remove_from_bucket(&self, w: usize) {
+    fn remove_from_bucket(&mut self, w: usize) {
         if let Some(b) = self.bucket[w] {
             self.prev_elt[self.next_elt[w]] = self.prev_elt[w];
             self.next_elt[self.prev_elt[w]] = self.next_elt[w];
@@ -194,7 +202,7 @@ impl BucketSearcher {
     }
 
     // insert a vtx into a bucket it's not in. (vtx must not be in a bucket)
-    fn place_in_bucket(&self, w:usize, new_bucket: usize) {
+    fn place_in_bucket(&mut self, w:usize, new_bucket: usize) {
         assert!(self.bucket[w] == None);
         assert!(self.prev_elt[w] == w);
         assert!(self.next_elt[w] == w);
@@ -210,31 +218,31 @@ impl BucketSearcher {
     // we need an iterator over vertices in a bucket (that lets you remove a vtx in flight)
     fn find_light_requests(&self, bucket: usize) -> Vec<Request> { 
         let mut requests: Vec<Request> = Vec::new();
-        // 0-0
+        requests.push(Request{w: bucket, dist: 0.0}); //0-0
         requests
     }
 
     // make a list of all relaxation requests from heavy edges with tails on vtxlist
-    fn find_heavy_requests(&self, vtxlist: Vec<usize>) -> Vec<Request> { 
+    fn find_heavy_requests(&self, _vtxlist: Vec<usize>) -> Vec<Request> { 
         let mut requests: Vec<Request> = Vec::new();
-        // 0-0
+        requests.push(Request{w: 0, dist: 0.0}); //0-0
         requests
     }
 
     // return vertices in bucket that have not been activated(removed from an active bucket) before
-    fn newly_active_vertices(&self, bucket: usize) -> mut Vec<usize> { 
+    fn newly_active_vertices(&self, bucket: usize) -> Vec<usize> { 
         let mut new_vtxs: Vec<usize> = Vec::new(); 
-        // 0-0
+        new_vtxs.push(bucket); // 0-0
         new_vtxs
     }
 
     // remove all vertices from the bucket and mark them activated
-    fn empty_bucket(&self, bucket: usize) { 
+    fn empty_bucket(&mut self, _bucket: usize) { 
         // 0-0
     }
 
     // relax all the requests from this phase (could be parallel)
-    fn relax_requests(&self, requests: Vec<Request>) {
+    fn relax_requests(&mut self, requests: Vec<Request>) {
         // convey the request r=(w,d) to the PE that owns vtx w here, and have it call relax
         for r in requests {
             self.relax(r);
@@ -244,7 +252,7 @@ impl BucketSearcher {
 
     // relax an incoming edge to vtx r.w with new source distance r.dist, and rebucket r.w if necessary
     // this will be called by r.w's PE, so there is no race on tent[r.w] 
-    fn relax(&self, r: Request) {
+    fn relax(&mut self, r: Request) {
         if r.dist < self.tentative_dist[r.w] {
             let new_bucket = self.home_bucket(r.dist);
             if let Some(old_bucket) = self.bucket[r.w] {
@@ -275,7 +283,6 @@ impl DeltaStepping for SparseMat {
     fn delta_stepping(&self, source: usize) -> SsspInfo {
         assert!(self.numrows == self.numcols);
         assert!(source < self.numrows);
-        let nv = self.numrows;
 
         let t1 = wall_seconds().expect("wall second error");
 
@@ -287,6 +294,8 @@ impl DeltaStepping for SparseMat {
 
         // use relax to set tent(source) to 0, which also puts it in bucket 0
         searcher.relax(Request{w: source, dist: 0.0});
+
+        searcher.dump(20, "buckets.out");
 
         // outer loop: for each nonempty bucket in order ...
         // need an iterator in BucketSearcher that starts active_bucket at 0,
@@ -304,7 +313,9 @@ impl DeltaStepping for SparseMat {
                 // relax light edges, which may put some removed and other vtxs into the active bucket.
 
                 let requests = searcher.find_light_requests(active_bucket); 
-                removed.append(searcher.newly_active_vertices(active_bucket));
+                // let new_vtxs = searcher.newly_active_vertices(active_bucket);
+                // removed.append(&new_vtxs);
+                removed.append(&mut searcher.newly_active_vertices(active_bucket));
                 searcher.empty_bucket(active_bucket);
                 searcher.relax_requests(requests);
                 
