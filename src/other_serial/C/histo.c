@@ -153,7 +153,6 @@ double histo_sorted(int64_t *index, int64_t num_ups,  int64_t *counts)
   return( tm );
 }
 
-
 typedef struct args_t{
   int64_t num_ups;
   int64_t tbl_size;
@@ -177,7 +176,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
-    {"num_updates", 'n', "NUM", 0, "Number of updates to the histogram table"},
+    {"num_updates",'n', "NUM", 0, "Number of updates to the histogram table"},
     {"table_size", 'T', "SIZE", 0, "Number of entries in histogram table"},
     {0}
   };
@@ -196,7 +195,7 @@ int main(int argc, char * argv[])
   args_t args;
   args.tbl_size = 1L<<num_index_bits;
   args.num_ups = 100000;
-  struct argp argp = {options, parse_opt, 0, "Permute the rows and columns of a sparse matrix.", children_parsers};
+  struct argp argp = {options, parse_opt, 0, "Accumulate updates into a table.", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
   
   enum MODEL {GENERIC_Model=1, BUF_Model=2, SORT_Model=4, ALL_Models=8};
@@ -212,7 +211,7 @@ int main(int argc, char * argv[])
   int64_t * index  = calloc(args.num_ups, sizeof(int64_t)); assert(index != NULL);
   int64_t * counts = calloc(args.tbl_size, sizeof(int64_t)); assert(counts != NULL);  
 
-  if(!args.std.quiet){
+  if(!quiet){
     printf("Histogram Serial C\n");
     printf("num_updates: %ld\n", args.num_ups);
     printf("table size:  %ld\n", args.tbl_size);

@@ -327,10 +327,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   return(0);
 }
 
-static struct argp_option options[] =
-  {
-    {0}
-  };
+static struct argp_option options[] = {{0}};
 
 static struct argp_child children_parsers[] =
   {
