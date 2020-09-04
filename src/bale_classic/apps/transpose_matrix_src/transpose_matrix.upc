@@ -92,7 +92,7 @@ int main(int argc, char * argv[])
   int64_t check = 1;
   int64_t models_mask = 0xF;
   int printhelp = 0;
-  double erdos_renyi_prob = 0.0;
+  double edge_prob = 0.0;
   int64_t nz_per_row = -1;
   int64_t buf_cnt = 1024;
   int64_t l_numrows = 10000;
@@ -101,7 +101,7 @@ int main(int argc, char * argv[])
   sparsemat_t * inmat, * outmat;
   int64_t cores_per_node = 1;  
   graph_model model = FLAT;
-  
+  int readmat = 0;
   int opt; 
   while( (opt = getopt(argc, argv, "hb:c:Ce:FGn:M:s:Z:")) != -1 ) {
     switch(opt) {
@@ -109,7 +109,7 @@ int main(int argc, char * argv[])
     case 'b': sscanf(optarg,"%"PRId64"", &buf_cnt);  break;
     case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
     case 'C': check = 0; break;
-    case 'e': sscanf(optarg,"%lf", &erdos_renyi_prob); break;
+    case 'e': sscanf(optarg,"%lf", &edge_prob); break;
     case 'F': model = FLAT; break;
     case 'G': model = GEOMETRIC; break;  
     case 'n': sscanf(optarg,"%"PRId64"", &l_numrows);   break;
@@ -126,13 +126,13 @@ int main(int argc, char * argv[])
   numrows = l_numrows * THREADS;
 
   if(!readmat){
-    resolve_edge_prob_and_nz_per_row(&edge_density, &nz_per_row, numrows, NOLOOPS);
+    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, NOLOOPS);
   }
   
 
   T0_fprintf(stderr,"Running transpose_matrix on %d threads\n", THREADS);
   T0_fprintf(stderr,"buf_cnt (stack size)        (-b) = %"PRId64"\n", buf_cnt);
-  T0_fprintf(stderr,"Edge probability            (-e) = %lf\n", erdos_renyi_prob);
+  T0_fprintf(stderr,"Edge probability            (-e) = %lf\n", edge_prob);
   T0_fprintf(stderr,"Graph Model           (-F or -G)   %s\n", (model == FLAT ? "FLAT" : "GEOMETRIC"));
   T0_fprintf(stderr,"rows per PE (-n)                 = %"PRId64"\n", l_numrows);
   T0_fprintf(stderr,"models_mask (-M)                 = %"PRId64" or of 1,2,4,8,16 for gets,classic,exstack2,conveyor,alternate\n", models_mask);
@@ -144,7 +144,7 @@ int main(int argc, char * argv[])
   minavgmaxD_t stat[1];
   int64_t error = 0;
   
-  inmat = random_graph(numrows, model, DIRECTED, NOLOOPS, erdos_renyi_prob, seed + 2);
+  inmat = random_graph(numrows, model, DIRECTED, NOLOOPS, edge_prob, seed + 2);
   if(inmat == NULL){
     T0_printf("ERROR: inmat is null!\n");
     return(-1);
