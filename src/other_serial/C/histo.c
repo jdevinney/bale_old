@@ -162,7 +162,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
-    case 'N':
+    case 'n':
       args->num_ups = atol(arg); break;
     case 'T':
       args->tbl_size = atol(arg); break;
@@ -175,7 +175,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
-    {"num_updates", 'N', "NUM", 0, "Number of updates to the histogram table"},
+    {"num_updates", 'n', "NUM", 0, "Number of updates to the histogram table"},
     {"table_size", 'T', "SIZE", 0, "Number of entries in histogram table"},
     {0}
   };
@@ -193,7 +193,7 @@ int main(int argc, char * argv[])
   /* process command line */
   args_t args;
   args.tbl_size = 1L<<num_index_bits;
-  args.num_ups = 1L<25;
+  args.num_ups = 100000;
   struct argp argp = {options, parse_opt, 0, "Permute the rows and columns of a sparse matrix.", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
   
@@ -205,12 +205,17 @@ int main(int argc, char * argv[])
   num_index_bits = 0;
   while(args.tbl_size >> num_index_bits)
     num_index_bits++;
-  printf("tbl_size = %ld num_index_bits = %ld\n", args.tbl_size, num_index_bits);
   
   // index is an array of indices into the counts array.
   int64_t * index  = calloc(args.num_ups, sizeof(int64_t)); assert(index != NULL);
   int64_t * counts = calloc(args.tbl_size, sizeof(int64_t)); assert(counts != NULL);  
-  
+
+  if(!args.std.quiet){
+    printf("Histogram Serial C\n");
+    printf("num_updates: %ld\n", args.num_ups);
+    printf("table size:  %ld\n", args.tbl_size);
+    printf("----------------------\n");
+  }
   srand( args.std.seed );
   int64_t i;
   for(i = 0; i < args.num_ups; i++)

@@ -1,7 +1,7 @@
 
 #CFLAGS= -O3
 #CFLAGS= -std=c99
-LFLAGS= -lm 
+LFLAGS= -lm
 CC= gcc -Wall ${CFLAGS}
 
 SRC= spmat_utils.h spmat_utils.c 
@@ -49,17 +49,17 @@ demo_spmat: demo_spmat.c spmat_utils.o
 histo: histo.c std_options.o spmat_utils.o 
 	${CC} -g histo.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o histo
 
-ig: ig.c spmat_utils.o 
-	${CC} ig.c spmat_utils.o ${LFLAGS} -o ig
+ig: ig.c std_options.o spmat_utils.o 
+	${CC} ig.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o ig
 
-randperm: randperm.c spmat_utils.o
-	${CC} randperm.c spmat_utils.o ${LFLAGS} -o randperm
+randperm: randperm.c std_options.o spmat_utils.o
+	${CC} randperm.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o randperm
 
 topo: toposort.c std_options.o spmat_utils.o
 	${CC} toposort.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o topo
 
-triangles: triangle.c spmat_utils.o
-	${CC} triangle.c spmat_utils.o ${LFLAGS} -o triangles
+triangles: triangle.c std_options.o spmat_utils.o
+	${CC} -g triangle.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o triangles
 
 unionfind: unionfind.c spmat_utils.o
 	${CC} unionfind.c spmat_utils.o ${LFLAGS} -o unionfind

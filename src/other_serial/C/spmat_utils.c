@@ -214,9 +214,9 @@ int64_t write_matrix_mm(sparsemat_t *A, char * name){
 
   FILE * fp = fopen(name, "w");       // FIXME error
   if(A->value)
-    fprintf(fp,"%%%%MasterMarket matrix coordinate real\n");
+    fprintf(fp,"%%%%MatrixMarket matrix coordinate real\n");
   else
-    fprintf(fp,"%%%%MasterMarket matrix coordinate pattern\n");
+    fprintf(fp,"%%%%MatrixMarket matrix coordinate pattern\n");
   fprintf(fp, "%"PRId64" %"PRId64" %"PRId64"\n", A->numrows, A->numcols, A->nnz);
 
   for(i=0; i<A->numrows; i++){
@@ -261,7 +261,7 @@ int triple_comp(const void *a, const void *b)
   return( A->row - B->row );
 }
 
-/*! \brief read a sparse matrix from a file in a MasterMarket ASCII format
+/*! \brief read a sparse matrix from a file in a MatrixMarket ASCII format
  * \param name the filename to be read
  * \return a pointer to the sparse matrix or NULL on failure
  * TODO: get this to work for matrices with real values.
@@ -334,7 +334,7 @@ sparsemat_t  *read_matrix_mm(char * name)
       //fprintf(stderr,"--- %"PRId64" %"PRId64"\n",  elts[i].row, elts[i].col);
       assert ( 0<elts[i].row && elts[i].row <=nr);
       assert ( 0<elts[i].col && elts[i].col <=nc);
-      elts[i].row -=1;    // MasterMarket format is 1-up, not 0-up
+      elts[i].row -=1;    // MatrixMarket format is 1-up, not 0-up
       elts[i].col -=1;
     }
     
@@ -376,7 +376,7 @@ sparsemat_t  *read_matrix_mm(char * name)
       assert (fscanfret == 3);
       assert ( 0<elts[i].row && elts[i].row <=nr);
       assert ( 0<elts[i].col && elts[i].col <=nc);
-      elts[i].row -= 1;    // MasterMarket format is 1-up, not 0-up
+      elts[i].row -= 1;    // MatrixMarket format is 1-up, not 0-up
       elts[i].col -= 1;
     }
 

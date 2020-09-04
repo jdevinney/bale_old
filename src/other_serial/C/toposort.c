@@ -280,22 +280,22 @@ double toposort_matrix_loop(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sp
   int64_t n_pivots = 0;
   while(n_pivots < nr){      
     for(i = 0; i < nr; i++){
-			if( (rowtrck[i] >> 32) == 1 ){
-			  col = rowtrck[i] & 0xFFFF;  // see cool trick
-		   	rperm[i] = nr - 1 - n_pivots;
-			  cperm[col] = nc - 1 - n_pivots;
+      if( (rowtrck[i] >> 32) == 1 ){
+        col = rowtrck[i] & 0xFFFF;  // see cool trick
+        rperm[i] = nr - 1 - n_pivots;
+        cperm[col] = nc - 1 - n_pivots;
         n_pivots++;
-				rowtrck[i] = 0L;
+        rowtrck[i] = 0L;
 		
-			  // look at this column (tmat's row) to find all the rows that hit it
+        // look at this column (tmat's row) to find all the rows that hit it
         for(j=tmat->offset[col]; j < tmat->offset[col+1]; j++) {
-           t_row = tmat->nonzero[j];
-           assert((t_row) < mat->numrows);
-           rowtrck[t_row] -= (1L<<32) + col;
-				}
-			}
-		}
-	}
+          t_row = tmat->nonzero[j];
+          assert((t_row) < mat->numrows);
+          rowtrck[t_row] -= (1L<<32) + col;
+        }
+      }
+    }
+  }
   
   t1 = wall_seconds() - t1;
   

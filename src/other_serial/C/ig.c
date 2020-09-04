@@ -41,6 +41,7 @@
  */
 
 #include "spmat_utils.h"
+#include "std_options.h"
 
 /*! \page ig_page Indexgather */
 
@@ -145,58 +146,81 @@ double ig_buffered(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *tabl
   return( tm );
 }
 
+typedef struct args_t{
+  int64_t num_req;
+  int64_t tbl_size;
+  std_args_t std;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case 'n':
+      args->num_req = atol(arg); break;
+    case 'T':
+      args->tbl_size = atol(arg); break;
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] =
+  {
+    {"num_requests", 'n', "NUM",  0, "Number of requests to the table"},
+    {"table_size",   'T', "SIZE", 0, "Number of entries in look-up table"},
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {0}
+  };
+
 
 int main(int argc, char * argv[])
 {
   int64_t *table, *tgt;
-  int64_t log_tab_size = 21;
-  int64_t num_req  = 100000;
+  int64_t log_tbl_size = 21;
   int64_t *index;
-  uint32_t seed = 0x1234567;
+
+  /* process command line */
+  args_t args;
+  args.tbl_size = 1L<<log_tbl_size;
+  args.num_req = 100000;
+  struct argp argp = {options, parse_opt, 0, "Perform many look-ups from a table.", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
+
   enum MODEL {GENERIC_Model=1, BUF_Model=2, ALL_Models=4};
   uint32_t use_model;
-  uint32_t models_mask=ALL_Models - 1;
-  int printhelp = 0;
-  int quiet = 0;
-
-  int opt; 
-  while( (opt = getopt(argc, argv, "hT:n:s:M:q")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'T': sscanf(optarg,"%"SCNd64"" ,&log_tab_size);   break;
-    case 'n': sscanf(optarg,"%"SCNd64"" ,&num_req);   break;
-    case 's': sscanf(optarg,"%d" ,&seed);  break;
-    case 'M': sscanf(optarg,"%d" ,&models_mask);  break;
-    case 'q': quiet = 1; break;
-    default:  break;
-    }
-  }
-
-  if( printhelp || !quiet ) {
-    fprintf(stderr,"Running C version of ig\n");
-    fprintf(stderr,"help                  (-h)\n");
-    fprintf(stderr,"Log of the Table size (-T)= %"PRId64"\n", log_tab_size);
-    fprintf(stderr,"number of requests    (-n)= %"PRId64"\n", num_req );
-    fprintf(stderr,"models_mask           (-M)= %d\n", models_mask);
-    fprintf(stderr,"random seed           (-s)= %d\n", seed);
-    fprintf(stderr,"quiet                 (-q)= %d\n", quiet);
-    if(printhelp) 
-      return(0);
-  }
-  int64_t tbl_size = (1<<log_tab_size);
+  uint32_t models_mask = args.std.models_mask;
+  uint32_t quiet = args.std.quiet;
   
-  table   = calloc(tbl_size, sizeof(int64_t));
-  tgt     = calloc(num_req, sizeof(int64_t));
-  index   = calloc(num_req, sizeof(int64_t));
+  log_tbl_size = 0;
+  while(args.tbl_size >> log_tbl_size)
+    log_tbl_size++;
 
+  table   = calloc(args.tbl_size, sizeof(int64_t));
+  tgt     = calloc(args.num_req, sizeof(int64_t));
+  index   = calloc(args.num_req, sizeof(int64_t));
+
+  if(!quiet){
+    printf("Index Gather Serial C\n");
+    printf("num_requests: %ld\n", args.num_req);
+    printf("table size:  %ld\n", args.tbl_size);
+    printf("----------------------\n");
+  }
   //populate table array and the index array
   int64_t i;
-  for(i=0; i<tbl_size; i++)  // just fill the table with minus the index, so we check it easily
+  for(i=0; i<args.tbl_size; i++)  // just fill the table with minus the index, so we check it easily
     table[i] = -i;
 
-  srand(seed);
-  for(i = 0; i < num_req; i++)
-    index[i] = rand() % tbl_size; 
+  srand(args.std.seed);
+  for(i = 0; i < args.num_req; i++)
+    index[i] = rand() % args.tbl_size; 
 
   int64_t errors = 0L;
   double laptime = 0.0;
@@ -204,13 +228,13 @@ int main(int argc, char * argv[])
     switch( use_model & models_mask ){
     case GENERIC_Model:
       if( !quiet ) printf("Generic  IG: ");
-      laptime = ig_generic(tgt, index, num_req, table);
-      errors += ig_check_and_zero(tgt, index, num_req);
+      laptime = ig_generic(tgt, index, args.num_req, table);
+      errors += ig_check_and_zero(tgt, index, args.num_req);
       break;
     case BUF_Model:
       if( !quiet ) printf("Buffered IG: ");
-      laptime =ig_buffered(tgt, index, num_req,  table,  log_tab_size); 
-      errors += ig_check_and_zero(tgt, index, num_req);
+      laptime =ig_buffered(tgt, index, args.num_req,  table,  log_tbl_size); 
+      errors += ig_check_and_zero(tgt, index, args.num_req);
       break;
     default:
       continue;
