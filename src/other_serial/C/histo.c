@@ -40,6 +40,8 @@
  * \brief Demo program that computes a histogram of uint64_t's
  *  The intent is to histogram a large number of words into 
  *  a large number of bins.
+ * 
+ * Run histo --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"

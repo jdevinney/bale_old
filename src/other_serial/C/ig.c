@@ -38,6 +38,8 @@
 
 /*! \file ig.c
  * \brief Demo program that runs index gather
+ *
+ * Run ig --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"

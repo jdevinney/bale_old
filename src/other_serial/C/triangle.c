@@ -38,7 +38,9 @@
 
 /*! \file triangle.c
  * \brief Demo application that counts the number of triangles in the graph
- * given by it's adjacency matrix.
+ * given by it's adjacency matr
+ *
+ * Run triangle --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"

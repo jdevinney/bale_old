@@ -42,6 +42,8 @@
  * of a an upper triangular matrix (with ones on the diagonal).
  * This algorithm finds a row and column permutation that would return it
  * to an upper triangular form.
+ * 
+ * Run topo --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"

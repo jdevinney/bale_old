@@ -38,9 +38,12 @@
 
 /*! \file unionfind.c
  * \brief Demo that uses a unionfind data structure to find connected components in a graph
+ *
+ * Run unionfind --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"
+#include "std_options.h"
 
 /*! \page unionfind_page 
  Demo that uses the unionfind data structure
@@ -211,62 +214,89 @@ double concomp(int64_t *numcomps, comp_tree_t * cc, sparsemat_t *graph, int verb
   return(t1);
 }
 
+
+typedef struct args_t{
+  std_args_t std;
+  std_graph_args_t gstd;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      state->child_inputs[1] = &args->gstd;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] =
+  {
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+    {0}
+  };
+
+
+
 int main(int argc, char * argv[])
-{
-  
-  double er_prob = 0.01;
-  uint32_t seed =  123456789;
-  #define NUMROWS 20 
-  int64_t numrows=NUMROWS;
+{  
   int64_t num_components = 0;
-  int readgraph = 0;
-  char filename[256]={"filename"};
-
   enum MODEL {GENERIC_Model=1, ALL_Models=2};
-  uint32_t use_model;
-  uint32_t models_mask = ALL_Models - 1;
-  int printhelp=0;
-  int dump_files = 0;
-  int quiet=0;
-
+  uint32_t use_model;  
   sparsemat_t *graph;
   double laptime;
+
+  /* process command line */
+  args_t args;  
+  struct argp argp = {options, parse_opt, 0, "Transpose a sparse matrix.", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
   
+  double nz_per_row = args.gstd.nz_per_row;
+  double edge_prob = args.gstd.edge_prob;
+  int64_t numrows = args.gstd.numrows;
+  edge_type edge_type = UNDIRECTED;
+  self_loops loops = LOOPS;
+  int quiet = args.std.quiet;
   
-  int opt; 
-  while( (opt = getopt(argc, argv, "hn:s:M:e:Df:q")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%"SCNd64, &numrows );  break;
-    case 's': sscanf(optarg,"%d" ,&seed );  break;
-    case 'M': sscanf(optarg,"%d" , &models_mask);  break;
-    case 'e': sscanf(optarg,"%lg", &er_prob); break;
-    case 'D': dump_files = 1; break;
-    case 'f': readgraph = 1; sscanf(optarg, "%s", filename); break;
-    case 'q': quiet = 1; break;
-    default:  break;
-    }
+  if(args.gstd.readfile == 0){
+    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
   }
   
-  if( readgraph ) {
-    graph = read_matrix_mm(filename);
-    if(!graph){printf("ERROR: Read graph from %s Failed\n", filename); exit(1);}
+  if(!quiet ) {
+    fprintf(stderr,"Running C version of toposort\n");
+    if(args.gstd.readfile == 1)
+      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
+    else{
+      if(args.gstd.model == FLAT)
+        fprintf(stderr,"flat model           (-F)\n");
+      else        
+        fprintf(stderr,"geometric model      (-G)\n");
+      fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
+      fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
+      fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
+      fprintf(stderr,"random seed          (-s)= %"PRId64"\n",  args.std.seed);
+    }
+    fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
+    fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
+    fprintf(stderr,"---------------------------------------\n");
+  }
+  
+  if( args.gstd.readfile ) {
+    graph = read_matrix_mm(args.gstd.filename);
+    if(!graph){printf("ERROR: Read graph from %s Failed\n", args.gstd.filename); exit(1);}
   }  else {
-    graph = generate_concomp_input(numrows, er_prob, seed, dump_files);
+    graph = generate_concomp_input(numrows, edge_prob, args.std.seed, args.std.dump_files);
     if(!graph){printf("ERROR: graph is NULL!\n"); exit(1);}
   }
-  if( printhelp || !quiet ) {
-    fprintf(stderr,"Running C version of union_find\n");
-    fprintf(stderr,"number of nodes      (-n) %"PRId64"\n", graph->numrows);
-    fprintf(stderr,"erdos_renyi_prob     (-e)= %lg\n", er_prob);
-    fprintf(stderr,"readfile             (-f [%s])\n", filename); 
-    fprintf(stderr,"random seed          (-s)= %d\n", seed);
-    fprintf(stderr,"models_mask          (-M)= %d\n", models_mask);
-    fprintf(stderr,"dump_files           (-D)\n");
-    fprintf(stderr,"quiet                (-q)= %d\n", quiet);
-    if(printhelp)
-      return(0);
-  } 
+
   comp_tree_t * cc = calloc(graph->numrows, sizeof(comp_tree_t));
   int64_t i;
   for( i = 0; i< graph->numrows; i++){
@@ -274,11 +304,11 @@ int main(int argc, char * argv[])
     cc[i].rank   = 1;
   }
   
-  if(dump_files) 
+  if(args.std.dump_files) 
     dump_matrix(graph, 20, "dump.out");
 
   for( use_model=1; use_model < ALL_Models; use_model *=2 ) {
-    switch( use_model & models_mask ) {
+    switch( use_model & args.std.models_mask ) {
     case GENERIC_Model:
       if(!quiet) printf("generic unionfind: ");
       laptime = concomp(&num_components, cc, graph, quiet, 1);

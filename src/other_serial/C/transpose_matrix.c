@@ -40,7 +40,7 @@
  * \brief Demo program that runs the transpose_matrix from the 
  *  spmat library to provide a framework to study other implementations.
  * 
- * Run transpose_matrix --help for usage.
+ * Run transpose_matrix --help or --usage for usage.
  */
 
 #include "spmat_utils.h"

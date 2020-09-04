@@ -47,7 +47,7 @@ LD_LIBRARY_PATH and LDFLAGS variables.
 ## Testing
 We are working on a new test script that uses pytest as a harness. To run this test, go to
 the apps directory and run
-    pytest -s -P=<path/to/bale/binaries> --node_range=0,10,2 -M 15
+    pytest -s -P=<path/to/bale/binaries> -M <mask>
 
 ## Documentation
 serial_C is documented using Doxygen. 

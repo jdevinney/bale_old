@@ -61,8 +61,8 @@ topo: toposort.c std_options.o spmat_utils.o
 triangles: triangle.c std_options.o spmat_utils.o
 	${CC} -g triangle.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o triangles
 
-unionfind: unionfind.c spmat_utils.o
-	${CC} unionfind.c spmat_utils.o ${LFLAGS} -o unionfind
+unionfind: unionfind.c std_options.o spmat_utils.o
+	${CC} unionfind.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o unionfind
 
 permute_matrix: permute_matrix.c std_options.o spmat_utils.o
 	${CC} permute_matrix.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o permute_matrix

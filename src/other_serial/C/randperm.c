@@ -40,6 +40,8 @@
  * \brief Demo program that generates a random permutation.
  * The well known serial algorithm is from Knuth (Vol FIXME).
  * The "dart throwing" and the "sorting algorithm" can be parallelized.
+ *
+ * Run randperm --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"

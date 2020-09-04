@@ -38,6 +38,8 @@
 
 /*! \file permute_matrix.c
  * \brief Demo program that runs the permute_matrix routine in the spmat library
+ *
+ * Run permute_matrix --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"
