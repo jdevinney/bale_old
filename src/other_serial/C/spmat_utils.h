@@ -120,9 +120,9 @@ typedef struct triple_t{
 
 typedef struct kron_args_t{
   char str[256];
-  int64_t mode;
-  int64_t num_stars;      // 
-  int64_t star_size[64];  // can't be too many stars, else the graph would be huge
+  int mode;
+  int num_stars;      // 
+  int star_size[64];  // can't be too many stars, else the graph would be huge
   int64_t numrows;
 } kron_args_t;
 

@@ -92,8 +92,8 @@ double triangles_matrix(int64_t *triangles, sparsemat_t *mat)
 
 
 typedef struct args_t{
+  kron_args_t kargs;
   int kronecker;
-  char * kstring;
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
@@ -103,8 +103,21 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   switch(key)
     {
     case 'K':
-      args->kronecker = 1; break;
+      args->kronecker = 1; 
+      args->kargs.mode = atoi(arg);
+      break;
+    case ARGP_KEY_ARG:
+      args->kargs.star_size[args->kargs.num_stars++] = atoi(arg);
+      args->kargs.numrows *= (atoi(arg) + 1);
+      break;
+    case ARGP_KEY_END:
+      if(args->kronecker && args->kargs.num_stars < 2)
+        argp_failure(state, 1, 0, "Must supply at least 2 star arguments for Kronecker product.");
+        break;
     case ARGP_KEY_INIT:
+      args->kronecker = 0;
+      args->kargs.numrows = 1;
+      args->kargs.num_stars = 0;
       state->child_inputs[0] = &args->std;
       state->child_inputs[1] = &args->gstd;
       break;
@@ -115,7 +128,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 static struct argp_option options[] =
   {
     {0, 0, 0, 0, "Input as a Kronecker graph:", 3},
-    {"kronecker", 'K', 0, 0, "Specify the input to be a Kronecker Product graph"},
+    {"kronecker", 'K', "MODE", 0, "Specify the input to be a Kronecker Product graph.\vMODE must be 0, 1, or 2. MODE 0 : No triangles. MODE 1: Many triangles. MODE 2: Few triangles. The rest of the specification for Kronecker product graphs comes as a (short) list of (small) integer arguments that specify the stars which with we take the product with. For instance '-K 1 3 4 5' specifies MODE 1 and takes the product of K_1,3 and K_1,4 and K_1,5"},
     {0}
   };
 
@@ -133,16 +146,17 @@ int main(int argc, char * argv[])
   /* process command line */
   args_t args;
   args.kronecker = 0;
-  struct argp argp = {options, parse_opt, 0, "Count the number of triangles in a graph.",
+  struct argp argp = {options, parse_opt, "[K0 K1 [K2 [K3...]]]", "Count the number of triangles in a graph.",
                       children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
-
+  
   double nz_per_row = args.gstd.nz_per_row;
   double edge_prob = args.gstd.edge_prob;
   int64_t numrows = args.gstd.numrows;
   edge_type edge_type = UNDIRECTED;
   self_loops loops = LOOPS;
   int quiet = args.std.quiet;
+
   
   if(args.gstd.readfile == 0){
     resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
@@ -150,7 +164,13 @@ int main(int argc, char * argv[])
   
   if(!quiet ) {
     fprintf(stderr,"Running C version of toposort\n");
-    if(args.gstd.readfile == 1)
+    if(args.kronecker){
+      fprintf(stderr,"Kronecker Product Graph (%d): ", args.kargs.mode);
+      for(int i = 0; i < args.kargs.num_stars; i++)
+        fprintf(stderr,"%d ", args.kargs.star_size[i]);
+      fprintf(stderr, "\n");
+    }
+    else if(args.gstd.readfile == 1)
       fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
     else{
       if(args.gstd.model == FLAT)
@@ -167,23 +187,14 @@ int main(int argc, char * argv[])
     fprintf(stderr,"---------------------------------------\n");
   }
 
-  
-  enum FLAVOR {GENERIC=1, ALL=2};
-  char * kron_list_def = {"M: k1 k2 k3 ..."};
-  char * kron_list = kron_list_def;
-  kron_args_t * kron_args = NULL;
-  uint32_t use_model;
-  
+    
   sparsemat_t *mat = NULL;
-  int64_t triangles;
-
   if( args.gstd.readfile ) {
     mat = read_matrix_mm(args.gstd.filename);
     if(!mat){printf("ERROR: triangles: read graph from %s Failed\n", args.gstd.filename); exit(1);}
   } else {
     if(args.kronecker){
-      kron_args = kron_args_init(kron_list);
-      mat = kronecker_product_graph(kron_args);
+      mat = kronecker_product_graph(&args.kargs);
       if(!mat){printf("ERROR: triangles: Kronecker Product generation Failed\n"); exit(1);}
     } else {
       mat = random_graph(numrows, args.gstd.model, UNDIRECTED, NOLOOPS, edge_prob, args.std.seed);
@@ -195,7 +206,7 @@ int main(int argc, char * argv[])
     printf("Input matrix stats:\n");
     spmat_stats(mat);
     if(args.kronecker )
-      printf("Kronecker model should have %"PRId64" triangles\n", tri_count_kron_graph(kron_args));
+      printf("Kronecker model should have %"PRId64" triangles\n", tri_count_kron_graph(&args.kargs));
     fprintf(stderr,"---------------------------------------\n");
   }
     
@@ -203,13 +214,16 @@ int main(int argc, char * argv[])
     dump_matrix(mat, 20, "mat.out");
   }
 
+  enum FLAVOR {GENERIC=1, ALL=2};
+  uint32_t use_model;
   double laptime = 0.0;
+  int64_t triangles;
   for(use_model=1; use_model < ALL; use_model *=2 ){
     triangles = 0;
     switch( use_model & args.std.models_mask ){
     case GENERIC:
       if( !quiet ) printf("Generic Triangle: ");
-        laptime = triangles_matrix(&triangles, mat);
+      laptime = triangles_matrix(&triangles, mat);
       break;
     default:
       continue;
@@ -218,8 +232,7 @@ int main(int argc, char * argv[])
       printf(" %12"PRId64" triangles,  %8.3lf seconds\n", triangles, laptime);
   }
  
-  if(args.kronecker) 
-    free(kron_args);
+
   clear_matrix(mat);
   return(0);
 }
