@@ -81,8 +81,6 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
-    case '?':
-      printf("hi\n");break;
     case 'n':
       args->l_num_ups = atol(arg); break;
     case 'T':
