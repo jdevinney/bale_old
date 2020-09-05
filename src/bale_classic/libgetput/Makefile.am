@@ -44,8 +44,6 @@ include_HEADERS=libgetput.h
 lib_LIBRARIES = liblibgetput.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc
-liblibgetput_a_CFLAGS = -g -O2
-#liblibgetput_a_CFLAGS = -g -O0
 
 if BUILD_UPC
 liblibgetput_a_SOURCES = $(common_sources:.c=__upc.upc)
@@ -54,7 +52,7 @@ endif
 if BUILD_SHMEM
 #liblibgetput_a_LINK = $(LINK)
 liblibgetput_a_SOURCES = $(common_sources:.upc=__c.c)
-liblibgetput_a_CFLAGS += -DUSE_SHMEM -std=c11
+liblibgetput_a_CFLAGS = -DUSE_SHMEM 
 endif
 
 # Automatic linking as needed to create C copies of UPC files.               #
@@ -64,11 +62,4 @@ endif
 	@test -d $(dir $@) || mkdir -p $(dir $@)
 	@if test "$(top_srcdir)" = "$(top_builddir)"; then ln -s $(notdir $<) $@ || cp -f $< $@; else ln -s $< $@ || cp -f $< $@; fi
 
-
-# Automatic linking as needed to create UPC copies of C files.               #
-%__upc.upc: %.c
-	@echo "INFO: Linking UPC copy of   C file: $@"
-	@rm -f $@
-	@test -d $(dir $@) || mkdir -p $(dir $@)
-	@if test "$(top_srcdir)" = "$(top_builddir)"; then ln -s $(notdir $<) $@ || cp -f $< $@; else ln -s $< $@ || cp -f $< $@; fi
 
