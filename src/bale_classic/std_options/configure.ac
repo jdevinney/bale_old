@@ -56,6 +56,12 @@ AC_PROG_RANLIB
 AC_PROG_CC
 AC_PROG_CC_C99
 
+mpp_use_shmem=no
+if test "x$with_shmem" = xyes; then
+   with_upc=no
+   mpp_use_shmem=yes
+fi
+
 if test "x$with_upc" = xyes; then
 AM_PROG_UPC
 #AC_CHECK_HEADERS([upc_atomic.h])
