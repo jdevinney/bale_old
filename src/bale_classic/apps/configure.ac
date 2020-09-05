@@ -68,6 +68,7 @@ fi
 
 PKG_CHECK_MODULES([libdeps],
   [
+        std_options
         spmat
         convey
         exstack

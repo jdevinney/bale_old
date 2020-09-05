@@ -80,6 +80,8 @@ extern upc_atomicdomain_t * lgp_atomic_domain;
 # define shmem_global_exit exit /*!< old style names for shmem */
 # endif
 
+// remove this eventually...
+#ifndef ALL_Models
 /* defines to support the different models of global and buffered references */
 #define AGI_Model        1L /*!< the Atomic or Generic Interface (straight UPC/SHMEM) */
 #define EXSTACK_Model    2L /*!< the exstack bulk synchronous buffering model */
@@ -87,6 +89,7 @@ extern upc_atomicdomain_t * lgp_atomic_domain;
 #define CONVEYOR_Model   8L /*!< the conveyor buffering model */
 #define ALTERNATE_Model 16L /*!< an alternate model (meant for user supplied code) */
 #define ALL_Models      15L /*!< default for running all models */
+#endif
 
 /*! \struct minavgmaxL_t 
 * \brief A structure to return the global stats computed by lgp_min_avg_max_l

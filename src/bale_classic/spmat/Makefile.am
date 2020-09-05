@@ -44,7 +44,7 @@ common_sources += spmat_utils.upc
 common_sources += geometric.upc
 pkconfigdir=@libdir@/pkgconfig
 
-include_HEADERS=spmat.h
+include_HEADERS=spmat.h spmat_enums.h
 
 #lib_LIBRARIES = 
 lib_LIBRARIES = libspmat.a

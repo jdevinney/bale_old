@@ -40,6 +40,7 @@
  * \brief header file for the histogram app.
  */
 
+#include <libgetput.h>
 #include <exstack.h>
 #include <convey.h>
 #include <locale.h>
