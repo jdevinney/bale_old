@@ -54,7 +54,7 @@ endif
 if BUILD_SHMEM
 libexstack_a_SOURCES = $(common_sources:.upc=__c.c)
 libexstack_a_SOURCES += exstack2_shmem.c
-libexstack_a_CPPFLAGS += -DUSE_SHMEM -std=c11
+libexstack_a_CPPFLAGS += -DUSE_SHMEM
 endif
 
 libexstack_a_CPPFLAGS += @CPPFLAGS@ @libdeps_CFLAGS@

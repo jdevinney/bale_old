@@ -54,7 +54,7 @@ endif
 if BUILD_SHMEM
 #liblibgetput_a_LINK = $(LINK)
 libstd_options_a_SOURCES = $(common_sources)
-libstd_options_a_CFLAGS += -DUSE_SHMEM -std=c11
+libstd_options_a_CFLAGS += -DUSE_SHMEM
 endif
 
 # Automatic linking as needed to create UPC copies of C files.               #
