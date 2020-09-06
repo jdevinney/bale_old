@@ -244,7 +244,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
     char * object = calloc(64, sizeof(char));
     char * format = calloc(64, sizeof(char));
     char * field = calloc(64, sizeof(char));;
-    int ret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
+    int fscanfret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
     if( (fscanfret != 3 ) || strncmp(object,"matrix",24) || strncmp(format,"coordinate",24) ){
       fprintf(stderr,"read_matrix_mm: Incompatible matrix market format.\n");
       fprintf(stderr,"                First line should be either:\n");
@@ -769,7 +769,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       end = row;
     for(j = 0; j < end; j++){
-      if(col == row) continue;
+      if(col == row) continue;		// RAG -- col is uninitialized
       if(rand() < P)
 	lnnz_orig++;
     }    
