@@ -231,7 +231,6 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
   edge_t * edges;
   w_edge_t * tri;
   while(!MYTHREAD){
-    int fscanfret;
     int64_t * nnz_per_th = calloc(THREADS, sizeof(int64_t));
     
     FILE * fp = fopen(name, "r");

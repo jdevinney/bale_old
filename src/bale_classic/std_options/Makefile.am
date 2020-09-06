@@ -58,9 +58,9 @@ libstd_options_a_SOURCES = std_options.c
 #endif
 
 # Automatic linking as needed to create UPC copies of C files.               #
-%__upc.upc: %.c
-	@echo "INFO: Linking UPC copy of   C file: $@"
-	@rm -f $@
-	@test -d $(dir $@) || mkdir -p $(dir $@)
-	@if test "$(top_srcdir)" = "$(top_builddir)"; then ln -s $(notdir $<) $@ || cp -f $< $@; else ln -s $< $@ || cp -f $< $@; fi
+#%__upc.upc: %.c
+#	@echo "INFO: Linking UPC copy of   C file: $@"
+#	@rm -f $@
+#	@test -d $(dir $@) || mkdir -p $(dir $@)#
+#	@if test "$(top_srcdir)" = "$(top_builddir)"; then ln -s $(notdir $<) $@ || cp -f $< $@; else ln -s $< $@ || cp -f $< $@; fi
 
