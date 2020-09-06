@@ -13,27 +13,28 @@ use delta_stepping::DeltaStepping;
 
    First we generate the problem by making a random directed graph with edge costs c(v,w).
 
-   Every vertex has a "tentative distance" during the algorithm. The source has tentative
-   distance 0, and all other vertices intially have have tentative distance inf. We
+   Each vertex has a "tentative distance" during the algorithm. The source has tentative
+   distance 0, and all other vertices initially have have tentative distance inf. We
    proceed by "relaxing" edges (in a clever order): relaxing edge (v,w) changes the
-   tentative distance of w, tent(w), to min(tent(w), tent(v) + c(v,w)). Eventually each
-   vertex's tent() distance becomes final, or "settled"; initially only the source is
-   settled.
+   tentative distance of w to min(tent(w), tent(v) + c(v,w)). Eventually each vertex's
+   tent() distance becomes final, or "settled"; initially only the source is settled.
 
-   Unsettled vertices are kept in "buckets" by tent() value; bucket i contains vertices 
-   with tent() at least i*\Delta and less than (i+1)*\Delta, where \Delta is a parameter.
+   Unsettled vertices with tent() < inf are kept in "buckets" by tent() value; bucket i 
+   contains vertices with tent() at least i*\Delta and less than (i+1)*\Delta, where 
+   \Delta is a parameter.
+
    The algorithm has three nested loops. 
    
    The outer (serial) loop is over buckets; an iteration processes vertices in the lowest 
    nonempty bucket until it is empty. 
    
    The middle (serial) loop is over "phases"; a phase consists of removing all the vertices 
-   in the bucket and relaxing all the "light" edges out of them (an edge is "light" if it 
-   has cost at most \Delta, "heavy" otherwise). The edge relaxations in a phase may cause 
-   vertices to enter the active bucket; phases continue until the bucket is empty. At that 
-   point all the vertices that were in that bucket are settled.  Following the light-edge 
-   phases, one more phase relaxes all the heavy edges from vertices deleted from the active 
-   bucket; this cannot cause any vertices to go into that bucket. 
+   in the active bucket and relaxing all the "light" edges out of them (an edge is "light" 
+   if it has cost at most \Delta, "heavy" otherwise). The edge relaxations in a phase may 
+   cause vertices to enter the active bucket; phases continue until the bucket is empty. 
+   At that point all the vertices that were in that bucket are settled.  Following the 
+   light-edge phases, one more phase relaxes all the heavy edges from vertices deleted 
+   from the active bucket; this cannot cause any vertices to go into that bucket. 
    
    The inner (potentially parallel) loop implements the edge relaxations in a single phase.
    Those relaxations can be done in any order, provided they are done atomically.
@@ -80,7 +81,7 @@ fn main() {
         )
         .get_matches();
 
-    // input args, just constants for now
+    // input args
     let numrows: usize = matches
         .value_of("numrows")
         .unwrap_or("10")

@@ -1,6 +1,6 @@
 use sparsemat::wall_seconds;
 use sparsemat::SparseMat;
-use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::io::Error;
 use std::ops::Range;
@@ -16,7 +16,7 @@ pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
         } else {
             ranges.push(0..num_items);
         }
-        //ranges.iter().enumerate()
+        // maybe ranges.iter().enumerate() or something?
         ranges
 }
 
@@ -32,12 +32,10 @@ impl SsspInfo {
     // Dump output distances to a file
     pub fn dump(&self, max_disp: usize, filename: &str) -> Result<(),Error> { //2 outs but perm has 1??
         let path = Path::new(&filename);
-        let mut file = File::create(path)?;
+        let mut file = OpenOptions::new().append(true).create(true).open(path)?;
+        writeln!(file, "==========================================================")?;
+        writeln!(file, "Final Distances")?;
         write!(file, "vtx: dist\n")?;
-        // for (i, r) in display_ranges(max_disp, self.distance.len()) {
-        //     if i > 0 {
-        //         writeln!("...");
-        //     }
         for r in display_ranges(max_disp, self.distance.len()) {
             for v in r {  // should use zip 0-0
                 write!(file, "{}: {}\n", v, self.distance[v])?;
@@ -61,16 +59,16 @@ struct Request {
 // The header of bucket i (with reuse) is "elt" number num_buckets + i.
 
 struct BucketSearcher<'a> {
-    graph: &'a SparseMat,        // the graph being searched
-    delta: f64,                  // width of a bucket
-    num_buckets: usize,          // number of actual buckets, taking into account reuse
-    tentative_dist: Vec<f64>,    // current tentative distance from source to this vtx
-    prev_elt: Vec<usize>,        // back link in list of vertices in each bucket (including bucket header)
-    next_elt: Vec<usize>,        // forward link in list of vertices in each bucket (including bucket header)
-    bucket_header: Vec<usize>,   // where in the list is this bucket header? (answer: nv+this bucket number)
-    activated: Vec<bool>,        // has this vtx ever been activated? 
-    bucket: Vec<Option<usize>>,  // what bucket if any is this vtx in? don't need except for debugging.
-    bucket_size: Vec<usize>,     // number of vertices in this bucket
+    graph: &'a SparseMat,           // the graph being searched
+    delta: f64,                     // width of a bucket
+    num_buckets: usize,             // number of actual buckets, taking into account reuse
+    tentative_dist: Vec<f64>,       // current tentative distance from source to this vtx
+    prev_elt: Vec<usize>,           // back link in list of vertices in each bucket (including bucket header)
+    next_elt: Vec<usize>,           // forward link in list of vertices in each bucket (including header)
+    activated: Vec<bool>,           // has this vtx ever been activated? 
+    vtx_bucket: Vec<Option<usize>>, // what bucket if any is this vtx in?
+    bucket_size: Vec<usize>,        // number of vertices in this bucket
+    bucket_header: Vec<usize>,      // which elt is this bucket's header? (just to make code clearer)
 
     // iterator notes:
     // BucketSearcher should also have an iterator that updates the active bucket, skipping to the
@@ -83,13 +81,45 @@ struct BucketSearcher<'a> {
     // Vertices belong to PEs in round-robin order. 
     // Each PE has its own copy of every bucket, but only containing vertices it owns.
     // (Say nv >= 100 * num_buckets * THREADS. Then storage for buckets is relatively small.)
+    // Arrays bucket_size and bucket_header are local to each PE.
     // Arrays indexed only by vtx are split among PEs (but don't have to be shared, I think): 
     //     tentative_dist, activated, bucket.
-    // Arrays bucket_size and bucket_header are local to each PE.
     // Arrays prev_elt and next_elt are also split, linking together only the vtxs on the local PE.
     // The bucket-header nodes at the end of prev_elt and next_elt have copies on each PE.
     // The parallelism all happens in relax_requests, where a request to relax an edge with head w
     // gets conveyed to the PE that owns w.
+}
+
+// An iterator for BucketSearcher that finds the next nonempty bucket
+impl<'a> IntoIterator for &'a BucketSearcher<'a> {
+    type Item = usize;
+    type IntoIter = ActiveBucketIterator<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        ActiveBucketIterator {
+            searcher: self,
+            index: 0,
+        }
+    }
+}
+
+struct ActiveBucketIterator<'a> {
+    searcher: &'a BucketSearcher<'a>,
+    index: usize,
+}
+
+impl<'a> Iterator for ActiveBucketIterator<'a> {
+    type Item = usize;
+    fn next(&mut self) -> Option<usize> {
+        let start_index = self.index;
+        while self.searcher.bucket_size[self.index] == 0 {
+            self.index = (self.index + 1) % self.searcher.num_buckets;
+            if self.index == start_index {
+                return None;
+            }
+        }
+        Some(self.index)
+    }
 }
 
 impl<'a> BucketSearcher<'a> { 
@@ -104,25 +134,27 @@ impl<'a> BucketSearcher<'a> {
                     max_edge_len = *c;
                 }
             }
+        } else {
+            panic!("Graph must have edge weights (values)");
         }
         println!("max_edge_len = {}", max_edge_len);
         // upper bound on number of buckets we will ever need at the same time
         let num_buckets = (max_edge_len/delta).ceil() as usize + 1;
         // tentative distances all start out infinite, including source
-        let mut tentative_dist = vec![f64::INFINITY; nv];    
+        let tentative_dist = vec![f64::INFINITY; nv];    
         // circular linked lists have room for the bucket headers,
         // and initially every list is empty (every element points to itself).
-        let mut prev_elt: Vec<usize> = (0..nv+num_buckets).collect();
-        let mut next_elt: Vec<usize> = (0..nv+num_buckets).collect();
-        // the immutable bucket_header vector is just to make the code more readable.
-        let bucket_header: Vec<usize> = (nv..nv+num_buckets).collect();
+        let prev_elt: Vec<usize> = (0..nv+num_buckets).collect();
+        let next_elt: Vec<usize> = (0..nv+num_buckets).collect();
         // initially no vtx has ever been activated.
-        let mut activated = vec![false; nv];
+        let activated = vec![false; nv];
         // initially every vtx is in no bucket.
-        let mut bucket = vec![Option::<usize>::None; nv]; // 0-0 why Option::<> not Option<>?
-        // initially every bucket contains zero vertices.
+        let vtx_bucket = vec![Option::<usize>::None; nv];
+        // initially every bucket contains no vertices.
         let bucket_size = vec![0; num_buckets];
-
+        // immutable bucket_header is just for clearer code
+        let bucket_header: Vec<usize> = (nv..nv+num_buckets).collect();
+        
         //barrier here
 
         BucketSearcher {
@@ -132,25 +164,26 @@ impl<'a> BucketSearcher<'a> {
             tentative_dist,
             prev_elt,
             next_elt,
-            bucket_header,
             activated,
-            bucket,
+            vtx_bucket,
             bucket_size,
+            bucket_header,
         }
     }
 
     // Dump bucket structure state to a file
-    fn dump(&self, max_disp: usize, filename: &str) -> Result<(),Error> { // why 2 outs when perm has 1?
+    fn dump(&self, max_disp: usize, filename: &str, title: &str, nums: Vec<usize>) -> Result<(),Error> { 
         let path = Path::new(&filename);
-        let mut file = File::create(path)?;
+        let mut file = OpenOptions::new().append(true).create(true).open(path)?;
         let nv = self.graph.numrows;
         writeln!(file, "==========================================================")?;
-        writeln!(file, "BucketSearcher: nv={}, num_buckets={}, delta={}", nv, self.num_buckets, self.delta)?;
-        writeln!(file, "elt: prev_elt next_elt bucket activated tentative_dist")?;
-        // for (i,r) in display_ranges(max_disp, nv) {
-        //     if i > 0 {
-        //         writeln!("...");
-        //     }
+        write!(file, "BucketSearcher: {}", title)?;
+        for n in nums {
+            write!(file, " {}", n)?;
+        }
+        write!(file, "\n")?;
+        writeln!(file, "nv={}, num_buckets={}, delta={}", nv, self.num_buckets, self.delta)?;
+        writeln!(file, "elt: prev_elt next_elt vtx_bucket activated tentative_dist")?;
         for r in display_ranges(max_disp, nv) {
             for v in r {  // should be firstlist(r).zip(secondlist(r)) 0-0
                 writeln!(
@@ -159,7 +192,11 @@ impl<'a> BucketSearcher<'a> {
                     v,
                     self.prev_elt[v], 
                     self.next_elt[v], 
-                    if let Some(b) = self.bucket[v] {b.to_string()} else {"N".to_string()},
+                    if let Some(b) = self.vtx_bucket[v] {
+                        b.to_string()
+                    } else { 
+                        "N".to_string()
+                    },
                     self.activated[v], 
                     self.tentative_dist[v]
                 )?;
@@ -169,27 +206,32 @@ impl<'a> BucketSearcher<'a> {
             writeln!(file, "{}: {} {}", v, self.prev_elt[v], self.next_elt[v])?;
         }
         writeln!(file, "bucket (bucket_size): elt elt ...")?;
-        // for elt in display_ranges(max_disp, self.num_buckets) {
-        //     if i > 0 {
-        //         writeln!("...")?;
-        //     }
         for r in display_ranges(max_disp, self.num_buckets) {
             for b in r {  
                 write!(file, "{} ({}):", b, self.bucket_size[b])?;
-                for elt in self.bucket[b] {
-                write!(file, " {}", elt)?;
+                let mut v = self.next_elt[self.bucket_header[b]];
+                while v != self.bucket_header[b] {
+                    write!(file, " {}", v)?;
+                    v = self.next_elt[v];
                 }
-
-
-                // for e in self.bucket_iter(b) {
-                //     write!(file, " {}", e)?;
-                // }
                 write!(file, "\n")?;
             }
         }
-        writeln!(file, "==========================================================")?;
+        writeln!(file, " ")?;
         Ok(())
     }   
+
+    // find the next nonempty bucket after start_bucket, % num_buckets, if any
+    fn next_nonempty_bucket(&self, start_bucket: usize) -> Option<usize> {
+        let mut new_bucket = (start_bucket + 1) % self.num_buckets;
+        while self.bucket_size[new_bucket] == 0 {
+            new_bucket = (new_bucket + 1) % self.num_buckets;
+            if new_bucket == start_bucket {
+                return None;
+            }
+        }
+        Some(new_bucket)
+    }
 
     // what bucket does a vtx with this tentative distance go in?
     fn home_bucket(&self, dist: f64) -> usize {
@@ -198,54 +240,105 @@ impl<'a> BucketSearcher<'a> {
 
     // remove a vtx from the bucket it's in. (harmless if not in a bucket)
     fn remove_from_bucket(&mut self, w: usize) {
-        if let Some(b) = self.bucket[w] {
+        if let Some(b) = self.vtx_bucket[w] {
             self.prev_elt[self.next_elt[w]] = self.prev_elt[w];
             self.next_elt[self.prev_elt[w]] = self.next_elt[w];
             self.prev_elt[w] = w;
             self.next_elt[w] = w;
+            self.vtx_bucket[w] = None;
             self.bucket_size[b] -= 1;
-            self.bucket[w] = None;
         }
     }
 
     // insert a vtx into a bucket it's not in. (vtx must not be in a bucket)
     fn place_in_bucket(&mut self, w:usize, new_bucket: usize) {
-        assert!(self.bucket[w] == None);
+        assert!(self.vtx_bucket[w] == None);
         assert!(self.prev_elt[w] == w);
         assert!(self.next_elt[w] == w);
         self.prev_elt[w] = self.bucket_header[new_bucket];
         self.next_elt[w] = self.next_elt[self.bucket_header[new_bucket]];
         self.prev_elt[self.next_elt[w]] = w;
         self.next_elt[self.prev_elt[w]] = w;
+        self.vtx_bucket[w] = Some(new_bucket);
         self.bucket_size[new_bucket] += 1;
-        self.bucket[w] = Some(new_bucket);
     }
 
     // make a list of all relaxation requests from light edges with tails in bucket
-    // we need an iterator over vertices in a bucket (that lets you remove a vtx in flight)
-    fn find_light_requests(&self, bucket: usize) -> Vec<Request> { 
+    fn find_light_requests(&self, b: usize) -> Vec<Request> { 
         let mut requests: Vec<Request> = Vec::new();
-        requests.push(Request{w: bucket, dist: 0.0}); //0-0
+        if let Some(edge_len) = &self.graph.value { 
+            let mut v = self.next_elt[self.bucket_header[b]];
+            while v != self.bucket_header[b] {
+                for adj in self.graph.offset[v]..self.graph.offset[v+1] {
+                    let vw_len = edge_len[adj];
+                    if vw_len <= self.delta { // light edge
+                        requests.push(
+                            Request {
+                                w:    self.graph.nonzero[adj],
+                                dist: self.tentative_dist[v] + vw_len,
+                            }
+                        );
+                    }
+                }
+                v = self.next_elt[v];
+            }
+        } else {
+            panic!("Graph must have edge weights (values)");
+        }
         requests
     }
 
-    // make a list of all relaxation requests from heavy edges with tails on vtxlist
-    fn find_heavy_requests(&self, _vtxlist: Vec<usize>) -> Vec<Request> { 
+    // make a list of all relaxation requests from heavy edges with tails on vtx_list
+    fn find_heavy_requests(&self, vtx_list: Vec<usize>) -> Vec<Request> { 
         let mut requests: Vec<Request> = Vec::new();
-        requests.push(Request{w: 0, dist: 0.0}); //0-0
+        if let Some(edge_len) = &self.graph.value { 
+            for v in vtx_list {
+                for adj in self.graph.offset[v]..self.graph.offset[v+1] {
+                    let vw_len = edge_len[adj];
+                    if vw_len > self.delta { // heavy edge
+                        requests.push(
+                            Request {
+                                w:    self.graph.nonzero[adj],
+                                dist: self.tentative_dist[v] + vw_len,
+                            }
+                        );
+                    }
+                }
+            }
+        } else {
+            panic!("Graph must have edge weights (values)");
+        }
         requests
     }
 
     // return vertices in bucket that have not been activated(removed from an active bucket) before
-    fn newly_active_vertices(&self, bucket: usize) -> Vec<usize> { 
+    fn newly_active_vertices(&self, b: usize) -> Vec<usize> { 
         let mut new_vtxs: Vec<usize> = Vec::new(); 
-        new_vtxs.push(bucket); // 0-0
+        let mut v = self.next_elt[self.bucket_header[b]];
+        while v != self.bucket_header[b] {
+            if !self.activated[v] {
+                new_vtxs.push(v); 
+            }
+            v = self.next_elt[v];
+        }
         new_vtxs
     }
 
     // remove all vertices from the bucket and mark them activated
-    fn empty_bucket(&mut self, _bucket: usize) { 
-        // 0-0
+    fn empty_bucket(&mut self, b: usize) { 
+        let header = self.bucket_header[b];
+        let mut v = self.next_elt[header];
+        while v != header {
+            let w = self.next_elt[v];
+            self.next_elt[v] = v;
+            self.prev_elt[v] = v;
+            self.vtx_bucket[v] = None;
+            self.activated[v] = true;
+            v = w;
+        }
+        self.next_elt[header] = header;
+        self.prev_elt[header] = header;
+        self.bucket_size[b] = 0;
     }
 
     // relax all the requests from this phase (could be parallel)
@@ -262,7 +355,7 @@ impl<'a> BucketSearcher<'a> {
     fn relax(&mut self, r: Request) {
         if r.dist < self.tentative_dist[r.w] {
             let new_bucket = self.home_bucket(r.dist);
-            if let Some(old_bucket) = self.bucket[r.w] {
+            if let Some(old_bucket) = self.vtx_bucket[r.w] {
                 // r.w was in a bucket,
                 if old_bucket != new_bucket {
                     // move r.w from old to new bucket
@@ -302,15 +395,21 @@ impl DeltaStepping for SparseMat {
         // use relax to set tent(source) to 0, which also puts it in bucket 0
         searcher.relax(Request{w: source, dist: 0.0});
 
-        searcher.dump(20, "buckets.out").expect("bucket dump failed");
+        searcher
+            .dump(20, "trace.out", "after relax source", vec![source])
+            .expect("bucket dump failed");
 
         // outer loop: for each nonempty bucket in order ...
-        // for active_bucket = 0; active_bucket = searcher.iter.next()) {
-        let active_bucket = 0; // just so this will compile without the iterator
-        {
+        // for active_bucket in &searcher {
+        let mut outer = 0;
+        let mut active_bucket_if_any = Some(0);
+        while let Some(active_bucket) = active_bucket_if_any {
+            println!("outer loop {}: active_bucket = {}", outer, active_bucket);
+
             let mut removed: Vec<usize> = Vec::new(); // vertices removed from active bucket, R in paper
         
             // middle loop: while active bucket (B[i] in paper) is not empty ...
+            let mut phase = 0;
             while searcher.bucket_size[active_bucket] > 0 { 
 
                 // find light edges with tails in active bucket;
@@ -321,14 +420,26 @@ impl DeltaStepping for SparseMat {
                 removed.append(&mut searcher.newly_active_vertices(active_bucket));
                 searcher.empty_bucket(active_bucket);
                 searcher.relax_requests(requests);
+
+                searcher
+                    .dump(20, "trace.out", "end of middle iter", vec![outer, phase])
+                    .expect("bucket dump failed");
+                phase += 1;
                 
             } // end of middle looop
-            
+
             // relax heavy edges with tails in removed set, which cannot add vtxs to active bucket
             let requests = searcher.find_heavy_requests(removed);
             searcher.relax_requests(requests);
 
+            searcher
+                .dump(20, "trace.out", "end of outer iter", vec![outer])
+                .expect("bucket dump failed");
+            outer += 1;
+            active_bucket_if_any = searcher.next_nonempty_bucket(active_bucket);
         } // end of outer loop
+
+        println!("Did {} iterations of outer loop.", outer);
 
         // return the info struct, which will now own the distance array
         SsspInfo {
@@ -340,22 +451,19 @@ impl DeltaStepping for SparseMat {
 
     /// check the result of delta stepping
     ///
-    /// For now, just check the initial state of the tentative distances.
     /// # Arguments
     /// * info data from the run to check
     /// * dump_files debugging flag
     fn check_result(&self, info: &SsspInfo, dump_files: bool) -> bool {
+        println!("check_result: source is {}, dump_files is {}", info.source, dump_files);
         if dump_files {
-            info.dump(20, "dist.out").expect("cannot write dist.out");
+            info.dump(20, "trace.out").expect("info dump error");
         }
         for v in 0..self.numrows {
-            if v == info.source {
-                assert!(info.distance[v] == 0.0);
-            } else {
-                assert!(f64::is_infinite(info.distance[v]));
-            }
+            if v == info.source && info.distance[v] != 0.0 {
+                return false;
+            } 
         }
-        println!("check_result assertions passed, source is {}, dump_files is {}", info.source, dump_files);
         true
     }
 }

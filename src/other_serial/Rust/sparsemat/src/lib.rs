@@ -288,9 +288,9 @@ impl SparseMat {
 
     /// prints some stats of a sparse matrix
     pub fn stats(&self) -> () {
-        println!("   numrows  = {}", self.numrows);
-        println!("   numcols  = {}", self.numcols);
-        println!("   nnz      = {}", self.nnz);
+        println!("    numrows  = {}", self.numrows);
+        println!("    numcols  = {}", self.numcols);
+        println!("    nnz      = {}", self.nnz);
         if let Some(_) = self.value {
             println!("    matrix with values");
         } else {
@@ -356,7 +356,8 @@ impl SparseMat {
         R: BufRead,
     {
         let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
-        let re = Regex::new(r"^%%MatrixMarket *matrix *coordinate *position")?;
+        // let re = Regex::new(r"^%%MatrixMarket *matrix *coordinate *position")?;
+        let re = Regex::new(r"^%%MatrixMarket *matrix *coordinate *[position|real]*")?;
         if !re.is_match(&line) {
             return Err(Sparsemat(ParseMmError::new(format!(
                 "invalid header {}",
