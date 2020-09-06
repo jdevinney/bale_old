@@ -45,30 +45,29 @@ AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
 
 AC_CONFIG_HEADERS([config.h])
 
-AC_ARG_WITH([upc],
-            AS_HELP_STRING([--with-upc], [build a UPC version]),
-            [], [with_upc=yes])
-AC_ARG_WITH([shmem],
-            AS_HELP_STRING([--with-shmem], [build a SHMEM version]),
-            [], [with_shmem=no])
+#AC_ARG_WITH([upc],
+#            AS_HELP_STRING([--with-upc], [build a UPC version]),
+#            [], [with_upc=yes])
+#AC_ARG_WITH([shmem],
+#            AS_HELP_STRING([--with-shmem], [build a SHMEM version]),
+#            [], [with_shmem=no])
             
 AC_PROG_RANLIB
 AC_PROG_CC
 AC_PROG_CC_C99
 
-mpp_use_shmem=no
-if test "x$with_shmem" = xyes; then
-   with_upc=no
-   mpp_use_shmem=yes
-fi
+#mpp_use_shmem=no
+#if test "x$with_shmem" = xyes; then
+#   with_upc=no
+#   mpp_use_shmem=yes
+#fi
 
-if test "x$with_upc" = xyes; then
-AM_PROG_UPC
-#AC_CHECK_HEADERS([upc_atomic.h])
-else
-  # must define this ugly conditional to keep automake happy
-  AM_CONDITIONAL(am__fastdepUPC, [test])
-fi
+#if test "x$with_upc" = xyes; then
+#AM_PROG_UPC
+#else
+#  # must define this ugly conditional to keep automake happy
+#  AM_CONDITIONAL(am__fastdepUPC, [test])
+#fi
 
 PKG_CHECK_MODULES([libdeps],
   [
@@ -76,8 +75,8 @@ PKG_CHECK_MODULES([libdeps],
   ]
 )
 
-AM_CONDITIONAL(BUILD_UPC, [test "x$with_upc" = xyes])
-AM_CONDITIONAL(BUILD_SHMEM, [test "x$mpp_use_shmem" = xyes])
+#AM_CONDITIONAL(BUILD_UPC, [test "x$with_upc" = xyes])
+#AM_CONDITIONAL(BUILD_SHMEM, [test "x$mpp_use_shmem" = xyes])
 
 AC_CONFIG_FILES([
 std_options.pc:std_options.pc.in

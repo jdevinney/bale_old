@@ -43,7 +43,7 @@ AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
 ##LT_INIT ## enable libtool
 
 AC_CONFIG_HEADERS([config.h])
-#AC_CONFIG_MACRO_DIR([.common_link/m4])
+AC_CONFIG_MACRO_DIRS([../])
 
 AC_ARG_WITH([upc],
             AS_HELP_STRING([--with-upc], [build a UPC version]),

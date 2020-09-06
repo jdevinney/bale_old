@@ -43,7 +43,7 @@ AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
 ##LT_INIT ## enable libtool
 
 AC_CONFIG_HEADERS([config.h])
-
+AC_CONFIG_MACRO_DIRS([../])
 AC_ARG_WITH([upc],
             AS_HELP_STRING([--with-upc], [build a UPC version]),
             [], [with_upc=yes])
@@ -74,6 +74,16 @@ PKG_CHECK_MODULES([libdeps],
         libgetput
   ]
 )
+
+
+AX_CHECK_COMPILE_FLAG([-hstd=c11], [
+  AS_VAR_APPEND([CFLAGS]," -hstd=c11")
+],
+[
+AX_CHECK_COMPILE_FLAG([-std=c11],[  AS_VAR_APPEND([CFLAGS]," -std=c11")],
+[echo "C compiler cannot compile C11 code"
+exit -1])
+])
 
 AM_CONDITIONAL(BUILD_UPC, [test "x$with_upc" = xyes])
 AM_CONDITIONAL(BUILD_SHMEM, [test "x$mpp_use_shmem" = xyes])

@@ -75,27 +75,4 @@ struct argp std_graph_options_argp = {
 };
 
 
-void share_args(void * args, size_t n){
-  SHARED char * temp = lgp_all_alloc(THREADS, n);
-  if(!MYTHREAD)
-    lgp_memput(temp, (void*)args, n, 0);
-  lgp_barrier();
-  lgp_memget((void*)args, temp, n, 0);
-  lgp_barrier();
-  lgp_all_free(temp);
-}
 
-int check_for_exit(int argc, char * argv[], int ret){
-  int i;
-  for(i = 0; i < argc; i++){
-    //printf("argv[%d] : %s\n", i, argv[i]);
-    if(strcmp(argv[i], "--help") == 0)
-      return 1;
-    if(strcmp(argv[i], "-?") == 0)
-      return 1;
-    if(strcmp(argv[i], "--usage") == 0)
-      return 1;
-  }
-  ret = (int)lgp_reduce_add_l((long)ret);
-  return(ret);
-}
