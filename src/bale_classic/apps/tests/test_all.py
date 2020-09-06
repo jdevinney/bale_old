@@ -44,11 +44,11 @@ def test_all(path, node_range, implementation_mask):
             runs.append("-b 35 -n 2344 -T 10 ")
             runs.append("-b 120 -n 19988 -T 10000 ")
         if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles':
-            runs.append("- -b 120 -n 1000 -F -Z 2")
-            runs.append("- -b 120 -n 1042 -G -Z 4 ")
-            runs.append("- -b 31 -n 3042 -F -Z 4 ")
-            runs.append("- -b 31 -n 3042 -F -Z 6 ")
-            runs.append("- -b 140 -n 4442 -F -Z 30 ")
+            runs.append(" -b 120 -n 1000 -F -Z 2")
+            runs.append(" -b 120 -n 1042 -G -Z 4 ")
+            runs.append(" -b 31 -n 3042 -F -Z 4 ")
+            runs.append(" -b 31 -n 3042 -F -Z 6 ")
+            runs.append(" -b 140 -n 4442 -F -Z 30 ")
         if app == 'randperm':
             runs.append("-b 16 -n 1000  ")
             runs.append("-b 35 -n 813 ")
