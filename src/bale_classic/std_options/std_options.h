@@ -3,7 +3,7 @@
 #include <argp.h>
 #include <stdlib.h>
 #include <stdint.h>
-#include <libgetput.h>
+//#include <libgetput.h>
 #include "spmat_enums.h"
 
 typedef struct std_args_t{
@@ -37,6 +37,5 @@ extern struct argp std_graph_options_argp;
 #define ALL_Models      15L /*!< default for running all models */
 
 
-void share_args(void * args, size_t n);
-int check_for_exit(int argc, char * argv[], int ret);
+
 #endif

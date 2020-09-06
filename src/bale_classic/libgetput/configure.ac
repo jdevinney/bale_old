@@ -44,6 +44,7 @@ AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
 ##LT_INIT ## enable libtool
 
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_MACRO_DIRS([../])
 
 AC_ARG_WITH([upc],
             AS_HELP_STRING([--with-upc], [build a UPC version]),
@@ -70,7 +71,6 @@ else
   # must define this ugly conditional to keep automake happy
   AM_CONDITIONAL(am__fastdepUPC, [test])
 fi
-
 
 # ===========================================================================
 #  https://www.gnu.org/software/autoconf-archive/ax_check_compile_flag.html

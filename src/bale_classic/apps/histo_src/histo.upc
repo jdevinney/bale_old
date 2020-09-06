@@ -116,13 +116,20 @@ int main(int argc, char * argv[]) {
   if(MYTHREAD == 0){
     args.l_tbl_size = 1000;
     args.l_num_ups = 100000;
-    struct argp argp = {options, parse_opt, 0, "Accumulate updates into a table.", children_parsers};
+    struct argp argp = {options, parse_opt, 0,
+                        "Accumulate updates into a table.", children_parsers};
     ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
   }
   
   ret = check_for_exit(argc, argv, ret);
-  if(ret) return(ret);
-    
+  if(ret){
+    lgp_finalize();
+    if(ret < 0)
+      return(ret);
+    else
+      return(0);
+  }
+  
   lgp_barrier();
 
   share_args(&args, sizeof(args_t));

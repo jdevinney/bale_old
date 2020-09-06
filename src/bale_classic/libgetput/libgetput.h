@@ -148,7 +148,9 @@ typedef struct minavgmaxD_t{
 #endif
 
 
-#else
+#endif
+
+#if USE_SHMEM
 
 /////////////////////////////////////////////////////////////////
 ///////                   SHMEM SECTION                 /////////
@@ -248,6 +250,9 @@ int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value); /
 int64_t  lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, int64_t swap_val); /*!< wrapper of atomic compare and swap */
 
 double wall_seconds(); /*!< wall time timer using gettimeofday */
+
+void share_args(void * args, size_t n);
+int check_for_exit(int argc, char * argv[], int ret);
 
 #define libgetput_INCLUDED  /*!< std trick */
 #endif

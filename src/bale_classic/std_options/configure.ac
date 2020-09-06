@@ -41,43 +41,13 @@ AC_PREREQ([2.60])     #Require Minimum Autoconf version 2.60
 AC_INIT([std_options],   [1.0.0],   [bale@super.org])
 
 AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
-##LT_INIT ## enable libtool
 
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_MACRO_DIRS([../])
 
-AC_ARG_WITH([upc],
-            AS_HELP_STRING([--with-upc], [build a UPC version]),
-            [], [with_upc=yes])
-AC_ARG_WITH([shmem],
-            AS_HELP_STRING([--with-shmem], [build a SHMEM version]),
-            [], [with_shmem=no])
-            
 AC_PROG_RANLIB
 AC_PROG_CC
 AC_PROG_CC_C99
-
-mpp_use_shmem=no
-if test "x$with_shmem" = xyes; then
-   with_upc=no
-   mpp_use_shmem=yes
-fi
-
-if test "x$with_upc" = xyes; then
-AM_PROG_UPC
-#AC_CHECK_HEADERS([upc_atomic.h])
-else
-  # must define this ugly conditional to keep automake happy
-  AM_CONDITIONAL(am__fastdepUPC, [test])
-fi
-
-PKG_CHECK_MODULES([libdeps],
-  [
-        spmat
-  ]
-)
-
-AM_CONDITIONAL(BUILD_UPC, [test "x$with_upc" = xyes])
-AM_CONDITIONAL(BUILD_SHMEM, [test "x$mpp_use_shmem" = xyes])
 
 # ===========================================================================
 #  https://www.gnu.org/software/autoconf-archive/ax_check_compile_flag.html
@@ -139,6 +109,12 @@ AX_CHECK_COMPILE_FLAG([-hstd=c11],[  AS_VAR_APPEND([CFLAGS]," -hstd=c11")],
 [echo "C compiler cannot compile C11 code"
 exit -1])
 ])
+
+PKG_CHECK_MODULES([libdeps],
+  [
+        spmat
+  ]
+)
 
 AC_CONFIG_FILES([
 std_options.pc:std_options.pc.in
