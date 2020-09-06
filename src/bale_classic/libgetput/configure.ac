@@ -124,11 +124,11 @@ AS_VAR_IF(CACHEVAR,yes,
 AS_VAR_POPDEF([CACHEVAR])dnl
 ])dnl AX_CHECK_COMPILE_FLAGS
 
-AX_CHECK_COMPILE_FLAG([-hstd=c11], [
-  AS_VAR_APPEND([CFLAGS]," -hstd=c11")
+AX_CHECK_COMPILE_FLAG([-std=c11], [
+  AS_VAR_APPEND([CFLAGS]," -std=c11")
 ],
 [
-AX_CHECK_COMPILE_FLAG([-std=c11],[  AS_VAR_APPEND([CFLAGS]," -std=c11")],
+AX_CHECK_COMPILE_FLAG([-hstd=c11],[  AS_VAR_APPEND([CFLAGS]," -hstd=c11")],
 [echo "C compiler cannot compile C11 code"
 exit -1])
 ])
