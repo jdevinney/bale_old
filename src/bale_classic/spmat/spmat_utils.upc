@@ -244,7 +244,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
     char * object = calloc(64, sizeof(char));
     char * format = calloc(64, sizeof(char));
     char * field = calloc(64, sizeof(char));;
-    int fscanfret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
+    fscanfret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
     if( (fscanfret != 3 ) || strncmp(object,"matrix",24) || strncmp(format,"coordinate",24) ){
       fprintf(stderr,"read_matrix_mm: Incompatible matrix market format.\n");
       fprintf(stderr,"                First line should be either:\n");
