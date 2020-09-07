@@ -46,6 +46,7 @@
  */
 
 #include "spmat_utils.h"
+#include "std_options.h"
 
 double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);
 double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);
@@ -57,6 +58,12 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B);
 
 
 
+/*!
+ * \brief Compare two arrays
+ * \param *A one array (vector)
+ * \param *B the other
+ * \return the l_2 norm of the given arrays
+ */
 double sssp_answer_diff(d_array_t *A, d_array_t *B)
 {
   int64_t i;
@@ -70,25 +77,92 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B)
   return(sqrt(diff));
 }
 
+typedef struct args_t{
+  std_args_t std;
+  std_graph_args_t gstd;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      state->child_inputs[1] = &args->gstd;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] = {{0}};
+
+static struct argp_child children_parsers[] =
+{
+    {&std_options_argp, 0, "Standard Options", -2},
+    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+    {0}
+};
+
+
 int main(int argc, char * argv[]) 
 {
+  double laptime = 0.0;
   #define NUMROWS 20 
-  int64_t numrows=NUMROWS;
-  double edge_prob = 0.25;
-  uint32_t seed = 123456789;
-  graph_model model = FLAT;
-  int64_t readgraph = 0;
+  //int64_t numrows=NUMROWS;
+  //double edge_prob = 0.25;
+  //uint32_t seed = 123456789;
+  //graph_model model = FLAT;
+  //int64_t readgraph = 0;
   char filename[256]={"filename"};
   enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING=4, BELLMAN_SIMPLE=8, BELLMAN=16, ALL_Models=32};
   uint32_t use_model;
   uint32_t models_mask=ALL_Models - 1;
   int printhelp = 0;
-  int quiet = 0;
+  //int quiet = 0;
 
   sparsemat_t *dmat;
  
   int64_t dump_files = 1;
  
+  /* process command line */
+  args_t args;  
+  struct argp argp = {options, parse_opt, 0, "Transpose a sparse matrix.", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
+  
+  double nz_per_row = args.gstd.nz_per_row;
+  double edge_prob = args.gstd.edge_prob;
+  int64_t numrows = args.gstd.numrows;
+
+  edge_type edge_type = UNDIRECTED;
+  self_loops loops = LOOPS;
+  int quiet = args.std.quiet;
+  graph_model model = args.gstd.model;
+  
+  if(args.gstd.readfile == 0){
+    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
+  }
+  
+  if(!quiet ) {
+    fprintf(stderr,"Running C versions of SSSP\n");
+    if(args.gstd.readfile == 1)
+      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
+    else{
+      if(args.gstd.model == FLAT)
+        fprintf(stderr,"flat model           (-F)\n");
+      else        
+        fprintf(stderr,"geometric model      (-G)\n");
+      fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
+      fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
+      fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
+      fprintf(stderr,"random seed          (-s)= %ld\n",  args.std.seed);
+    }
+    fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
+    fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
+    fprintf(stderr,"---------------------------------------\n");
+  }
+  
+
+#if 0
   int opt; 
   while( (opt = getopt(argc, argv, "hn:s:e:g:M:f:Dq")) != -1 ) {
     switch(opt) {
@@ -104,6 +178,8 @@ int main(int argc, char * argv[])
     default: break;
     }
   }
+#endif
+
  
 #if 0 // test the heap stuff
     int64_t i;
@@ -120,11 +196,11 @@ int main(int argc, char * argv[])
     exit(1);
 #endif
 
-  if( readgraph ) {
+  if(args.gstd.readfile) {
     dmat = read_matrix_mm(filename);
     if(!dmat){printf("ERROR: sssp: read graph from %s Failed\n", filename); exit(1);}
   } else {
-    dmat = random_graph(numrows, model, DIRECTED_WEIGHTED, NOLOOPS, edge_prob, seed);
+    dmat = random_graph(numrows, model, DIRECTED_WEIGHTED, NOLOOPS, edge_prob, args.std.seed);
     if(!dmat){
       printf("ERROR: sssp: erdos_renyi_graph Failed\n"); 
       exit(1);
@@ -134,7 +210,7 @@ int main(int argc, char * argv[])
   if( printhelp || !quiet ) {
     fprintf(stderr,"Running C version of sssp\n");
     fprintf(stderr,"Number of rows       (-n)= %"PRId64"\n", numrows);
-    fprintf(stderr,"random seed          (-s)= %d\n", seed);
+    fprintf(stderr,"random seed          (-s)= %ld\n",  args.std.seed);
     fprintf(stderr,"Flat edge prob       (-e)= %lg\n", edge_prob);
     fprintf(stderr,"Geometric edge prob  (-g)= %lg\n", edge_prob);
     fprintf(stderr,"models_mask          (-M)= %d\n", models_mask);
@@ -158,7 +234,6 @@ int main(int argc, char * argv[])
   tent = init_d_array(numrows);
   set_d_array(tent, INFINITY);
 
-  double laptime = 0.0;
   for(use_model=1; use_model < ALL_Models; use_model *=2 ){
     switch( use_model & models_mask ){
     case GENERIC_Model:
