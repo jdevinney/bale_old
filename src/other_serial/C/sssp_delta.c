@@ -110,8 +110,10 @@ void relax(int64_t windex, double cand_dist, double * tent, buckets_t * buckets)
     Dprintf("relax w=%"PRId64" cand_dist = %lf < %lf?\n", windex, cand_dist, tent[windex]);
     /* if w is in B[floor(tent[windex]/delta)], remove it from that bucket */
     int64_t j;
-    if(tent[windex] == INFINITY) j = -1;
-    else j = (int64_t)floor(tent[windex]/buckets->delta);
+    if(tent[windex] == INFINITY) 
+      j = -1;
+    else 
+      j = (int64_t)floor(tent[windex]/buckets->delta);
     move_node_from_bucket_i_to_j(&(buckets->nodes[windex]), j, (int64_t)floor(cand_dist/buckets->delta), buckets);
     tent[windex] = cand_dist;
   }
@@ -121,7 +123,7 @@ void relax(int64_t windex, double cand_dist, double * tent, buckets_t * buckets)
 // the paper "Delta-stepping: a parallelizable shortest path algorithm" by
 // U. Meyer and P. Sanders.
 
-double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
+double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0){
   int64_t i, j;
 
   double tm = wall_seconds();
@@ -134,20 +136,20 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
   /* calculate delta and set tentative distances to infinity */  
   double delta = 0.0;
   int64_t max_degree = 0;
-  double * tent = dist;
+  double * tent = dist->entry;
   for(i = 0; i < mat->numrows; i++){
     if(max_degree < (mat->offset[i+1] - mat->offset[i]))
       max_degree = (mat->offset[i+1] - mat->offset[i]);
     tent[i] = INFINITY;
   }
+  assert(max_degree > 0);
+  delta = 1.0/max_degree;
   
-  double max_edge_weight = 0;
+  double max_edge_weight = 0.0;
   for(i = 0; i < mat->nnz; i++)
     if(max_edge_weight < mat->value[i])
       max_edge_weight = mat->value[i];
-  //printf("max edge weight = %lf\n", max_edge_weight);
-  assert(max_degree > 0.0);
-  delta = 1.0/max_degree;
+  Dprintf("max edge weight = %lf\n", max_edge_weight);
   
   /* set up buckets as an array of linked lists */
   int64_t num_buckets = (int64_t)ceil(max_edge_weight/delta) + 1;
@@ -175,7 +177,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
   
   /* set the source distance to 0 */
   insert_node_in_bucket(&(buckets->nodes[r0]), 0, buckets);
-  tent[r0] = 0;
+  tent[r0] = 0.0;
   
   /* main loop */
   //int64_t min_bucket = 0;
@@ -207,19 +209,16 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
       /* relax light edges from v */
       for(j = mat->offset[v->index]; j < mat->offset[v->index + 1]; j++){
         if(mat->value[j] <= delta){	  
-          relax(mat->nonzero[j],
-		tent[v->index] + mat->value[j],
-		tent,
-		buckets);
+          relax(mat->nonzero[j], tent[v->index] + mat->value[j], tent, buckets);
         }
-      }      
+      } 
       
       /* insert v into R if it is not already there */
       if(deleted[v->index] == 0){
         deleted[v->index] = 1;
         R[end++] = v->index;
         num_deleted++;
-        //printf("deleted %"PRId64"s\n", v->index);
+        Dprintf("deleted %"PRId64"s\n", v->index);
       }
       
       //v = v->next;
@@ -231,10 +230,7 @@ double sssp_delta_stepping(sparsemat_t * mat, double * dist, int64_t r0){
       v = &(buckets->nodes[R[start++]]);
       for(j = mat->offset[v->index]; j < mat->offset[v->index + 1]; j++){
         if(mat->value[j] > delta){
-          relax(mat->nonzero[j],
-		tent[v->index] + mat->value[j],
-		tent,
-		buckets);
+          relax(mat->nonzero[j], tent[v->index] + mat->value[j], tent, buckets);
         }
       }      
     }
