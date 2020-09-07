@@ -1,3 +1,5 @@
 *.mm
 Cargo.lock
 *.out
+eg*
+erdosrenyi/

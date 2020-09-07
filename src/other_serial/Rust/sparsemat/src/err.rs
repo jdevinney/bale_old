@@ -7,7 +7,8 @@ pub enum SparseMatError {
     Sparsemat(ParseMmError),
     Io(std::io::Error),
     Time(std::time::SystemTimeError),
-    Parse(std::num::ParseIntError),
+    ParseInt(std::num::ParseIntError),
+    ParseFloat(std::num::ParseFloatError),
     Re(regex::Error),
 }
 
@@ -41,7 +42,8 @@ impl fmt::Display for SparseMatError {
             // This is a wrapper, so defer to the underlying types' implemenntation of `fmt`.
             SparseMatError::Io(ref e) => e.fmt(f),
             SparseMatError::Time(ref e) => e.fmt(f),
-            SparseMatError::Parse(ref e) => e.fmt(f),
+            SparseMatError::ParseInt(ref e) => e.fmt(f),
+            SparseMatError::ParseFloat(ref e) => e.fmt(f),
             SparseMatError::Re(ref e) => e.fmt(f),
         }
     }
@@ -56,7 +58,8 @@ impl error::Error for SparseMatError {
             // underlying type already implements the `Error` trait.
             SparseMatError::Io(ref e) => Some(e),
             SparseMatError::Time(ref e) => Some(e),
-            SparseMatError::Parse(ref e) => Some(e),
+            SparseMatError::ParseInt(ref e) => Some(e),
+            SparseMatError::ParseFloat(ref e) => Some(e),
             SparseMatError::Re(ref e) => Some(e),
         }
     }
@@ -79,7 +82,13 @@ impl From<std::io::Error> for SparseMatError {
 
 impl From<std::num::ParseIntError> for SparseMatError {
     fn from(err: std::num::ParseIntError) -> SparseMatError {
-        SparseMatError::Parse(err)
+        SparseMatError::ParseInt(err)
+    }
+}
+
+impl From<std::num::ParseFloatError> for SparseMatError {
+    fn from(err: std::num::ParseFloatError) -> SparseMatError {
+        SparseMatError::ParseFloat(err)
     }
 }
 

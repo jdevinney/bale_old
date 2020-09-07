@@ -356,14 +356,15 @@ impl SparseMat {
         R: BufRead,
     {
         let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
-        // let re = Regex::new(r"^%%MatrixMarket *matrix *coordinate *position")?;
-        let re = Regex::new(r"^%%MatrixMarket *matrix *coordinate *[position|real]*")?;
-        if !re.is_match(&line) {
+        let re1 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *position*")?;
+        let re2 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *real*")?;
+        if !re1.is_match(&line) && !re2.is_match(&line){
             return Err(Sparsemat(ParseMmError::new(format!(
                 "invalid header {}",
                 line
             ))));
         }
+        let has_values = re2.is_match(&line);
 
         let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
         let re = Regex::new(r"^(\d*)\s*(\d*)\s*(\d*)\s*")?;
@@ -383,26 +384,26 @@ impl SparseMat {
         struct Elt {
             row: usize,
             col: usize,
+            val: f64,
         }
 
         let mut elts: Vec<Elt> = vec![];
         for line in reader.lines() {
-            let line = line.expect("bad read");
-            let re = Regex::new(r"^(\d*)\s*(\d*)\s*")?;
-            let cleaned = re.replace_all(&line, "$1 $2");
-            let inputs: Vec<String> = cleaned.split(" ").map(|x| x.to_string()).collect();
+            let line = line.expect("read error");
+            let inputs: Vec<&str> = line.split_whitespace().collect();
             let row: usize = inputs[0].parse()?;
             let col: usize = inputs[1].parse()?;
+            let val: f64 = if has_values {inputs[2].parse()?} else {1.0};
             if row == 0 || row > nr || col == 0 || col > nc {
                 return Err(Sparsemat(ParseMmError::new(format!(
-                    "bad matrix nonzero {} {}",
+                    "bad matrix nonzero coordinates {} {}",
                     row, col
                 ))));
             }
-
             elts.push(Elt {
                 row: row - 1,
                 col: col - 1,
+                val: val,
             }); // MatrixMarket format is 1-up, not 0-up
         }
         if elts.len() != nnz {
@@ -422,6 +423,7 @@ impl SparseMat {
         });
 
         let mut ret = SparseMat::new(nr, nc, nnz);
+        let mut values: Vec<f64> = vec![];
         let mut row: usize = 0;
         for (i, elt) in elts.iter().enumerate() {
             // first adjust so we are on correct row
@@ -431,9 +433,15 @@ impl SparseMat {
             }
             assert!(elt.row == row);
             ret.nonzero[i] = elt.col;
+            if has_values {
+                values.push(elt.val);
+            }
         }
         for i in row + 1..ret.numrows + 1 {
             ret.offset[i] = ret.nnz;
+        }
+        if has_values {
+            ret.value = Some(values);
         }
         Ok(ret)
     }
