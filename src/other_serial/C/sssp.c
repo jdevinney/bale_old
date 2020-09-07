@@ -122,7 +122,7 @@ int main(int argc, char * argv[])
 
   if( readgraph ) {
     dmat = read_matrix_mm(filename);
-    if(!mat){printf("ERROR: sssp: read graph from %s Failed\n", filename); exit(1);}
+    if(!dmat){printf("ERROR: sssp: read graph from %s Failed\n", filename); exit(1);}
   } else {
     dmat = random_graph(numrows, model, DIRECTED_WEIGHTED, NOLOOPS, edge_prob, seed);
     if(!dmat){
@@ -168,6 +168,7 @@ int main(int argc, char * argv[])
       copy_d_array(comp_tent, tent);
       printf("n-squared Dijkstra Heap run on default!\n");
       break;
+
     case DIJSKTRA_HEAP:
       if( !quiet ) printf("Dijsktra Heap    sssp: ");
       laptime = sssp_dijsktra_heap(tent, dmat, 0);
@@ -180,6 +181,7 @@ int main(int argc, char * argv[])
           printf("Dijkstra Heap: compares successfully!\n");
       }
       break;
+
     case DELTA_STEPPING:
       if( !quiet ) printf("Delta Stepping   sssp: ");
       laptime = sssp_delta_stepping(tent, dmat, 0);
@@ -220,18 +222,6 @@ int main(int argc, char * argv[])
       }
       break;
 
-    case BELLMAN:
-      if( !quiet ) printf("Bellman Ford dp  sssp: ");
-      for(i=0;i<numrows; i++) dist[i] = INFINITY;
-      laptime = sssp_bellmanford_dp(dmat, dist, 0);
-      if(compdist == NULL){
-        compdist = calloc(numrows, sizeof(double));
-        for(i=0; i<numrows; i++) compdist[i] = dist[i];
-      }else{
-        for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
-      }
-      //printf("Bellman DynProg: Success!\n");
-      break;
     default:
       continue;
     }
