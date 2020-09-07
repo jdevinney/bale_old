@@ -158,6 +158,12 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
 {
   int64_t i,j, off, nxtoff;
   int64_t stoprow, startrow;
+
+  if(!A){
+    fprintf(stderr,"ERROR: trying to dump an empty matrix");
+    return(0);
+  }
+
   stoprow = A->numrows;
   startrow = A->numrows;
   if( (maxrows > 0) && (maxrows < A->numrows) ){
@@ -201,18 +207,22 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
     }
   }
   fclose(fp);
-  return(0);
+  return(1);
 }
 
 /*! \brief writes a sparse matrix to a file in a MatrixMarket ASCII format
  * \param A pointer to the sparse matrix
- * \param name the filename to written to
+ * \param name the filename to be written to
  * \return 0 on success, non-0 on error.
  */
 int64_t write_matrix_mm(sparsemat_t *A, char * name){
   int64_t i,j;
 
-  FILE * fp = fopen(name, "w");       // FIXME error
+  FILE * fp = fopen(name, "w");
+  if( fp == NULL ){
+    fprintf(stderr,"write_matrix_mm: can't open file %s \n", name);
+    exit(1);
+  }
   if(A->value)
     fprintf(fp,"%%%%MatrixMarket matrix coordinate real\n");
   else
@@ -790,15 +800,16 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
   * \param edge_density: d in [0, 1), target fraction of edges present.
   * \param seed: RNG seed.
   */
+#define DPRT 1
 sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                             double edge_density, int64_t seed)
 {
 
    if(model == FLAT){
-     
+     if(DPRT){printf("making an erdos-renyi graph\n");}
      return(erdos_renyi_random_graph(n, edge_density, edge_type, loops, seed));
-     
    }else if(model == GEOMETRIC){
+     if(DPRT){printf("making a geometric graph\n");}
      double r;
      // determine the r that will lead to the desired edge density
      // Expected degree = n*pi*r^2
@@ -1587,3 +1598,109 @@ void clear_matrix(sparsemat_t * mat)
   free(mat->offset);
   free(mat->value);
 }
+
+
+/*! \brief initializes the struct that holds an array of doubles
+ * \param num total number of entries
+ * \return an allocated d_array_t or NULL on error
+ * \ingroup spmatgrp
+ */
+d_array_t * init_d_array(int64_t num) 
+{
+  d_array_t * array = calloc(1, sizeof(d_array_t));
+  array->num  = num;
+  array->entry   = malloc(num * sizeof(double));
+  return(array);
+}
+
+/*! \brief sets all the entries of d_array_t to a value
+ * \param A the array
+ * \param v the value
+ * \ingroup spmatgrp
+ */
+void set_d_array(d_array_t * A, double v) 
+{
+  int64_t i;
+  for(i=0; i<A->num; i++) {
+    A->entry[i] = v;
+  }
+}
+
+/*! \brief sets all the entries of d_array_t to a value
+ * \param A the array
+ * \param v the value
+ * \ingroup spmatgrp
+ */
+void copy_d_array(d_array_t * dest, d_array_t * src) 
+{
+  int64_t i;
+ 
+  for(i=0; i<dest->num; i++)
+    dest->entry[i] = src->entry[i];
+}
+
+
+/*! \brief read a double array from a file.
+ * \param name the filename to be read
+ * \return a pointer to the double array or NULL on failure
+ * Note: file format is: first line is the num of entries in the array,
+ * then one entry per line after that.
+ */
+d_array_t * read_d_array(char *name)
+{
+
+  int64_t i, num;
+  double val;
+  FILE * fp = fopen(name, "r");
+  if( fp == NULL ){
+    fprintf(stderr,"read_d_array: can't open file %s \n", name);
+    exit(1);
+  }
+
+  int fscanfret;
+  fscanfret = fscanf(fp,"%"SCNd64"\n", &num);
+  d_array_t *retarr = init_d_array(num);
+
+  for(i=0; i<num; i++){
+    fscanfret = fscanf(fp,"%lf\n", &(retarr->entry[i]));
+    assert (fscanfret == 1);
+  }
+
+  return(retarr);
+}
+
+/*! \brief writes a double array to a file
+ * \param A pointer to the double array
+ * \param name the filename to be written to
+ * \return 0 on success, non-0 on error.
+ */
+int64_t write_d_array(d_array_t *A, char * name)
+{
+  int64_t i;
+
+  FILE * fp = fopen(name, "w");       // FIXME error
+  if( fp == NULL ){
+    fprintf(stderr,"write_d_array: can't open file %s \n", name);
+    exit(1);
+  }
+
+  fprintf(fp, "%"PRId64"\n", A->num);
+
+  for(i=0; i<A->num; i++){
+    fprintf(fp, "%lf\n", A->entry[i]);
+  }
+  fclose(fp);
+  return(0);
+}
+
+
+/*! \brief clears the d_array_t struct
+ * \param A the d_array
+ * \ingroup spmatgrp
+ */
+void clear_d_array(d_array_t * A)
+{
+  free(A->entry);
+}
+
+

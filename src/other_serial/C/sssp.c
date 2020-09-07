@@ -47,11 +47,28 @@
 
 #include "spmat_utils.h"
 
-double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0);
-double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0);
-double sssp_bellmanford_dp(sparsemat_t *dmat, double *dist, int64_t r0);
-double sssp_bellmanford_one(sparsemat_t *dmat, double *dist, int64_t r0);
-double sssp_delta_stepping(sparsemat_t *dmat, double *dist, int64_t r0);
+double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);
+double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);
+double sssp_bellmanford_simple(d_array_t * tent, sparsemat_t *dmat, int64_t r0);
+double sssp_bellmanford_dynprog(d_array_t * tent, sparsemat_t *dmat, int64_t r0);
+double sssp_bellmanford(d_array_t * tent, sparsemat_t *dmat, int64_t r0);
+double sssp_delta_stepping(d_array_t * tent, sparsemat_t *dmat, int64_t r0);
+double sssp_answer_diff(d_array_t *A, d_array_t *B);
+
+
+
+double sssp_answer_diff(d_array_t *A, d_array_t *B)
+{
+  int64_t i;
+  double diff = 0.0;
+
+  for(i=0; i<A->num; i++) {
+    if( A->entry[i] == INFINITY && B->entry[i] == INFINITY )
+      continue;
+    diff += (A->entry[i] - B->entry[i]) * (A->entry[i] - B->entry[i]);
+  }
+  return(sqrt(diff));
+}
 
 int main(int argc, char * argv[]) 
 {
@@ -62,19 +79,18 @@ int main(int argc, char * argv[])
   graph_model model = FLAT;
   int64_t readgraph = 0;
   char filename[256]={"filename"};
-  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING=4, BELLMAN=8, BELLMAN_ONE=16, ALL_Models=32};
+  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING=4, BELLMAN_SIMPLE=8, BELLMAN=16, ALL_Models=32};
   uint32_t use_model;
   uint32_t models_mask=ALL_Models - 1;
   int printhelp = 0;
   int quiet = 0;
-  int64_t i;
 
-  sparsemat_t *mat, *dmat;
+  sparsemat_t *dmat;
  
   int64_t dump_files = 1;
  
   int opt; 
-  while( (opt = getopt(argc, argv, "hn:s:e:M:f:Dq")) != -1 ) {
+  while( (opt = getopt(argc, argv, "hn:s:e:g:M:f:Dq")) != -1 ) {
     switch(opt) {
     case 'h': printhelp = 1; break;
     case 'n': sscanf(optarg,"%"PRId64 ,&numrows ); break;
@@ -90,6 +106,7 @@ int main(int argc, char * argv[])
   }
  
 #if 0 // test the heap stuff
+    int64_t i;
     PQ_t * pq = init_pqueue(numrows);
     for(i=1; i<numrows; i++) {
       pq->val[i] = (double)(numrows-i);
@@ -103,17 +120,13 @@ int main(int argc, char * argv[])
     exit(1);
 #endif
 
-
-
   if( readgraph ) {
-    mat = read_matrix_mm(filename);
+    dmat = read_matrix_mm(filename);
     if(!mat){printf("ERROR: sssp: read graph from %s Failed\n", filename); exit(1);}
   } else {
-    //mat = erdos_renyi_tri(numrows, er_prob, ER_TRI_L, seed);
-                //graph_model model = FLAT;
-    mat = random_graph(numrows, model, UNDIRECTED_WEIGHTED, NOLOOPS, edge_prob, seed);
-    if(!mat){
-      printf("ERROR: triangles: erdos_renyi_graph Failed\n"); 
+    dmat = random_graph(numrows, model, DIRECTED_WEIGHTED, NOLOOPS, edge_prob, seed);
+    if(!dmat){
+      printf("ERROR: sssp: erdos_renyi_graph Failed\n"); 
       exit(1);
     }
   }
@@ -133,72 +146,80 @@ int main(int argc, char * argv[])
       return(0);
   }
 
-  // why???
-  for(i=0; i< mat->nnz; i++) {
-    //  mat->value[i] = floor( 20 * mat->value[i]);
-  }
-  // mat is the lower triangle of the adjacency matrix
-  // we use the full symmetric matrix in Dijsktra's algorithm
-  dmat = make_symmetric_from_lower(mat);
   // debug info
   if(dump_files) {
-    dump_matrix(mat,20, "L.out");
     dump_matrix(dmat,20, "Full.out");
   }
 
+#define WRITE_MAT 1
+  if(WRITE_MAT){write_matrix_mm(dmat, "ssspout.mm");}
 
-  double * compdist = NULL;
-  double * dist = malloc(numrows*sizeof(double));
-  for(i=0;i<numrows; i++) dist[i] = INFINITY;
-  
+  d_array_t *tent, *comp_tent=NULL;
+  tent = init_d_array(numrows);
+  set_d_array(tent, INFINITY);
+
   double laptime = 0.0;
   for(use_model=1; use_model < ALL_Models; use_model *=2 ){
     switch( use_model & models_mask ){
     case GENERIC_Model:
       if( !quiet ) printf("Generic          sssp: ");
-      for(i=0;i<numrows; i++) dist[i] = INFINITY;
-      laptime = sssp_dijsktra_linear(dmat, dist, 0);
-      compdist = calloc(numrows, sizeof(double));
-      for(i=0; i<numrows; i++){
-        compdist[i] = dist[i];
-        //printf("%"PRId64" %g\n",i, dist[i]);
-      }
+      laptime = sssp_dijsktra_linear(tent, dmat, 0);
+      comp_tent = init_d_array(numrows);
+      copy_d_array(comp_tent, tent);
+      printf("n-squared Dijkstra Heap run on default!\n");
       break;
     case DIJSKTRA_HEAP:
       if( !quiet ) printf("Dijsktra Heap    sssp: ");
-      for(i=0;i<numrows; i++) dist[i] = INFINITY;
-      laptime = sssp_dijsktra_heap(dmat, dist, 0);
-      if(compdist == NULL){
-        compdist = calloc(numrows, sizeof(double));
-        for(i=0; i<numrows; i++) compdist[i] = dist[i];
+      laptime = sssp_dijsktra_heap(tent, dmat, 0);
+      if(comp_tent == NULL){
+        comp_tent = init_d_array(numrows);
+        copy_d_array( comp_tent, tent);
+        printf("Dijkstra Heap: nothing to compare to!\n");
       }else{
-        for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
+        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+          printf("Dijkstra Heap: compares successfully!\n");
       }
-      //printf("Dijkstra Heap: Success!\n");
       break;
     case DELTA_STEPPING:
       if( !quiet ) printf("Delta Stepping   sssp: ");
-      for(i=0;i<numrows; i++) dist[i] = INFINITY;
-      laptime = sssp_delta_stepping(dmat, dist, 0);
-      if(compdist == NULL){
-        compdist = calloc(numrows, sizeof(double));
-        for(i=0; i<numrows; i++) compdist[i] = dist[i];
+      laptime = sssp_delta_stepping(tent, dmat, 0);
+      if(comp_tent == NULL){
+        comp_tent = init_d_array(numrows);
+        copy_d_array( comp_tent, tent);
+        printf("Delta Stepping: nothing to compare to!\n");
       }else{
-        //for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
-        int64_t error = 0;
-        for(i=0; i<numrows; i++){
-          if(dist[i] != compdist[i]){
-            //if(dist[i] != INFINITY || compdist[i] != -INFINITY){
-            error++;
-            //printf("%"PRId64" %g %g\n", i, dist[i], compdist[i]);
-            //}
-          }
-        }
-        assert(error == 0);
+        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+          printf("Delta Stepping: compares successfully!\n");
       }
-      //printf("Delta Stepping: Success!\n");
       
       break;
+
+    case BELLMAN_SIMPLE:
+      if( !quiet ) printf("Bellman Ford     sssp: ");
+      laptime = sssp_bellmanford_simple(tent, dmat, 0);
+      if(comp_tent == NULL){
+        comp_tent = init_d_array(numrows);
+        copy_d_array( comp_tent, tent);
+        printf("Bellman-Ford: nothing to compare to!\n");
+      }else{
+        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+          printf("Bellman-Ford (dynamic program): compares successfully!\n");
+      }
+      break;
+
+    case BELLMAN:
+      if( !quiet ) printf("Bellman Ford dp sssp: ");
+      laptime = sssp_bellmanford(tent, dmat, 0);
+      if(comp_tent == NULL){
+        comp_tent = init_d_array(numrows);
+        copy_d_array( comp_tent, tent);
+        printf("Bellman-Ford  DP  : nothing to compare to!\n");
+      }else{
+        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+          printf("Bellman-Ford  DP  : compares successfully!\n");
+      }
+      break;
+
     case BELLMAN:
       if( !quiet ) printf("Bellman Ford dp  sssp: ");
       for(i=0;i<numrows; i++) dist[i] = INFINITY;
@@ -211,27 +232,16 @@ int main(int argc, char * argv[])
       }
       //printf("Bellman DynProg: Success!\n");
       break;
-    case BELLMAN_ONE:
-      if( !quiet ) printf("Bellman Ford one sssp: ");
-      for(i=0;i<numrows; i++) dist[i] = INFINITY;
-      laptime = sssp_bellmanford_one(dmat, dist, 0);
-      if(compdist == NULL){
-        compdist = calloc(numrows, sizeof(double));
-        for(i=0; i<numrows; i++) compdist[i] = dist[i];
-      }else{
-        for(i=0; i<numrows; i++) assert(compdist[i] == dist[i]);
-      }
-      //printf("Bellman: Success!\n");
-      break;
     default:
       continue;
     }
     if(!quiet) printf("%8.3lf seconds\n", laptime);
   }
+
+  if(WRITE_MAT){write_d_array(comp_tent, "sssp.wts");}
   
-  free(dist);
-  free(compdist);
-  clear_matrix(mat);
-  clear_matrix(dmat);
+  clear_matrix(dmat); free(dmat);
+  clear_d_array(tent); free(tent);
+  clear_d_array(comp_tent); free(comp_tent);
   return(0);
 }

@@ -173,14 +173,22 @@ void             resolve_edge_prob_and_nz_per_row(double * edge_prob, double * n
 int64_t          sort_nonzeros( sparsemat_t *mat);
 void             spmat_stats(sparsemat_t *mat);
 
-double           sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0);
-double           sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0);
-double           sssp_delta_stepping(sparsemat_t * mat, double *dist, int64_t r0);
 
 sparsemat_t *    transpose_matrix(sparsemat_t *A);
 sparsemat_t *    make_symmetric_from_lower(sparsemat_t * L);
 int64_t          write_matrix_mm(sparsemat_t * A, char * name);
 
+typedef struct d_array_t {
+  int64_t num;                 //!< the total number of entries in the array
+  double * entry;              //!< the array of doubles
+} d_array_t;
+
+d_array_t * init_d_array(int64_t num); 
+d_array_t * read_d_array(char *name);
+int64_t     write_d_array(d_array_t *A, char * name);
+void        set_d_array(d_array_t * A, double v);
+void        clear_d_array(d_array_t *A);
+void        copy_d_array(d_array_t *dest, d_array_t *src);
 
 
 double wall_seconds();
