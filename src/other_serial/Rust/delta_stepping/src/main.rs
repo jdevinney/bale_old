@@ -1,6 +1,12 @@
+use chrono::{DateTime, Local};
 use clap::{App, Arg};
-use sparsemat::SparseMat;
 use delta_stepping::DeltaStepping;
+use itertools::join;
+use regex::Regex;
+use sparsemat::SparseMat;
+use std::fs::File;
+use std::io::{BufRead};
+use std::io::{BufReader};
 
 /*
  * Application that finds shortest path lengths from a single source in 
@@ -41,6 +47,7 @@ use delta_stepping::DeltaStepping;
 */
 
 fn main() {
+
     let matches = App::new("DeltaStepping")
         .version("0.1.0")
         .about("Implements a test of DeltaStepping")
@@ -64,6 +71,20 @@ fn main() {
                 .long("erdos_renyi_prob")
                 .takes_value(true)
                 .help("Probability of an edge in the erdos renyi graph"),
+        )
+        .arg(
+            Arg::with_name("input_file")
+                .short("i")
+                .long("input_file")
+                .takes_value(true)
+                .help("Matrix Market input file for graph with edge weights"),
+        )
+        .arg(
+            Arg::with_name("forced_delta")
+                .short("f")
+                .long("forced_delta")
+                .takes_value(true)
+                .help("Bucket width for delta-stepping, override algorithm's choice"),
         )
         .arg(
             Arg::with_name("dump_files")
@@ -97,17 +118,26 @@ fn main() {
         .unwrap_or("0.3")
         .parse()
         .expect("er_prob: not a float");
+    let input_file: &str = matches
+        .value_of("input_file")
+        .unwrap_or("NONE");
+    let forced_delta: f64 = matches
+        .value_of("forced_delta")
+        .unwrap_or("0.0")
+        .parse()
+        .expect("forced_delta: not a float");
 
     let seed = 12346; // the random-number seed is actually never used
     let quiet = matches.is_present("quiet");
     let dump_files = matches.is_present("dump_files");
 
-    if !quiet {
-        println!("creating input matrix for delta_stepping");
-    }
-
-    let mut mat = SparseMat::erdos_renyi_graph(numrows, erdos_renyi_prob, false, seed);
-    mat.randomize_values();
+    let mut mat: SparseMat; 
+    if matches.is_present("input_file") {
+        mat = SparseMat::read_mm_file(input_file).expect("can't read MatrixMarket file");
+    } else {
+        mat = SparseMat::erdos_renyi_graph(numrows, erdos_renyi_prob, false, seed);
+        mat.randomize_values();
+    };
 
     if !quiet {
         println!("input matrix stats:");
@@ -122,9 +152,60 @@ fn main() {
         .expect("could not write sssp_mat.mm");
 
     if !quiet {
-        println!("Running delta_stepping on mat from source {} ...", source);
+        let now: DateTime<Local> = Local::now();
+        println!(
+            "Running delta_stepping on {} from source {} at {} ...", 
+            if matches.is_present("input_file") {input_file} else {"random matrix"},
+            source, 
+            now
+        );
     }
-    let matret = mat.delta_stepping(source);
+
+    let matret = mat.delta_stepping(source, if forced_delta == 0.0 {None} else {Some(forced_delta)});
+    matret.dump(0, "results.wts").expect("results write error");
+
+    // hack to check against Phil's output file if it's there
+    // this would have been like 6 lines in Python ... just sayin' ...
+    if matches.is_present("input_file") {
+        let re = Regex::new(r"\.").unwrap();
+        let mut tokens: Vec<&str> = re.split(input_file).collect();
+        if let Some(_) = tokens.pop() {
+            tokens.push("wts");
+        }
+        let check_file = join(&tokens, ".");
+        if let Ok(fp) = File::open(&check_file) {
+            let reader = BufReader::new(fp);
+            let mut check_dist: Vec<f64> = vec![];
+            for line in reader.lines() {
+                let d = line
+                    .expect("can't read check file")
+                    .parse::<f64>()
+                    .expect("can't read check file");
+                check_dist.push(d);
+            }
+            let check_nv = check_dist[0] as usize;
+            if (check_nv != mat.numrows) || (check_nv != check_dist.len()-1) {
+                println!(
+                    "check file problem: mat.numrows = {}, check says nv = {}, check has {} distances",
+                    mat.numrows, check_nv, check_dist.len()-1
+                );
+            } else {
+                let mut sumsq: f64 = 0.0;
+                for v in 0..check_nv {
+                    sumsq += (check_dist[v+1] - matret.distance[v]).powi(2); // sigh :-(
+                }
+                if sumsq < (10.0_f64).powi(-8) {  // what's wrong with just 1e-8 ?
+                    println!("\nCORRECT! norm squared = {}", sumsq);
+                } else {
+                    println!("\nDISAGREE! norm squared = {}", sumsq);
+                }
+            }
+        } else {
+            println!("No ground truth file '{}' to check against", check_file);
+        }
+    } else {
+        println!("No ground truth file to check against");
+    }
 
     if !mat.check_result(&matret, dump_files) {
         println!("ERROR: check_result failed");

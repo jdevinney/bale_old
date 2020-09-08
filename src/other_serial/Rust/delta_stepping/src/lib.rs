@@ -1,3 +1,4 @@
+use chrono::{DateTime, Local};
 use sparsemat::wall_seconds;
 use sparsemat::SparseMat;
 use std::fs::OpenOptions;
@@ -16,15 +17,14 @@ pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
         } else {
             ranges.push(0..num_items);
         }
-        // maybe ranges.iter().enumerate() or something?
         ranges
 }
 
 // Output structure for single-source shortest path
 #[derive(Debug, Clone)]
 pub struct SsspInfo {
-    distance: Vec<f64>,
-    source: usize,
+    pub distance: Vec<f64>,
+    pub source: usize,
     pub laptime: f64,
 }
 
@@ -34,7 +34,9 @@ impl SsspInfo {
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().write(true).create(true).open(path)?;
         writeln!(file, "==========================================================")?;
-        writeln!(file, "Final Distances")?;
+        let now: DateTime<Local> = Local::now();
+        writeln!(file, "Final Distances at {}", now)?;
+
         write!(file, "vtx: dist\n")?;
         for r in display_ranges(max_disp, self.distance.len()) {
             for v in r {  // should use zip 0-0
@@ -176,12 +178,13 @@ impl<'a> BucketSearcher<'a> {
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().append(true).create(true).open(path)?;
         let nv = self.graph.numrows;
+        let now: DateTime<Local> = Local::now();
         writeln!(file, "==========================================================")?;
         write!(file, "BucketSearcher: {}", title)?;
         for n in nums {
             write!(file, " {}", n)?;
         }
-        write!(file, "\n")?;
+        writeln!(file, " at {}\n", now)?;
         writeln!(file, "nv={}, num_buckets={}, delta={}", nv, self.num_buckets, self.delta)?;
         writeln!(file, "elt: prev_elt next_elt vtx_bucket activated tentative_dist")?;
         for r in display_ranges(max_disp, nv) {
@@ -372,7 +375,7 @@ impl<'a> BucketSearcher<'a> {
 }
 
 pub trait DeltaStepping {
-    fn delta_stepping(&self, source: usize) -> SsspInfo;
+    fn delta_stepping(&self, source: usize, forced_delta: Option<f64>) -> SsspInfo;
     fn check_result(&self, info: &SsspInfo, dump_files: bool) -> bool;
 }
 
@@ -380,14 +383,25 @@ impl DeltaStepping for SparseMat {
 
     /// This implements the sequential AGI variant of delta stepping.
     /// # Argument: source vertex
-    fn delta_stepping(&self, source: usize) -> SsspInfo {
+    fn delta_stepping(&self, source: usize, forced_delta: Option<f64>) -> SsspInfo {
         assert!(self.numrows == self.numcols);
         assert!(source < self.numrows);
 
         let t1 = wall_seconds().expect("wall second error");
 
+        let delta;
         // choose a value for delta, the bucket width
-        let delta = 1.0; // 0-0 need to fix this, probably 1/(max degree)
+        if let Some(d) = forced_delta {
+            delta = d;
+        } else {
+            delta = 1.0; // 0-0 need to fix this, probably 1/(max degree)
+        }
+        println!(
+            "delta_stepping: nvtxs = {}, nedges = {}, delta = {}",
+            self.numrows, 
+            self.offset[self.numrows], 
+            delta
+        );
         
         // initialize buckets, activated flags, etc.
         let mut searcher = BucketSearcher::new(&self, delta);
@@ -400,7 +414,6 @@ impl DeltaStepping for SparseMat {
             .expect("bucket dump failed");
 
         // outer loop: for each nonempty bucket in order ...
-        // for active_bucket in &searcher {
         let mut outer = 0;
         let mut active_bucket_if_any = Some(0);
         while let Some(active_bucket) = active_bucket_if_any {

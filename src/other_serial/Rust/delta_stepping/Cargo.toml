@@ -8,6 +8,9 @@ edition = "2018"
 
 [dependencies]
 clap="2"
+chrono="0.4.15"
+itertools="0"
+regex="1"
 
 [dependencies.sparsemat]
 path = "../sparsemat"

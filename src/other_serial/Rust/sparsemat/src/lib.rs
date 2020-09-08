@@ -351,7 +351,7 @@ impl SparseMat {
         SparseMat::read_mm(&mut reader)
     }
 
-    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat>  // 0-0 allow values jg
+    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat>  
     where
         R: BufRead,
     {
