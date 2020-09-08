@@ -1303,7 +1303,8 @@ void resolve_edge_prob_and_nz_per_row(double * edge_prob, int64_t * nz_per_row, 
  * \return An initialized sparsemat_t or NULL on error.
  * \ingroup spmatgrp
  */
- sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted) {
+sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted) 
+{
   sparsemat_t * mat = calloc(1, sizeof(sparsemat_t));
   mat->local = 0;
   mat->numrows  = numrows;
@@ -1503,7 +1504,11 @@ void print_matrix(sparsemat_t * A){
   for(i = 0; i < A->numrows; i++){
     T0_printf("row %ld: ",i);
     for(j = A->offset[i]; j < A->offset[i+THREADS]; j++){
-      T0_printf("%ld ", A->nonzero[j*THREADS + i%THREADS]);
+	    if( A->value != NULL ){
+        T0_printf("(%ld, %lg) ", A->nonzero[j*THREADS + i%THREADS], A->value[j*THREADS + i%THREADS]);
+      } else {
+        T0_printf("%ld ", A->nonzero[j*THREADS + i%THREADS]);
+      }
     }
     T0_printf("\n");
   }
@@ -1678,3 +1683,95 @@ int w_edge_comp(const void *a, const void *b)
     return( A->col - B->col );
   return( A->row - B->row );
 }
+
+
+
+/*! \brief initializes the struct that holds a distributed array of doubles
+ * \param num total number of entries
+ * \return an allocated d_array_t or NULL on error
+ * \ingroup spmatgrp
+ */
+d_array_t * init_d_array(int64_t num) 
+{
+  d_array_t * array = calloc(1, sizeof(d_array_t));
+  array->num  = num;
+  array->lnum = (num + THREADS - MYTHREAD - 1)/THREADS;
+  array->entry   = lgp_all_alloc(num + THREADS, sizeof(double));
+  if(array->entry == NULL){
+    T0_printf("ERROR: init_d_array: could not allocate %"PRId64" bytes for array\n", num*sizeof(double));
+    return(NULL);
+  }
+  array->lentry  =  lgp_local_part(double, array->entry);
+
+  return(array);
+}
+
+/*! \brief sets all the entries of d_array_t to a value
+ * \param A the array
+ * \param v the value
+ * \ingroup spmatgrp
+ */
+void set_d_array(d_array_t * A, double v) 
+{
+  int64_t i;
+  for(i=0; i<A->lnum; i++) {
+    A->lentry[i] = v;
+  }
+}
+
+/*! \brief produces a copy of a source array
+ * \param S the source array
+ * \ingroup spmatgrp
+ * this is a collective operation with a barrier before and aft
+ */
+d_array_t * copy_d_array(d_array_t * S) 
+{
+  int64_t i;
+  lgp_barrier(); 
+
+  d_array_t * ret = init_d_array(S->num);
+
+  ret->num  = S->num;
+  ret->lnum = S->lnum;
+  for(i=0; i<S->lnum; i++) {
+    ret->lentry[i] = S->lentry[i];
+  }
+  lgp_barrier(); 
+  return(ret);
+}
+
+
+/*! \brief replaces the destination array with a copy of the source array
+ * \param D the destination array
+ * \param S the source array
+ * \ingroup spmatgrp
+ * this is a collective operation with a barrier before and aft
+ * Note: The destination must be allocated and of the right size.
+ */
+int64_t replace_d_array(d_array_t * D, d_array_t * S) 
+{
+
+  int64_t i;
+
+  lgp_barrier(); 
+  if(D->num != S->num || D->lnum != S->lnum){
+    T0_printf("ERROR: replace_d_array: arrays lengths don't match\n");
+    return(0);
+  }
+  for(i=0; i<S->lnum; i++) {
+    D->lentry[i] = S->lentry[i];
+  }
+  lgp_barrier(); 
+  return(1);
+}
+
+/*! \brief clears the d_array_t struct
+ * \param A the d_array
+ * \ingroup spmatgrp
+ */
+void clear_d_array(d_array_t * A)
+{
+  lgp_all_free(A->entry);
+}
+
+
