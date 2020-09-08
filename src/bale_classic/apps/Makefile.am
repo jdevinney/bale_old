@@ -36,7 +36,7 @@
 # 
 # *****************************************************************/ 
 
-bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix #unionfind
+bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix sssp #unionfind
 
 #BDEBUG = -g -O0
 BDEBUG =
@@ -209,6 +209,27 @@ write_sparse_matrix_CPPFLAGS += -DUSE_SHMEM
 write_sparse_matrix_LINK=$(LINK) $(BDEBUG)
 endif
 
+###################################################################
+noinst_HEADERS += sssp_src/sssp.h
+sssp_sources = sssp_src/sssp.upc
+sssp_sources += sssp_src/sssp_bellman_agi.upc
+sssp_sources += sssp_src/sssp_bellman_exstack.upc
+sssp_sources += sssp_src/sssp_bellman_exstack2.upc
+sssp_sources += sssp_src/sssp_bellman_conveyor.upc
+#sssp_sources += sssp_src/alternates/sssp_alt.upc
+
+sssp_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/sssp
+sssp_LDADD = @libdeps_LIBS@ -lm
+
+if BUILD_UPC
+sssp_SOURCES = $(sssp_sources)
+sssp_LINK=$(UPCLINK)
+endif
+if BUILD_SHMEM
+sssp_SOURCES = $(sssp_sources:.upc=__c.c)
+sssp_CPPFLAGS += -DUSE_SHMEM
+sssp_LINK=$(LINK) $(BDEBUG)
+endif
 
 ###################################################################
 # Automatic linking as needed to create C copies of UPC files.               #
