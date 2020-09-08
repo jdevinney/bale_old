@@ -107,38 +107,34 @@ static struct argp_child children_parsers[] =
 
 
 int main(int argc, char * argv[]) {
-  lgp_init(argc, argv);  
+  lgp_init(argc, argv);
   int64_t i;
 
   /* process command line */
   int ret = 0;
   args_t args;
+  args.l_tbl_size = 1000;
+  args.l_num_ups = 100000;
+  struct argp argp = {options, parse_opt, 0,
+                      "Accumulate updates into a table.", children_parsers};
   if(MYTHREAD == 0){
-    args.l_tbl_size = 1000;
-    args.l_num_ups = 100000;
-    struct argp argp = {options, parse_opt, 0,
-                        "Accumulate updates into a table.", children_parsers};
     ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
   }
-  
   ret = check_for_exit(argc, argv, ret);
   if(ret){
     lgp_finalize();
-    if(ret < 0)
-      return(ret);
-    else
-      return(0);
+    if(ret < 0) return(ret);
+    else return(0);
   }
-  
-  lgp_barrier();
-
   share_args(&args, sizeof(args_t));
+  
 
   T0_fprintf(stderr,"Running histo on %d threads\n", THREADS);
   T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %"PRId64"\n", args.std.buffer_size);
   T0_fprintf(stderr,"Number updates / thread              (-n)= %"PRId64"\n", args.l_num_ups);
   T0_fprintf(stderr,"Table size / thread                  (-T)= %"PRId64"\n", args.l_tbl_size);
   T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", args.std.models_mask);
+  T0_fprintf(stderr,"-------------------------------------------------------\n");
   fflush(stderr);
 
   histo_t data;  

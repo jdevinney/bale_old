@@ -151,14 +151,10 @@ int main(int argc, char * argv[]) {
   ret = check_for_exit(argc, argv, ret);
   if(ret){
     lgp_finalize();
-    if(ret < 0)
-      return(ret);
-    else
-      return (0);
+    if(ret < 0) return(ret);
+    else return (0);
   }
   
-  lgp_barrier();
-
   share_args(&args, sizeof(args_t));
 
   T0_fprintf(stderr,"Running ig on %d threads\n", THREADS);
@@ -167,6 +163,8 @@ int main(int argc, char * argv[]) {
   T0_fprintf(stderr,"Table size / thread                  (-T)= %"PRId64"\n", args.l_tbl_size);
   T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", args.std.models_mask);
   T0_fprintf(stderr,"models_mask is or of 1,2,4,8,16 for agi,exstack,exstack2,conveyor,alternate)\n");
+  T0_fprintf(stderr,"-------------------------------------------------------\n");
+  fflush(stderr);
 
   
   int64_t bytes_read_per_request_per_node = 8*2*args.std.cores_per_node;
@@ -185,7 +183,7 @@ int main(int argc, char * argv[]) {
   int64_t *index   = calloc(args.l_num_req, sizeof(int64_t)); assert(index != NULL);
   int64_t *pckindx = calloc(args.l_num_req, sizeof(int64_t)); assert(pckindx != NULL);
   int64_t indx, lindx, pe;
-  srand(MYTHREAD+ 5 );
+  srand(MYTHREAD+ args.std.seed);
   for(i = 0; i < args.l_num_req; i++){
     indx = rand() % tab_siz;
     index[i] = indx;

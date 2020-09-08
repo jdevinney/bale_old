@@ -36,7 +36,7 @@
 # 
 # *****************************************************************/ 
 
-bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix#unionfind
+bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix #unionfind
 
 #BDEBUG = -g -O0
 BDEBUG =

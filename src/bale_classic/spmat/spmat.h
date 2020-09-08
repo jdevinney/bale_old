@@ -40,6 +40,7 @@
  * \ingroup spmatgrp
  */ 
 #ifndef spmat_INCLUDED
+#define spmat_INCLUDED
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,7 +48,6 @@
 #include <convey.h>
 #include <libgetput.h>
 #include "spmat_enums.h"
-
 
 /*! \struct sparsemat_t spmat.h
  * \brief A structure to hold a sparse matrix.
@@ -239,6 +239,5 @@ int edge_comp(const void *a, const void *b);
 int w_edge_comp(const void *a, const void *b);
 
 
-#define spmat_INCLUDED
 #endif
 
