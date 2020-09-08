@@ -40,6 +40,8 @@
  * \brief Demo application that counts the number of triangles
  *  in a graph. The graph is stored as a lower triangular sparse matrix.
  */
+#ifndef TRIANGLE_H
+#define TRIANGLE_H
 
 #include <libgetput.h>
 #include <exstack.h>
@@ -59,3 +61,5 @@ double   triangle_agi_opt1(int64_t *count, int64_t *sr, sparsemat_t * L, sparsem
 double   triangle_agi_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
 double   triangle_agi_oo(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
 double   triangle_agi_iter(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
+
+#endif

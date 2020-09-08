@@ -39,28 +39,9 @@
 pkconfigdir=@libdir@/pkgconfig
 
 include_HEADERS=std_options.h
-lib_LIBRARIES = libstd_options.a
-
-common_sources = std_options.c
+lib_LIBRARIES=libstd_options.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc
-libstd_options_a_CFLAGS = -g -O2
-libstd_options_a_CPPFLAGS = @libdeps_CFLAGS@
-libstd_options_a_SOURCES = std_options.c
-#if BUILD_UPC
-#libstd_options_a_SOURCES = $(common_sources:.c=__upc.upc)
-#endif
-
-#if BUILD_SHMEM
-#liblibgetput_a_LINK = $(LINK)
-#libstd_options_a_SOURCES = $(common_sources)
-#libstd_options_a_CFLAGS += -DUSE_SHMEM 
-#endif
-
-# Automatic linking as needed to create UPC copies of C files.               #
-#%__upc.upc: %.c
-#	@echo "INFO: Linking UPC copy of   C file: $@"
-#	@rm -f $@
-#	@test -d $(dir $@) || mkdir -p $(dir $@)#
-#	@if test "$(top_srcdir)" = "$(top_builddir)"; then ln -s $(notdir $<) $@ || cp -f $< $@; else ln -s $< $@ || cp -f $< $@; fi
-
+libstd_options_a_CFLAGS=-g
+libstd_options_a_CPPFLAGS=@libdeps_CFLAGS@
+libstd_options_a_SOURCES=std_options.c

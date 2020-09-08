@@ -34,12 +34,12 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
- *****************************************************************/ 
+ ********************************************************g483*********/ 
 /*! \file libgetput.upc
  * \brief some standard parallel programming support functions
  */
-
 #include "libgetput.h"
+
 #if __UPC__ && __UPC_ATOMIC__ && !( __cray__ || _CRAYC )
 // this is relevant for BUPC or GUPC
 #include <upc_atomic.h>
@@ -463,7 +463,7 @@ int check_for_exit(int argc, char * argv[], int ret){
   for(i = 0; i < argc; i++){
     //printf("argv[%d] : %s\n", i, argv[i]);
     if(strcmp(argv[i], "--help") == 0)
-      return(1);    
+      return(1);
     if(strcmp(argv[i], "-?") == 0)
       return 1;
     if(strcmp(argv[i], "--usage") == 0)
@@ -473,6 +473,18 @@ int check_for_exit(int argc, char * argv[], int ret){
   if(ret) return(-1);
   return(0);
 }
+
+#if 0
+int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, int ret){
+
+  
+  ret = check_for_exit(argc, argv, ret);
+  if(ret) return(ret);
+  
+  share_args(args, args_len);
+  return(0);
+}
+#endif
 
 /*! 
  * \brief This routine uses gettimeofday routine to give access 

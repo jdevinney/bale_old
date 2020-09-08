@@ -43,6 +43,8 @@
  *  need to be spread across the whole machine
  */
 
+#ifndef IG_H
+#define IG_H
 #include <exstack.h>
 #include <convey.h>
 
@@ -53,3 +55,4 @@ double ig_conveyor(int64_t *tgt, int64_t *pckindx, int64_t l_num_req,  int64_t *
 
 #include "alternates/ig_alternates.h"
 
+#endif

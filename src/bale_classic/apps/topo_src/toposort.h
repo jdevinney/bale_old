@@ -39,7 +39,8 @@
 /*! \file toposort.h
  * \brief Demo application that does a toposort on a permuted upper triangular matrix
  */
-
+#ifndef TOPOSORT_H
+#define TOPOSORT_H
 #include <libgetput.h>
 #include <exstack.h>
 #include <convey.h>
@@ -53,3 +54,4 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
 
 #include "alternates/toposort_alternates.h"
 
+#endif
