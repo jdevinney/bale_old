@@ -168,7 +168,8 @@ int main(int argc, char * argv[])
     fprintf(stderr,"Running C version of toposort\n");
     if(args.kronecker){
       fprintf(stderr,"Kronecker Product Graph (%d): ", args.kargs.mode);
-      for(int i = 0; i < args.kargs.num_stars; i++)
+      int i;
+      for(i = 0; i < args.kargs.num_stars; i++)
         fprintf(stderr,"%d ", args.kargs.star_size[i]);
       fprintf(stderr, "\n");
     }
