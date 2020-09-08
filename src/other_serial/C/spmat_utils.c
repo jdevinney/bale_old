@@ -914,7 +914,7 @@ kron_args_t * kron_args_init(char * list)
 
   strncpy(R->str, list, 256);
   do { 
-    cnt =  sscanf(list, "%"PRId64": %n", &(R->mode), &n);
+    cnt =  sscanf(list, "%"PRId32": %n", &(R->mode), &n);
     if(cnt != 1){
       error = 1;     // didn't find the mode or its NULL
       break;
@@ -922,7 +922,7 @@ kron_args_t * kron_args_init(char * list)
     list += n;
 
     for (i=0; i<64; i++){
-      cnt = sscanf(list, "%"PRId64" %n", &(R->star_size[i]), &n);
+      cnt = sscanf(list, "%"PRId32" %n", &(R->star_size[i]), &n);
       if (cnt != 1)  // not an error, just done
         break;
       list += n;
@@ -1650,7 +1650,6 @@ d_array_t * read_d_array(char *name)
 {
 
   int64_t i, num;
-  double val;
   FILE * fp = fopen(name, "r");
   if( fp == NULL ){
     fprintf(stderr,"read_d_array: can't open file %s \n", name);

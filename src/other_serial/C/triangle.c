@@ -115,7 +115,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
     case ARGP_KEY_END:
       if(args->kronecker && args->kargs.num_stars < 2)
         argp_failure(state, 1, 0, "Must supply at least 2 star arguments for Kronecker product.");
-        break;
+      break;
     case ARGP_KEY_INIT:
       args->kronecker = 0;
       args->kargs.numrows = 1;
