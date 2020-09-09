@@ -53,17 +53,17 @@
 static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tent)
 {
   // Allows us to use the bits of new and old, either as doubles for the
-	// determining the min, or just as bits for the compare_and_swap.
-	union{double x; uint64_t u;} old;
-	union{double x; uint64_t u;} new;
+  // determining the min, or just as bits for the compare_and_swap.
+  union{double x; uint64_t u;} old;
+  union{double x; uint64_t u;} new;
 
-	new.x = new_tent;
-	while(1){
-	  old.x = lgp_get_double(tent->entry, J);
-		if(new.x > old.x) 
-			break;
-		if( old.u == lgp_cmp_and_swap(tent->entry, J, old.u, new.u) )
-			break;
+  new.x = new_tent;
+  while(1){
+    old.x = lgp_get_double(tent->entry, J);
+    if(new.x > old.x) 
+      break;
+    if( old.u == lgp_cmp_and_swap(tent->entry, J, old.u, new.u) )
+      break;
   }
 }
 
@@ -76,36 +76,36 @@ static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tent)
  */
 double sssp_bellman_agi(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 {
-	T0_printf(" Running AGI SSSP Bellman-Ford\n");
+  T0_printf(" Running AGI SSSP Bellman-Ford\n");
 
   double t1 = wall_seconds();
 
   if(!mat){ T0_printf("ERROR: sssp_bellman_agi: NULL L!\n"); return(-1); }
   
-	double tent_tail, new_tent;
-	int64_t i, li, k, loop;
-	int64_t lnumrows = mat->lnumrows;
+  double tent_tail, new_tent;
+  int64_t i, li, k, loop;
+  int64_t lnumrows = mat->lnumrows;
 
   set_d_array(tent,INFINITY);
-	lgp_barrier();
-	if( MYTHREAD == 0 ){
-  	lgp_put_double(tent->entry, v0, 0.0);
+  lgp_barrier();
+  if( MYTHREAD == 0 ){
+    lgp_put_double(tent->entry, v0, 0.0);
   }
-	lgp_barrier();
+  lgp_barrier();
 
-	dump_tent("AGI: ", tent);
+  dump_tent("AGI: ", tent);
 
   for(loop=0; loop<mat->numrows; loop++){
     for(li=0; li<lnumrows; li++){ 
-			tent_tail = tent->lentry[li];
+      tent_tail = tent->lentry[li];
       for(k = mat->loffset[li]; k < mat->loffset[li+1]; k++){
-				new_tent = tent_tail + mat->lvalue[k];
-				relax_bellman_agi(tent, mat->lnonzero[k], new_tent);
+        new_tent = tent_tail + mat->lvalue[k];
+        relax_bellman_agi(tent, mat->lnonzero[k], new_tent);
       }
     }
     lgp_barrier();
 
-	  dump_tent("AGI: ", tent);
+    dump_tent("AGI: ", tent);
   }
 
   lgp_barrier();

@@ -99,11 +99,11 @@ void move_node_from_bucket_i_to_j(llnode_t * w, int64_t i, int64_t j, buckets_t 
       
       /* remove w from B[i] if it is there */
       while(node != NULL){
-	if(node == w){
-	  remove_node_from_bucket(w, i, buckets);
-	  break;
-	}
-	node = node->next;
+    if(node == w){
+      remove_node_from_bucket(w, i, buckets);
+      break;
+    }
+    node = node->next;
       }
     }
   }
@@ -250,7 +250,7 @@ double sssp_delta_stepping_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r
       
       /* relax light edges from v */
       for(j = mat->loffset[v->index]; j < mat->loffset[v->index + 1]; j++){
-        if(mat->lvalue[j] <= delta){	  
+        if(mat->lvalue[j] <= delta){      
           J = mat->lnonzero[j];
           pe  = J % THREADS;
           pkg.lj = J / THREADS;
@@ -259,7 +259,7 @@ double sssp_delta_stepping_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r
           if( exstack_push(ex, &pkg, pe) == 0 ) {
             delta_exstack_relax_process(tent, ex, buckets, 0);
             j--;
-				  }
+                  }
           //relax(mat->nonzero[j], tent[v->index] + mat->value[j], tent, buckets);
         }
       }

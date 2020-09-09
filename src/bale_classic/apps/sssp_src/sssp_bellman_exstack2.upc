@@ -66,8 +66,8 @@ static int64_t bellman_exstack2_relax_process(d_array_t *tent, exstack2_t *ex2, 
 
   while(exstack2_pop(ex2, &pkg, &fromth)){
     if( tent->lentry[pkg.lj] > pkg.tw ){
-			if(0){printf("Ex: replace %ld weight %lg with %lg\n", pkg.lj*THREADS + MYTHREAD, tent->lentry[pkg.lj], pkg.tw);}
-			tent->lentry[pkg.lj] = pkg.tw;
+      if(0){printf("Ex: replace %ld weight %lg with %lg\n", pkg.lj*THREADS + MYTHREAD, tent->lentry[pkg.lj], pkg.tw);}
+      tent->lentry[pkg.lj] = pkg.tw;
     }
   }
   return( exstack2_proceed(ex2, done) );
@@ -88,7 +88,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
   
   int64_t k, li, J, pe;
   int64_t pe_v0, li_v0;
-	int64_t loop;
+  int64_t loop;
   int64_t changed;
   ex2_bellman_t pkg;
   d_array_t *tent0, *tent1, *tent2;
@@ -104,24 +104,24 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 
   tent0 = init_d_array(tent->num);
   set_d_array(tent0, INFINITY);
-	lgp_barrier();
-	if(pe_v0 == MYTHREAD){
-  	tent0->lentry[li_v0] = 0.0;
+  lgp_barrier();
+  if(pe_v0 == MYTHREAD){
+    tent0->lentry[li_v0] = 0.0;
   }
   dump_tent("\nExstack2: 0", tent0);
 
   tent1 = copy_d_array(tent0);
-	if(pe_v0 == MYTHREAD ){
+  if(pe_v0 == MYTHREAD ){
     for(k = mat->loffset[li_v0]; k < mat->loffset[li_v0+1]; k++){
-  	  lgp_put_double(tent1->entry, mat->lnonzero[k], mat->lvalue[k]);
+      lgp_put_double(tent1->entry, mat->lnonzero[k], mat->lvalue[k]);
     }
   }
 
-	lgp_barrier();
+  lgp_barrier();
 
   dump_tent("Exstack2: 1", tent1);
 
-	lgp_barrier();
+  lgp_barrier();
   tent2 = init_d_array(tent->num);
 
   tent_old = tent0;
@@ -130,10 +130,10 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 
   for(loop=2; loop<mat->numrows; loop++){
     changed = 0;
-		for(li=0; li < mat->lnumrows; li++)
+    for(li=0; li < mat->lnumrows; li++)
       tent_new->lentry[li] = tent_cur->lentry[li];
 
-		for(li=0; li < mat->lnumrows; li++){
+    for(li=0; li < mat->lnumrows; li++){
       if(tent_old->lentry[li] == tent_cur->lentry[li])
         continue;
       changed = 1;
@@ -147,26 +147,26 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
         if( exstack2_push(ex2, &pkg, pe) == 0 ) {
             bellman_exstack2_relax_process(tent_new, ex2, 0);
             k--;
-				}
+        }
       }
     }
-		while(bellman_exstack2_relax_process(tent_new, ex2, 1))
-			;
+    while(bellman_exstack2_relax_process(tent_new, ex2, 1))
+      ;
 
-		lgp_barrier();
+    lgp_barrier();
     if( lgp_reduce_add_l(changed) == 0 ){
       replace_d_array(tent, tent_cur);
       break;
     }
 
-		dump_tent("Exstack2: ", tent_new);
+    dump_tent("Exstack2: ", tent_new);
 
     tent_temp = tent_old;
     tent_old = tent_cur;
     tent_cur = tent_new;
     tent_new = tent_temp;
 
-		lgp_barrier();
+    lgp_barrier();
     exstack2_reset(ex2);
   }
 

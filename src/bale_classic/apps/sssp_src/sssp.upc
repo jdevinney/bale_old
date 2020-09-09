@@ -71,14 +71,14 @@ sssp [-h][-a 0,1][-e prob][-K str][-f filename]\n\
 
 void dump_tent(char *str, d_array_t *tent)
 {
-	int64_t i;
-	if( MYTHREAD == 0 ){
-	  printf("%s ", str);
-	  for(i=0; i<tent->num; i++){
-			printf(" %lg ", lgp_get_double(tent->entry, i) );
-		}
-	  printf("\n");
-	}
+  int64_t i;
+  if( MYTHREAD == 0 ){
+    printf("%s ", str);
+    for(i=0; i<tent->num; i++){
+      printf(" %lg ", lgp_get_double(tent->entry, i) );
+    }
+    printf("\n");
+  }
 }
 
 double sssp_answer_diff(d_array_t *A, d_array_t *B)

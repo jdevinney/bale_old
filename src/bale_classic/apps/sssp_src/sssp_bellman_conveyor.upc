@@ -61,9 +61,9 @@ static int64_t bellman_convey_relax_process(d_array_t *tent, convey_t *conv, int
     
   while(convey_pull(conv, &pkg, NULL) == convey_OK){
     if( tent->lentry[pkg.lj] > pkg.tw ) {
-			printf("Convey: replace %ld weight %lg with %lg\n", pkg.lj*THREADS + MYTHREAD, tent->lentry[pkg.lj], pkg.tw);
+      printf("Convey: replace %ld weight %lg with %lg\n", pkg.lj*THREADS + MYTHREAD, tent->lentry[pkg.lj], pkg.tw);
       tent->lentry[pkg.lj] = pkg.tw;
-		}
+    }
   }
   return( convey_advance(conv, done) );
 }
@@ -77,7 +77,7 @@ static int64_t bellman_convey_relax_process(d_array_t *tent, convey_t *conv, int
  */
 double sssp_bellman_convey(d_array_t *tent, sparsemat_t *mat, int64_t v0) 
 {
-	printf(" Running Conveyor SSSP Bellman-Ford\n");
+  printf(" Running Conveyor SSSP Bellman-Ford\n");
 
   convey_t * conv = convey_new(SIZE_MAX, 0, NULL, 0);
   if(conv == NULL){return(-1);}
@@ -89,14 +89,14 @@ double sssp_bellman_convey(d_array_t *tent, sparsemat_t *mat, int64_t v0)
   int64_t loop;
 
   set_d_array(tent, INFINITY);
-	lgp_barrier();
-	if( MYTHREAD == 0 ){
-  	lgp_put_double(tent->entry, v0, 0.0);
+  lgp_barrier();
+  if( MYTHREAD == 0 ){
+    lgp_put_double(tent->entry, v0, 0.0);
   }
-	lgp_barrier();
+  lgp_barrier();
 
   dump_tent("Convey: ", tent);
-	lgp_barrier();
+  lgp_barrier();
 
   for(loop=0; loop<mat->numrows; loop++){
     convey_begin(conv, sizeof(conv_bellman_t ));
@@ -120,8 +120,8 @@ double sssp_bellman_convey(d_array_t *tent, sparsemat_t *mat, int64_t v0)
     while(bellman_convey_relax_process(tent, conv, 1))// keep popping til all threads are done
       ;
     lgp_barrier();
-	  dump_tent("Convey : ", tent);
-		convey_reset(conv);
+    dump_tent("Convey : ", tent);
+    convey_reset(conv);
   }
 
   lgp_barrier();
