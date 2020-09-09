@@ -41,10 +41,11 @@ common_sources += spmat_exstack.upc
 common_sources += spmat_exstack2.upc 
 common_sources += spmat_conveyor.upc
 common_sources += spmat_utils.upc
+common_sources += spmat_opts.upc
 common_sources += geometric.upc
 pkconfigdir=@libdir@/pkgconfig
 
-include_HEADERS=spmat.h spmat_enums.h
+include_HEADERS=spmat.h spmat_enums.h spmat_opts.h
 
 #lib_LIBRARIES = 
 lib_LIBRARIES = libspmat.a

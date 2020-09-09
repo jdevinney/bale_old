@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <argp.h>
-#include <spmat_enums.h>
+//#include <spmat_enums.h>
 
 typedef struct std_args_t{
   int64_t buffer_size;
@@ -15,17 +15,7 @@ typedef struct std_args_t{
   int64_t seed;
 }std_args_t;
 
-typedef struct std_graph_args_t{
-  int64_t numrows;
-  int readfile;  
-  char * filename;
-  graph_model model;
-  double edge_prob;
-  double nz_per_row;
-} std_graph_args_t;
-
 extern struct argp std_options_argp;
-extern struct argp std_graph_options_argp;
 
 /* defines to support the different models of global and buffered references */
 #define AGI_Model        1L /*!< the Atomic or Generic Interface (straight UPC/SHMEM) */
@@ -35,4 +25,8 @@ extern struct argp std_graph_options_argp;
 #define ALTERNATE_Model 16L /*!< an alternate model (meant for user supplied code) */
 #define ALL_Models      15L /*!< default for running all models */
 
+void write_std_options(std_args_t * sargs);
+
 #endif
+
+

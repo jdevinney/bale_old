@@ -41,6 +41,8 @@
  */
 
 #include "toposort.h"
+#include <spmat_opts.h>
+#include <std_options.h>
 
 /*!
 \page toposort_page Toposort
@@ -107,36 +109,8 @@ in the current level on each thread then assign them in order per thread.
 Threads race to update the <b>rowcnt</b> and <b>rowsum</b> arrays. 
 We handle this with levels and atomic memory operations.
 
-Usage:
-topo [-h][-b count][-M mask][-n num][-f filename][-Z num][-e prob][-D]
-- -h prints this help message
-- -b count is the number of packages in an exstack(2) buffer
-- -M mask is the or of 1,2,4,8,16 for the models: agi,exstack,exstack2,conveyor,alternate
-- -n num is the number of rows per thread
-- -f filename read the input matrix from filename (in Matrix Market format)
-- -Z num use an Erdos Renyi matrix with num being the expected number of nonzeros in a row 
-- -e prob use an Erdos Renyi matrix where prob is the probability of an entry in matrix being non-zero 
-- -D debugging flag that dumps out input and output files.
+Run with the --help, -?, or --usage flags for run details.
 */
-
-static void usage(void) {
-  T0_fprintf(stderr,"\
-Usage:\n\
-topo [-h][-b count][-M mask][-n num][-f filename][-Z num][-e prob][-D]\n\
- -h prints this help message\n\
- -b count is the number of packages in an exstack(2) buffer\n\
- -M mask is the or of 1,2,4,8,16 for the models: agi,exstack,exstack2,conveyor,alternate\n\
- -n num is the number of rows per thread\n\
- -f filename read the input matrix from filename (in Matrix Market format)\n\
- -F Set the graph model to FLAT\n\
- -G Set the graph model to GEOMETRIC\n\
- -Z num use an Erdos Renyi matrix with num being the expected number of nonzeros in a row \n\
- -e prob use an Erdos Renyi matrix where prob is the probability of an entry in matrix being non-zero \n\
- -D debugging flag that dumps out input and output files.\n\
-\n");
-  lgp_finalize();
-  lgp_global_exit(0);
-}
 
 
 /*! \brief check the result toposort 
@@ -150,16 +124,19 @@ topo [-h][-b count][-M mask][-n num][-f filename][-Z num][-e prob][-D]\n\
  * \return 0 on success, 1 otherwise
  */
 int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t dump_files) {
-  sparsemat_t * mat2;
   int ret = 0;
 
   int rf = is_perm(rperminv, mat->numrows);
-  int cf = is_perm(cperminv, mat->numcols);
+  int cf = is_perm(cperminv, mat->numrows);
   if(!rf || !cf){
     T0_fprintf(stderr,"ERROR: check_is_triangle is_perm(rperminv2) = %d is_perm(cperminv2) = %d\n",rf,cf);
     return(1);
   }
-  mat2 = permute_matrix(mat, rperminv, cperminv);
+  sparsemat_t * mat2 = permute_matrix(mat, rperminv, cperminv);
+  if(!mat2){
+    T0_fprintf(stderr,"ERROR: check_is_triangle mat2 is NULL\n");
+    return(1);
+  }
   if(!is_upper_triangular(mat2, 1)) {
     T0_fprintf(stderr,"ERROR: check_is_triangle fails\n");
     ret = 1;
@@ -169,32 +146,32 @@ int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64
   return(ret);
 }
 
-/*! \brief Generates an input matrix for the toposort algorithm
- * \param numrows the number of rows (and columns) in the produced matrix
- * \param prob the probability that there is an edge between two given vertices, i.e. the probability
- *   that a given entry in the matrix is non-zero.
- * \param rand_seed the seed for random number generator that determines the original matrix and the permutations
- * \return the permuted upper triangular matrix
+/*! \brief Generates an input matrix for the toposort algorithm from a unit-triangulare matrix.
+ * \param tri_mat An upper (or lower) triangular matrix with unit diagonal.
+ * \param rand_seed the seed for random number generator.
+ * \return a permuted upper triangular matrix
  */
-sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double edge_prob, uint64_t rand_seed) {
-  sparsemat_t * omat;
-  int64_t numcols = numrows;
+sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed) {
+  sparsemat_t * mat = NULL;
+  double t;
+  write_matrix_mm(tri_mat, "tri_mat");
+  if(!is_upper_triangular(tri_mat, 1)){
+    if(is_lower_triangular(tri_mat, 1)){
+      mat = transpose_matrix(tri_mat);
+    }else{
+      T0_fprintf(stderr, "ERROR: toposort: input matrix is not triangular with unit diagonal!\n");
+      return(NULL);
+    }
+  }else{
+    mat = tri_mat;
+  }
   
-  T0_fprintf(stderr,"Creating input matrix for toposort\n");fflush(stderr);
-  double t = wall_seconds();
-  omat = random_graph(numrows, model, UNDIRECTED, LOOPS, edge_prob, rand_seed);
-  T0_printf("generate graph time %lf\n", wall_seconds() - t);
-  if(!omat) {printf("Error! omat is NULL");return(NULL);}
-  if(!is_lower_triangular(omat, 1)){printf("ERROR: Not LT\n");return(NULL);}
+  if(!mat){T0_printf("ERROR: mat is NULL!\n"); return(NULL);}
 
-  sparsemat_t * U = transpose_matrix(omat);
-  if(!U){printf("Error! U is NULL");return(NULL);}
-  if(!is_upper_triangular(U, 1)){printf("ERROR: Not UT\n");return(NULL);}
-  
   // get row and column permutations
   t = wall_seconds();
-  SHARED int64_t * rperminv = rand_permp(numrows, 1230+MYTHREAD);
-  SHARED int64_t * cperminv = rand_permp(numcols, 45+MYTHREAD);
+  SHARED int64_t * rperminv = rand_permp(mat->numrows, rand_seed + 1 + MYTHREAD);
+  SHARED int64_t * cperminv = rand_permp(mat->numrows, rand_seed + 2 + MYTHREAD);
   T0_printf("generate perms time %lf\n", wall_seconds() - t);
   lgp_barrier();
 
@@ -203,115 +180,122 @@ sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double
     return(NULL);
   }
   
-  int64_t * lrperminv = lgp_local_part(int64_t, rperminv);
-  int64_t * lcperminv = lgp_local_part(int64_t, cperminv);
-
   lgp_barrier();
   t = wall_seconds();
-  sparsemat_t * mat = permute_matrix(U, rperminv, cperminv);
-
-  T0_printf("permute matrix time %lf\n", wall_seconds() - t);
-  
-  if(!mat) {
+  sparsemat_t * pmat = permute_matrix(mat, rperminv, cperminv);
+  if(!pmat) {
     T0_printf("ERROR: permute_matrix returned NULL");fflush(0);
     return(NULL);
   }
-
+  T0_printf("permute matrix time %lf\n", wall_seconds() - t);
+  
   lgp_barrier();
-
-  clear_matrix( omat );free(omat);
-  clear_matrix(U); free(U);
+  if(mat != tri_mat){
+    clear_matrix( mat );free(mat);
+  }
+  
   lgp_all_free(rperminv);
   lgp_all_free(cperminv);
 
-  return( mat );
+  return( pmat );
 }
+
+typedef struct args_t{
+  std_args_t std;
+  std_graph_args_t gstd;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      state->child_inputs[1] = &args->gstd;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] =
+  {
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+    {0}
+  };
+
 
 int main(int argc, char * argv[]) {
   lgp_init(argc, argv);
 
-  int64_t i, j, fromth, lnnz, start, end;  
-  int64_t pe, row, col, idx;
+  int64_t i;
   double t1;
 
-  int64_t l_numrows = 100000;
-  double  nz_per_row = 35;
-  int64_t buf_cnt = 1024;
-  int64_t rand_seed =  MYTHREAD*MYTHREAD*10000 + 5;
-  int64_t numrows, numcols;
-  int64_t pos = 0;
-
-  double erdos_renyi_prob = 0.0;
-  int64_t models_mask = ALL_Models;
-  int64_t printhelp = 0;
-  int64_t read_graph = 0;
-  char filename[64];
-  int64_t dump_files = 0;
-  int64_t cores_per_node = 1;
-  graph_model model = FLAT;
+  /* process command line */
+  args_t args;
+  struct argp argp = {options, parse_opt, 0,
+                      "Parallel topological sort.", children_parsers};
   
-  int opt; 
-  while( (opt = getopt(argc, argv, "hb:c:M:n:Ff:GZ:p:")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%"PRId64"" , &buf_cnt);  break;
-    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
-    case 'M': sscanf(optarg,"%"PRId64"" , &models_mask);  break;
-    case 'F': model = FLAT; break;
-    case 'G': model = GEOMETRIC; break;
-    case 'n': sscanf(optarg,"%"PRId64"" , &l_numrows);  break;
-    case 'f': read_graph = 1; sscanf(optarg,"%s", filename); break;
-    case 'Z': sscanf(optarg,"%lf" , &nz_per_row);  break;
-    case 'e': sscanf(optarg,"%lf" , &erdos_renyi_prob);  break;
-    case 'D': dump_files = 1; break;
-    default:
-      T0_fprintf(stderr,"Error: Usage error!\n");
-      lgp_global_exit(1);
-      break;
-    }
-  }
-  if(printhelp) usage();
-
-  numrows = l_numrows * THREADS;
-  numcols = numrows;
-  if(erdos_renyi_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
-    erdos_renyi_prob = (2.0*nz_per_row)/(numrows - 1);
-    if(erdos_renyi_prob > 1.0)
-      erdos_renyi_prob = 1.0;
-  } else {                     // use erdos_renyi_prob to get nz_per_row
-    nz_per_row = erdos_renyi_prob * numrows;
+  int ret = 0;
+  if(MYTHREAD == 0){
+    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
   }
 
-  T0_fprintf(stderr,"Running toposort on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (stack size)           (-b)   %"PRId64"\n", buf_cnt);
-  T0_fprintf(stderr,"Number of rows per thread      (-n)   %"PRId64"\n", l_numrows);
-  T0_fprintf(stderr,"Avg # of nonzeros per row      (-Z)   %2.2lf\n", nz_per_row);
-  T0_fprintf(stderr,"Erdos-Renyi edge probability   (-e)   %lf\n", erdos_renyi_prob);
-  T0_fprintf(stderr,"Graph Model              (-F or -G)   %s\n", (model == FLAT ? "FLAT" : "GEOMETRIC"));
-  T0_fprintf(stderr,"task mask (M) = %"PRId64" (should be 1,2,4,8,16 for agi, exstack, exstack2, conveyors, alternates\n", models_mask);
-  
-  sparsemat_t * mat = generate_toposort_input(numrows, model, erdos_renyi_prob, rand_seed);
-  if(!mat){T0_printf("ERROR: mat is NULL!\n"); lgp_global_exit(1);}
+  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  if(ret < 0) return(ret);
+  else if(ret) return(0);
 
-  T0_printf("Input matrix has %"PRId64" rows and %"PRId64" nonzeros\n", mat->numrows, mat->nnz);
   
+  // read in a matrix or generate a random graph
+  if(args.gstd.directed || !args.gstd.loops){
+    T0_fprintf(stderr,"\nWarning: toposort requires undirected and loops. Overriding.\n\n");
+    args.gstd.directed = 0;
+    args.gstd.loops = 1;
+  }
+  sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
+  if(!inmat){T0_printf("Error! toposort: inmat is NULL");lgp_global_exit(-1);}
+  
+  // permate the rows and columns of the matrix randomly
+  sparsemat_t * mat = generate_toposort_input(inmat, args.std.seed);
+  if(!mat){T0_printf("Error! toposort: mat is NULL");lgp_global_exit(-1);}
+
+  // get the transpose of mat (needed for toposort implemmentations)
   sparsemat_t * tmat = transpose_matrix(mat);
-  if(!tmat){T0_printf("ERROR: tmat is NULL!\n"); lgp_global_exit(1);}
+  if(!tmat){T0_printf("Error! toposort: tmat is NULL");lgp_global_exit(-1);}
+
+
+  if(!MYTHREAD && !args.std.quiet){
+    T0_fprintf(stderr,"Running on %d PEs\n", THREADS);
+    write_std_graph_options(&args.gstd);
+    write_std_options(&args.std);
+  }
+
+  if(args.std.dump_files){
+    write_matrix_mm(inmat, "inmat");
+    write_matrix_mm(mat, "mat");
+    write_matrix_mm(tmat, "tmat");
+  }
 
   lgp_barrier();
+  clear_matrix(inmat); free(inmat);
 
   T0_fprintf(stderr,"Run toposort on mat (and tmat) ...\n");
+
   // arrays to hold the row and col permutations
-  SHARED int64_t *rperminv2 = lgp_all_alloc(numrows, sizeof(int64_t));
-  SHARED int64_t *cperminv2 = lgp_all_alloc(numcols, sizeof(int64_t));
-  double gb_th  = (mat->numrows + mat->numcols*2 + mat->nnz*2)*8;
+  SHARED int64_t *rperminv2 = lgp_all_alloc(mat->numrows, sizeof(int64_t));
+  SHARED int64_t *cperminv2 = lgp_all_alloc(mat->numrows, sizeof(int64_t));
 
   int64_t use_model;
   double laptime = 0.0;
-
+  
   for( use_model=1L; use_model < 32; use_model *=2 ) {
 
-    switch( use_model & models_mask ) {
+    switch( use_model & args.std.models_mask ) {
     case AGI_Model:
       T0_fprintf(stderr,"      AGI: ");
       laptime = toposort_matrix_agi(rperminv2, cperminv2, mat, tmat);
@@ -319,12 +303,12 @@ int main(int argc, char * argv[]) {
 
     case EXSTACK_Model:
       T0_fprintf(stderr,"  Exstack: ");
-      laptime = toposort_matrix_exstack(rperminv2, cperminv2, mat, tmat, buf_cnt);
+      laptime = toposort_matrix_exstack(rperminv2, cperminv2, mat, tmat, args.std.buffer_size);
       break;
 
     case EXSTACK2_Model:
       T0_fprintf(stderr," Exstack2: ");
-      laptime = toposort_matrix_exstack2(rperminv2, cperminv2, mat, tmat, buf_cnt);
+      laptime = toposort_matrix_exstack2(rperminv2, cperminv2, mat, tmat, args.std.buffer_size);
       break;
 
     case CONVEYOR_Model:
@@ -345,8 +329,8 @@ int main(int argc, char * argv[]) {
     lgp_barrier();
     T0_fprintf(stderr,"  %8.3lf seconds\n", laptime);
 
-    if( check_is_triangle(mat, rperminv2, cperminv2, dump_files) ) {
-      printf("\nERROR: After toposort_matrix_upc: mat2 is not upper-triangular!\n");
+    if( check_is_triangle(mat, rperminv2, cperminv2, args.std.dump_files) ) {
+      T0_fprintf(stderr,"\nERROR: After toposort_matrix_upc: mat2 is not upper-triangular!\n");
     }
   }
 

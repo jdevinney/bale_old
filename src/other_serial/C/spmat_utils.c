@@ -1132,8 +1132,8 @@ void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, i
     if(loops == LOOPS)
       *edge_prob = (*nz_per_row - 1)/(numrows - 1);
     else
-      *edge_prob = (*nz_per_row)/(numrows-1);
-    
+      *edge_prob = (*nz_per_row)/(numrows-1);    
+
     if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       *edge_prob = *edge_prob*2;
       

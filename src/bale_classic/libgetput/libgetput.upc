@@ -475,11 +475,31 @@ int check_for_exit(int argc, char * argv[], int ret){
 }
 
 #if 0
+int distribute_command_line(int argc, char ** argv, struct argp * argp, void * args, size_t arg_len){
+  int ret = 0;
+  if(MYTHREAD == 0){
+    ret = argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, &args);
+  }
+
+  ret = check_for_exit(argc, argv, ret);
+  if(ret){
+    lgp_finalize();
+    return(ret);
+  }
+  share_args(args, arg_len);
+
+}
+#endif
+
+#if 1
 int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, int ret){
 
   
   ret = check_for_exit(argc, argv, ret);
-  if(ret) return(ret);
+  if(ret){
+    lgp_finalize();
+    return(ret);
+  }
   
   share_args(args, args_len);
   return(0);

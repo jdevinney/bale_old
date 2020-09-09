@@ -49,6 +49,7 @@
 #include <libgetput.h>
 #include "spmat_enums.h"
 
+
 /*! \struct sparsemat_t spmat.h
  * \brief A structure to hold a sparse matrix.
  *
@@ -173,6 +174,7 @@ sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge
 sparsemat_t *       gen_star_graph(int64_t m, int mode);
 sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
 
+
 edge_list_t *       init_edge_list(int64_t nalloc);
 sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted);
 triples_t *         init_triples(int64_t numrows, int64_t numcols, int64_t lnnz, int weighted);
@@ -201,7 +203,7 @@ SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_agi(int64_t N, int seed);
 sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                                  double edge_density, int64_t seed);
-void                resolve_edge_prob_and_nz_per_row(double * edge_prob, int64_t * nz_per_row, int64_t numrows, self_loops loops);
+void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops);
 sparsemat_t *       transpose_matrix(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);

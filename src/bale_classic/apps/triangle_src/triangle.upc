@@ -40,7 +40,8 @@
  */
 
 #include "triangle.h"
-
+#include <spmat_opts.h>
+#include <std_options.h>
 /*!
   \page triangles_page Triangles
 
@@ -144,7 +145,7 @@ In our example above we would produce the product of K(3,4) and K(5,9).\n\
 have few triangles.
 * \return A distributed matrix which represents the adjacency matrix for the Kronecker product of all the stars (B and C lists).
  */
-#if 1
+
 sparsemat_t * generate_kronecker_graph(int64_t * B_spec, int64_t B_num, int64_t * C_spec, int64_t C_num, int mode){
 
   T0_fprintf(stderr,"Generating Mode %d Kronecker Product graph (A = B X C) with parameters:  ", mode);
@@ -166,7 +167,38 @@ sparsemat_t * generate_kronecker_graph(int64_t * B_spec, int64_t B_num, int64_t 
   
   return(A);
 }
-#endif
+
+
+typedef struct args_t{
+  std_args_t std;
+  std_graph_args_t gstd;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      state->child_inputs[1] = &args->gstd;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] =
+  {
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+    {0}
+  };
+
+
 
 int main(int argc, char * argv[]) {
 

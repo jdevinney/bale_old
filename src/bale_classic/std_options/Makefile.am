@@ -43,5 +43,5 @@ lib_LIBRARIES=libstd_options.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc
 libstd_options_a_CFLAGS=-g
-libstd_options_a_CPPFLAGS=@libdeps_CFLAGS@
+#libstd_options_a_CPPFLAGS=@libdeps_CFLAGS@
 libstd_options_a_SOURCES=std_options.c

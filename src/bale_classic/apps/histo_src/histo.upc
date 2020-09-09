@@ -34,8 +34,7 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-*****************************************************************/ 
-
+*****************************************************************/
 /*! \file histo.upc
  * \brief Demo program that computes a histogram of uint64_t's
  *  The number of histogram bins should be large enough that they need 
@@ -120,25 +119,21 @@ int main(int argc, char * argv[]) {
   if(MYTHREAD == 0){
     ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
   }
-  ret = check_for_exit(argc, argv, ret);
-  if(ret){
-    lgp_finalize();
-    if(ret < 0) return(ret);
-    else return(0);
+
+  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  if(ret < 0) return(ret);
+  else if(ret) return(0);
+
+  if(!MYTHREAD && !args.std.quiet){
+    T0_fprintf(stderr,"Running on %d PEs\n", THREADS);
+    T0_fprintf(stderr,"Number updates / PE      (-n): %"PRId64"\n", args.l_num_ups);
+    T0_fprintf(stderr,"Table size / PE          (-T): %"PRId64"\n", args.l_tbl_size);
+    write_std_options(&args.std);
   }
-  share_args(&args, sizeof(args_t));
-  
 
-  T0_fprintf(stderr,"Running histo on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %"PRId64"\n", args.std.buffer_size);
-  T0_fprintf(stderr,"Number updates / thread              (-n)= %"PRId64"\n", args.l_num_ups);
-  T0_fprintf(stderr,"Table size / thread                  (-T)= %"PRId64"\n", args.l_tbl_size);
-  T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", args.std.models_mask);
-  T0_fprintf(stderr,"-------------------------------------------------------\n");
-  fflush(stderr);
 
+  /* package all the inputs up into a struct */
   histo_t data;  
-  // Allocate and zero out the counts array
   data.l_num_ups = args.l_num_ups;
   data.lnum_counts = args.l_tbl_size;
   data.num_counts = data.lnum_counts*THREADS;
@@ -150,9 +145,10 @@ int main(int argc, char * argv[]) {
   
   // index is a local array of indices into the shared counts array.
   // This is used by the _agi version. 
-  // To avoid paying the UPC tax of computing index[i]/THREADS and index[i]%THREADS
+  // To avoid paying for computing index[i]/THREADS and index[i]%THREADS
   // when using the exstack and conveyor models
-  // we also store a packed version that holds the pe (= index%THREADS) and lindx (=index/THREADS)
+  // we also store a packed version that holds the
+  // pe (= index%THREADS) and lindx (=index/THREADS)
   data.index   = calloc(data.l_num_ups, sizeof(int64_t)); assert(data.index != NULL);
   data.pckindx = calloc(data.l_num_ups, sizeof(int64_t)); assert(data.pckindx != NULL);
 
