@@ -162,7 +162,10 @@ fn main() {
     }
 
     let matret = mat.delta_stepping(source, if forced_delta == 0.0 {None} else {Some(forced_delta)});
-    matret.dump(0, "results.wts").expect("results write error");
+    if dump_files {
+        // matret.dump(0, "results.out").expect("results write error");
+        matret.dump_wts("results.wts").expect("results write error");
+    }
 
     // hack to check against Phil's output file if it's there
     // this would have been like 6 lines in Python ... just sayin' ...
@@ -192,7 +195,9 @@ fn main() {
             } else {
                 let mut sumsq: f64 = 0.0;
                 for v in 0..check_nv {
-                    sumsq += (check_dist[v+1] - matret.distance[v]).powi(2); // sigh :-(
+                    if check_dist[v+1].is_finite() || matret.distance[v].is_finite() {
+                        sumsq += (check_dist[v+1] - matret.distance[v]).powi(2); // sigh :-(
+                    }
                 }
                 if sumsq < (10.0_f64).powi(-8) {  // what's wrong with just 1e-8 ?
                     println!("\nCORRECT! norm squared = {}", sumsq);

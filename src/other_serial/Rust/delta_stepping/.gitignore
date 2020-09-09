@@ -1,5 +1,5 @@
-*.mm
 Cargo.lock
-*.out
+/*.mm
+/*.wts
+/*.out
 eg*
-erdosrenyi/

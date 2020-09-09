@@ -45,6 +45,18 @@ impl SsspInfo {
         }
         Ok(())
     }
+
+    // Dump output distances to a file in Phil's .wts format
+    pub fn dump_wts(&self, filename: &str) -> Result<(),Error> { 
+        let path = Path::new(&filename);
+        let mut file = OpenOptions::new().write(true).create(true).open(path)?;
+        writeln!(file, "{}", self.distance.len())?;
+        for v in &self.distance {
+            writeln!(file, "{}", v)?;
+        }
+        Ok(())
+    }
+
 }
 
 // A potential edge relaxation to be examined
