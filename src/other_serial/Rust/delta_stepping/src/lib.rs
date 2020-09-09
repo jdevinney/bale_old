@@ -401,12 +401,16 @@ impl DeltaStepping for SparseMat {
 
         let t1 = wall_seconds().expect("wall second error");
 
-        let delta;
+        let (_mindeg, maxdeg, _sumdeg) = self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
+            (acc.0.min(x), acc.1.max(x), acc.2 + x)
+        });
+
         // choose a value for delta, the bucket width
+        let delta;
         if let Some(d) = forced_delta {
             delta = d;
         } else {
-            delta = 1.0; // 0-0 need to fix this, probably 1/(max degree)
+            delta = 1.0 / (maxdeg as f64);
         }
         println!(
             "delta_stepping: nvtxs = {}, nedges = {}, delta = {}",
