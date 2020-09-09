@@ -163,8 +163,8 @@ double sssp_delta_stepping_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r
   
   assert(r0 < mat->numrows);
   
-  char * deleted = calloc(mat->numrows, sizeof(char));
-  int64_t * R = calloc(mat->numrows, sizeof(int64_t));
+  char * deleted = calloc(mat->lnumrows, sizeof(char));
+  int64_t * R = calloc(mat->lnumrows, sizeof(int64_t));
   
   /* calculate delta and set tentative distances to infinity */  
   double delta = 0.0;
@@ -179,6 +179,7 @@ double sssp_delta_stepping_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r
   max_degree = lgp_reduce_max_l(max_degree);
   assert(max_degree > 0);
   delta = 1.0/max_degree;
+  Dprintf("delta = %lf\n", delta);
   
   double max_edge_weight = 0.0;
   for(li = 0; li < mat->lnnz; li++)
@@ -227,8 +228,8 @@ double sssp_delta_stepping_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r
   while(1){
 
     /* find the minimum indexed non-empty bucket */
-    for(i = 0; i < buckets->num_buckets; i++)
-      if(buckets->empty[(current_bucket + i) % buckets->num_buckets] == 0)
+    for(i = 0; i < num_buckets; i++)
+      if(buckets->empty[(current_bucket + i) % num_buckets] == 0)
         break;
     
     if(i == num_buckets)
