@@ -187,6 +187,7 @@ int main(int argc, char * argv[])
 
 #define USE_BELLMAN (1L<<16)
 #define USE_DELTA   (1L<<17)
+//#define USE_DELTA   (0L)
 
   
   for( use_model=1L; use_model < 32; use_model *=2 ) {

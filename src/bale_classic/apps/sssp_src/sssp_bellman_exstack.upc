@@ -171,7 +171,7 @@ double sssp_bellman_exstack(d_array_t *tent, sparsemat_t * mat, int64_t v0)
     exstack_reset(ex);
   }
 
-  dump_tent("EXSTACK: ", tent);
+  dump_tent("Bellman EXSTACK: ", tent);
   lgp_barrier();
   minavgmaxD_t stat[1];
   t1 = wall_seconds() - t1;

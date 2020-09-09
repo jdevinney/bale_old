@@ -185,9 +185,6 @@ double sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r0)
   /* calculate delta and set tentative distances to infinity */  
   double delta = 0.0;
   int64_t max_degree = 0;
-  for(li = 0; li < mat->lnumrows; li++)
-    tent->lentry[i] = INFINITY;
-
   for(li = 0; li < mat->lnumrows; li++){
     if(max_degree < (mat->loffset[i+1] - mat->loffset[i]))
       max_degree = (mat->loffset[i+1] - mat->loffset[i]);
@@ -244,6 +241,10 @@ double sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r0)
     buckets->in_bucket[i] = -1;
   }
 
+  lgp_barrier();
+  for(li = 0; li < mat->lnumrows; li++)
+    tent->lentry[li] = INFINITY;
+
   
   /* set the source distance to 0 */
   if( (r0 % THREADS) == MYTHREAD) {
@@ -251,6 +252,8 @@ double sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r0)
     tent->lentry[lr0] = 0.0;
   }
 
+  lgp_barrier();
+  dump_tent(">>Delta Exstack:", tent);
   lgp_barrier();
 
   /* main loop */
@@ -322,6 +325,9 @@ double sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r0)
     lgp_barrier();
     exstack_reset(ex);
   }// end main loop
+
+  dump_tent("  Delta Exstack:", tent);
+
   free(buckets->B);
   free(buckets->nodes);
   free(buckets->empty);
