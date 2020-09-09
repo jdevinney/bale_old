@@ -181,22 +181,27 @@ int main(int argc, char * argv[])
   d_array_t * tent        = init_d_array(numrows);
   d_array_t * comp_tent = NULL;
 
-  int64_t use_model;
+  uint64_t use_model, use_alg;
   double laptime = 0.0;
 
-  
-  for( use_model=1L; use_model < 16; use_model *=2 ) {
 
-    switch( use_model & models_mask ) {
-    case AGI_Model:
+#define USE_BELLMAN (1L<<16)
+#define USE_DELTA   (1L<<17)
+
+  
+  for( use_model=1L; use_model < 32; use_model *=2 ) {
+    for( use_alg=(1L<<16); use_alg<(1L<<18); use_alg *=2 )
+
+    switch( (use_model & models_mask) | use_alg ) {
+    case (AGI_Model | USE_BELLMAN):
       T0_fprintf(stderr,"    Bellman-Ford  AGI: ");
       laptime = sssp_bellman_agi(tent, mat, 0); 
       comp_tent = copy_d_array(tent);
       T0_fprintf(stderr,"Bellman AGI nothing to compare\n");
       break;
 
-    case EXSTACK_Model:
-      T0_fprintf(stderr,"  Exstack: ");
+    case (EXSTACK_Model | USE_BELLMAN):
+      T0_fprintf(stderr,"  Bellman-Ford Exstack: ");
       laptime = sssp_bellman_exstack(tent, mat, 0);
       if(comp_tent == NULL){
         comp_tent = copy_d_array(tent);
@@ -207,8 +212,20 @@ int main(int argc, char * argv[])
       }
       break;
 
-    case EXSTACK2_Model:
-      T0_fprintf(stderr,"  Exstack: ");
+    case (EXSTACK_Model | USE_DELTA):
+      T0_fprintf(stderr,"  Delta Exstack: ");
+      laptime = sssp_delta_exstack(tent, mat, 0);
+      if(comp_tent == NULL){
+        comp_tent = copy_d_array(tent);
+        T0_fprintf(stderr,"Delta Exstack nothing to compare\n");
+      }else{
+        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+          T0_fprintf(stderr, "Delta Exstack compares success!\n");
+      }
+      break;
+
+    case (EXSTACK2_Model | USE_BELLMAN):
+      T0_fprintf(stderr,"  Bellman-Ford: Exstack2: ");
       laptime = sssp_bellman_exstack2(tent, mat, 0);
       if(comp_tent == NULL){
         comp_tent = copy_d_array(tent);
@@ -220,8 +237,8 @@ int main(int argc, char * argv[])
       break;
 
 
-    case CONVEYOR_Model:
-    T0_fprintf(stderr,"  Convey: ");
+    case (CONVEYOR_Model | USE_BELLMAN):
+    T0_fprintf(stderr,"  Bellman-Ford Convey: ");
       laptime = sssp_bellman_convey(tent, mat, 0);
       if(comp_tent == NULL){
         comp_tent = copy_d_array(tent);
