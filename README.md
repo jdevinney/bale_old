@@ -14,7 +14,7 @@ Classic [src/bale_classic](src/bale_classic/README.md)
 
 C: [src/other_serial/C](src/other_serial/C/README.md)
 
-Rust:
+Rust: [src/other_serial/Rust](src/other_serial/Rust/README.md); [src/other_parallel/Rust](src/other_parallel/Rust/README.md)
 
 Chapel: [src/other_parallel/Chapel](src/other_parallel/Chapel/README.md)
 
