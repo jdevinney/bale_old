@@ -6,29 +6,20 @@ typedef struct llnode_t{
   struct llnode_t * prev;
 }llnode_t;
 
-static void dump_llnode(char *str, int64_t cur, llnode_t *v)
-{
-  if( v == NULL ) 
-    printf("%s cur is %ld v is NULL\n",str, cur);
-  else 
-    printf("%s cur is %ld address %lx , index %ld, next %lx, prev %lx\n", str, cur, &(v), v->index, v->next, v->prev);
-}
-
 typedef struct buckets_t{
   llnode_t ** B;
   llnode_t * nodes;
-  char * empty;
   int64_t * in_bucket;
   int64_t num_buckets;
   double delta;
 }buckets_t;
+
 
 // Remove a specific node from bucket i.
 void remove_node_from_bucket(llnode_t * v, int64_t i, buckets_t * buckets)
 {
   i = i % buckets->num_buckets;
   assert(buckets->in_bucket[v->index] == i);
-  assert(buckets->empty[i] == 0);
   buckets->in_bucket[v->index] = -1;
   Dprintf("Removing %"PRId64" from bucket %"PRId64"\n", v->index, i);
   if(v->prev){
@@ -37,8 +28,6 @@ void remove_node_from_bucket(llnode_t * v, int64_t i, buckets_t * buckets)
     buckets->B[i] = v->next;
   if(v->next != NULL)
     v->next->prev = v->prev;
-  if(buckets->B[i] == NULL)
-    buckets->empty[i] = 1;
 }
 
 // Prepend a node into a bucket
@@ -48,13 +37,11 @@ void insert_node_in_bucket(llnode_t * w, int64_t i, buckets_t * buckets)
 
   Dprintf("Adding %"PRId64" to bucket %"PRId64"\n", w->index, actual_i);
   
-  if(buckets->in_bucket[w->index] == actual_i){  // this node is already in this bucket
+  if(buckets->in_bucket[w->index] == actual_i)  // this node is already in this bucket
     return; 
-  }
 
   assert(buckets->in_bucket[w->index] == -1);
 
-  buckets->empty[actual_i] = 0;
   w->next = NULL;
   w->prev = NULL;
   if(buckets->B[actual_i]){
@@ -144,15 +131,11 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0){
   buckets->B = calloc(num_buckets, sizeof(llnode_t *));
   buckets->nodes = calloc(mat->numrows, sizeof(llnode_t));
   buckets->in_bucket = calloc(mat->numrows, sizeof(int64_t));
-  //buckets->level = calloc(num_buckets, sizeof(int64_t));
-  buckets->empty = calloc(num_buckets, sizeof(char));
   buckets->delta = delta;
   
   Dprintf("num_buckets = %"PRId64" delta = %lf max_degree = %"PRId64"\n", num_buckets, delta, max_degree);
   for(i = 0; i < num_buckets; i++){
     buckets->B[i] = NULL;
-    buckets->empty[i] = 1;
-    //buckets->level[i] = -1;
   }
   for(i = 0; i < mat->numrows; i++){
     buckets->nodes[i].index = i;
@@ -166,36 +149,31 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0){
   tent[r0] = 0.0;
   
   /* main loop */
-  //int64_t min_bucket = 0;
-  int64_t current_bucket = 0;
-  int64_t num_deleted = 0;
+  int64_t current = 0;
   while(1){
 
     /* find the minimum indexed non-empty bucket */
     for(i = 0; i < buckets->num_buckets; i++)
-      if(buckets->empty[(current_bucket + i) % buckets->num_buckets] == 0)
+      if(buckets->B[(current + i) % buckets->num_buckets] != NULL)
         break;
     
     if(i == num_buckets)
       break;
-    current_bucket = (current_bucket + i) % num_buckets;
-    Dprintf("Starting inner loop: working on bucket %"PRId64"\n", current_bucket);
-    //min_bucket = i + 1;
-    // inner loop
+    current = (current + i) % num_buckets;
+
+    Dprintf("Starting inner loop: working on bucket %"PRId64"\n", current);
     int64_t start = 0;
     int64_t end = 0;
     llnode_t * v;
-    
-    while(buckets->B[current_bucket] != NULL){
-      v = buckets->B[current_bucket];
-      Dprintf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v->index, current_bucket);
+    // inner loop
+    while(buckets->B[current] != NULL){
+      v = buckets->B[current];
+      Dprintf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v->index, current);
 
       /* relax light edges from v */
       for(j = mat->offset[v->index]; j < mat->offset[v->index + 1]; j++){
         if(mat->value[j] <= delta){	  
-          dump_llnode("before relax", current_bucket, buckets->B[current_bucket]);
           relax(mat->nonzero[j], tent[v->index] + mat->value[j], tent, buckets);
-          dump_llnode("after  relax", current_bucket, buckets->B[current_bucket]);
         }
       } 
       
@@ -203,11 +181,10 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0){
       if(deleted[v->index] == 0){
         deleted[v->index] = 1;
         R[end++] = v->index;
-        num_deleted++;
         Dprintf("deleted %"PRId64"s\n", v->index);
       }
       
-      remove_node_from_bucket(v, current_bucket, buckets);
+      remove_node_from_bucket(v, current, buckets);
     }
 
     /* relax heavy requests edges for everything in R */
@@ -219,12 +196,10 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0){
         }
       }      
     }
-    current_bucket++;
+    current++;
   }// end main loop
   free(buckets->B);
   free(buckets->nodes);
-  free(buckets->empty);
-  //free(buckets->level);
   free(deleted);
   free(R);
   
