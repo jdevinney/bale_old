@@ -126,7 +126,7 @@ int main(int argc, char * argv[])
  
   /* process command line */
   args_t args;  
-  struct argp argp = {options, parse_opt, 0, "Transpose a sparse matrix.", children_parsers};
+  struct argp argp = {options, parse_opt, 0, "SSSP for a weighted graph.", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
   
   double nz_per_row = args.gstd.nz_per_row;
@@ -137,6 +137,7 @@ int main(int argc, char * argv[])
   self_loops loops = LOOPS;
   int quiet = args.std.quiet;
   graph_model model = args.gstd.model;
+  models_mask = args.std.models_mask;
   
   if(args.gstd.readfile == 0){
     resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
@@ -160,41 +161,7 @@ int main(int argc, char * argv[])
     fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
     fprintf(stderr,"---------------------------------------\n");
   }
-  
 
-#if 0
-  int opt; 
-  while( (opt = getopt(argc, argv, "hn:s:e:g:M:f:Dq")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%"PRId64 ,&numrows ); break;
-    case 's': sscanf(optarg,"%d" ,&seed ); break;
-    case 'e': model = FLAT; sscanf(optarg,"%lg", &edge_prob); break;
-    case 'g': model = GEOMETRIC; sscanf(optarg,"%lg", &edge_prob); break;
-    case 'M': sscanf(optarg,"%d" , &models_mask); break;
-    case 'f': readgraph = 1; sscanf(optarg, "%s", filename); break;
-    case 'D': dump_files = 1; break;
-    case 'q': quiet = 1; break;
-    default: break;
-    }
-  }
-#endif
-
- 
-#if 0 // test the heap stuff
-    int64_t i;
-    PQ_t * pq = init_pqueue(numrows);
-    for(i=1; i<numrows; i++) {
-      pq->val[i] = (double)(numrows-i);
-      pq->row[i] = i;
-      pq->node[i] = i;
-    }
-    pq->tail = numrows;
-    print_queue(pq);
-
-    heapify_pqueue(pq);
-    exit(1);
-#endif
 
   if(args.gstd.readfile) {
     dmat = read_matrix_mm(filename);
