@@ -341,6 +341,23 @@ double sssp_dijsktra_heap(d_array_t *tent, sparsemat_t * mat, int64_t r0)
  * We left them here for debugging and exploring the code.
  */
 
+
+#if 0 // test the heap stuff
+    int64_t i;
+    PQ_t * pq = init_pqueue(numrows);
+    for(i=1; i<numrows; i++) {
+      pq->val[i] = (double)(numrows-i);
+      pq->row[i] = i;
+      pq->node[i] = i;
+    }
+    pq->tail = numrows;
+    print_queue(pq);
+
+    heapify_pqueue(pq);
+    exit(1);
+#endif
+
+
 // start at the top and bubble down
 // going to assume that a bunch of the node are  out of order
 void heapify_pqueue(PQ_t * pq)
