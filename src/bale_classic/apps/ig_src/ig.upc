@@ -144,28 +144,19 @@ int main(int argc, char * argv[]) {
     args.l_tbl_size = 1000;
     args.l_num_req = 100000;
     struct argp argp = {options, parse_opt, 0,
-                        "Accumulate updates into a table.", children_parsers};
+                        "Many remote reads from a distributed table.", children_parsers};
     ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
   }
   
-  ret = check_for_exit(argc, argv, ret);
-  if(ret){
-    lgp_finalize();
-    if(ret < 0) return(ret);
-    else return (0);
+  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  if(ret < 0) return(ret);
+  else if(ret) return(0);
+
+  if(!MYTHREAD && !args.std.quiet){
+    T0_fprintf(stderr,"Number of Request / PE   (-n): %"PRId64"\n", args.l_num_req );
+    T0_fprintf(stderr,"Table size / PE          (-T): %"PRId64"\n\n", args.l_tbl_size);
+    write_std_options(&args.std);
   }
-  
-  share_args(&args, sizeof(args_t));
-
-  T0_fprintf(stderr,"Running ig on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %"PRId64"\n", args.std.buffer_size);
-  T0_fprintf(stderr,"Number of Request / thread           (-n)= %"PRId64"\n", args.l_num_req );
-  T0_fprintf(stderr,"Table size / thread                  (-T)= %"PRId64"\n", args.l_tbl_size);
-  T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", args.std.models_mask);
-  T0_fprintf(stderr,"models_mask is or of 1,2,4,8,16 for agi,exstack,exstack2,conveyor,alternate)\n");
-  T0_fprintf(stderr,"-------------------------------------------------------\n");
-  fflush(stderr);
-
   
   int64_t bytes_read_per_request_per_node = 8*2*args.std.cores_per_node;
   

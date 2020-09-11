@@ -1106,7 +1106,7 @@ int64_t tri_count_kron_graph(kron_args_t * K)
    else if( K->mode == 1 ){
      approx = 1.0;
      for(i = 0; i < K->num_stars; i++)
-        approx *= (3*K->star_size[i] + 1);
+       approx *= (3*K->star_size[i] + 1);
      return ( round((approx / 6.0) - 0.5 * K->numrows + 1.0/3.0) );
    } else if( K->mode == 2 ){
      ns = (double) K->num_stars;
@@ -1132,8 +1132,8 @@ void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, i
     if(loops == LOOPS)
       *edge_prob = (*nz_per_row - 1)/(numrows - 1);
     else
-      *edge_prob = (*nz_per_row)/(numrows-1);
-    
+      *edge_prob = (*nz_per_row)/(numrows-1);    
+
     if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       *edge_prob = *edge_prob*2;
       

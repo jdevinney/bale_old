@@ -53,7 +53,8 @@
 double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) {
   //T0_printf("Running Toposort with UPC ...");
   int64_t nr = mat->numrows;
-  int64_t nc = mat->numcols;
+
+  assert(mat->numrows == mat->numcols);
   int64_t col2;
 
   SHARED int64_t * queue  = lgp_all_alloc(nr+THREADS, sizeof(int64_t));
@@ -81,7 +82,6 @@ double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsem
       lqueue[end++] = i;    
     for(j = mat->loffset[i]; j < mat->loffset[i+1]; j++)
       lrowsum[i] += mat->lnonzero[j];
-    //printf("rowsum[%ld] = %ld\n", i*THREADS + MYTHREAD, lrowsum[i]);fflush(0);
   }
   //S_end[MYTHREAD] = end;
   lS_end[0] = end;
@@ -112,14 +112,14 @@ double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsem
 
   while(work_to_do) {
     level++;
-    while( start < end ){      
+    while( start < end ){
       l_row = lqueue[start++];
       S_col = lrowsum[l_row];  // see cool trick
-      
+
       // claim our spot on the diag     
       pos = lgp_fetch_and_inc(pivots, 0);
       lgp_put_int64(rperm, l_row*THREADS + MYTHREAD, nr - 1 - pos);
-      lgp_put_int64(cperm, S_col, nc - 1 - pos);
+      lgp_put_int64(cperm, S_col, nr - 1 - pos);
 
       // use the global version of tmat to look at this column (tmat's row)
       // tmat->offset[S_col] is the offset local to S_col%THREADS
@@ -132,7 +132,7 @@ double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsem
         old_row_sum = lgp_fetch_and_add(rowsum, S_row, (-1L)*S_col);
         if( old_row_cnt == 2L ) {
           l_pos = lgp_fetch_and_inc(S_end, S_row % THREADS);
-          lgp_put_int64(queue, l_pos*THREADS + S_row%THREADS , S_row / THREADS);
+          lgp_put_int64(queue, l_pos*THREADS + S_row%THREADS , S_row / THREADS);fflush(0);
         }
       }
     }
@@ -150,7 +150,7 @@ double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsem
   
   
   if(lgp_get_int64(pivots,0) != nr){
-    printf("ERROR! toposort_matrix_upc_orig: found %"PRId64" pivots but expected %"PRId64"!\n", pivots[0], nr);
+    printf("ERROR! toposort_matrix_upc_orig: found %"PRId64" pivots but expected %"PRId64"!\n", lgp_get_int64(pivots, 0), nr);
     exit(1);
   }
   T0_fprintf(stderr, "num levels = %ld ", level+1);

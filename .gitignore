@@ -1,6 +1,8 @@
-# Ignore Emacs backup files
+# Ignore Emacs and Vim backup files
 *~
 \#*
+*.swp
+
 # Ignore files created by autoconf
 aclocal.m4
 autom4te.cache/

@@ -47,11 +47,6 @@ AC_CONFIG_MACRO_DIRS([../])
 AC_PROG_RANLIB
 AC_PROG_CC
 
-PKG_CHECK_MODULES([libdeps],
-  [
-        spmat
-  ]
-)
 
 AC_CONFIG_FILES([
 std_options.pc:std_options.pc.in

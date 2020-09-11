@@ -85,7 +85,8 @@ AM_CONDITIONAL(BUILD_SHMEM, [test "x$mpp_use_shmem" = xyes])
 
 PKG_CHECK_MODULES([libdeps],
   [
-        exstack
+        std_options
+        exstack                
         convey
         libgetput
   ]

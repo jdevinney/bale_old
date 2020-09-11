@@ -288,9 +288,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     return(NULL);
   }
   
-  T0_printf("GEOMETRIC GRAPH: r = %lf number of sectors = %ld sector_width = %lf\n",
-            r, nsectors, sector_width);
-  T0_printf("                 edge_type = %d loops = %d\n", edge_type, loops);
+  //T0_printf("GEOMETRIC GRAPH: r = %lf number of sectors = %ld sector_width = %lf\n",
+  //          r, nsectors, sector_width);
+  //T0_printf("                 edge_type = %d loops = %d\n", edge_type, loops);
 
   
   srand(seed + MYTHREAD + 1);
@@ -394,7 +394,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   //printf("PE %d: After comparing inter-point distances: lnnz = %ld\n",MYTHREAD, el->num);
   int64_t nnz = lgp_reduce_add_l(el->num);
-  T0_printf("Symmetric matrix has %ld nonzeros total\n", nnz);
+  //T0_printf("Symmetric matrix has %ld nonzeros total\n", nnz);
   
 
   // Step 7. We need to redistribute points to PEs to flatten
@@ -474,7 +474,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   lgp_all_free(first_point_in_sector);
   
   // Step 10. Initialilze the sparse matrix
-  T0_printf("Trying to init matrix with %ld nonzeros on PE 0\n", lnnz);fflush(0);
+  //T0_printf("Trying to init matrix with %ld nonzeros on PE 0\n", lnnz);fflush(0);
   sparsemat_t * A = init_matrix(n, n, lnnz, weighted);
   if(!A){
     T0_printf("ERROR: geometric_random_graph: init_matrix failed.\n");
