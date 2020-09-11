@@ -42,7 +42,7 @@
  */
 
 #ifndef exstack_INCLUDED
-
+#define exstack_INCLUDED /*!< std trick */
 
 #include <stdio.h>
 #include <stdint.h>
@@ -209,6 +209,5 @@ int64_t exstack2_send(exstack2_t * Xstk2, int64_t pe, int islast);
    void exstack2_reset(exstack2_t *Xstk2);
    void exstack2_clear(exstack2_t *Xstk2);
 
-#define exstack_INCLUDED /*!< std trick */
 #endif 
 

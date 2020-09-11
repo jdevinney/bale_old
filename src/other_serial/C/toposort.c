@@ -42,9 +42,12 @@
  * of a an upper triangular matrix (with ones on the diagonal).
  * This algorithm finds a row and column permutation that would return it
  * to an upper triangular form.
+ * 
+ * Run topo --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"
+#include "std_options.h"
 
 /*! \page toposort_page Topologically sort a morally upper triangular matrix. 
  
@@ -279,22 +282,22 @@ double toposort_matrix_loop(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sp
   int64_t n_pivots = 0;
   while(n_pivots < nr){      
     for(i = 0; i < nr; i++){
-			if( (rowtrck[i] >> 32) == 1 ){
-			  col = rowtrck[i] & 0xFFFF;  // see cool trick
-		   	rperm[i] = nr - 1 - n_pivots;
-			  cperm[col] = nc - 1 - n_pivots;
+      if( (rowtrck[i] >> 32) == 1 ){
+        col = rowtrck[i] & 0xFFFF;  // see cool trick
+        rperm[i] = nr - 1 - n_pivots;
+        cperm[col] = nc - 1 - n_pivots;
         n_pivots++;
-				rowtrck[i] = 0L;
+        rowtrck[i] = 0L;
 		
-			  // look at this column (tmat's row) to find all the rows that hit it
+        // look at this column (tmat's row) to find all the rows that hit it
         for(j=tmat->offset[col]; j < tmat->offset[col+1]; j++) {
-           t_row = tmat->nonzero[j];
-           assert((t_row) < mat->numrows);
-           rowtrck[t_row] -= (1L<<32) + col;
-				}
-			}
-		}
-	}
+          t_row = tmat->nonzero[j];
+          assert((t_row) < mat->numrows);
+          rowtrck[t_row] -= (1L<<32) + col;
+        }
+      }
+    }
+  }
   
   t1 = wall_seconds() - t1;
   
@@ -306,77 +309,104 @@ double toposort_matrix_loop(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sp
   return(t1);
 }
 
-int main(int argc, char * argv[]) 
-{
-  #define NUMROWS 20000 
-  int64_t numrows=NUMROWS, numcols;
-  double edge_density = 0.1;
-  uint32_t seed =  123456789;
-  double laptime = 0.0;
 
+typedef struct args_t{
+  std_args_t std;
+  std_graph_args_t gstd;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      state->child_inputs[1] = &args->gstd;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] = {{0}};
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+    {0}
+  };
+
+
+
+
+int main(int argc, char * argv[])
+{
+
+  double laptime = 0.0;
   enum FLAVOR {GENERIC=1, LOOP=2, ALL=4};
   uint32_t use_model;
-  uint32_t models_mask = ALL - 1;
-  uint32_t printhelp = 0;
-  uint32_t quiet = 0;
-  uint32_t dump_files = 0;
-  graph_model graph_model = FLAT;
-  
-  int opt; 
-  while( (opt = getopt(argc, argv, "hn:s:e:g:DM:q")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%"PRId64 ,&numrows );  break;
-    case 's': sscanf(optarg,"%d" ,&seed );  break;
-    case 'e': graph_model = FLAT;      sscanf(optarg,"%lg", &edge_density); break;
-    case 'g': graph_model = GEOMETRIC; sscanf(optarg,"%lg", &edge_density); break;
-    case 'D': dump_files = 1; break;
-    case 'M': sscanf(optarg,"%d", &models_mask); break;
-    case 'q': quiet = 1; break;
-    default:  break;
-    }
-  }
 
-  numcols = numrows;
-  if( printhelp || !quiet ) {
+  /* process command line */
+  args_t args;  
+  struct argp argp = {options, parse_opt, 0, "Transpose a sparse matrix.", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
+  
+  double nz_per_row = args.gstd.nz_per_row;
+  double edge_prob = args.gstd.edge_prob;
+  int64_t numrows = args.gstd.numrows;
+  edge_type edge_type = UNDIRECTED;
+  self_loops loops = LOOPS;
+  int quiet = args.std.quiet;
+  
+  if(args.gstd.readfile == 0){
+    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
+  }
+  
+  if(!quiet ) {
     fprintf(stderr,"Running C version of toposort\n");
-    fprintf(stderr,"help                   (-h)\n");
-    fprintf(stderr,"number of rows         (-n)= %"PRId64"\n", numrows);
-    fprintf(stderr,"random seed            (-s)= %d\n", seed);
-    fprintf(stderr,"flat model (dens)      (-e)= %g\n", edge_density);
-    fprintf(stderr,"geometric model (dens) (-g)= %g\n", edge_density);
-    fprintf(stderr,"models_mask            (-M)= %d\n", models_mask);
-    fprintf(stderr,"dump_files             (-D)\n");
-    fprintf(stderr,"quiet                  (-q)= %d\n", quiet);
-    if(printhelp)
-      return(0);
+    if(args.gstd.readfile == 1)
+      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
+    else{
+      if(args.gstd.model == FLAT)
+        fprintf(stderr,"flat model           (-F)\n");
+      else        
+        fprintf(stderr,"geometric model      (-G)\n");
+      fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
+      fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
+      fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
+      fprintf(stderr,"random seed          (-s)= %ld\n",  args.std.seed);
+    }
+    fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
+    fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
+    fprintf(stderr,"---------------------------------------\n");
   }
   
-
-  if(!quiet) printf("Creating input matrix for toposort\n");
-  sparsemat_t * mat = generate_toposort_input (numrows, graph_model, edge_density, seed, dump_files);
+  
+  //if(!quiet) printf("Creating input matrix for toposort\n");
+  sparsemat_t * mat = generate_toposort_input (numrows, args.gstd.model, edge_prob, args.std.seed, args.std.dump_files);
   if(!mat){printf("ERROR: topo: generate_toposort_input failed\n"); exit(1);}
   
   if(!quiet){
     printf("Input matrix stats:\n");
     spmat_stats(mat);
+    fprintf(stderr,"---------------------------------------\n");
   }
-  if(dump_files) dump_matrix(mat,20, "mat.out");
+  if(args.std.dump_files) dump_matrix(mat,20, "mat.out");
 
   write_matrix_mm(mat, "topo_mat.mm");
 
   sparsemat_t * tmat = transpose_matrix(mat);
   if(!tmat){printf("ERROR: topo: transpose_matrix failed\n"); exit(1);}
 
-  if(dump_files) dump_matrix(tmat,20, "trans.out");
+  if(args.std.dump_files) dump_matrix(tmat,20, "trans.out");
   write_matrix_mm(tmat, "topo_tmat.mm");
 
   if(!quiet) printf("Running toposort on mat (and tmat) ...\n");
   // arrays to hold the row and col permutations
   int64_t *rperminv2 = calloc(numrows, sizeof(int64_t));
-  int64_t *cperminv2 = calloc(numcols, sizeof(int64_t));
+  int64_t *cperminv2 = calloc(numrows, sizeof(int64_t));
   for( use_model=1; use_model < ALL; use_model *=2 ) {
-    switch( use_model & models_mask ) {
+    switch( use_model & args.std.models_mask ) {
     case GENERIC:
       if(!quiet) printf("   using generic toposort: ");
       laptime = toposort_matrix_queue(rperminv2, cperminv2, mat, tmat);
@@ -389,7 +419,7 @@ int main(int argc, char * argv[])
     default:
        continue;
     }
-    if( check_result(mat, rperminv2, cperminv2, dump_files) ) {
+    if( check_result(mat, rperminv2, cperminv2, args.std.dump_files) ) {
       fprintf(stderr,"nERROR: After toposort_matrix_queue: mat2 is not upper-triangular!\n");
       exit(1);
     }

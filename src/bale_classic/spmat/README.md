@@ -88,12 +88,12 @@ own right. The assignment of points to PEs during the edge generation
 in order to reduce the amount of communication is an interesting
 discussion, as is the assignment of rows of the adjacency matrix once
 the edges are determined. These need not be the same and in fact it
-would be difficult to make them so given bale's sparse matrix data
-structure's requirment that the rows of a matrix must be evenly
-distributed to the PEs (with any remainder rows going to the lowest
-indexed PEs). Our current implementation assigns sectors to PEs in a
-BLOCK fashion and places sectors in lexiographic order by column
-(starting with the left side of the unit square) and then row
+would be difficult to make them so given the requirement of bale's
+sparse matrix data structure that the rows of a matrix
+must be evenly distributed to the PEs (with any remainder rows going
+to the lowest indexed PEs). Our current implementation assigns sectors
+to PEs in a BLOCK fashion and places sectors in lexiographic order by
+column (starting with the left side of the unit square) and then row
 (starting with th e bottom of the unit square).
 
 While we know there exist communication-free algorithms for generating
@@ -108,9 +108,8 @@ people write as they evolve their algorithms.
 ### Kronecker Product Graphs
 
 We chose to implement Kronecker product graphs in bale to test out our Triangle counting implementations.
-For more details see. The parallel generation of these graphs is not particularly challenging or interesting. See
-"Design, Generation, and Validation of Extreme Scale Power-Law Graphs"
-by Kepner et. al. for more details.
+For more details see "Design, Generation, and Validation of Extreme Scale Power-Law Graphs"
+by Kepner et. al. for more details. The parallel generation of these graphs is not particularly challenging or interesting.
 
 ### Matrix Market I/O
 

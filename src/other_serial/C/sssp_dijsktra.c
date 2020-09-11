@@ -66,7 +66,7 @@
  * \param v0 is the starting vertex
  * \return runtime
  */
-double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0)
+double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 {
   double tm = wall_seconds();
   int64_t i, k, rn;
@@ -74,8 +74,8 @@ double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0)
   double minwt, curwt;
   int64_t minidx;
 
-  for(i=0; i<numrows; i++)
-    dist[i] = INFINITY;
+  set_d_array(tent, INFINITY);
+  double *dist = tent->entry;
   for(k = mat->offset[v0];  k < mat->offset[v0+1]; k++)
     dist[ mat->nonzero[k] ] = mat->value[k];
   dist[v0] = -0.0;
@@ -100,14 +100,16 @@ double sssp_dijsktra_linear(sparsemat_t * mat, double *dist, int64_t v0)
     for(k = mat->offset[minidx];  k < mat->offset[minidx+1]; k++){
       rn = mat->nonzero[k];
       if(dist[rn] > curwt + mat->value[k])
-				dist[rn] = curwt + mat->value[k];
-		}
-		//printf("dist[%"PRId64"] = %lg\n", minidx, curwt);
+        dist[rn] = curwt + mat->value[k];
+    }
+    //printf("dist[%"PRId64"] = %lg\n", minidx, curwt);
     dist[minidx] = -dist[minidx];
   }
 
-  for(i=0; i<numrows; i++)
-    dist[i] = -dist[i];
+  for(i=0; i<numrows; i++){
+    if(dist[i] != INFINITY)
+      dist[i] = -dist[i];
+  }
 
   return(wall_seconds() - tm);
 }
@@ -133,7 +135,7 @@ typedef struct PQ_t {
 
 PQ_t * init_pqueue(int64_t numrows);
 void bubble_up(PQ_t *pq, int64_t k);
-int delete_root(PQ_t * pq);
+void delete_root(PQ_t * pq);
 
 void  heapify_pqueue(PQ_t * pq);
 void print_queue(PQ_t * pq);
@@ -201,7 +203,7 @@ void bubble_up(PQ_t *pq, int64_t nd)
  *  \param pq the priority queue
  *  \return 0 if the heap is empty, 1 otherwise
  */  
-int delete_root(PQ_t * pq)
+void delete_root(PQ_t * pq)
 {
   double w;
   int64_t kid_row, par_row; 
@@ -209,7 +211,7 @@ int delete_root(PQ_t * pq)
 
   pq->tail--;                 // now the index of the last active node in the heap
   if( pq->tail == 1)          // the heap is now empty
-    return(0);
+    return;
   pq->node[pq->row[1]] = 0;           // mark this row as resolved
   pq->row[1] = pq->row[ pq->tail];
   pq->wt[1] = pq->wt[ pq->tail];
@@ -247,26 +249,28 @@ int delete_root(PQ_t * pq)
     par_nd = kid_nd;
   }
   //print_queue(pq);
-
-  return(1);
 }
 
+
+#define DPRT 0
 /*!
  * \brief The implementation of Dijkstra's algorithm that uses a heap to prioritize the tentative vertices.
  * \param *mat sparsemat_t that holds the graph. 
  * \param r0 is the starting row (vertex)
  * \return run time
  */
-double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
+double sssp_dijsktra_heap(d_array_t *tent, sparsemat_t * mat, int64_t r0)
 {
   double tm = wall_seconds();
   int64_t i, k;
   int64_t numrows = mat->numrows;
 
+  double *dist = tent->entry;
+
   // initialize the heap 
   PQ_t * pq = init_pqueue(numrows);
   for(i=0; i<numrows+1; i++){
-    pq->wt[i] = 99.0;
+    pq->wt[i] = INFINITY;
     pq->row[i] = numrows;
     pq->node[i] = numrows;
   }
@@ -275,7 +279,7 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
   pq->node[r0] = 0;
 
   dist[r0] = 0.0;
-  //printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", r0, dist[r0]);
+  if(DPRT){printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", r0, dist[r0]);}
 
   int64_t rn, row, nd;
   double e_wt, vn_wt;
@@ -288,24 +292,23 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
     pq->wt[nd] = e_wt;
     pq->row[nd] = row;
     pq->tail++;
-    //printf("explore (%2"PRId64",%2"PRId64"): new row %"PRId64" with wt %lg at node %"PRId64"\n", r0, row, row, pq->wt[nd], nd);
+    if(DPRT){printf("explore (%2"PRId64",%2"PRId64"): new row %"PRId64" with wt %lg at node %"PRId64"\n", r0, row, row, pq->wt[nd], nd);}
     bubble_up(pq, nd);
-    //print_queue(pq);
+    if(DPRT){print_queue(pq);}
   }
-  //print_queue(pq);
-  //printf("\n");
+  if(DPRT){print_queue(pq);printf("\n");}
 
-  while(1){
+  while(pq->tail > 1){       // pq-tail == 1 means the queue is empty
     rn     = pq->row[1];
     vn_wt  = pq->wt[1];
     dist[rn] = vn_wt;
-    //printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", rn, vn_wt);
+    if(DPRT){printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", rn, vn_wt);}
     for(k = mat->offset[rn];  k < mat->offset[rn+1]; k++){
       row = mat->nonzero[k];
       e_wt  = mat->value[k];
       nd   = pq->node[row];
       if(nd == 0){                  // row is done
-        //printf("explore (%2"PRId64",%2"PRId64"): done with row (%"PRId64")\n", rn, row, row);
+        if(DPRT){printf("explore (%2"PRId64",%2"PRId64"): done with row (%"PRId64")\n", rn, row, row);}
         continue;
       }
       if( nd == numrows ) {                      // row is new
@@ -314,20 +317,19 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
         pq->wt[nd] = vn_wt + e_wt;
         pq->row[nd] = row;
         pq->tail++;
-        //printf("explore (%2"PRId64",%2"PRId64"): new row %"PRId64" with wt %lg at node %"PRId64"\n", rn, row, row, pq->wt[nd], nd);
+        if(DPRT){printf("explore (%2"PRId64",%2"PRId64"): new row %"PRId64" with wt %lg at node %"PRId64"\n", rn, row, row, pq->wt[nd], nd);}
         bubble_up(pq, nd);
-        //print_queue(pq);
+        if(DPRT){print_queue(pq);}
       } else if(pq->wt[nd] > (vn_wt + e_wt)) {          // improved the weight
         pq->wt[nd] = vn_wt + e_wt;
-        //printf("explore (%2"PRId64",%2"PRId64"): updated row %"PRId64" with wt %lg at node %"PRId64"\n", rn, row, row, pq->wt[nd], nd);
+        if(DPRT){printf("explore (%2"PRId64",%2"PRId64"): updated row %"PRId64" with wt %lg at node %"PRId64"\n", rn, row, row, pq->wt[nd], nd);}
         bubble_up(pq, nd);
-        //print_queue(pq);
+        if(DPRT){print_queue(pq);}
       } else {
-        //printf("explore (%2"PRId64",%2"PRId64"): no change\n", rn, row);
+        if(DPRT){printf("explore (%2"PRId64",%2"PRId64"): no change\n", rn, row);}
       }
     }
-    if(delete_root(pq) == 0)                           // nothing else in the heap
-      break;
+    delete_root(pq);    // remove the root and decrement pq->tail
   };
 
   return(wall_seconds() - tm);
@@ -338,6 +340,23 @@ double sssp_dijsktra_heap(sparsemat_t * mat, double *dist, int64_t r0)
  * These functions were useful during the development of the heap based implementation.
  * We left them here for debugging and exploring the code.
  */
+
+
+#if 0 // test the heap stuff
+    int64_t i;
+    PQ_t * pq = init_pqueue(numrows);
+    for(i=1; i<numrows; i++) {
+      pq->val[i] = (double)(numrows-i);
+      pq->row[i] = i;
+      pq->node[i] = i;
+    }
+    pq->tail = numrows;
+    print_queue(pq);
+
+    heapify_pqueue(pq);
+    exit(1);
+#endif
+
 
 // start at the top and bubble down
 // going to assume that a bunch of the node are  out of order

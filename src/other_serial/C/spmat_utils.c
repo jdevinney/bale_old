@@ -158,6 +158,12 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
 {
   int64_t i,j, off, nxtoff;
   int64_t stoprow, startrow;
+
+  if(!A){
+    fprintf(stderr,"ERROR: trying to dump an empty matrix");
+    return(0);
+  }
+
   stoprow = A->numrows;
   startrow = A->numrows;
   if( (maxrows > 0) && (maxrows < A->numrows) ){
@@ -201,22 +207,26 @@ int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name)
     }
   }
   fclose(fp);
-  return(0);
+  return(1);
 }
 
 /*! \brief writes a sparse matrix to a file in a MatrixMarket ASCII format
  * \param A pointer to the sparse matrix
- * \param name the filename to written to
+ * \param name the filename to be written to
  * \return 0 on success, non-0 on error.
  */
 int64_t write_matrix_mm(sparsemat_t *A, char * name){
   int64_t i,j;
 
-  FILE * fp = fopen(name, "w");       // FIXME error
+  FILE * fp = fopen(name, "w");
+  if( fp == NULL ){
+    fprintf(stderr,"write_matrix_mm: can't open file %s \n", name);
+    exit(1);
+  }
   if(A->value)
-    fprintf(fp,"%%%%MasterMarket matrix coordinate real\n");
+    fprintf(fp,"%%%%MatrixMarket matrix coordinate real\n");
   else
-    fprintf(fp,"%%%%MasterMarket matrix coordinate pattern\n");
+    fprintf(fp,"%%%%MatrixMarket matrix coordinate pattern\n");
   fprintf(fp, "%"PRId64" %"PRId64" %"PRId64"\n", A->numrows, A->numcols, A->nnz);
 
   for(i=0; i<A->numrows; i++){
@@ -231,17 +241,16 @@ int64_t write_matrix_mm(sparsemat_t *A, char * name){
 }
 
 
-/*! \brief the compare function for qsort called while reading 
- * a MatrixMarket format.
+/*! \brief the compare function for edges for qsort called while reading 
+ * a MatrixMarket format (and other places).
  * NB. We sort on the rows so that we can fill the offset array
  * sequentially in one pass. We sort on the columns so that
  * the matrix will be "tidy"
  */
-int elt_comp(const void *a, const void *b) 
+int edge_comp(const void *a, const void *b) 
 {
-  element_t * eltA = (element_t *)a;
-  element_t * eltB = (element_t *)b;
-  //return( eltA->row - eltB->row );
+  edge_t * eltA = (edge_t *)a;
+  edge_t * eltB = (edge_t *)b;
   if( (eltA->row - eltB->row) == 0 )
     return( eltA->col - eltB->col );
   return( eltA->row - eltB->row );
@@ -262,7 +271,7 @@ int triple_comp(const void *a, const void *b)
   return( A->row - B->row );
 }
 
-/*! \brief read a sparse matrix from a file in a MasterMarket ASCII format
+/*! \brief read a sparse matrix from a file in a MatrixMarket ASCII format
  * \param name the filename to be read
  * \return a pointer to the sparse matrix or NULL on failure
  * TODO: get this to work for matrices with real values.
@@ -323,7 +332,7 @@ sparsemat_t  *read_matrix_mm(char * name)
     
     // read all the nonzeros into the elts array of (row,col)
     // and sort them before building the sparsemat format
-    element_t * elts = calloc(nnz, sizeof(element_t));
+    edge_t * elts = calloc(nnz, sizeof(edge_t));
     if( elts == NULL ){
       fprintf(stderr,"read_matrix_mm: elts calloc failed\n");
       exit(1);
@@ -335,11 +344,11 @@ sparsemat_t  *read_matrix_mm(char * name)
       //fprintf(stderr,"--- %"PRId64" %"PRId64"\n",  elts[i].row, elts[i].col);
       assert ( 0<elts[i].row && elts[i].row <=nr);
       assert ( 0<elts[i].col && elts[i].col <=nc);
-      elts[i].row -=1;    // MasterMarket format is 1-up, not 0-up
+      elts[i].row -=1;    // MatrixMarket format is 1-up, not 0-up
       elts[i].col -=1;
     }
     
-    qsort( elts, nnz, sizeof(element_t), elt_comp);
+    qsort( elts, nnz, sizeof(edge_t), edge_comp);
 
     ret = init_matrix( nr, nc, nnz, (value > 0));
     if( ret == NULL ){
@@ -377,7 +386,7 @@ sparsemat_t  *read_matrix_mm(char * name)
       assert (fscanfret == 3);
       assert ( 0<elts[i].row && elts[i].row <=nr);
       assert ( 0<elts[i].col && elts[i].col <=nc);
-      elts[i].row -= 1;    // MasterMarket format is 1-up, not 0-up
+      elts[i].row -= 1;    // MatrixMarket format is 1-up, not 0-up
       elts[i].col -= 1;
     }
 
@@ -791,28 +800,27 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
   * \param edge_density: d in [0, 1), target fraction of edges present.
   * \param seed: RNG seed.
   */
+#define DPRT 1
 sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                             double edge_density, int64_t seed)
 {
 
    if(model == FLAT){
-     
+     if(DPRT){printf("making an erdos-renyi graph\n");}
      return(erdos_renyi_random_graph(n, edge_density, edge_type, loops, seed));
-     
    }else if(model == GEOMETRIC){
+     if(DPRT){printf("making a geometric graph\n");}
      double r;
      // determine the r that will lead to the desired edge density
      // Expected degree = n*pi*r^2
      // The expected number of edges E = n^2*pi*r^2/2
-     // for undirected d = E/(n choose 2)
-     // for directed   d = E/(n^2 - n)
-     if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED){
-       r = sqrt(edge_density/M_PI);
-     }else{
-       printf("ERROR: directed geometric graphs are not supported yet.\n");
-       return(NULL);
-     }
-
+     // We solve for r by setting edge_prob = E / total possible edges
+     // for undirected edge_prob = E/(n choose 2)
+     // for directed   edge_prob = E/(n^2 - n)
+     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+       r = sqrt((n-1)*edge_density/(M_PI*n));
+     else
+       r = sqrt(2*(n-1)*edge_density/(M_PI*n));
      return(geometric_random_graph(n, r, edge_type, loops, seed));
      
    }else{
@@ -822,7 +830,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, se
    
 }
 
- /*! \brief Subroutine to create a random sparse matrix.
+/*! \brief Subroutine to create a random sparse matrix.
   * 
   * The matrix is formed using a Erdo-Renyi like method. A[i,j] is nonzero with a fixed probability p.
   * The value of p depends on the density specified.
@@ -906,7 +914,7 @@ kron_args_t * kron_args_init(char * list)
 
   strncpy(R->str, list, 256);
   do { 
-    cnt =  sscanf(list, "%"PRId64": %n", &(R->mode), &n);
+    cnt =  sscanf(list, "%"PRId32": %n", &(R->mode), &n);
     if(cnt != 1){
       error = 1;     // didn't find the mode or its NULL
       break;
@@ -914,7 +922,7 @@ kron_args_t * kron_args_init(char * list)
     list += n;
 
     for (i=0; i<64; i++){
-      cnt = sscanf(list, "%"PRId64" %n", &(R->star_size[i]), &n);
+      cnt = sscanf(list, "%"PRId32" %n", &(R->star_size[i]), &n);
       if (cnt != 1)  // not an error, just done
         break;
       list += n;
@@ -1098,7 +1106,7 @@ int64_t tri_count_kron_graph(kron_args_t * K)
    else if( K->mode == 1 ){
      approx = 1.0;
      for(i = 0; i < K->num_stars; i++)
-        approx *= (3*K->star_size[i] + 1);
+       approx *= (3*K->star_size[i] + 1);
      return ( round((approx / 6.0) - 0.5 * K->numrows + 1.0/3.0) );
    } else if( K->mode == 2 ){
      ns = (double) K->num_stars;
@@ -1108,7 +1116,34 @@ int64_t tri_count_kron_graph(kron_args_t * K)
      return(-1); 
    }
 }
- 
+
+// IF we are given nz_per_row (z), we calculate edge_prob (e)
+// or if we are given edge_prob, we calculate nz_per_row
+// using with the following formulas:
+// WITH LOOPS:
+// z*n = e*(n*(n-1)/2) (for UNDIRECTED*) or z*n = e*(n(n-1)) for DIRECTED
+// WITHOUT LOOPS:
+// (z-1)*n = e*(n*(n-1)/2) (for UNDIRECTED*) or (z-1)*n = e*(n(n-1)) for DIRECTED
+//
+
+void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows,
+                                      edge_type edge_type, self_loops loops){
+  if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
+    if(loops == LOOPS)
+      *edge_prob = (*nz_per_row - 1)/(numrows - 1);
+    else
+      *edge_prob = (*nz_per_row)/(numrows-1);    
+
+    if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      *edge_prob = *edge_prob*2;
+      
+    if(*edge_prob > 1.0)
+      *edge_prob = 1.0;
+  } else {    // use erdos_renyi_prob to get nz_per_row
+    *nz_per_row = *edge_prob * ((numrows - 1)/2.0);
+  }
+  assert(*edge_prob <= 1.0);
+}
 
 //****************************** Geometric Graphs *********************************************/
  typedef struct points_t{
@@ -1127,8 +1162,37 @@ double dist(points_t a, points_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
+edge_list_t * init_edge_list(int64_t nalloc){
+  edge_list_t * el = calloc(1, sizeof(edge_list_t));
+  el->num = 0;
+  el->nalloc = nalloc;
+  el->edges = calloc(nalloc, sizeof(edge_t));
+  return(el);
+}
 
- 
+void clear_edge_list(edge_list_t * el){
+  free(el->edges);
+  free(el);
+}
+
+int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
+  if(el->nalloc == el->num){
+    //printf("out of space! nalloc = %ld\n", el->nalloc);
+    // we need to expand our allocations!
+    if(el->nalloc < 10000)
+      el->nalloc = 2*el->nalloc;
+    else
+      el->nalloc = el->nalloc*1.25;
+    //printf("new space! nalloc = %ld\n", el->nalloc);
+    el->edges = realloc(el->edges, el->nalloc*sizeof(edge_t));
+  }
+  //printf("appending %ld %ld\n", row, col);
+  el->edges[el->num].row = row;
+  el->edges[el->num].col = col;
+  el->num++;
+  return(el->num);
+}
+
  /*! \brief Generates the adjacency matrix for a random geometric graph. 
   * 
   * See https://en.wikipedia.org/wiki/Random_geometric_graph
@@ -1149,15 +1213,25 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   // We generate the points uniformly at random over the unit square.
   // We calculate edges by comparing distances between each point and every other point in
   // its own sector and in neighboring sectors.
+  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  int directed = (edge_type == DIRECTED || edge_type == DIRECTED_WEIGHTED);
+  int64_t nsectors_across = floor(1.0/r);
+  double sector_width = 1.0/nsectors_across;
+  int64_t nsectors = nsectors_across*nsectors_across;
+
+  printf("GEOMETRIC GRAPH: r = %lf number of sectors = %"PRId64" sector_width = %lf\n", r, nsectors,sector_width);
+  printf("                 edge_type = %d ", edge_type);
+  if(loops == NOLOOPS)
+    printf("no loops\n");
+  else
+    printf("with loops\n");
   
-  int64_t nsectors = ceil(1.0/r);
-  printf("GEOMETRIC with r = %lf number of sectors = %"PRId64"\n", r, nsectors);
-  sector_t ** sectors = calloc(nsectors, sizeof(sector_t*));
-  int64_t ** first_index_this_sector = calloc(nsectors, sizeof(int64_t*));
-  for(i = 0; i < nsectors; i++){
-    sectors[i] = calloc(nsectors, sizeof(sector_t));
-    first_index_this_sector[i] = calloc(nsectors, sizeof(int64_t));
-    for(j = 0; j < nsectors; j++)
+  sector_t ** sectors = calloc(nsectors_across, sizeof(sector_t*));
+  int64_t ** first_index_this_sector = calloc(nsectors_across, sizeof(int64_t*));
+  for(i = 0; i < nsectors_across; i++){
+    sectors[i] = calloc(nsectors_across, sizeof(sector_t));
+    first_index_this_sector[i] = calloc(nsectors_across, sizeof(int64_t));
+    for(j = 0; j < nsectors_across; j++)
       sectors[i][j].numpoints = 0;
   }
 
@@ -1167,27 +1241,27 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   for(i = 0; i < n; i++){
     double x = (double)rand()/RAND_MAX;
     double y = (double)rand()/RAND_MAX;
-    int64_t row = floor(y/r);
-    int64_t col = floor(x/r);
-    assert(row < nsectors);
-    assert(col < nsectors);
+    int64_t row = floor(y/sector_width);
+    int64_t col = floor(x/sector_width);
+    assert(row < nsectors_across);
+    assert(col < nsectors_across);
     sectors[row][col].numpoints++;
   }
 
   // initialize the struct to hold the points
-  for(i = 0; i < nsectors; i++){
-    for(j = 0; j < nsectors; j++){
+  for(i = 0; i < nsectors_across; i++){
+    for(j = 0; j < nsectors_across; j++){
       if(j > 0)
         first_index_this_sector[i][j] += first_index_this_sector[i][j-1] + sectors[i][j-1].numpoints;
       else if(i > 0)
-        first_index_this_sector[i][j] += first_index_this_sector[i-1][nsectors-1] + sectors[i-1][nsectors-1].numpoints;
+        first_index_this_sector[i][j] += first_index_this_sector[i-1][nsectors_across-1] + sectors[i-1][nsectors_across-1].numpoints;
       sectors[i][j].points = calloc(sectors[i][j].numpoints, sizeof(points_t));
     }
   }
 
   // reset numpoints
-  for(i = 0; i < nsectors; i++){
-    for(j = 0; j < nsectors; j++){
+  for(i = 0; i < nsectors_across; i++){
+    for(j = 0; j < nsectors_across; j++){
       sectors[i][j].numpoints = 0;
     }
   }
@@ -1196,8 +1270,8 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   for(i = 0; i < n; i++){
     double x = (double)rand()/RAND_MAX;
     double y = (double)rand()/RAND_MAX;
-    int64_t row = floor(y/r);
-    int64_t col = floor(x/r);
+    int64_t row = floor(y/sector_width);
+    int64_t col = floor(x/sector_width);
     int64_t li = sectors[row][col].numpoints;
     sectors[row][col].points[li].x = x;
     sectors[row][col].points[li].y = y;
@@ -1205,21 +1279,32 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     sectors[row][col].numpoints++;
   }
   
+  // next we calculate the edges that appear and put them in a list
+  int64_t this_node, other_node;
+  int64_t space = ceil(1.1*n*n*M_PI*r*r/2.0);
+  //printf("Initial allocation: %ld\n", space);
+  edge_list_t * el = init_edge_list(space);
   
-  // next we will count number of edges
-  int64_t node = 0;
-  int64_t nedges = 0;
-  for(i = 0; i < nsectors; i++){
-    for(j = 0; j < nsectors; j++){
+  for(i = 0; i < nsectors_across; i++){
+    for(j = 0; j < nsectors_across; j++){
       
       sector_t * sec = &sectors[i][j];
       int64_t m = sec->numpoints;
       for(k = 0; k < m; k++){
+        this_node = sec->points[k].index;
 
+        if(loops == LOOPS){
+          append_edge(el, this_node, this_node);
+        }
         // count the edges to lower-indexed nodes within this sector
         for(l = 0; l < k; l++){
-          if(dist(sec->points[k], sec->points[l]) < r2)
-            nedges++;
+          other_node = sec->points[l].index;
+          if(dist(sec->points[k], sec->points[l]) < r2){
+            if(directed && (rand() & 1L))
+              append_edge(el, other_node, this_node);
+            else
+              append_edge(el, this_node, other_node);
+          }
         }
 
         // count the edges to lower-indexed nodes outside the sector
@@ -1228,130 +1313,95 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
         if(j > 0){
           sector_t * sec2 = &sectors[i][j-1];
           for(l = 0; l < sec2->numpoints; l++){
-            if(dist(sec->points[k], sec2->points[l]) < r2)
-              nedges++;
+            other_node = sec2->points[l].index;
+            if(dist(sec->points[k], sec2->points[l]) < r2){
+              if(directed && (rand() & 1L))
+                append_edge(el, other_node, this_node);
+              else
+                append_edge(el, this_node, other_node);
+            }
           }
         } 
         // NW
         if(i > 0 && j > 0){
           sector_t * sec2 = &sectors[i-1][j-1];
           for(l = 0; l < sec2->numpoints; l++){
-            if(dist(sec->points[k], sec2->points[l]) < r2)
-              nedges++;
+            other_node = sec2->points[l].index;
+            if(dist(sec->points[k], sec2->points[l]) < r2){
+              if(directed && (rand() & 1L))
+                append_edge(el, other_node, this_node);
+              else
+                append_edge(el, this_node, other_node);
+            }
           }
         } 
         // N
         if(i > 0){
           sector_t * sec2 = &sectors[i-1][j];
           for(l = 0; l < sec2->numpoints; l++){
-            if(dist(sec->points[k], sec2->points[l]) < r2)
-              nedges++;
+            other_node = sec2->points[l].index;
+            if(dist(sec->points[k], sec2->points[l]) < r2){
+              if(directed && (rand() & 1L))
+                append_edge(el, other_node, this_node);
+              else
+                append_edge(el, this_node, other_node);
+            }
           }
         }
         // NE
-        if(i > 0 && j < (nsectors-1)){
+        if(i > 0 && j < (nsectors_across-1)){
           sector_t * sec2 = &sectors[i-1][j+1];
           for(l = 0; l < sec2->numpoints; l++){
-            if(dist(sec->points[k], sec2->points[l]) < r2)
-              nedges++;
+            other_node = sec2->points[l].index;
+            if(dist(sec->points[k], sec2->points[l]) < r2){
+              if(directed && (rand() & 1L))
+                append_edge(el, other_node, this_node);
+              else
+                append_edge(el, this_node, other_node);
+            }
           }
         } 
       }
     }
   }
   
-  if(loops == LOOPS)
-    nedges += n;
-  //printf("nedges = %"PRId64" %lf\n", nedges, nedges/((double)n*(n-1)/2.0));
-   
-  int weighted = (edge_type == UNDIRECTED_WEIGHTED);
-  sparsemat_t * A = init_matrix(n, n, nedges, weighted);
+  //printf("nedges = %"PRId64"\n", el->num);
+  
+  // Free up points and sectors
+  for(i = 0; i < nsectors_across; i++){
+    for(j = 0; j < nsectors_across; j++)
+      free(sectors[i][j].points);
+    free(first_index_this_sector[i]);
+    free(sectors[i]);
+  }
+  free(sectors);
+  free(first_index_this_sector);
+  
+  sparsemat_t * A = init_matrix(n, n, el->num, weighted);
 
-  // go back through the loop and populate the adjacency matrix
-  nedges = 0;
-  for(i = 0; i < nsectors; i++){
-    for(j = 0; j < nsectors; j++){
-       
-       sector_t * sec = &sectors[i][j];
-       int64_t m = sec->numpoints;
-       for(k = 0; k < m; k++){
-         
-         node = sec->points[k].index;
+  // sort the edges in row / col order
+  qsort(el->edges, el->num, sizeof(edge_t), edge_comp);
 
-         if(loops == LOOPS){
-           A->nonzero[nedges] = node;
-           if(weighted) A->value[nedges] = rand()/RAND_MAX;
-           nedges++;
-         }
-         
-         // count the edges to lower-indexed nodes within this sector
-         for(l = 0; l < k; l++){
-           if(dist(sec->points[k], sec->points[l]) < r2){
-             A->nonzero[nedges] = sec->points[l].index;
-             assert(node >= sec->points[l].index);
-             if(weighted) A->value[nedges] = rand()/RAND_MAX;
-             nedges++;
-           }
-         }
+  int64_t row = 0;
+  for(i = 0; i < el->num; i++){
+    while(row != el->edges[i].row){
+      row++;
+      assert(row < n);
+      A->offset[row] = i;
+    }
+    A->nonzero[i] = el->edges[i].col;
+    if(weighted) A->value[i] = (double)rand()/RAND_MAX;
+  }
+  
+  while(row < n){
+    row++;
+    A->offset[row] = el->num;
+  }
 
-         // count the edges to lower-indexed nodes outside the sector
-         // to do this, we need to look at sectors to the W, NW, N, and NE.
-         // W
-         if(j > 0){
-           sector_t * sec2 = &sectors[i][j-1];
-           for(l = 0; l < sec2->numpoints; l++){
-             if(dist(sec->points[k], sec2->points[l]) < r2){
-               A->nonzero[nedges] = sec2->points[l].index;
-               assert(node >= sec2->points[l].index);
-               if(weighted) A->value[nedges] = rand()/RAND_MAX;
-               nedges++;
-             }
-           }
-         } 
-         // NW
-         if(i > 0 && j > 0){
-           sector_t * sec2 = &sectors[i-1][j-1];
-           for(l = 0; l < sec2->numpoints; l++){
-             if(dist(sec->points[k], sec2->points[l]) < r2){
-               A->nonzero[nedges] = sec2->points[l].index;
-               assert(node >= sec2->points[l].index);
-               if(weighted) A->value[nedges] = rand()/RAND_MAX;
-               nedges++;
-             }
-           }
-         } 
-         // N
-         if(i > 0){
-           sector_t * sec2 = &sectors[i-1][j];
-           for(l = 0; l < sec2->numpoints; l++){
-             if(dist(sec->points[k], sec2->points[l]) < r2){
-               A->nonzero[nedges] = sec2->points[l].index;
-               assert(node >= sec2->points[l].index);
-               if(weighted) A->value[nedges] = rand()/RAND_MAX;
-               nedges++;
-             }
-           }
-         }
-         // NE
-         if(i > 0 && j < (nsectors-1)){
-           sector_t * sec2 = &sectors[i-1][j+1];
-           for(l = 0; l < sec2->numpoints; l++){
-             if(dist(sec->points[k], sec2->points[l]) < r2){
-               A->nonzero[nedges] = sec2->points[l].index;
-               assert(node >= sec2->points[l].index);
-               if(weighted) A->value[nedges] = rand()/RAND_MAX;
-               nedges++;
-             }
-           }
-         }
-         A->offset[node+1] = nedges;
-         node++;
-       }
-              
-     }
-   }
-   sort_nonzeros(A);
-   return(A);
+  clear_edge_list(el);
+  
+  return(A);
+  
  }
 
  
@@ -1548,3 +1598,108 @@ void clear_matrix(sparsemat_t * mat)
   free(mat->offset);
   free(mat->value);
 }
+
+
+/*! \brief initializes the struct that holds an array of doubles
+ * \param num total number of entries
+ * \return an allocated d_array_t or NULL on error
+ * \ingroup spmatgrp
+ */
+d_array_t * init_d_array(int64_t num) 
+{
+  d_array_t * array = calloc(1, sizeof(d_array_t));
+  array->num  = num;
+  array->entry   = malloc(num * sizeof(double));
+  return(array);
+}
+
+/*! \brief sets all the entries of d_array_t to a value
+ * \param A the array
+ * \param v the value
+ * \ingroup spmatgrp
+ */
+void set_d_array(d_array_t * A, double v) 
+{
+  int64_t i;
+  for(i=0; i<A->num; i++) {
+    A->entry[i] = v;
+  }
+}
+
+/*! \brief sets all the entries of d_array_t to a value
+ * \param A the array
+ * \param v the value
+ * \ingroup spmatgrp
+ */
+void copy_d_array(d_array_t * dest, d_array_t * src) 
+{
+  int64_t i;
+ 
+  for(i=0; i<dest->num; i++)
+    dest->entry[i] = src->entry[i];
+}
+
+
+/*! \brief read a double array from a file.
+ * \param name the filename to be read
+ * \return a pointer to the double array or NULL on failure
+ * Note: file format is: first line is the num of entries in the array,
+ * then one entry per line after that.
+ */
+d_array_t * read_d_array(char *name)
+{
+
+  int64_t i, num;
+  FILE * fp = fopen(name, "r");
+  if( fp == NULL ){
+    fprintf(stderr,"read_d_array: can't open file %s \n", name);
+    exit(1);
+  }
+
+  int fscanfret;
+  fscanfret = fscanf(fp,"%"SCNd64"\n", &num);
+  d_array_t *retarr = init_d_array(num);
+
+  for(i=0; i<num; i++){
+    fscanfret = fscanf(fp,"%lf\n", &(retarr->entry[i]));
+    assert (fscanfret == 1);
+  }
+
+  return(retarr);
+}
+
+/*! \brief writes a double array to a file
+ * \param A pointer to the double array
+ * \param name the filename to be written to
+ * \return 0 on success, non-0 on error.
+ */
+int64_t write_d_array(d_array_t *A, char * name)
+{
+  int64_t i;
+
+  FILE * fp = fopen(name, "w");       // FIXME error
+  if( fp == NULL ){
+    fprintf(stderr,"write_d_array: can't open file %s \n", name);
+    exit(1);
+  }
+
+  fprintf(fp, "%"PRId64"\n", A->num);
+
+  for(i=0; i<A->num; i++){
+    fprintf(fp, "%lf\n", A->entry[i]);
+  }
+  fclose(fp);
+  return(0);
+}
+
+
+/*! \brief clears the d_array_t struct
+ * \param A the d_array
+ * \ingroup spmatgrp
+ */
+void clear_d_array(d_array_t * A)
+{
+  free(A->entry);
+}
+
+

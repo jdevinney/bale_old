@@ -39,7 +39,9 @@
 /*! \file histo.h
  * \brief header file for the histogram app.
  */
-
+#ifndef HISTO_H
+#define HISTO_H
+#include <libgetput.h>
 #include <exstack.h>
 #include <convey.h>
 #include <locale.h>
@@ -62,3 +64,4 @@ double histo_conveyor(histo_t * data);
 
 #include "alternates/histo_alternates.h"
 
+#endif

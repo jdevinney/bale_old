@@ -261,7 +261,7 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
   lgp_barrier();
   convey_free(cnv_rc);  
 
-  assert(A->nnz = lgp_reduce_add_l(lnnz));
+  assert(A->nnz == lgp_reduce_add_l(lnnz));
 
   // allocate pmat to the max of the new number of nonzeros per thread  
   Ap = init_matrix(A->numrows, A->numcols, lnnz, (A->value != NULL));

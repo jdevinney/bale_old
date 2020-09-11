@@ -81,10 +81,10 @@ int main(int argc, char * argv[])
   printf("Generate a Kronecker Product of Stars\n");
   kron_args_t * kron_args = kron_args_init("2: 2 2");
   printf("-- input %s\n", kron_args->str);
-  printf("-- mode %"PRId64"\n", kron_args->mode);
-  printf("-- num_stars %"PRId64"\n", kron_args->num_stars);
+  printf("-- mode %"PRId32"\n", kron_args->mode);
+  printf("-- num_stars %"PRId32"\n", kron_args->num_stars);
   for(i=0; i<kron_args->num_stars; i++)
-    printf("%"PRId64" ", kron_args->star_size[i]); 
+    printf("%"PRId32" ", kron_args->star_size[i]); 
   printf("\n-- numrows %"PRId64"\n", kron_args->numrows);
   printf("Known number of triangles = %"PRId64"\n", tri_count_kron_graph(kron_args));
 

@@ -40,12 +40,14 @@
  * \ingroup spmatgrp
  */ 
 #ifndef spmat_INCLUDED
+#define spmat_INCLUDED
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <convey.h>
 #include <libgetput.h>
+#include "spmat_enums.h"
 
 
 /*! \struct sparsemat_t spmat.h
@@ -98,10 +100,6 @@ typedef struct triples_t{
   int64_t nalloc;
 } triples_t;
 
-typedef enum graph_model {FLAT, GEOMETRIC} graph_model;
-typedef enum edge_type {DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED} edge_type;
-typedef enum self_loops {NOLOOPS, LOOPS} self_loops;
-typedef enum layout {BLOCK, CYCLIC} layout;
 
 typedef struct w_edge_t{
   int64_t row;
@@ -163,6 +161,9 @@ int64_t rowcount_S( sparsemat_t *mat, int64_t S_row );
 
 int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
 int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
+
+int64_t             calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num);
+void                clear_edge_list(edge_list_t * el);
 void                clear_matrix(sparsemat_t * mat);
 void                clear_triples(triples_t * T);
 
@@ -173,7 +174,9 @@ sparsemat_t *       direct_undirected_graph(sparsemat_t * L);
 
 sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed);
 sparsemat_t *       gen_star_graph(int64_t m, int mode);
+sparsemat_t *       generate_kronecker_graph_from_spec(int mode, int * spec, int num);
 sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
+
 
 edge_list_t *       init_edge_list(int64_t nalloc);
 sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted);
@@ -203,7 +206,7 @@ SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_agi(int64_t N, int seed);
 sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                                  double edge_density, int64_t seed);
-
+void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops);
 sparsemat_t *       transpose_matrix(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);
@@ -241,6 +244,5 @@ int edge_comp(const void *a, const void *b);
 int w_edge_comp(const void *a, const void *b);
 
 
-#define spmat_INCLUDED
 #endif
 

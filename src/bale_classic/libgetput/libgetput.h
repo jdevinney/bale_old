@@ -43,9 +43,8 @@
  * * \ingroup libgetputgrp
 */
 
-
-
 #ifndef libgetput_INCLUDED
+#define libgetput_INCLUDED  /*!< std trick */
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -62,13 +61,13 @@
 #include "config.h"
 #endif
 
-#if _CRAYC
+#if __cray__ || _CRAYC
 #include <intrinsics.h>
 #else
 #define _rtc() 0  /*!< the realtime clock */
 #endif
 
-#if __UPC__
+#if __UPC__ && __UPC_ATOMIC__ && !( __cray__ || _CRAYC )
 extern upc_atomicdomain_t * lgp_atomic_domain;
 #endif
 
@@ -80,6 +79,8 @@ extern upc_atomicdomain_t * lgp_atomic_domain;
 # define shmem_global_exit exit /*!< old style names for shmem */
 # endif
 
+// remove this eventually...
+#ifndef ALL_Models
 /* defines to support the different models of global and buffered references */
 #define AGI_Model        1L /*!< the Atomic or Generic Interface (straight UPC/SHMEM) */
 #define EXSTACK_Model    2L /*!< the exstack bulk synchronous buffering model */
@@ -87,6 +88,7 @@ extern upc_atomicdomain_t * lgp_atomic_domain;
 #define CONVEYOR_Model   8L /*!< the conveyor buffering model */
 #define ALTERNATE_Model 16L /*!< an alternate model (meant for user supplied code) */
 #define ALL_Models      15L /*!< default for running all models */
+#endif
 
 /*! \struct minavgmaxL_t 
 * \brief A structure to return the global stats computed by lgp_min_avg_max_l
@@ -145,7 +147,9 @@ typedef struct minavgmaxD_t{
 #endif
 
 
-#else
+#endif
+
+#if USE_SHMEM
 
 /////////////////////////////////////////////////////////////////
 ///////                   SHMEM SECTION                 /////////
@@ -246,6 +250,16 @@ int64_t  lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, 
 
 double wall_seconds(); /*!< wall time timer using gettimeofday */
 
-#define libgetput_INCLUDED  /*!< std trick */
+/* command line processing */
+int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, int ret);
+void share_args(void * args, size_t n);
+int check_for_exit(int argc, char * argv[], int ret);
+//int bale_process_cmd_line(int argc, char * argv[], struct argp_option * options,
+//                          int (*parse_opt)(int key, char * arg, struct argp_state * state),
+//                          struct argp_child * children_parsers, void * args, size_t args_len);
+//int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, int ret);
+//int bale_process_cmd_line(int argc, char ** argv, struct argp * argp, void * args, size_t args_len);
+
+
 #endif
 

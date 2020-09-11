@@ -35,7 +35,10 @@ OBJ= spmat_utils.o
 
 GRAPHS= demo.mm 10_ring.mm 2comps.mm
 
-all: spmat_utils.o ${EXE}
+all: std_options.o spmat_utils.o ${EXE}
+
+std_options.o: std_options.c std_options.h
+	${CC} -g -c std_options.c
 
 spmat_utils.o: spmat_utils.c spmat_utils.h
 	${CC} -c spmat_utils.c -lm
@@ -43,32 +46,32 @@ spmat_utils.o: spmat_utils.c spmat_utils.h
 demo_spmat: demo_spmat.c spmat_utils.o 
 	${CC} demo_spmat.c spmat_utils.o ${LFLAGS} -o demo_spmat
 
-histo: histo.c spmat_utils.o 
-	${CC} histo.c spmat_utils.o ${LFLAGS} -o histo
+histo: histo.c std_options.o spmat_utils.o 
+	${CC} -g histo.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o histo
 
-ig: ig.c spmat_utils.o 
-	${CC} ig.c spmat_utils.o ${LFLAGS} -o ig
+ig: ig.c std_options.o spmat_utils.o 
+	${CC} ig.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o ig
 
-randperm: randperm.c spmat_utils.o
-	${CC} randperm.c spmat_utils.o ${LFLAGS} -o randperm
+randperm: randperm.c std_options.o spmat_utils.o
+	${CC} randperm.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o randperm
 
-topo: toposort.c spmat_utils.o
-	${CC} toposort.c spmat_utils.o ${LFLAGS} -o topo
+topo: toposort.c std_options.o spmat_utils.o
+	${CC} toposort.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o topo
 
-triangles: triangle.c spmat_utils.o
-	${CC} triangle.c spmat_utils.o ${LFLAGS} -o triangles
+triangles: triangle.c std_options.o spmat_utils.o
+	${CC} -g triangle.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o triangles
 
-unionfind: unionfind.c spmat_utils.o
-	${CC} unionfind.c spmat_utils.o ${LFLAGS} -o unionfind
+unionfind: unionfind.c std_options.o spmat_utils.o
+	${CC} unionfind.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o unionfind
 
-permute_matrix: permute_matrix.c spmat_utils.o
-	${CC} permute_matrix.c spmat_utils.o ${LFLAGS} -o permute_matrix
+permute_matrix: permute_matrix.c std_options.o spmat_utils.o
+	${CC} permute_matrix.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o permute_matrix
 
-transpose_matrix: transpose_matrix.c spmat_utils.o
-	${CC} transpose_matrix.c spmat_utils.o ${LFLAGS} -o transpose_matrix
+transpose_matrix: transpose_matrix.c std_options.o spmat_utils.o
+	${CC} -g transpose_matrix.c spmat_utils.o std_options.o ${LFLAGS} ${LDFLAGS} -o transpose_matrix
 
-sssp: sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c spmat_utils.o
-	${CC} -g sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c spmat_utils.o ${LFLAGS} -o sssp
+sssp: sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o
+	${CC} sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o ${LFLAGS} -o sssp
 
 doc:
 	doxygen

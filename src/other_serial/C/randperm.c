@@ -40,9 +40,12 @@
  * \brief Demo program that generates a random permutation.
  * The well known serial algorithm is from Knuth (Vol FIXME).
  * The "dart throwing" and the "sorting algorithm" can be parallelized.
+ *
+ * Run randperm --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"
+#include "std_options.h"
 
 /*! \page randperm_page 
  * Generate a uniform random permutation.  We consider three different algorithm:
@@ -188,54 +191,71 @@ double randperm_sort(int64_t l, uint32_t seed)
   return(tm);
 }
 
+typedef struct args_t{
+  int64_t perm_size;
+  std_args_t std;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case 'n':
+      args->perm_size = atol(arg); break;
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] =
+  {
+    {"perm_size", 'n', "NUM",  0, "Size of permutation to create."},
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {0}
+  };
+
+
 int main(int argc, char * argv[])
 {
-  int64_t length = (1L<<23);
-  uint32_t seed = 101892;
   double laptime = 0.0;
+
+  /* process command line */
+  args_t args;
+  args.perm_size = 100000;
+  struct argp argp = {options, parse_opt, 0, "Create a random permutation.", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
 
   enum MODEL {GENERIC_Model=1, DART_Model=2, SORT_Model=4, ALL_Models=8};
   uint32_t use_model;
-  uint32_t models_mask = ALL_Models - 1;
-  int printhelp=0;
-  int quiet=0;
+  uint32_t models_mask = args.std.models_mask;
+  uint32_t quiet = args.std.quiet;
 
-  int opt; 
-  while( (opt = getopt(argc, argv, "hn:s:M:q")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'n': sscanf(optarg,"%"SCNd64 ,&length    );   break;
-    case 's': sscanf(optarg,"%d", &seed); break;      
-    case 'M': sscanf(optarg,"%d" , &models_mask);  break;
-    case 'q': quiet = 1; break;
-    default:  break;
-    }
+  if(!quiet){
+    printf("Randperm Serial C\n");
+    printf("permuatation size: %ld\n", args.perm_size);
+    printf("----------------------\n");
   }
-
-  if( printhelp || !quiet ) {
-    fprintf(stderr,"Running C version of rand_perm\n");
-    fprintf(stderr,"help                 (-h)\n");
-    fprintf(stderr,"permutation size     (-n)= %"PRId64"\n", length);
-    fprintf(stderr,"random seed          (-s)= %d\n", seed);
-    fprintf(stderr,"models_mask          (-M)= %d\n", models_mask);
-    fprintf(stderr,"quiet                (-q)= %d\n", quiet);
-    if(printhelp)
-      return(0);
-  }
-
+  
   for( use_model=1; use_model < ALL_Models; use_model *=2 ) {
     switch( use_model & models_mask ) {
     case GENERIC_Model:
       if(!quiet) printf("Generic  perm: ");
-      laptime = randperm_generic(length, seed);
+      laptime = randperm_generic(args.perm_size, args.std.seed);
       break;
     case DART_Model:
       if(!quiet) printf("Dart     perm: ");
-      laptime = randperm_dart(length, seed);
+      laptime = randperm_dart(args.perm_size, args.std.seed);
       break;
     case SORT_Model:
       if(!quiet) printf("Sort     perm: ");
-      laptime = randperm_sort(length, seed);
+      laptime = randperm_sort(args.perm_size, args.std.seed);
       break;
     default:
       continue;

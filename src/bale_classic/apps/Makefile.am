@@ -36,10 +36,11 @@
 # 
 # *****************************************************************/ 
 
-bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix#unionfind
+bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix #unionfind
 
 #BDEBUG = -g -O0
-BDEBUG = -std=c11
+BDEBUG =
+
 ###################################################################
 noinst_HEADERS = histo_src/histo.h 
 
@@ -64,7 +65,7 @@ histo_LINK=$(UPCLINK)
 endif
 
 if BUILD_SHMEM
-histo_SOURCES = $(histo_sources:.upc=__c.c)
+histo_SOURCES = $(histo_sources:.upc=__c.c) 
 histo_CPPFLAGS += -DUSE_SHMEM
 histo_LINK = $(LINK) $(BDEBUG)
 endif
@@ -114,7 +115,7 @@ topo_LINK=$(UPCLINK)
 endif
 
 if BUILD_SHMEM
-topo_SOURCES = $(topo_sources:.upc=__c.c)
+topo_SOURCES = $(topo_sources:.upc=__c.c) 
 topo_CPPFLAGS += -DUSE_SHMEM
 topo_LINK=$(LINK) $(BDEBUG)
 endif

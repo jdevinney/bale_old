@@ -34,8 +34,7 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-*****************************************************************/ 
-
+*****************************************************************/
 /*! \file histo.upc
  * \brief Demo program that computes a histogram of uint64_t's
  *  The number of histogram bins should be large enough that they need 
@@ -43,6 +42,7 @@
  */
 
 #include "histo.h"
+#include <std_options.h>
 
 /*!
 \page histogram_page Histogram
@@ -66,86 +66,94 @@ Histogram is extremely order and latency tolerant.
 We believe it to be representative of a number of PGAS loops are dominated by random puts.
 As a buffered communication pattern, we think of it as one-sided pushes.
 
-Usage:
-histo [-h][-b count][-M mask][-n num][-T tabsize][-c num]
-- -h prints this help message
-- -b count is the number of packages in an exstack(2) buffer
-- -M mask is the or of 1,2,4,8,16 for the models: agi,exstack,exstack2,conveyor,alternate
-- -n num is the number of updates per thread
-- -T tabsize is the table size or number of buckets per thread
-- -c num number of cores/node is a scaling factor to adjust the update rate to handle multi-core nodes
+Run with the --help, -?, or --usage flags for run details.
 */
 
-static void usage(void) {
-  T0_fprintf(stderr,"\
-Usage:\n\
-histo [-h][-b count][-M mask][-n num][-T tabsize][-c num]\n\
-- -h prints this help message\n\
-- -b count is the number of packages in an exstack(2) buffer\n\
-- -M mask is the or of 1,2,4,8,16 for the models: agi,exstack,exstack2,conveyor,alternate\n\
-- -T tabsize is the table size or number of buckets per thread\n\
-- -c num number of cores/node is a scaling factor to adjust the update rate to handle multi-core nodes\n\
-\n");
-  lgp_finalize();
+
+typedef struct args_t{
+  int64_t l_num_ups;
+  int64_t l_tbl_size;
+  std_args_t std;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case 'n':
+      args->l_num_ups = atol(arg); break;
+    case 'T':
+      args->l_tbl_size = atol(arg); break;
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      break;
+    }
+  return(0);
 }
+
+static struct argp_option options[] =
+  {
+    {"num_updates",'n', "NUM", 0, "Number of updates per PE to the histogram table"},
+    {"table_size", 'T', "SIZE", 0, "Number of entries per PE in the histogram table"},
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {0}
+  };
 
 
 int main(int argc, char * argv[]) {
   lgp_init(argc, argv);
-  
-  int64_t buf_cnt = 1024;
-  int64_t models_mask = ALL_Models; // run all the programing models
-  int64_t l_num_ups  = 1000000;     // per thread number of requests (updates)
-  int64_t lnum_counts = 1000;       // per thread size of the table
-  int64_t cores_per_node = 0;       // Default to 0 so it won't give misleading bandwidth numbers
-
   int64_t i;
 
-  int printhelp = 0;
-  int opt; 
-  while( (opt = getopt(argc, argv, "hb:M:n:c:T:")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%"PRId64"" ,&buf_cnt);  break;
-    case 'M': sscanf(optarg,"%"PRId64"" ,&models_mask);  break;
-    case 'n': sscanf(optarg,"%"PRId64"" ,&l_num_ups);  break;
-    case 'T': sscanf(optarg,"%"PRId64"" ,&lnum_counts);  break;
-    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
-    default:  break;
-    }
+  /* process command line */
+  int ret = 0;
+  args_t args;
+  args.l_tbl_size = 1000;
+  args.l_num_ups = 100000;
+  struct argp argp = {options, parse_opt, 0,
+                      "Accumulate updates into a table.", children_parsers};
+  if(MYTHREAD == 0){
+    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
   }
-  if( printhelp ){usage();return(0);} 
 
-  T0_fprintf(stderr,"Running histo on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %"PRId64"\n", buf_cnt);
-  T0_fprintf(stderr,"Number updates / thread              (-n)= %"PRId64"\n", l_num_ups);
-  T0_fprintf(stderr,"Table size / thread                  (-T)= %"PRId64"\n", lnum_counts);
-  T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", models_mask);
-  fflush(stderr);
+  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  if(ret < 0) return(ret);
+  else if(ret) return(0);
 
-  histo_t data;
-  
-  // Allocate and zero out the counts array
-  data.l_num_ups = l_num_ups;
-  data.lnum_counts = lnum_counts;
-  data.num_counts = lnum_counts*THREADS;
+  if(!MYTHREAD && !args.std.quiet){
+    T0_fprintf(stderr,"Number updates / PE      (-n): %"PRId64"\n", args.l_num_ups);
+    T0_fprintf(stderr,"Table size / PE          (-T): %"PRId64"\n\n", args.l_tbl_size);
+    write_std_options(&args.std);
+  }
+
+
+  /* package all the inputs up into a struct */
+  histo_t data;  
+  data.l_num_ups = args.l_num_ups;
+  data.lnum_counts = args.l_tbl_size;
+  data.num_counts = data.lnum_counts*THREADS;
   data.counts = lgp_all_alloc(data.num_counts, sizeof(int64_t));
   assert(data.counts != NULL);  
   data.lcounts = lgp_local_part(int64_t, data.counts);  
-  for(i = 0; i < lnum_counts; i++)
+  for(i = 0; i < data.lnum_counts; i++)
     data.lcounts[i] = 0L;
   
   // index is a local array of indices into the shared counts array.
   // This is used by the _agi version. 
-  // To avoid paying the UPC tax of computing index[i]/THREADS and index[i]%THREADS
+  // To avoid paying for computing index[i]/THREADS and index[i]%THREADS
   // when using the exstack and conveyor models
-  // we also store a packed version that holds the pe (= index%THREADS) and lindx (=index/THREADS)
-  data.index   = calloc(l_num_ups, sizeof(int64_t)); assert(data.index != NULL);
-  data.pckindx = calloc(l_num_ups, sizeof(int64_t)); assert(data.pckindx != NULL);
+  // we also store a packed version that holds the
+  // pe (= index%THREADS) and lindx (=index/THREADS)
+  data.index   = calloc(data.l_num_ups, sizeof(int64_t)); assert(data.index != NULL);
+  data.pckindx = calloc(data.l_num_ups, sizeof(int64_t)); assert(data.pckindx != NULL);
 
   int64_t indx, lindx, pe;
-  srand(MYTHREAD + 120348);
-  for(i = 0; i < l_num_ups; i++) {
+  srand(MYTHREAD + args.std.seed);
+  for(i = 0; i < data.l_num_ups; i++) {
     //indx = i % data.num_counts;          //might want to do this for debugging
     indx = rand() % data.num_counts;
     data.index[i] = indx;                 
@@ -157,7 +165,7 @@ int main(int argc, char * argv[]) {
     assert(pe < (1L<<20));
     data.pckindx[i]  =  (lindx << 20L) | (pe & 0xfffff);
   }
-  double volume_per_node = (8*l_num_ups*cores_per_node)*(1.0E-9);
+  double volume_per_node = (8*data.l_num_ups*args.std.cores_per_node)*(1.0E-9);
   
   lgp_barrier();
 
@@ -168,10 +176,9 @@ int main(int argc, char * argv[]) {
 
   for( use_model=1L; use_model < 32; use_model *=2 ) {
 
-    switch( use_model & models_mask ) {
+    switch( use_model & args.std.models_mask ) {
     case AGI_Model:
       T0_fprintf(stderr,"      AGI: ");
-      //laptime = histo_agi(index, l_num_ups, (SHARED int64_t *)counts);
       laptime = histo_agi(&data);
       num_models++;
       lgp_barrier();
@@ -179,27 +186,20 @@ int main(int argc, char * argv[]) {
     
     case EXSTACK_Model:
       T0_fprintf(stderr,"  Exstack: ");
-      //laptime = histo_exstack(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
-      laptime = histo_exstack(&data, buf_cnt);
-      lgp_barrier();
-      //if(MYTHREAD == 0)
-      //for(i = 0; i < data.num_counts; i++)
-      //  printf("[%ld] = %ld\n", i, lgp_get_int64(data.counts, i));
+      laptime = histo_exstack(&data, args.std.buffer_size);
       num_models++;
       lgp_barrier();
       break;
 
     case EXSTACK2_Model:
       T0_fprintf(stderr," Exstack2: ");
-      //laptime = histo_exstack2(pckindx, l_num_ups, (int64_t *)lcounts, buf_cnt);
-      laptime = histo_exstack2(&data, buf_cnt);
+      laptime = histo_exstack2(&data, args.std.buffer_size);
       num_models++;
       lgp_barrier();
       break;
 
     case CONVEYOR_Model:
       T0_fprintf(stderr,"Conveyors: ");
-      //laptime = histo_conveyor(pckindx, l_num_ups, (int64_t *)lcounts);
       laptime = histo_conveyor(&data);
       num_models++;
       lgp_barrier();

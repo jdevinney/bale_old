@@ -38,7 +38,7 @@
 /*! \file exstack2.upc
  * \brief A library to do asynchronous buffered communications in parallel programs.
  */
-#include "libgetput.h" // from exstack library
+//#include "libgetput.h" // from exstack library
 #include "exstack.h" // from exstack library
 
 /* internal routines */

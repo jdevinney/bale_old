@@ -41,6 +41,7 @@
  */
 
 #include "ig.h"
+#include <std_options.h>
 
 /*!
 \page indexgather_page Indexgather
@@ -61,30 +62,8 @@ The simplest form of indexgather uses \f$\tt int64\_t\tt\f$'s for all the arrays
 This allows one to reuse communication buffers.
 It might be more interesting to consider the case where the table entries were multiple words.
 
-Usage:
-ig [-h][-b count][-M mask][-n num]       [-T tabsize][-c num]
-- -h prints this help message
-- -b count is the number of packages in an exstack(2) buffer
-- -M mask is the or of 1,2,4,8,16 for the models: agi,exstack,exstack2,conveyor,alternate
-- -n num is the number of requests per thread
-- -T tabsize is the table size per thread
-- -c num number of cores/node is a scaling factor to adjust the update rate to handle multi-core nodes
+Run with the --help, -?, or --usage flags for run details.
 */
-
-static void usage(void) {
-  T0_fprintf(stderr,"\
-Usage:\n\
-ig [-h][-b count][-M mask][-n num][-T tabsize][-c num]\n\
-- -h prints this help message\n\
-- -b count is the number of packages in an exstack(2) buffer\n\
-- -M mask is the or of 1,2,4,8,16 for the models: agi,exstack,exstack2,conveyor,alternate\n\
-- -n num is the number of requests per thread\n\
-- -T tabsize is the table size per thread\n\
-- -c num number of cores/node is a scaling factor to adjust the update rate to handle multi-core nodes\n\
-\n");
-  lgp_finalize();
-  lgp_global_exit(0);
-}
 
 
 /*! \brief check the target array the local parts of two arrays agree
@@ -114,60 +93,89 @@ int64_t ig_check_and_zero(int64_t use_model, int64_t *tgt, int64_t *index, int64
   return(errors);
 }
 
+
+typedef struct args_t{
+  int64_t l_num_req;
+  int64_t l_tbl_size;
+  std_args_t std;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case 'n':
+      args->l_num_req = atol(arg); break;
+    case 'T':
+      args->l_tbl_size = atol(arg); break;
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] =
+  {
+    {"num_requests",'n', "NUM", 0, "Number of reads per PE from the table"},
+    {"table_size", 'T', "SIZE", 0, "Number of entries per PE in the table"},
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {0}
+  };
+
+
 int main(int argc, char * argv[]) {
 
   lgp_init(argc, argv);
   
   int64_t i;
-  int64_t buf_cnt = 1024;
-  int64_t models_mask = ALL_Models; // run all the programing models
-  int64_t ltab_siz = 100000;        
-  int64_t l_num_req  = 1000000;      // number of requests per thread
-  int64_t cores_per_node = 0;       // Default to 0 so it won't give misleading bandwidth numbers
   int64_t num_errors = 0L, total_errors = 0L;
   int64_t printhelp = 0;
 
-  int opt; 
-  while( (opt = getopt(argc, argv, "hb:M:n:c:T:")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%"PRId64"" ,&buf_cnt);   break;
-    case 'M': sscanf(optarg,"%"PRId64"" ,&models_mask);  break;
-    case 'n': sscanf(optarg,"%"PRId64"" ,&l_num_req);   break;
-    case 'T': sscanf(optarg,"%"PRId64"" ,&ltab_siz);   break;
-    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
-    default:  break;
-    }
+  /* process command line */
+  int ret = 0;
+  args_t args;
+  if(MYTHREAD == 0){
+    args.l_tbl_size = 1000;
+    args.l_num_req = 100000;
+    struct argp argp = {options, parse_opt, 0,
+                        "Many remote reads from a distributed table.", children_parsers};
+    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
   }
-
-  if(printhelp) usage();
-
-  T0_fprintf(stderr,"Running ig on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %"PRId64"\n", buf_cnt);
-  T0_fprintf(stderr,"Number of Request / thread           (-n)= %"PRId64"\n", l_num_req );
-  T0_fprintf(stderr,"Table size / thread                  (-T)= %"PRId64"\n", ltab_siz);
-  T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", models_mask);
-  T0_fprintf(stderr,"models_mask is or of 1,2,4,8,16 for agi,exstack,exstack2,conveyor,alternate)\n");
-
   
-  int64_t bytes_read_per_request_per_node = 8*2*cores_per_node;
+  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  if(ret < 0) return(ret);
+  else if(ret) return(0);
+
+  if(!MYTHREAD && !args.std.quiet){
+    T0_fprintf(stderr,"Number of Request / PE   (-n): %"PRId64"\n", args.l_num_req );
+    T0_fprintf(stderr,"Table size / PE          (-T): %"PRId64"\n\n", args.l_tbl_size);
+    write_std_options(&args.std);
+  }
+  
+  int64_t bytes_read_per_request_per_node = 8*2*args.std.cores_per_node;
   
   // Allocate and populate the shared table array 
-  int64_t tab_siz = ltab_siz*THREADS;
+  int64_t tab_siz = args.l_tbl_size*THREADS;
   SHARED int64_t * table   = lgp_all_alloc(tab_siz, sizeof(int64_t)); assert(table != NULL);
   int64_t *ltable  = lgp_local_part(int64_t, table);
   // fill the table with the negative of its shared index
   // so that checking is easy
-  for(i=0; i<ltab_siz; i++)
+  for(i=0; i<args.l_tbl_size; i++)
     ltable[i] = (-1)*(i*THREADS + MYTHREAD + 1);
   
   // As in the histo example, index is used by the _agi version.
   // pckindx is used my the buffered versions
-  int64_t *index   = calloc(l_num_req, sizeof(int64_t)); assert(index != NULL);
-  int64_t *pckindx = calloc(l_num_req, sizeof(int64_t)); assert(pckindx != NULL);
+  int64_t *index   = calloc(args.l_num_req, sizeof(int64_t)); assert(index != NULL);
+  int64_t *pckindx = calloc(args.l_num_req, sizeof(int64_t)); assert(pckindx != NULL);
   int64_t indx, lindx, pe;
-  srand(MYTHREAD+ 5 );
-  for(i = 0; i < l_num_req; i++){
+  srand(MYTHREAD+ args.std.seed);
+  for(i = 0; i < args.l_num_req; i++){
     indx = rand() % tab_siz;
     index[i] = indx;
     lindx = indx / THREADS;      // the distributed version of indx
@@ -175,35 +183,35 @@ int main(int argc, char * argv[]) {
     pckindx[i] = (lindx << 16) | (pe & 0xffff); // same thing stored as (local index, thread) "shmem style"
   }
 
-  int64_t *tgt  = calloc(l_num_req, sizeof(int64_t)); assert(tgt != NULL);
+  int64_t *tgt  = calloc(args.l_num_req, sizeof(int64_t)); assert(tgt != NULL);
 
   lgp_barrier();
 
   int64_t use_model;
   double laptime = 0.0;
-  double volume_per_node = (2*8*l_num_req*cores_per_node)*(1.0E-9);
+  double volume_per_node = (2*8*args.l_num_req*args.std.cores_per_node)*(1.0E-9);
   double injection_bw = 0.0;
 
   for( use_model=1L; use_model < 32; use_model *=2 ){
-     switch( use_model & models_mask ){
+     switch( use_model & args.std.models_mask ){
      case AGI_Model:
         T0_fprintf(stderr,"      AGI: ");
-        laptime = ig_agi(tgt, index, l_num_req, table);
+        laptime = ig_agi(tgt, index, args.l_num_req, table);
      break;
      
      case EXSTACK_Model:
         T0_fprintf(stderr,"  Exstack: ");
-        laptime =ig_exstack(tgt, pckindx, l_num_req,  ltable,  buf_cnt); 
+        laptime =ig_exstack(tgt, pckindx, args.l_num_req,  ltable,  args.std.buffer_size); 
      break;
    
      case EXSTACK2_Model:
         T0_fprintf(stderr," Exstack2: ");
-        laptime = ig_exstack2(tgt, pckindx, l_num_req,  ltable,  buf_cnt);
+        laptime = ig_exstack2(tgt, pckindx, args.l_num_req,  ltable, args.std.buffer_size);
      break;
    
      case CONVEYOR_Model:
         T0_fprintf(stderr,"Conveyors: ");
-        laptime = ig_conveyor(tgt, pckindx, l_num_req,  ltable);
+        laptime = ig_conveyor(tgt, pckindx, args.l_num_req,  ltable);
      break;
    
      case ALTERNATE_Model:
@@ -222,7 +230,7 @@ int main(int argc, char * argv[]) {
      injection_bw = volume_per_node / laptime;
      T0_fprintf(stderr,"  %8.3lf seconds  %8.3lf GB/s/Node\n", laptime, injection_bw);
    
-     num_errors += ig_check_and_zero(use_model, tgt, index, l_num_req);
+     num_errors += ig_check_and_zero(use_model, tgt, index, args.l_num_req);
   }
 
   total_errors = lgp_reduce_add_l(num_errors);

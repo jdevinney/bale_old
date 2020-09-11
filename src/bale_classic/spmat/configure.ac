@@ -43,7 +43,7 @@ AM_INIT_AUTOMAKE([1.10 foreign no-define tar-ustar])
 ##LT_INIT ## enable libtool
 
 AC_CONFIG_HEADERS([config.h])
-#AC_CONFIG_MACRO_DIR([.common_link/m4])
+AC_CONFIG_MACRO_DIRS([../])
 
 AC_ARG_WITH([upc],
             AS_HELP_STRING([--with-upc], [build a UPC version]),
@@ -85,7 +85,8 @@ AM_CONDITIONAL(BUILD_SHMEM, [test "x$mpp_use_shmem" = xyes])
 
 PKG_CHECK_MODULES([libdeps],
   [
-        exstack
+        std_options
+        exstack                
         convey
         libgetput
   ]

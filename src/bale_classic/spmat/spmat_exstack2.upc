@@ -273,7 +273,7 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
   exstack2_clear(ex2);  
   free(ex2);
 
-  assert(A->nnz = lgp_reduce_add_l(lnnz));
+  assert(A->nnz == lgp_reduce_add_l(lnnz));
 
   // allocate pmat to the max of the new number of nonzeros per thread  
   Ap = init_matrix(A->numrows, A->numcols, lnnz, (A->value != NULL));

@@ -40,9 +40,12 @@
  * \brief Demo program that computes a histogram of uint64_t's
  *  The intent is to histogram a large number of words into 
  *  a large number of bins.
+ * 
+ * Run histo --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"
+#include "std_options.h"
 
 /*! \page histo_page 
  * Statements about why histo is not as lame as it seems.
@@ -150,58 +153,74 @@ double histo_sorted(int64_t *index, int64_t num_ups,  int64_t *counts)
   return( tm );
 }
 
+typedef struct args_t{
+  int64_t num_ups;
+  int64_t tbl_size;
+  std_args_t std;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case 'n':
+      args->num_ups = atol(arg); break;
+    case 'T':
+      args->tbl_size = atol(arg); break;
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] =
+  {
+    {"num_updates",'n', "NUM", 0, "Number of updates to the histogram table"},
+    {"table_size", 'T', "SIZE", 0, "Number of entries in the histogram table"},
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {0}
+  };
 
 int main(int argc, char * argv[]) 
 {
-  int64_t num_ups  = (1L<<25);  // number of updates things to be histogram-ed
   int64_t num_index_bits = 21;
-  int64_t tbl_size = (1<<num_index_bits);
-  
-  uint32_t seed = 123456789;
 
+  /* process command line */
+  args_t args;
+  args.tbl_size = 1L<<num_index_bits;
+  args.num_ups = 100000;
+  struct argp argp = {options, parse_opt, 0, "Accumulate updates into a table.", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
+  
   enum MODEL {GENERIC_Model=1, BUF_Model=2, SORT_Model=4, ALL_Models=8};
   uint32_t use_model;
-  uint32_t models_mask = ALL_Models - 1;
-  uint32_t printhelp = 0;
-  uint32_t quiet = 0;
-
-  int opt; 
-  while( (opt = getopt(argc, argv, "hT:n:s:M:q")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'T': sscanf(optarg,"%"SCNd64, &tbl_size); break;
-    case 'n': sscanf(optarg,"%"SCNd64, &num_ups); break;
-    case 's': sscanf(optarg,"%d", &seed); break;
-    case 'M': sscanf(optarg,"%d", &models_mask); break;
-    case 'q': quiet = 1; break;
-    default:  break;
-    }
-  }
-  if( printhelp || !quiet ) {
-    fprintf(stderr,"Running C version of histo\n");
-    fprintf(stderr,"help           (-h)\n");
-    fprintf(stderr,"Table size     (-T)= %"PRId64"\n", tbl_size);
-    fprintf(stderr,"Updates        (-n)= %"PRId64"\n", num_ups);
-    fprintf(stderr,"models_mask    (-M)= %d\n", models_mask);
-    fprintf(stderr,"random seed    (-s)= %d\n", seed);
-    fprintf(stderr,"quiet          (-q)= %d\n", quiet);
-    if(printhelp)
-     return(0);
-  }
-  
+  uint32_t models_mask = args.std.models_mask;
+  uint32_t quiet = args.std.quiet;
+    
   num_index_bits = 0;
-  while(tbl_size >> num_index_bits)
+  while(args.tbl_size >> num_index_bits)
     num_index_bits++;
-  printf("tbl_size = %ld num_index_bits = %ld\n", tbl_size, num_index_bits);
   
   // index is an array of indices into the counts array.
-  int64_t * index  = calloc(num_ups, sizeof(int64_t)); assert(index != NULL);
-  int64_t * counts = calloc(tbl_size, sizeof(int64_t)); assert(counts != NULL);  
-  
-  srand( seed );
+  int64_t * index  = calloc(args.num_ups, sizeof(int64_t)); assert(index != NULL);
+  int64_t * counts = calloc(args.tbl_size, sizeof(int64_t)); assert(counts != NULL);  
+
+  if(!quiet){
+    printf("Histogram Serial C\n");
+    printf("num_updates: %ld\n", args.num_ups);
+    printf("table size:  %ld\n", args.tbl_size);
+    printf("----------------------\n");
+  }
+  srand( args.std.seed );
   int64_t i;
-  for(i = 0; i < num_ups; i++)
-    index[i] = rand() % tbl_size; // index into the counts array
+  for(i = 0; i < args.num_ups; i++)
+    index[i] = rand() % args.tbl_size; // index into the counts array
   
   double laptime = 0.0;
   int32_t num_runs = 0;
@@ -209,17 +228,17 @@ int main(int argc, char * argv[])
     switch( use_model & models_mask ) {
     case GENERIC_Model:
       if(!quiet) printf("Generic  histo: ");
-      laptime = histo_generic(index, num_ups, counts, 1);
+      laptime = histo_generic(index, args.num_ups, counts, 1);
       num_runs++;
       break;
     case BUF_Model:
       if(!quiet) printf("Buffered histo: ");
-      laptime = histo_buffered(index, num_ups, counts, num_index_bits);
+      laptime = histo_buffered(index, args.num_ups, counts, num_index_bits);
       num_runs++;
       break;
     case SORT_Model:
       if(!quiet) printf("Sorted   histo: ");
-      laptime = histo_sorted(index, num_ups, counts);
+      laptime = histo_sorted(index, args.num_ups, counts);
       num_runs++;
       break;
     default:
@@ -230,8 +249,8 @@ int main(int argc, char * argv[])
   
   // Check the buffered and sorted against the generic again
   int64_t errors = 0;
-  laptime = histo_generic(index, num_ups,  counts, -num_runs);
-  for(i = 0; i < tbl_size; i++) {
+  laptime = histo_generic(index, args.num_ups,  counts, -num_runs);
+  for(i = 0; i < args.tbl_size; i++) {
     if(counts[i] != 0L){
       errors++;
       if(errors < 5)  // print first five errors, report number of errors below

@@ -230,7 +230,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
   int64_t * rowcount;
   edge_t * edges;
   w_edge_t * tri;
-  while(!MYTHREAD){
+  if(!MYTHREAD){
     int fscanfret;
     int64_t * nnz_per_th = calloc(THREADS, sizeof(int64_t));
     
@@ -244,7 +244,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
     char * object = calloc(64, sizeof(char));
     char * format = calloc(64, sizeof(char));
     char * field = calloc(64, sizeof(char));;
-    int ret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
+    fscanfret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
     if( (fscanfret != 3 ) || strncmp(object,"matrix",24) || strncmp(format,"coordinate",24) ){
       fprintf(stderr,"read_matrix_mm: Incompatible matrix market format.\n");
       fprintf(stderr,"                First line should be either:\n");
@@ -262,15 +262,15 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
       fprintf(stderr,"                Last entry on first line should be pattern, real, or integer\n");
       lgp_global_exit(1);
     }
-    int value;
-    if(strncmp(field,"pattern",24) == 0){
-      value = 0; // no values
-    }else if(strncmp(field,"real",24) == 0){
-      value = 1; // real values
+    int64_t values;
+    if(strncmp(field,"pattern",7) == 0){
+      values = 0L; // no values
+    }else if(strncmp(field,"real",4) == 0){
+      values = 1L; // real values
     }else{
-      value = 2; // integer values
+      values = 2L; // integer values
     }
-
+    
     // Read the header (nr, nc, nnz)
     fscanfret = fscanf(fp,"%"PRId64" %"PRId64" %"PRId64"\n", &nr, &nc, &nnz);
     if( (fscanfret != 3 ) || (nr<=0) || (nc<=0) || (nnz<=0) ) {
@@ -283,16 +283,17 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
     if(!rowcount){
       T0_printf("ERROR: read_matrix_mm_to_dist: could not allocate arrays\n");
       for(i = 0; i < THREADS; i++) lgp_put_int64(sh_data, i, -1);
-      break;
     }
     
     // read the data
     int64_t row, col, val, pos = 0;
-    if(value == 0){
+    if(values == 0){
       edges = calloc(nnz, sizeof(edge_t));
       while(fscanf(fp,"%"PRId64" %"PRId64"\n", &row, &col) != EOF){
-        edges[pos].row   = row - 1;
-        edges[pos++].col = col - 1;
+        row--;//MM format is 1-up
+        col--;
+        edges[pos].row   = row;
+        edges[pos++].col = col;
         nnz_per_th[row % THREADS]++;
         rowcount[row]++;
       }
@@ -313,16 +314,15 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
     if(nnz != pos){
       T0_printf("ERROR: read_matrix_mm_to_dist: nnz (%"PRId64") != pos (%"PRId64")\n", nnz, pos);
       for(i = 0; i < THREADS; i++) lgp_put_int64(sh_data, i, -1);
-      break;
     }
     for(i = 0; i < THREADS; i++){
       lgp_put_int64(sh_data, i, nnz_per_th[i]);
       lgp_put_int64(sh_data, i+THREADS, nr);
       lgp_put_int64(sh_data, i+2*THREADS, nc);
-      lgp_put_int64(sh_data, i+3*THREADS, value);
+      lgp_put_int64(sh_data, i+3*THREADS, values);
     }
     free(nnz_per_th);
-    break;
+
   }
   
   lgp_barrier();
@@ -331,12 +331,13 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
   if(lsh_data[0] == -1)
     return(NULL);
   
+  int64_t lnnz = lsh_data[0];
   nr = lsh_data[1];
   nc = lsh_data[2];
-  int value = (lsh_data[4] != 0);
-  sparsemat_t * A = init_matrix(nr, nc, lsh_data[0], value);
-  SHARED int64_t * tmp_offset = lgp_all_alloc(nr + THREADS, sizeof(int64_t));
+  int value = (lsh_data[3] != 0L);
   
+  sparsemat_t * A = init_matrix(nr, nc, lnnz, value);
+  SHARED int64_t * tmp_offset = lgp_all_alloc(nr + THREADS, sizeof(int64_t));
   if(!A || !tmp_offset){
     T0_printf("ERROR: read_matrix_mm_to_dist: failed to init matrix or tmp_offset!\n");
     return(NULL);
@@ -348,15 +349,17 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
   
   if(!MYTHREAD){
     for(i = 0; i < nr; i++)
-      lgp_put_int64(tmp_offset, i+THREADS, rowcount[i]);    
+      lgp_put_int64(tmp_offset, i, rowcount[i]);
     free(rowcount);
   }
 
   lgp_barrier();
 
   int64_t * ltmp_offset = lgp_local_part(int64_t, tmp_offset);
+  A->loffset[0] = 0;
   for(i = 1; i <= A->lnumrows; i++){
-    A->loffset[i] = ltmp_offset[i] += ltmp_offset[i-1];
+    A->loffset[i] = A->loffset[i-1] + ltmp_offset[i-1];
+    ltmp_offset[i-1] = 0;
   }
 
   int64_t fromth;
@@ -386,9 +389,12 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
     exstack_exchange(ex);
 
     while(exstack_pop(ex, &pkg, &fromth)){
-      A->lnonzero[ltmp_offset[pkg.row/THREADS]] = pkg.col;
-      if(value) A->lvalue[ltmp_offset[pkg.row/THREADS]] = pkg.val;
-      ltmp_offset[pkg.row/THREADS]++;
+      int64_t row = pkg.row/THREADS;
+      int64_t pos = A->loffset[row] + ltmp_offset[row];
+      //printf("pos = %ld row = %ld col = %ld\n", pos, row, pkg.col);fflush(0);
+      A->lnonzero[pos] = pkg.col;
+      if(value) A->lvalue[pos] = pkg.val;
+      ltmp_offset[row]++;
     }
   }
 
@@ -402,7 +408,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
 
   lgp_all_free(tmp_offset);
   exstack_clear(ex);
-
+  sort_nonzeros(A);
   return(A);
 }
 
@@ -490,7 +496,7 @@ int is_upper_triangular(sparsemat_t *A, int64_t unit_diagonal) {
 /*! \brief Sets all entries above the kth diagonal to zero.
  * \param A A pointer to a sparse matrix
  * \param k Anything above the kth diagonal will be zero (k > 0 is above the main diagonal k < 0 is below)
- * \return 0 for success nonzero if error.
+ * \return The number of nonzeros that were removed.
  * \ingroup spmatgrp
  */
 int64_t tril(sparsemat_t * A, int64_t k) {
@@ -508,15 +514,17 @@ int64_t tril(sparsemat_t * A, int64_t k) {
     start = A->loffset[i+1];
     A->loffset[i+1] = pos;
   }
-  A->nnz = lgp_reduce_add_l(pos);
+  int64_t new_nnz = lgp_reduce_add_l(pos);
+  int64_t ret = A->nnz - new_nnz;
+  A->nnz = new_nnz;
   A->lnnz = pos;
-  return(0);
+  return(ret);
 }
 
 /*! \brief Sets all entries below the kth diagonal to zero.
  * \param A A pointer to a sparse matrix
  * \param k Anything below the kth diagonal will be zero (k > 0 is above the main diagonal k < 0 is below)
- * \return 0 for success nonzero if error.
+ * \return The number of nonzeros that were removed.
  * \ingroup spmatgrp
  */
 int64_t triu(sparsemat_t * A, int64_t k) {
@@ -534,9 +542,11 @@ int64_t triu(sparsemat_t * A, int64_t k) {
     start = A->loffset[i+1];
     A->loffset[i+1] = pos;
   }
-  A->nnz = lgp_reduce_add_l(pos);
+  int64_t new_nnz = lgp_reduce_add_l(pos);
+  int64_t ret = A->nnz - new_nnz;
+  A->nnz = new_nnz;
   A->lnnz = pos;
-  return(0);
+  return(ret);
 }
 
 
@@ -611,13 +621,17 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     // The expected number of edges E = n^2*pi*r^2/2
     // for undirected density = E/(n choose 2)
     // for directed   density = E/(n^2 - n)
-    r = sqrt((n-1)*edge_density/(M_PI*n));
+    if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
+       r = sqrt((n-1)*edge_density/(M_PI*n));
+     else
+       r = sqrt(2*(n-1)*edge_density/(M_PI*n));
     sparsemat_t * L = geometric_random_graph(n, r, et, loops, seed, NULL);// &op);
     if(L == NULL){
       T0_fprintf(stderr,"Error: random_graph: geometric_r_g returned NULL!\n");
       return(NULL);
     }
     lgp_barrier();
+    // hack to print points
     if(!MYTHREAD && 0){
       point_t pt;
       for(int i = 0; i < n; i++){
@@ -635,30 +649,29 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     return(L);
     
   }else{
-    T0_fprintf(stderr,"ERROR: random_graph: Unknown model!\n");
+    T0_fprintf(stderr,"ERROR: random_graph: illegal model (%d) for random_graph!\n", model);
     return(NULL);
   }
-
 }
 
 /*! \brief Generates the lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
  * graph. This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
  * by Batageli and Brandes appearing in Physical Review 2005. 
  * Instead of flipping a coin for each potential edge this algorithm generates a sequence of 
- * "gaps" between 1s in the upper or lower triangular portion of the adjancecy matrix using 
+ * "gaps" between 1s in the upper or lower triangular portion of the adjacency matrix using 
  * a geometric random variable.
  *
  * We parallelized this algorithm by noting that the geometric random variable is memory-less. This means, we 
  * can start the first row on each PE independently. In fact, we could start each row from scratch if we
- * we wanted to! This makes this routine embarassingly parallel.
+ * we wanted to! This makes this routine embarrassingly parallel.
  *
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
  * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Does all or no vertices have self loops.
- * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE 
-individually).
- * \return A distributed sparsemat_t
+ * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE individually).
+ * \return A distributed sparsemat_t that holds the graph.  It is either a lower triangular  matrix
+           or square matrix, weighted or not with or without a diagonal.
  */
   sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
   
@@ -744,17 +757,18 @@ individually).
   return(A);
 }
 
-/*! \brief Generates the lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
- * graph. This is the naive O(n^2) algorithm. It flips a coin for each possible edge.
+/*! \brief This is included because it is the definition of an Erdos-Renyi random matrix.
+ * This is the naive O(n^2) algorithm. It flips an unfair coin for each possible edge.
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
  * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Do all or no vertices have self loops.
  * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE 
  individually).
- * \return A distributed sparsemat_t (the lower half of the adjacency matrix).
+ * \return A distributed sparsemat_t that holds the graph.  It is either a lower triangular  matrix
+           or square matrix, weighted or not with or without a diagonal.
  */
-sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
+sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
   
   int64_t row, col, i, j;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
@@ -768,10 +782,11 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
   for(row = MYTHREAD; row < n; row += THREADS){
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       end = row;
-    for(j = 0; j < end; j++){
-      if(col == row) continue;
+    for(col = 0; col < end; col++){
+      if(col == row) 
+        continue;
       if(rand() < P)
-	lnnz_orig++;
+        lnnz_orig++;
     }    
   }
   if(loops == LOOPS) lnnz_orig += n;
@@ -793,11 +808,11 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
       end = row + (loops == LOOPS);
     for(col = 0; col < row; col++){
       if(col == row && loops == LOOPS){
-	A->nonzero[lnnz++] = row;
-	continue;
+        A->nonzero[lnnz++] = row;
+        continue;
       }
       if(rand() < P){
-	A->lnonzero[lnnz++] = col;
+        A->lnonzero[lnnz++] = col;
       }      
     }
     A->loffset[row/THREADS + 1] = lnnz;
@@ -817,8 +832,62 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
   }
 
   return(A);
-  
 }
+
+/*! \brief Generate a distributed graph that is the product of a
+ collection of star graphs. This is done * in two stages. In the first
+ stage, the list of stars (parameterized by an integer m, K_{1,m}) is
+ split in half and each half-list forms a local adjacency matrix for
+ the Kronecker product of the stars (matrices B and C). Then the two
+ local matrices are combined to form a distributed adjacency matrix
+ for the Kronecker product of B and C.
+ *
+ * \param B_spec An array of sizes in one half of the list.
+ * \param B_num The number of stars in one half of the list.
+ * \param C_spec An array of sizes in the other half of the list.
+ * \param C_num The number of stars in the other half of the list.
+ * \param mode Mode 0 graphs have no triangles, mode 1 graphs have lots of triangles 
+ *  and mode 2 graphs have few triangles.
+ *
+ * See "Design, Generation, and Validation of Extreme Scale Power-Law Graphs" by Kepner et. al.
+ * for more information on Kronecker product graphs. 
+ *
+ * \return A distributed matrix which represents the adjacency matrix for the 
+ * Kronecker product of all the stars (B and C lists).
+ */
+
+sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num){
+  int i;
+  //T0_fprintf(stderr,"Generating Mode %d Kronecker Product graph (A = B X C) with parameters:  ", mode);
+  if(num <=2){
+    T0_fprintf(stderr,"ERROR: generate_kronecker: spec must contain more than 2 products\n");
+    return(NULL);
+  }
+  //for(int i = 0; i < num; i++)
+    //T0_fprintf(stderr,"%dx", spec[i]);
+  //T0_fprintf(stderr,"\b");
+  //T0_fprintf(stderr,"\n");
+
+  int64_t *B_spec = calloc(num, sizeof(int64_t));
+  int64_t *C_spec = calloc(num, sizeof(int64_t));
+  int64_t B_num = num/2;
+  for(i = 0; i < B_num; i++) B_spec[i] = spec[i];
+  for(; i <  num; i++) C_spec[i - B_num] = spec[i];
+  
+  sparsemat_t * B = kronecker_product_of_stars(B_num, B_spec, mode);
+  sparsemat_t * C = kronecker_product_of_stars(num - B_num, C_spec, mode);   
+  if(!B || !C){
+    T0_fprintf(stderr,"ERROR: triangles: error generating input!\n"); lgp_global_exit(1);
+  }
+  
+  //T0_fprintf(stderr,"B has %"PRId64" rows/cols and %"PRId64" nnz\n", B->numrows, B->lnnz);
+  //T0_fprintf(stderr,"C has %"PRId64" rows/cols and %"PRId64" nnz\n", C->numrows, C->lnnz);
+  
+  sparsemat_t * A = kronecker_product_graph_dist(B, C);
+  
+  return(A);
+}
+
 
 /*! \brief Generate kron(B,C) in a distributed matrix (B and C are local matrices and all PEs have the same B and C).
  * \param B A local sparsemat_t (perhaps generated with kron_prod) that is the adjacency matrix of a graph.
@@ -1112,6 +1181,28 @@ int sort_nonzeros( sparsemat_t *mat) {
   return(0);
 }
 
+int64_t calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num){
+  int i;
+  double correct_answer = 0;
+  if(kron_mode == 0){
+    correct_answer = 0.0;
+  }else if(kron_mode == 1){
+    correct_answer = 1;
+    for(i = 0; i < kron_num; i++)
+      correct_answer *= (3*kron_spec[i] + 1);
+    correct_answer *= 1.0/6.0;
+    double x = 1;
+    for(i = 0; i < kron_num; i++)
+      x *= (kron_spec[i] + 1);
+    correct_answer = correct_answer - 0.5*x + 1.0/3.0;
+  }else if(kron_mode == 2){
+    correct_answer = (1.0/6.0)*pow(4,kron_num) - pow(2.0,(kron_num - 1)) + 1.0/3.0;
+  }
+  
+  return((int64_t)round(correct_answer));
+}
+
+
 /*! \brief compare the structs that hold two sparse matrices
  * \param lmat pointer to the left sparse matrix
  * \param rmat pointer to the right sparse matrix
@@ -1244,7 +1335,8 @@ sparsemat_t * direct_undirected_graph(sparsemat_t * L){
 
   sort_nonzeros(A);
   free(lrowcounts);
-  free(el);
+  clear_edge_list(el);
+  
 
   return(A);
   
@@ -1271,6 +1363,33 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat) {
   lgp_barrier();
   return(destmat);
 }
+
+// IF we are given nz_per_row (z), we calculate edge_prob (e)
+// or if we are given edge_prob, we calculate nz_per_row
+// using with the following formulas
+// z*n = e*(n*(n-1)/2)
+// or
+// (z-1)*n = e*(n*(n-1)/2) (if we are forcing loops into the graph)
+//
+
+void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops){
+  if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
+    if(loops == LOOPS)
+      *edge_prob = (*nz_per_row - 1)/(numrows-1);
+    else
+      *edge_prob = (*nz_per_row)/(numrows-1);
+    
+    if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      *edge_prob = *edge_prob*2;
+        
+    if(*edge_prob > 1.0)
+      *edge_prob = 1.0;
+  } else {    // use erdos_renyi_prob to get nz_per_row
+    *nz_per_row = *edge_prob * ((numrows - 1)/2.0);
+  }
+  assert(*edge_prob <= 1.0);
+}
+
 
 /*! \brief initializes the struct that holds a sparse matrix
  *    given the total number of rows and columns and the local number of non-zeros
@@ -1354,6 +1473,12 @@ edge_list_t * init_edge_list(int64_t nalloc){
   el->edges = calloc(nalloc, sizeof(edge_t));
   return(el);
 }
+
+void clear_edge_list(edge_list_t * el){
+  free(el->edges);
+  free(el);
+}
+
 
 triples_t * init_triples(int64_t numrows, int64_t numcols, int64_t nalloc, int weighted){
   triples_t * T = calloc(1, sizeof(triples_t));
