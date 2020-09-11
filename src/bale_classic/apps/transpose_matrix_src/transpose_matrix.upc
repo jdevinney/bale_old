@@ -109,17 +109,17 @@ int main(int argc, char * argv[])
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
-  // read in a matrix or generate a random graph
-  sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
-  if(!inmat){T0_fprintf(stderr, "ERROR: transpose: inmat is NULL!\n");return(-1);}
-
   if(!MYTHREAD && !args.std.quiet){
-    T0_fprintf(stderr,"Running on %d PEs\n", THREADS);
     write_std_graph_options(&args.gstd);
     write_std_options(&args.std);
   }
 
-  
+  // read in a matrix or generate a random graph
+  sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
+  if(!inmat){T0_fprintf(stderr, "ERROR: transpose: inmat is NULL!\n");return(-1);}
+
+  if(args.std.dump_files) write_matrix_mm(inmat, "inmat");
+    
   double t1;
   minavgmaxD_t stat[1];
   int64_t error = 0;  
@@ -158,6 +158,10 @@ int main(int argc, char * argv[])
       sparsemat_t * outmatT = transpose_matrix(outmat);
       if(compare_matrix(outmatT, inmat)){
         T0_fprintf(stderr,"ERROR: transpose of transpose does not match!\n");
+        if(args.std.dump_files){
+          write_matrix_mm(outmat, "outmat");
+          write_matrix_mm(outmatT, "outmatT");
+        }
       }
       clear_matrix(outmatT);
     }

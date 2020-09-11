@@ -8,6 +8,29 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
   case 'f': args->readfile=1; args->filename = arg; break;
   case 'F': args->model = FLAT; break;
   case 'G': args->model = GEOMETRIC; break;
+  case 'K':
+    args->model = KRONECKER;
+    args->kron_string = arg;
+    char * ptr = arg;
+    //T0_fprintf(stderr, "%s\n", arg);
+    sscanf(ptr, "%d:", &args->kron_mode);
+    //printf("mode %d\n", args->kron_mode);
+    int i = 0;
+    int tmp;
+    ptr+=2;
+    while(i < 63 && sscanf(ptr, "%d", &args->kron_spec[i])){
+      //fprintf(stderr,"%d\n", args->kron_spec[i]);
+      i++;
+      ptr++; 
+      if(*ptr != 'x'){
+        //fprintf(stderr,"nope");
+        break;
+      }
+      ptr++; 
+    }
+
+    args->kron_num = i;
+    break;
   case 'l': args->loops = 1; break;
   case 'n': args->l_numrows = atol(arg); break;
   case 'w': args->weighted = 1; break;
@@ -21,6 +44,20 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
     args->directed = 0;
     args->weighted = 0;
     args->loops = 0;
+    args->kron_string = NULL;
+    break;
+  case ARGP_KEY_END:
+    if(args->directed)
+      resolve_edge_prob_and_nz_per_row(&args->edge_prob, &args->nz_per_row,
+                                       args->l_numrows*THREADS,
+                                       (args->weighted ? DIRECTED_WEIGHTED : DIRECTED),
+                                       (args->loops ? LOOPS : NOLOOPS));
+    else{
+      resolve_edge_prob_and_nz_per_row(&args->edge_prob, &args->nz_per_row,
+                                       args->l_numrows*THREADS,
+                                       (args->weighted ? UNDIRECTED_WEIGHTED : UNDIRECTED),
+                                       (args->loops ? LOOPS : NOLOOPS));
+    }
     break;
   }
   return(0);
@@ -36,6 +73,7 @@ static struct argp_option graph_options[] =
     {"edge_prob",  'e', "EDGEP", 0, "Probability that an edge appears"},
     {"flat",       'F', 0,       0, "Specify flat random graph model"},
     {"geometric",  'G', 0,       0, "Specify geometric random graph model"},
+    {"kronecker",  'K', "KSTR",  0, "Specify a Kronecker product graph.\nKSTR must be a string of the form MODE:S1xS2x...Sk where MODE is 0, 1, or 2 and the Si are small integers that specify the stars whose product is the kronecker product graph. For instance -K 0:3x4x5 specifies MODE 0 and takes the product of K_{1,3}, K_{1,4}, and K_{1,5}. MODE 0 : No triangles. MODE 1: Many triangles. MODE 2: Few triangles. "},
     {"loops",      'l', 0,       0, "Specify you want to force loops into graph"},
     {"weighted",   'w', 0,       0, "Specify you want the edges to be weighted"},
     {"nz_per_row", 'z', "NZPR",  0, "Avg. number of nonzeros per row"},
@@ -52,44 +90,59 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs){
   sparsemat_t * mat;
   
   if(!gargs->readfile){
-
-    int64_t numrows = gargs->l_numrows * THREADS;
-    int64_t seed = MYTHREAD + sargs->seed;
-    edge_type et;
-    if(gargs->directed){
-      if(gargs->weighted)
-        et = DIRECTED_WEIGHTED;
-      else
-        et = DIRECTED;
-    }else{
-      if(gargs->weighted)
-        et = UNDIRECTED_WEIGHTED;
-      else
-        et = UNDIRECTED;
-    }
-    self_loops loops = NOLOOPS;
-    if(gargs->loops)      
-      loops = LOOPS;
-
-    resolve_edge_prob_and_nz_per_row(&gargs->edge_prob, &gargs->nz_per_row,
-                                     numrows, et, loops);
-    mat = random_graph(numrows, gargs->model, et, loops, gargs->edge_prob, seed + 2);
     
-  }else{
+    if(gargs->model == KRONECKER){
 
+      // generate a random kronecker graph from a string (mode:#x#x...#)
+      mat = generate_kronecker_graph_from_spec(gargs->kron_mode,
+                                               gargs->kron_spec,
+                                               gargs->kron_num);
+      
+    }else{
+      
+      // Generate a random FLAT or GEOMETRIC graph
+      int64_t numrows = gargs->l_numrows * THREADS;
+      int64_t seed = MYTHREAD + sargs->seed;
+      edge_type et;
+      if(gargs->directed){
+        et = (gargs->weighted ? DIRECTED_WEIGHTED : DIRECTED);
+      }else{
+        et = (gargs->weighted ? UNDIRECTED_WEIGHTED: UNDIRECTED);
+      }
+      self_loops loops = (gargs->loops ? LOOPS : NOLOOPS);
+      
+      mat = random_graph(numrows, gargs->model, et, loops, gargs->edge_prob, seed + 2);
+    }
+  }else{
+    
+    // Read a matrix from a file
     mat = read_matrix_mm_to_dist(gargs->filename);
+    
   }
   if(!mat){T0_printf("ERROR: get_input_mat: mat is NULL!\n"); lgp_global_exit(1);}
 
-  T0_printf("Input matrix has %"PRId64" rows and %"PRId64" nonzeros\n", mat->numrows, mat->nnz);
+  T0_fprintf(stderr,"Input matrix:\n");
+  T0_fprintf(stderr,"----------------------------------------------------\n");
+  T0_fprintf(stderr,"\t%"PRId64" rows\n\t%"PRId64" columns\n\t%"PRId64" nonzeros\n\n",
+            mat->numcols, mat->numrows, mat->nnz);
+
 
   return(mat);
 }
 
 void write_std_graph_options(std_graph_args_t * gargs){
+  T0_fprintf(stderr,"Input Graph/Matrix parameters:\n");
+  T0_fprintf(stderr,"----------------------------------------------------\n");
   if(!gargs->readfile){
-    T0_fprintf(stderr, "Generating a %s graph (-F or -G).\n",
-               (gargs->model == FLAT ? "FLAT" : "GEOMETRIC"));
+    char model[32];
+    if(gargs->model == FLAT)
+      sprintf(model, "FLAT (-F)");
+    else if(gargs->model == GEOMETRIC)
+      sprintf(model, "GEOMETRIC (-G)");
+    else if(gargs->model == KRONECKER)
+      sprintf(model, "KRONECKER (-K)");
+    
+    T0_fprintf(stderr, "Graph model: %s.\n", model);
     T0_fprintf(stderr,"%s, %s, %s\n",
                (gargs->directed ? "Directed": "Undirected"),
                (gargs->weighted ? "Weighted": "Unweighted"),
@@ -98,9 +151,9 @@ void write_std_graph_options(std_graph_args_t * gargs){
                
     T0_fprintf(stderr,"Number of rows per PE    (-n): %"PRId64"\n", gargs->l_numrows);
     T0_fprintf(stderr,"Avg # nnz per row        (-z): %2.2lf\n", gargs->nz_per_row);
-    T0_fprintf(stderr,"Edge probability         (-e): %lf\n", gargs->edge_prob);
+    T0_fprintf(stderr,"Edge probability         (-e): %lf\n\n", gargs->edge_prob);
 
   }else{
-    T0_fprintf(stderr,"Reading input from %s\n", gargs->filename);
+    T0_fprintf(stderr,"Reading input from %s\n\n", gargs->filename);
   }
 }

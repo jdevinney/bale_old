@@ -172,7 +172,7 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
   t = wall_seconds();
   SHARED int64_t * rperminv = rand_permp(mat->numrows, rand_seed + 1 + MYTHREAD);
   SHARED int64_t * cperminv = rand_permp(mat->numrows, rand_seed + 2 + MYTHREAD);
-  T0_printf("generate perms time %lf\n", wall_seconds() - t);
+  //T0_printf("generate perms time %lf\n", wall_seconds() - t);
   lgp_barrier();
 
   if(!rperminv || !cperminv){
@@ -187,7 +187,7 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
     T0_printf("ERROR: permute_matrix returned NULL");fflush(0);
     return(NULL);
   }
-  T0_printf("permute matrix time %lf\n", wall_seconds() - t);
+  //T0_printf("permute matrix time %lf\n", wall_seconds() - t);
   
   lgp_barrier();
   if(mat != tri_mat){
@@ -244,19 +244,22 @@ int main(int argc, char * argv[]) {
   int ret = 0;
   if(MYTHREAD == 0){
     ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
+    /* force input graph to be undirected and to have loops, no matter what the options */
+    args.gstd.directed = 0;
+    args.gstd.loops = 1;
   }
 
   ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
   if(ret < 0) return(ret);
   else if(ret) return(0);
-
+  
+  if(!MYTHREAD && !args.std.quiet){
+    write_std_graph_options(&args.gstd);
+    write_std_options(&args.std);
+  }
   
   // read in a matrix or generate a random graph
-  if(args.gstd.directed || !args.gstd.loops){
-    T0_fprintf(stderr,"\nWarning: toposort requires undirected and loops. Overriding.\n\n");
-    args.gstd.directed = 0;
-    args.gstd.loops = 1;
-  }
+
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
   if(!inmat){T0_printf("Error! toposort: inmat is NULL");lgp_global_exit(-1);}
   
@@ -269,12 +272,6 @@ int main(int argc, char * argv[]) {
   if(!tmat){T0_printf("Error! toposort: tmat is NULL");lgp_global_exit(-1);}
 
 
-  if(!MYTHREAD && !args.std.quiet){
-    T0_fprintf(stderr,"Running on %d PEs\n", THREADS);
-    write_std_graph_options(&args.gstd);
-    write_std_options(&args.std);
-  }
-
   if(args.std.dump_files){
     write_matrix_mm(inmat, "inmat");
     write_matrix_mm(mat, "mat");
@@ -284,7 +281,6 @@ int main(int argc, char * argv[]) {
   lgp_barrier();
   clear_matrix(inmat); free(inmat);
 
-  T0_fprintf(stderr,"Run toposort on mat (and tmat) ...\n");
 
   // arrays to hold the row and col permutations
   SHARED int64_t *rperminv2 = lgp_all_alloc(mat->numrows, sizeof(int64_t));

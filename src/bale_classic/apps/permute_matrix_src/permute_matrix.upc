@@ -105,15 +105,14 @@ int main(int argc, char * argv[]) {
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
-  // read in a matrix or generate a random graph
-  sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
-  if(!inmat){T0_fprintf(stderr, "ERROR: permute_matrix: inmat is NULL!\n");return(-1);}
-
   if(!MYTHREAD && !args.std.quiet){
-    T0_fprintf(stderr,"Running on %d PEs\n", THREADS);
     write_std_graph_options(&args.gstd);
     write_std_options(&args.std);
   }
+  
+  // read in a matrix or generate a random graph
+  sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
+  if(!inmat){T0_fprintf(stderr, "ERROR: permute_matrix: inmat is NULL!\n");return(-1);}
 
   double t1;
   minavgmaxD_t stat[1];
@@ -122,7 +121,6 @@ int main(int argc, char * argv[]) {
   SHARED int64_t * rp = rand_permp(inmat->numrows, args.std.seed + MYTHREAD);
   SHARED int64_t * cp = rand_permp(inmat->numrows, args.std.seed + MYTHREAD + 1);  
   
-
   int64_t use_model;
   sparsemat_t * outmat;
   for( use_model=1L; use_model < 32; use_model *=2 ) {

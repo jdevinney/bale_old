@@ -161,6 +161,8 @@ int64_t rowcount_S( sparsemat_t *mat, int64_t S_row );
 
 int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
 int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
+
+int64_t             calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num);
 void                clear_edge_list(edge_list_t * el);
 void                clear_matrix(sparsemat_t * mat);
 void                clear_triples(triples_t * T);
@@ -172,6 +174,7 @@ sparsemat_t *       direct_undirected_graph(sparsemat_t * L);
 
 sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed);
 sparsemat_t *       gen_star_graph(int64_t m, int mode);
+sparsemat_t *       generate_kronecker_graph_from_spec(int mode, int * spec, int num);
 sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
 
 

@@ -102,7 +102,7 @@ int main(int argc, char * argv[]) {
   
   int64_t i;
 
-    /* process command line */
+  /* process command line */
   int ret = 0;
   args_t args;
   if(MYTHREAD == 0){
@@ -117,8 +117,7 @@ int main(int argc, char * argv[]) {
   else if(ret) return(0);
 
   if(!MYTHREAD && !args.std.quiet){
-    T0_fprintf(stderr,"Running on %d PEs\n", THREADS);
-    T0_fprintf(stderr,"Number of rows / PE      (-n): %"PRId64"\n", args.l_num_rows );
+    T0_fprintf(stderr,"Number of rows / PE      (-n): %"PRId64"\n\n", args.l_num_rows );
     write_std_options(&args.std);
   }
 

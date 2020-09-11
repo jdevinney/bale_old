@@ -153,9 +153,8 @@ int main(int argc, char * argv[]) {
   else if(ret) return(0);
 
   if(!MYTHREAD && !args.std.quiet){
-    T0_fprintf(stderr,"Running on %d PEs\n", THREADS);
     T0_fprintf(stderr,"Number of Request / PE   (-n): %"PRId64"\n", args.l_num_req );
-    T0_fprintf(stderr,"Table size / PE          (-T): %"PRId64"\n", args.l_tbl_size);
+    T0_fprintf(stderr,"Table size / PE          (-T): %"PRId64"\n\n", args.l_tbl_size);
     write_std_options(&args.std);
   }
   

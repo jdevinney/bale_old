@@ -42,11 +42,12 @@ struct argp std_options_argp = {
 };
 
 void write_std_options(std_args_t * sargs){
+  fprintf(stderr,"Standard options:\n");
+  fprintf(stderr,"----------------------------------------------------\n");
   fprintf(stderr,"buf_cnt (buffer size)    (-b): %"PRId64"\n", sargs->buffer_size);
   fprintf(stderr,"seed                     (-s): %"PRId64"\n", sargs->seed);
   fprintf(stderr,"cores_per_node           (-c): %d\n", sargs->cores_per_node);
-  fprintf(stderr,"Models Mask              (-M): %d\n", sargs->models_mask);
-  fprintf(stderr,"-------------------------------------------------------\n");
+  fprintf(stderr,"Models Mask              (-M): %d\n\n", sargs->models_mask);
 }
 
 #if 0

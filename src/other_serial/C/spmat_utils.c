@@ -1106,7 +1106,7 @@ int64_t tri_count_kron_graph(kron_args_t * K)
    else if( K->mode == 1 ){
      approx = 1.0;
      for(i = 0; i < K->num_stars; i++)
-        approx *= (3*K->star_size[i] + 1);
+       approx *= (3*K->star_size[i] + 1);
      return ( round((approx / 6.0) - 0.5 * K->numrows + 1.0/3.0) );
    } else if( K->mode == 2 ){
      ns = (double) K->num_stars;
