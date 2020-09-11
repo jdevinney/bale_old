@@ -112,6 +112,12 @@ void move_node_from_bucket_i_to_j(llnode_t * w, int64_t i, int64_t j, buckets_t 
   insert_node_in_bucket(w, j, buckets);
 }
 
+// CLAIM:  while Thread foo is foolin with the Buckets,  it can't be reading the buckets for pushes.
+//       So there is no race on the list.
+//      But when the Thread starts pushing again, the list could be different.
+//      Different, but not Busted.
+
+
 // relax an edge from a node to a node w (the current tenative distance to w is tent[windex]).
 // the candidate distance to w is cand_dist.
 static void local_relax(int64_t windex, double cand_dist, double * tent, buckets_t * buckets){
