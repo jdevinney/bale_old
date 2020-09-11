@@ -13,7 +13,6 @@ convey_hpc = { path = "../../../../convey_private" }
 
 [workspace]
 members = [
-    "delta_stepping",
     "spmat",
     "toposort",
     "triangle",
