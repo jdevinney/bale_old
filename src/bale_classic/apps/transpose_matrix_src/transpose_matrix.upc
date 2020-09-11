@@ -154,7 +154,7 @@ int main(int argc, char * argv[])
     T0_fprintf(stderr, "%8.3lf\n", stat->avg);
 
     /* correctness check */
-    if(check){      
+    if(0 && check){      
       sparsemat_t * outmatT = transpose_matrix(outmat);
       if(compare_matrix(outmatT, inmat)){
         T0_fprintf(stderr,"ERROR: transpose of transpose does not match!\n");
