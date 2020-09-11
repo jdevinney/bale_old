@@ -222,7 +222,7 @@ double sssp_delta_stepping_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r
 
   /* main loop */
   //int64_t min_bucket = 0;
-  int64_t current_bucket = 0;
+  int64_t all_cur=0, current_bucket = 0;
   int64_t num_deleted = 0;
   while(1){
 
@@ -234,14 +234,16 @@ double sssp_delta_stepping_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r
     if(i == num_buckets)
       break;
     current_bucket = (current_bucket + i) % num_buckets;
-    Dprintf("%ld %02d: Starting inner loop: working on bucket %"PRId64"\n", MYTHREAD, current_bucket);
+    all_cur = lgp_reduce_min_l(current_bucket);
+
+    Dprintf("%ld %02d: Starting inner loop: working on bucket %"PRId64" %"PRId64"\n", MYTHREAD, all_cur, current_bucket);
     //min_bucket = i + 1;
     // inner loop
     int64_t start = 0;
     int64_t end = 0;
     llnode_t * v = buckets->B[current_bucket];
     
-    while(v != NULL){
+    while((all_cur == current_bucket) && (v != NULL)){
       Dprintf("%ld %02d: Processing Node %"PRId64" in Bucket %"PRId64"\n", MYTHREAD, v->index, current_bucket);
 
       /* take v out of B[current_bucket]??? */
@@ -274,19 +276,32 @@ double sssp_delta_stepping_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r
       //v = v->next;
       v = buckets->B[current_bucket];
     }// end inner loop
-    delta_exstack_relax_process(tent, ex, buckets, 1);
-
+    
     /* relax heavy requests edges for everything in R */
     while(start < end){
       v = &(buckets->nodes[R[start++]]);
       for(j = mat->offset[v->index]; j < mat->offset[v->index + 1]; j++){
         if(mat->value[j] > delta){
-          relax(mat->nonzero[j], tent[v->index] + mat->value[j], tent, buckets);
+          //relax(mat->nonzero[j], tent[v->index] + mat->value[j], tent, buckets);
+          J = mat->lnonzero[j];
+          pe  = J % THREADS;
+          pkg.lj = J / THREADS;
+          pkg.tw = tent->lentry[v->index] + mat->lvalue[j];
+          //printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, pkg.i, J, ltent[li],  pkg.tw); 
+          if( exstack_push(ex, &pkg, pe) == 0 ) {
+            delta_exstack_relax_process(tent, ex, buckets, 0);
+            j--;
+				  }
         }
       }      
     }
-    current_bucket++;
+
+    while(delta_exstack_relax_process(tent, ex, buckets, 1))
+      ;
+    //current_bucket++;  // What if someone else added stuff to current bucket
+
     lpg_barrier();
+    exstack_reset(ex);
   }// end main loop
   free(buckets->B);
   free(buckets->nodes);
