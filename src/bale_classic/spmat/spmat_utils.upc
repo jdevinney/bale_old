@@ -496,7 +496,7 @@ int is_upper_triangular(sparsemat_t *A, int64_t unit_diagonal) {
 /*! \brief Sets all entries above the kth diagonal to zero.
  * \param A A pointer to a sparse matrix
  * \param k Anything above the kth diagonal will be zero (k > 0 is above the main diagonal k < 0 is below)
- * \return 0 for success nonzero if error.
+ * \return The number of nonzeros that were removed.
  * \ingroup spmatgrp
  */
 int64_t tril(sparsemat_t * A, int64_t k) {
@@ -514,15 +514,17 @@ int64_t tril(sparsemat_t * A, int64_t k) {
     start = A->loffset[i+1];
     A->loffset[i+1] = pos;
   }
-  A->nnz = lgp_reduce_add_l(pos);
+  int64_t new_nnz = lgp_reduce_add_l(pos);
+  int64_t ret = A->nnz - new_nnz;
+  A->nnz = new_nnz;
   A->lnnz = pos;
-  return(0);
+  return(ret);
 }
 
 /*! \brief Sets all entries below the kth diagonal to zero.
  * \param A A pointer to a sparse matrix
  * \param k Anything below the kth diagonal will be zero (k > 0 is above the main diagonal k < 0 is below)
- * \return 0 for success nonzero if error.
+ * \return The number of nonzeros that were removed.
  * \ingroup spmatgrp
  */
 int64_t triu(sparsemat_t * A, int64_t k) {
@@ -540,9 +542,11 @@ int64_t triu(sparsemat_t * A, int64_t k) {
     start = A->loffset[i+1];
     A->loffset[i+1] = pos;
   }
-  A->nnz = lgp_reduce_add_l(pos);
+  int64_t new_nnz = lgp_reduce_add_l(pos);
+  int64_t ret = A->nnz - new_nnz;
+  A->nnz = new_nnz;
   A->lnnz = pos;
-  return(0);
+  return(ret);
 }
 
 
