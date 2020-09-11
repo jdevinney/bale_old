@@ -193,16 +193,20 @@ fn main() {
                     mat.numrows, check_nv, check_dist.len()-1
                 );
             } else {
-                let mut sumsq: f64 = 0.0;
+                let mut diff: f64 = 0.0;
+                let mut csum: f64 = 0.0;
                 for v in 0..check_nv {
                     if check_dist[v+1].is_finite() || matret.distance[v].is_finite() {
-                        sumsq += (check_dist[v+1] - matret.distance[v]).powi(2); // sigh :-(
+                        diff += (check_dist[v+1] - matret.distance[v]).powi(2); 
+                    }
+                    if check_dist[v+1].is_finite() {
+                        csum += check_dist[v+1].powi(2); 
                     }
                 }
-                if sumsq < (10.0_f64).powi(-8) {  // what's wrong with just 1e-8 ?
-                    println!("\nCORRECT! norm squared = {}", sumsq);
+                if diff <= f64::EPSILON.sqrt() * csum  {
+                    println!("\nCORRECT! relative diff = {}", diff/csum);
                 } else {
-                    println!("\nDISAGREE! norm squared = {}", sumsq);
+                    println!("\nDISAGREE! relative diff = {}", diff/csum);
                 }
             }
         } else {
