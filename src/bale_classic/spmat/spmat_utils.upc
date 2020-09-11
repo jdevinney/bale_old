@@ -648,27 +648,26 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     T0_fprintf(stderr,"ERROR: random_graph: illegal model (%d) for random_graph!\n", model);
     return(NULL);
   }
-
 }
 
 /*! \brief Generates the lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
  * graph. This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
  * by Batageli and Brandes appearing in Physical Review 2005. 
  * Instead of flipping a coin for each potential edge this algorithm generates a sequence of 
- * "gaps" between 1s in the upper or lower triangular portion of the adjancecy matrix using 
+ * "gaps" between 1s in the upper or lower triangular portion of the adjacency matrix using 
  * a geometric random variable.
  *
  * We parallelized this algorithm by noting that the geometric random variable is memory-less. This means, we 
  * can start the first row on each PE independently. In fact, we could start each row from scratch if we
- * we wanted to! This makes this routine embarassingly parallel.
+ * we wanted to! This makes this routine embarrassingly parallel.
  *
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
  * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Does all or no vertices have self loops.
- * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE 
-individually).
- * \return A distributed sparsemat_t
+ * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE individually).
+ * \return A distributed sparsemat_t that holds the graph.  It is either a lower triangular  matrix
+           or square matrix, weighted or not with or without a diagonal.
  */
   sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
   
@@ -754,17 +753,18 @@ individually).
   return(A);
 }
 
-/*! \brief Generates the lower half of the adjacency matrix (non-local) for an Erdos-Renyi random
- * graph. This is the naive O(n^2) algorithm. It flips a coin for each possible edge.
+/*! \brief This is included because it is the definition of an Erdos-Renyi random matrix.
+ * This is the naive O(n^2) algorithm. It flips an unfair coin for each possible edge.
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
  * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Do all or no vertices have self loops.
  * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE 
  individually).
- * \return A distributed sparsemat_t (the lower half of the adjacency matrix).
+ * \return A distributed sparsemat_t that holds the graph.  It is either a lower triangular  matrix
+           or square matrix, weighted or not with or without a diagonal.
  */
-sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
+sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
   
   int64_t row, col, i, j;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
@@ -778,10 +778,11 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
   for(row = MYTHREAD; row < n; row += THREADS){
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       end = row;
-    for(j = 0; j < end; j++){
-      if(col == row) continue;		// RAG -- col is uninitialized
+    for(col = 0; col < end; col++){
+      if(col == row) 
+        continue;
       if(rand() < P)
-	lnnz_orig++;
+        lnnz_orig++;
     }    
   }
   if(loops == LOOPS) lnnz_orig += n;
@@ -803,11 +804,11 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
       end = row + (loops == LOOPS);
     for(col = 0; col < row; col++){
       if(col == row && loops == LOOPS){
-	A->nonzero[lnnz++] = row;
-	continue;
+        A->nonzero[lnnz++] = row;
+        continue;
       }
       if(rand() < P){
-	A->lnonzero[lnnz++] = col;
+        A->lnonzero[lnnz++] = col;
       }      
     }
     A->loffset[row/THREADS + 1] = lnnz;
@@ -827,7 +828,6 @@ sparsemat_t * erdos_renyi_random_graph_naive(int n, double p, edge_type edge_typ
   }
 
   return(A);
-  
 }
 
 /*! \brief Generate a distributed graph that is the product of a
