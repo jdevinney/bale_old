@@ -37,23 +37,22 @@ def test_all(path, node_range, implementation_mask):
     for app in apps:
         runs = []
         runs.append("--help ")
-        if app == 'histo' or app == 'ig':
+        if app == 'histo' or app == 'ig' or app == 'randperm':
+            runs.append("-b 10 -n 2 ")
             runs.append("-b 16 -n 1000 ")
             runs.append("-b 35 -n 813 ")
+            runs.append("-b 24 -n 2509 ")
+        if app == 'histo' or app == 'ig':
             runs.append("-b 35 -n 2344 -T 10 ")
-            runs.append("-b 120 -n 19988 -T 10000 ")
+            runs.append("-b 120 -n 1998 -T 10000 ")
         if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles':
-            runs.append("-b 120 -n 1000 -F -z 2")
+            runs.append("-b 120 -n 1000 -F -z 2 ")
             runs.append("-b 120 -n 1042 -G -z 4 ")
             runs.append("-b 31 -n 3042 -F -z 4 ")
             runs.append("-b 31 -n 3042 -F -z 6 ")
-            runs.append("-b 140 -n 4442 -F -z 30 ")
-        if app == 'randperm':
-            runs.append("-b 16 -n 1000  ")
-            runs.append("-b 35 -n 813 ")
-            runs.append("-b 35 -n 2344 ")
-            runs.append("-b 120 -n 19988 ")
-        if app == 'triangles':            
+            runs.append("-b 140 -n 4442 -F -z 20 ")
+            #runs.append("-b 512 -n 1340 -G -e .01 ") # this fails for SOS on SMP
+        if app == 'triangles' or app == 'transpose_matrix' or app == 'permute_matrix':
             runs.append("-b 244 -K 0:3x4x5 ")
             runs.append("-b 244 -K 1:3x4x5 ")
             runs.append("-b 244 -K 2:3x4x5 ")

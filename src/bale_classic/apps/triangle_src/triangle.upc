@@ -134,13 +134,15 @@ int main(int argc, char * argv[]) {
   args.alg = 0;
   if(MYTHREAD == 0){
     ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
+    //override command line
+    args.gstd.loops = 0;
+    args.gstd.directed = 0; 
   }
   ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
   if(!MYTHREAD && !args.std.quiet){
-    T0_fprintf(stderr,"Running on %d PEs\n", THREADS);
     write_std_graph_options(&args.gstd);
     write_std_options(&args.std);
   }
@@ -168,8 +170,7 @@ int main(int argc, char * argv[]) {
   }
   
   sparsemat_t * U;
-  if(args.alg == 1)
-    U = transpose_matrix(L);
+  if(args.alg == 1) U = transpose_matrix(L);
 
   lgp_barrier();
 
