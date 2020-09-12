@@ -121,16 +121,23 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs){
   }
   if(!mat){T0_printf("ERROR: get_input_mat: mat is NULL!\n"); lgp_global_exit(1);}
 
-  T0_fprintf(stderr,"Input matrix:\n");
-  T0_fprintf(stderr,"----------------------------------------------------\n");
-  T0_fprintf(stderr,"\t%"PRId64" rows\n\t%"PRId64" columns\n\t%"PRId64" nonzeros\n\n",
-            mat->numcols, mat->numrows, mat->nnz);
-
+  if(sargs->json_output == NULL){
+    T0_fprintf(stderr,"Input matrix:\n");
+    T0_fprintf(stderr,"----------------------------------------------------\n");
+    T0_fprintf(stderr,"\t%"PRId64" rows\n\t%"PRId64" columns\n\t%"PRId64" nonzeros\n\n",
+               mat->numcols, mat->numrows, mat->nnz);
+  }else{
+    FILE * jp = fopen(sargs->json_output, 'a');    
+    T0_fprintf(fp, "matrix_numrows: \"%"PRId64"\",\n", mat->numrows);
+    T0_fprintf(fp, "matrix_numcols: \"%"PRId64"\",\n", mat->numcols);
+    T0_fprintf(fp, "matrix_nnz: \"%"PRId64"\",\n", mat->nnz);
+    fclose(jp);
+  }
 
   return(mat);
 }
 
-void write_std_graph_options(std_graph_args_t * gargs){
+void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs){
   T0_fprintf(stderr,"Input Graph/Matrix parameters:\n");
   T0_fprintf(stderr,"----------------------------------------------------\n");
   if(!gargs->readfile){

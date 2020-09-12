@@ -10,6 +10,7 @@ typedef struct std_args_t{
   int64_t buffer_size;
   int cores_per_node;
   int dump_files;
+  char * json_output;
   int models_mask;
   int quiet;
   int64_t seed;

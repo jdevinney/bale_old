@@ -11,9 +11,10 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state){
   case 'b': args->buffer_size = atol(arg); break;
   case 'c': args->cores_per_node = atoi(arg); break;
   case 'D': args->dump_files = 1; break;
+  case 'j': args->json_output = arg; break;
   case 'M': args->models_mask = atol(arg); break;
   case 's': args->seed = atol(arg); break;
-  case 'q': args->quiet = 1; break;    
+  case 'q': args->quiet = 1; break;  
   case ARGP_KEY_INIT:
     args->buffer_size = 1024;
     args->cores_per_node = 0;
@@ -21,6 +22,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state){
     args->seed = 122222;
     args->models_mask = ALL_Models;
     args->dump_files = 0;
+    args->json_ouput = NULL;
     break;
   }
   return(0);
@@ -31,6 +33,7 @@ static struct argp_option std_options[] =
     {"buffer_size",   'b', "BUF", 0, "Aggregation buffer size"},
     {"cores_per_node",'c', "CPN", 0, "Specify cores per node for network injection rate statistics"},
     {"dump_files",    'D', 0,     0, "Dump files for debugging"},
+    {"json_output",   'j', "FILE",0, "Output results to a json file, rather than to stderr"},
     {"models_mask",   'M', "MASK",0, "Which flavors to run."},
     {"seed",          's', "SEED",0, "Seed for RNG"},
     {"quiet",         'q', 0,     0, "No output during program execution"},
@@ -42,12 +45,18 @@ struct argp std_options_argp = {
 };
 
 void write_std_options(std_args_t * sargs){
-  fprintf(stderr,"Standard options:\n");
-  fprintf(stderr,"----------------------------------------------------\n");
-  fprintf(stderr,"buf_cnt (buffer size)    (-b): %"PRId64"\n", sargs->buffer_size);
-  fprintf(stderr,"seed                     (-s): %"PRId64"\n", sargs->seed);
-  fprintf(stderr,"cores_per_node           (-c): %d\n", sargs->cores_per_node);
-  fprintf(stderr,"Models Mask              (-M): %d\n\n", sargs->models_mask);
+  if(sargs->json_output == NULL){
+    fprintf(stderr,"Standard options:\n");
+    fprintf(stderr,"----------------------------------------------------\n");
+    fprintf(stderr,"buf_cnt (buffer size)    (-b): %"PRId64"\n", sargs->buffer_size);
+    fprintf(stderr,"seed                     (-s): %"PRId64"\n", sargs->seed);
+    fprintf(stderr,"cores_per_node           (-c): %d\n", sargs->cores_per_node);
+    fprintf(stderr,"Models Mask              (-M): %d\n\n", sargs->models_mask);
+  }else{
+    FILE * jp = fopen(sargs->json_output, 'a');
+    fprintf(fp, "buf_cnt: %"PRId64"\n", sargs->buffer_size);
+    fclose(jp);
+  }
 }
 
 #if 0
