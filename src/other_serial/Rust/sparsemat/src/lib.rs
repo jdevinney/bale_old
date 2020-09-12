@@ -261,7 +261,6 @@ impl SparseMat {
             },
         )?;
 
-//      Should write this with a zipped iterator, not an index k jg 0-0
         for i in 0..stop_row {
             for k in self.offset[i]..self.offset[i+1] {
                 if let Some(value) = &self.value {
@@ -356,7 +355,7 @@ impl SparseMat {
         R: BufRead,
     {
         let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
-        let re1 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *position*")?;
+        let re1 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *pattern*")?;
         let re2 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *real*")?;
         if !re1.is_match(&line) && !re2.is_match(&line){
             return Err(Sparsemat(ParseMmError::new(format!(
@@ -452,9 +451,11 @@ impl SparseMat {
     /// *cperminv pointer to the global array holding the inverse of the column permutation
     ///     rperminv[i] = j means that row i of A goes to row j in matrix Ap
     ///     cperminv[i] = j means that col i of A goes to col j in matrix Ap
-    pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> SparseMat { // 0-0 allow values jg
+    pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> SparseMat { 
         let mut ap = SparseMat::new(self.numrows, self.numcols, 0);
         let rperm = rperminv.inverse();
+
+        if let Some(_) = &self.value { todo!()}
 
         // fill in permuted rows with permuted columns
         for i in 0..ap.numrows {
@@ -469,12 +470,14 @@ impl SparseMat {
     }
 
     /// produce the transpose of a sparse matrix
-    pub fn transpose(&self) -> SparseMat { // 0-0 allow values jg
+    pub fn transpose(&self) -> SparseMat { 
         let mut colcounts: Vec<usize> = vec![0; self.numcols + 1];
         // histogram the column counts of A into colcounts
         for nz in &self.nonzero[0..self.nnz] {
             colcounts[*nz] += 1;
         }
+
+        if let Some(_) = &self.value { todo!()}
 
         let mut at = SparseMat::new(self.numcols, self.numrows, self.nnz);
 
@@ -521,7 +524,8 @@ impl SparseMat {
     }
 
     /// sort the non-zeros in each row of a sparse matrix
-    pub fn sort_nonzeros(&mut self) -> () { // 0-0 allow values jg
+    pub fn sort_nonzeros(&mut self) -> () { 
+        if let Some(_) = &self.value { todo!()}
         for row in 0..self.numrows {
             self.nonzero[self.offset[row]..self.offset[row + 1]].sort_by(|a, b| a.cmp(b));
         }
@@ -530,8 +534,16 @@ impl SparseMat {
     /// compare the structs that hold two sparse matrices
     /// # Arguments
     /// * rmat pointer to the right sparse matrix
-    pub fn compare(&self, rmat: &SparseMat) -> bool { // 0-0 allow values jg
-        if self.numrows != rmat.numrows {
+    pub fn compare(&self, rmat: &SparseMat) -> bool { 
+        if self.value == None && rmat.value != None {
+            println!(
+                "(self.value = None)  != (rmat.value = Some(_))",
+            );
+        } else if self.value != None && rmat.value == None {
+            println!(
+                "(self.value = Some(_))  != (rmat.value = None)",
+            );
+        } else if self.numrows != rmat.numrows {
             println!(
                 "(self.numrows = {})  != (rmat.numrows = {})",
                 self.numrows, rmat.numrows
@@ -559,7 +571,7 @@ impl SparseMat {
             for row in 0..self.numrows {
                 if self.offset[row + 1] != rmat.offset[row + 1] {
                     println!(
-                        "(self.offset[{}] = {})  != (rmat->offset[{}] = {})",
+                        "(self.offset[{}] = {})  != (rmat.offset[{}] = {})",
                         row + 1,
                         self.offset[row + 1],
                         row + 1,
@@ -572,10 +584,24 @@ impl SparseMat {
             for i in 0..self.nnz {
                 if self.nonzero[i] != rmat.nonzero[i] {
                     println!(
-                        "(self.nonzero[{}] = {})  != (rmat->nonzero[{}] = {})",
+                        "(self.nonzero[{}] = {})  != (rmat.nonzero[{}] = {})",
                         i, self.nonzero[i], i, rmat.nonzero[i]
                     );
                     return false;
+                }
+            }
+
+            if let Some(sval) = &self.value {
+                if let Some(rval) = &rmat.value {
+                    for i in 0..self.nnz {
+                        if (sval[i]-rval[i]).abs() > 10.0 * f64::EPSILON * sval[i].abs() {
+                            println!(
+                                "(self.value[{}] = {})  != (rmat.value[{}] = {})",
+                                i, sval[i], i, rval[i]
+                            );
+                            return false;
+                        }
+                    }
                 }
             }
             // Got to end, all good!
@@ -774,10 +800,27 @@ mod tests {
     }
 
     #[test]
+    fn read_mm3() {
+        let mat = SparseMat::read_mm_file("src/10_ring_values.mm");
+        match mat {
+            Ok(_m) => (),
+            Err(e) => panic!("{}", e),
+        }
+    }
+
+    #[test]
     fn write_mm1() {
         let mat = SparseMat::read_mm_file("src/10_ring.mm").expect("failed read");
         mat.write_mm_file("src/10_ring1.mm").expect("failed write");
         let mat1 = SparseMat::read_mm_file("src/10_ring1.mm").expect("failed read");
+        assert_eq!(mat.compare(&mat1), true);
+    }
+
+    #[test]
+    fn write_mm2() {
+        let mat = SparseMat::read_mm_file("src/10_ring_values.mm").expect("failed read");
+        mat.write_mm_file("src/10_ring1_values.mm").expect("failed write");
+        let mat1 = SparseMat::read_mm_file("src/10_ring1_values.mm").expect("failed read");
         assert_eq!(mat.compare(&mat1), true);
     }
 
@@ -793,6 +836,8 @@ mod tests {
     fn compare1() {
         let mat = SparseMat::read_mm_file("src/10_ring.mm").expect("failed read");
         assert_eq!(mat.compare(&mat), true);
+        let mat1 = SparseMat::read_mm_file("src/10_ring_values.mm").expect("failed read");
+        assert_eq!(mat.compare(&mat1), false);
     }
 
     #[test]
@@ -815,6 +860,13 @@ mod tests {
     }
 
     #[test]
+    #[should_panic]
+    fn transpose2() {
+        let mat = SparseMat::read_mm_file("src/10_ring_values.mm").expect("failed read");
+        let _ = mat.transpose();
+    }
+
+    #[test]
     fn perm1() {
         let mat = SparseMat::read_mm_file("src/10_ring.mm").expect("failed read");
         let rperm = Perm::random(10, 0);
@@ -832,6 +884,15 @@ mod tests {
         println!("ppmat:{:?}", ppmat);
         assert_eq!(pmat.compare(&mat), false);
         assert_eq!(ppmat.compare(&mat), true);
+    }
+
+    #[test]
+    #[should_panic]
+    fn perm2() {
+        let mat = SparseMat::read_mm_file("src/10_ring_values.mm").expect("failed read");
+        let rperm = Perm::random(10, 0);
+        let cperm = Perm::random(10, 0);
+        let _ = mat.permute(&rperm, &cperm);
     }
 
     #[test]
