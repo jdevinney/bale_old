@@ -26,11 +26,12 @@ pub struct SparseMat {
     /// the row offsets into the array of nonzeros, size is nrows+1,
     /// offsets[nrows] is nnz
     pub offset: Vec<usize>,
-    pub nonzero: Vec<usize>,    // the global array of nonzeros
-    pub convey: Option<Convey>, // a conveyor for our use
+    pub nonzero: Vec<usize>,     // the global array of nonzero columns
+    pub value: Option<Vec<f64>>, // the global array of nonzero values, optional
+    pub convey: Option<Convey>,  // a conveyor for our use
 }
 
-impl std::fmt::Debug for SparseMat {
+impl std::fmt::Debug for SparseMat { // 0-0 should add values
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let debug_rows = self.numrows_this_rank.min(10);
         let mut rows: Vec<(usize, Vec<usize>)> = Vec::new();
@@ -68,6 +69,23 @@ impl SparseMat {
             nnz_this_rank: nnz_this_rank,
             offset: vec![0; convey.per_my_rank(numrows) + 1],
             nonzero: vec![0; nnz_this_rank],
+            value: None,
+            convey: Some(convey),
+        }
+    }
+
+    pub fn new_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
+        let convey = Convey::new().expect("fixme");
+        let total_nnz = convey.reduce_sum(nnz_this_rank);
+        SparseMat {
+            numrows: numrows,
+            numrows_this_rank: convey.per_my_rank(numrows),
+            numcols: numcols,
+            nnz: total_nnz,
+            nnz_this_rank: nnz_this_rank,
+            offset: vec![0; convey.per_my_rank(numrows) + 1],
+            nonzero: vec![0; nnz_this_rank],
+            value: Some(vec![0.0_f64; nnz_this_rank]),
             convey: Some(convey),
         }
     }
@@ -81,6 +99,20 @@ impl SparseMat {
             nnz_this_rank: nnz_this_rank,
             offset: vec![0; numrows + 1],
             nonzero: vec![0; nnz_this_rank],
+            value: None,
+            convey: None,
+        }
+
+    pub fn new_local_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
+        SparseMat {
+            numrows: numrows,
+            numrows_this_rank: numrows,
+            numcols: numcols,
+            nnz: nnz_this_rank,
+            nnz_this_rank: nnz_this_rank,
+            offset: vec![0; numrows + 1],
+            nonzero: vec![0; nnz_this_rank],
+            value: Some(vec![0.0_f64; nnz_this_rank]),
             convey: None,
         }
     }
@@ -97,7 +129,7 @@ impl SparseMat {
         if let Some(convey) = &self.convey {
             convey.num_ranks
         } else {
-            0
+            1
         }
     }
 
@@ -201,27 +233,46 @@ impl SparseMat {
         };
 
         writeln!(file, "\n--------- offsets:")?;
-        for off in &self.offset[0..stop_row] {
+        for off in &self.offset[0..stop_row+1] {
             write!(file, "{} ", off)?;
         }
         if use_maxrow {
-            write!(file, " ... ")?;
+            write!(file, "... ")?;
             for off in &self.offset[start_row..self.numrows] {
                 write!(file, "{}", off)?;
             }
         }
 
-        writeln!(file, "\n--------- nonzeros:")?;
+        writeln!(
+            file,
+            "{}",
+            match &self.value {
+                None    => "\n--------- row col:",
+                Some(_) => "\n--------- row col val:",
+            },
+        )?;
+
         for i in 0..stop_row {
-            for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
-                writeln!(file, "{} {}", i, nz)?;
+            for k in self.offset[i]..self.offset[i+1] {
+                if let Some(value) = &self.value {
+                    writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
+                } else {
+                    writeln!(file, "{} {}", i, self.nonzero[k])?;
+                }
+
             }
         }
         if use_maxrow {
             write!(file, ".\n.\n.\n")?;
             for i in start_row..self.numrows {
-                for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
-                    writeln!(file, "{} {}", i, nz)?;
+                for k in self.offset[i]..self.offset[i+1] {
+                    if let Some(value) = &self.value {
+                        writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
+                    } else {
+                        writeln!(file, "{} {}", i, self.nonzero[k])?;
+                    }
+                }
+
                 }
             }
         }
@@ -242,18 +293,32 @@ impl SparseMat {
     where
         W: Write,
     {
-        writeln!(writer, "%%MasterMarket matrix coordinate position")?;
-        writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
-
-        for rank in 0..self.num_ranks() {
-            if rank == self.my_rank() {
-                for i in 0..self.numrows {
-                    for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
-                        writeln!(writer, "{} {}", i + 1, nz + 1)?;
+        if let Some(value) = &self.value {
+            writeln!(writer, "%%MatrixMarket matrix coordinate real general")?;
+            writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
+            for rank in 0..self.num_ranks() {
+                if rank == self.my_rank() {
+                    for i in 0..self.numrows {
+                        for k in self.offset[i]..self.offset[i + 1] {
+                            writeln!(writer, "{} {} {}", i + 1, self.nonzero[k] + 1, value[k])?;
+                        }
                     }
                 }
+                self.barrier();
             }
-            self.barrier();
+        } else {
+            writeln!(writer, "%%MatrixMarket matrix coordinate pattern general")?;
+            writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
+            for rank in 0..self.num_ranks() {
+                if rank == self.my_rank() {
+                    for i in 0..self.numrows {
+                        for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
+                            writeln!(writer, "{} {}", i + 1, nz + 1)?;
+                        }
+                    }
+                }
+                self.barrier();
+            }
         }
         Ok(())
     }
