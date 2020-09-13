@@ -117,6 +117,16 @@ impl SparseMat {
         }
     }
 
+    pub fn randomize_values(&mut self) {
+        let mut value = Vec::new();
+        let mut rng = rand::thread_rng();
+        for _ in 0..self.nnz_this_rank {
+            value.push(rng.gen::<f64>());
+        }
+        self.value = Some(value);
+    }
+
+
     pub fn my_rank(&self) -> usize {
         if let Some(convey) = &self.convey {
             convey.my_rank
@@ -272,8 +282,6 @@ impl SparseMat {
                         writeln!(file, "{} {}", i, self.nonzero[k])?;
                     }
                 }
-
-                }
             }
         }
         Ok(())
@@ -374,7 +382,9 @@ impl SparseMat {
         };
         total_lower != 0 || total_diag_missing != 0
     }
+
     pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> Self {
+        if let Some(_) = &self.value {todo!()}
         let mut rowcounts = vec![0_usize; self.numrows_this_rank];
         assert_eq!(rperminv.perm.len(), self.numrows_this_rank);
         assert_eq!(cperminv.perm.len(), self.numrows_this_rank);
@@ -444,6 +454,7 @@ impl SparseMat {
     }
 
     pub fn transpose(&self) -> Self {
+        if let Some(_) = &self.value {todo!()}
         let mut colcnt = vec![0_usize; self.per_my_rank(self.numrows)];
         let mut nnz = 0_usize;
 
@@ -489,6 +500,12 @@ impl SparseMat {
     }
 
     pub fn compare(&self, other: &SparseMat) -> bool {
+        if (self.value == None && other.value != None)
+            || (self.value != None && other.value == None)
+        {
+            println!("presence of values differ {:?} {:?}", self, other);
+            return false;
+        }
         if (self.numcols != other.numcols)
             || (self.numrows != other.numrows)
             || (self.numrows_this_rank != other.numrows_this_rank)
@@ -502,19 +519,35 @@ impl SparseMat {
             println!("offsets differ {:?} {:?}", self, other);
             return false;
         }
-        // need to sort nonzeros before compare
-        let mut self_sorted = self.nonzero.clone();
-        let mut other_sorted = other.nonzero.clone();
-        self_sorted.sort();
-        other_sorted.sort();
-        if self_sorted != other_sorted {
-            println!("nonzero differ {:?} {:?}", self, other);
-            return false;
+        // need to sort nonzeros before compare 0-0 why? 
+        for row in 0..self.numrows_this_rank {
+            let mut self_sorted:  Vec<(<usize>,<f64>)>;
+            let mut other_sorted: Vec<(<usize>,<f64>)>;
+            if let Some(sval) = self.value {
+                if let Some(oval) = other.value {
+                    self_sorted  = self.nonzero[self.offset[row]..self.offset[row + 1]]
+                        .zip(sval[self.offset[row]..self.offset[row + 1]]);
+                    other_sorted = other.nonzero[other.offset[row]..other.offset[row + 1]]
+                        .zip(oval[other.offset[row]..other.offset[row + 1]]);
+                }
+            } else {
+                self_sorted  = self.nonzero[self.offset[row]..self.offset[row + 1]]
+                    .zip(vec![1.0_f64; self.offset[row + 1] - self.offset[row]]);
+                other_sorted = other.nonzero[other.offset[row]..other.offset[row + 1]]
+                    .zip(vec![1.0_f64; other.offset[row + 1] - other.offset[row]]);
+            }
+            self_sorted.sort_by( |a,b| b[0].cmp(a[0]));
+            other_sorted.sort_by(|a,b| b[0].cmp(a[0]));
+            if self_sorted != other_sorted {
+                println!("nonzeros differ {:?} {:?}", self, other);
+                return false;
+            }
         }
         true
     }
 
     pub fn add(&self, other: &SparseMat) -> Self {
+        if let Some(_) = &self.value {todo!()}
         // need to check for errors
         let mut sum = SparseMat::new(
             self.numrows,
