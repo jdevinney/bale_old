@@ -5,8 +5,11 @@ use convey_hpc::Convey;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::fs::File;
+use std::io::BufReader;
+use std::io::BufRead;
 use std::io::BufWriter;
 use std::io::Write;
+
 use std::path::Path;
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -287,7 +290,113 @@ impl SparseMat {
         Ok(())
     }
 
+    /// read a local sparse matrix from a file in a MatrixMarket ASCII format
+    /// # Arguments
+    /// * filename the file to be read
+    pub fn read_mm_file(filename: &str) -> Result<(), std::io::Error> {
+        let path = Path::new(&filename);
+        let fp = File::open(path)?;
+        let mut reader = BufReader::new(fp);
+        SparseMat::read_mm(&mut reader)
+    }
+
+    pub fn read_mm<R>(reader: &mut R) -> Result<(), std::io::Error> 
+    where
+        R: BufRead,
+    {
+        let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
+        let re1 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *pattern*")?;
+        let re2 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *real*")?;
+        if !re1.is_match(&line) && !re2.is_match(&line){
+            return Err(Sparsemat(ParseMmError::new(format!(
+                "invalid header {}",
+                line
+            ))));
+        }
+        let has_values = re2.is_match(&line);
+
+        let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
+        let re = Regex::new(r"^(\d*)\s*(\d*)\s*(\d*)\s*")?;
+        let cleaned = re.replace_all(&line, "$1 $2 $3");
+        let inputs: Vec<String> = cleaned.split(" ").map(|x| x.to_string()).collect();
+        let nr: usize = inputs[0].parse()?;
+        let nc: usize = inputs[1].parse()?;
+        let nnz: usize = inputs[2].parse()?;
+        if nr == 0 || nc == 0 || nnz == 0 {
+            return Err(Sparsemat(ParseMmError::new(format!(
+                "bad matrix sizes {} {} {}",
+                nr, nc, nnz
+            ))));
+        }
+
+        #[derive(Debug)]
+        struct Elt {
+            row: usize,
+            col: usize,
+            val: f64,
+        }
+
+        let mut elts: Vec<Elt> = vec![];
+        for line in reader.lines() {
+            let line = line.expect("read error");
+            let inputs: Vec<&str> = line.split_whitespace().collect();
+            let row: usize = inputs[0].parse()?;
+            let col: usize = inputs[1].parse()?;
+            let val: f64 = if has_values {inputs[2].parse()?} else {1.0};
+            if row == 0 || row > nr || col == 0 || col > nc {
+                return Err(Sparsemat(ParseMmError::new(format!(
+                    "bad matrix nonzero coordinates {} {}",
+                    row, col
+                ))));
+            }
+            elts.push(Elt {
+                row: row - 1,
+                col: col - 1,
+                val: val,
+            }); // MatrixMarket format is 1-up, not 0-up
+        }
+        if elts.len() != nnz {
+            return Err(Sparsemat(ParseMmError::new(format!(
+                "incorrect number of nonzeros {} != {}",
+                elts.len(),
+                nnz
+            ))));
+        }
+
+        elts.sort_by(|a, b| {
+            if a.row == b.row {
+                a.col.cmp(&b.col)
+            } else {
+                a.row.cmp(&b.row)
+            }
+        });
+
+        let mut ret = SparseMat::new_local(nr, nc, nnz);
+        let mut values: Vec<f64> = vec![];
+        let mut row: usize = 0;
+        for (i, elt) in elts.iter().enumerate() {
+            // first adjust so we are on correct row
+            while row < elt.row {
+                row += 1;
+                ret.offset[row] = i;
+            }
+            assert!(elt.row == row);
+            ret.nonzero[i] = elt.col;
+            if has_values {
+                values.push(elt.val);
+            }
+        }
+        for i in row + 1..ret.numrows + 1 {
+            ret.offset[i] = ret.nnz;
+        }
+        if has_values {
+            ret.value = Some(values);
+        }
+        Ok(ret)
+    }
+
     /// writes a sparse matrix to a file in a MatrixMarket ASCII formats
+    /// Does this work for non-local matrices? It won't get the row numbers right.
     /// # Arguments
     /// * filename the filename to written to
     pub fn write_mm_file(&self, filename: &str) -> Result<(), std::io::Error> {
