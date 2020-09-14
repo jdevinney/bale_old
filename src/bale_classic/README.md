@@ -23,7 +23,7 @@ Bale is written in C and can be compiled with UPC or linked against OpenSHMEM 1.
 The main components are :
 
 - README.md  - this file
-- [INSTALL](INSTALL)  - instructions for building bale
+- [INSTALL.md](INSTALL.md)  - instructions for building bale
 - [libgetput](libgetput/README.md)  - parallel programming utility library. libgetput is a library that can be compiled on top of UPC or SHMEM and implements puts, gets, collectives, and atomics. Everything in bale except conveyors is built on top of libgetput.
 - [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
 - [convey](convey/README.md) - The conveyor library for aggregating communication
