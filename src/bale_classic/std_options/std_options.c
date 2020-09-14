@@ -3,6 +3,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <libgetput.h>
 #include "std_options.h"
 
 static int std_parse_opt(int key, char * arg, struct argp_state * state){
@@ -22,7 +23,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state){
     args->seed = 122222;
     args->models_mask = ALL_Models;
     args->dump_files = 0;
-    args->json_ouput = NULL;
+    args->json_output = NULL;
     break;
   }
   return(0);
@@ -53,50 +54,81 @@ void write_std_options(std_args_t * sargs){
     fprintf(stderr,"cores_per_node           (-c): %d\n", sargs->cores_per_node);
     fprintf(stderr,"Models Mask              (-M): %d\n\n", sargs->models_mask);
   }else{
-    FILE * jp = fopen(sargs->json_output, 'a');
-    fprintf(fp, "buf_cnt: %"PRId64"\n", sargs->buffer_size);
+    FILE * jp = fopen(sargs->json_output, "a");
+    fprintf(jp, "\"buf_cnt\": \"%"PRId64"\",\n", sargs->buffer_size);
     fclose(jp);
   }
 }
 
-#if 0
-static int graph_parse_opt(int key, char * arg, struct argp_state * state){
-  std_graph_args_t * args = (std_graph_args_t *)state->input;
-  switch(key){
-  case 'e': args->edge_prob = atof(arg); break;
-  case 'f': args->readfile=1; args->filename = arg; break;
-  case 'F': args->model = FLAT; break;
-  case 'G': args->model = GEOMETRIC; break;
-  case 'n': args->l_numrows = atol(arg); break;
-  case 'z': args->nz_per_row = atof(arg); break;
-  case ARGP_KEY_INIT:
-    args->edge_prob = 0.0;
-    args->readfile = 0;
-    args->model = FLAT;
-    args->l_numrows = 10000;
-    args->nz_per_row = 10.0;
-    break;
+
+int bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp * argp, std_args_t * sargs){
+
+  lgp_init(argc, argv);
+  int ret = 0;
+  if(MYTHREAD == 0){
+    ret = argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, args);
+  }
+  
+  ret = distribute_cmd_line(argc, argv, &args, arg_len, ret);
+  if(ret) return(ret);
+
+  time_t now = time(NULL);
+  struct tm *date = localtime(&now);
+  if(sargs->json_output){
+  /* open the json file */ 
+    if(MYTHREAD == 0){
+      FILE * fp = fopen(sargs->json_output, "a");
+      fprintf(fp, "{\n\"bale_version\": \"%4.2f\",\n", BALE_VERSION);
+      fprintf(fp, "\"date\": \"%04d-%02d-%02d.%02d:%02d\",\n",
+                date->tm_year+1990, date->tm_mon, date->tm_mday,
+                date->tm_hour, date->tm_min);
+      fprintf(fp, "\"app\": \"%s\",\n", argv[0]);
+      fclose(fp);
+    }
+  }else{
+    T0_fprintf(stderr,"\n***************************************************************\n");
+#if __UPC__
+    T0_fprintf(stderr,"Bale Version %4.2f (UPC %ld): %04d-%02d-%02d.%02d:%02d\n",
+               BALE_VERSION,
+               __UPC_VERSION__,
+               date->tm_year+1990, date->tm_mon, date->tm_mday,
+               date->tm_hour, date->tm_min);
+#elif USE_SHMEM
+    T0_fprintf(stderr,"Bale Version %4.2f (OpenShmem version %d.%d): %04d-%02d-%02d.%02d:%02d\n",
+               BALE_VERSION,
+               SHMEM_MAJOR_VERSION, SHMEM_MINOR_VERSION,
+               date->tm_year+1990, date->tm_mon+1, date->tm_mday,
+               date->tm_hour, date->tm_min); 
+#endif
+    
+    int i;
+    
+    T0_fprintf(stderr,"Running command on %d PEs:", THREADS);
+    for(i=0; i<argc;i++){
+      T0_fprintf(stderr," %s", argv[i]);
+    }
+    T0_fprintf(stderr,"\n");
+    T0_fprintf(stderr,"***************************************************************\n\n");
   }
   return(0);
 }
 
-static struct argp_option graph_options[] =
-  {
-    {0, 0, 0, 0, "Input (as file):", 5},
-    {"readfile",   'f', "FILE",  0, "Read input from a file"},
-    {0, 0, 0, 0, "Input (as random graph):", 6},
-    {"l_numrows",    'n', "NUM",   0, "Number of rows per PE in the matrix"},
-    {"edge_prob",  'e', "EDGEP", 0, "Probability that an edge appears"},
-    {"flat",       'F', 0,       0, "Specify flat random graph model"},
-    {"geometric",  'G', 0,       0, "Specify geometric random graph model"},
-    {"nz_per_row", 'z', "NZPR",  0, "Avg. number of nonzeros per row"},
-    {0}
-  };
+void bale_app_finish(std_args_t * sargs){
+  if(sargs->json_output && !MYTHREAD){    
+    FILE * jp = fopen(sargs->json_output, "r+");
+    fseek(jp,-2,SEEK_END);
+    fprintf(jp,"\n}\n");
+    fclose(jp);
+  }
+  lgp_finalize();
+}
 
-struct argp std_graph_options_argp = {
-  graph_options, graph_parse_opt, 0, 0, 0
-};
-#endif
-
-
-
+void bale_app_write_time(std_args_t * sargs, char * model_str, double time){
+  if(sargs->json_output && !MYTHREAD){    
+    FILE * jp = fopen(sargs->json_output, "a");
+    fprintf(jp,"\"%s\": \"%lf\",\n", model_str, time);
+    fclose(jp);
+  }else{
+    T0_fprintf(stderr, "%s:   %8.3lf\n", model_str, time);
+  }
+}

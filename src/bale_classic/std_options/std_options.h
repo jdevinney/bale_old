@@ -28,6 +28,10 @@ extern struct argp std_options_argp;
 
 void write_std_options(std_args_t * sargs);
 
+int bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp * argp, std_args_t * sargs);
+void bale_app_finish(std_args_t * sargs);
+void bale_app_write_time(std_args_t * sargs, char * model_str, double time);
+
 #endif
 
 

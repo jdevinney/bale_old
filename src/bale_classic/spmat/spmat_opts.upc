@@ -127,40 +127,53 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs){
     T0_fprintf(stderr,"\t%"PRId64" rows\n\t%"PRId64" columns\n\t%"PRId64" nonzeros\n\n",
                mat->numcols, mat->numrows, mat->nnz);
   }else{
-    FILE * jp = fopen(sargs->json_output, 'a');    
-    T0_fprintf(fp, "matrix_numrows: \"%"PRId64"\",\n", mat->numrows);
-    T0_fprintf(fp, "matrix_numcols: \"%"PRId64"\",\n", mat->numcols);
-    T0_fprintf(fp, "matrix_nnz: \"%"PRId64"\",\n", mat->nnz);
-    fclose(jp);
+    if(MYTHREAD == 0){
+      FILE * jp = fopen(sargs->json_output, "a");    
+      T0_fprintf(jp, "\"matrix_numrows\": \"%"PRId64"\",\n", mat->numrows);
+      T0_fprintf(jp, "\"matrix_numcols\": \"%"PRId64"\",\n", mat->numcols);
+      T0_fprintf(jp, "\"matrix_nnz\": \"%"PRId64"\",\n", mat->nnz);
+      fclose(jp);
+    }
   }
 
   return(mat);
 }
 
 void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs){
-  T0_fprintf(stderr,"Input Graph/Matrix parameters:\n");
-  T0_fprintf(stderr,"----------------------------------------------------\n");
   if(!gargs->readfile){
     char model[32];
     if(gargs->model == FLAT)
-      sprintf(model, "FLAT (-F)");
+      sprintf(model, "FLAT      (-F)");
     else if(gargs->model == GEOMETRIC)
       sprintf(model, "GEOMETRIC (-G)");
     else if(gargs->model == KRONECKER)
       sprintf(model, "KRONECKER (-K)");
     
-    T0_fprintf(stderr, "Graph model: %s.\n", model);
-    T0_fprintf(stderr,"%s, %s, %s\n",
-               (gargs->directed ? "Directed": "Undirected"),
-               (gargs->weighted ? "Weighted": "Unweighted"),
-               (gargs->loops ? "Loops": "No Loops"));
-              
-               
-    T0_fprintf(stderr,"Number of rows per PE    (-n): %"PRId64"\n", gargs->l_numrows);
-    T0_fprintf(stderr,"Avg # nnz per row        (-z): %2.2lf\n", gargs->nz_per_row);
-    T0_fprintf(stderr,"Edge probability         (-e): %lf\n\n", gargs->edge_prob);
-
+    if(sargs->json_output && !MYTHREAD){
+      FILE * jp = fopen(sargs->json_output, "a");
+      fprintf(jp,"\"graph_model\": \"%.*s\",\n", 9, model);
+      fclose(jp);
+    }else{
+      T0_fprintf(stderr,"Input Graph/Matrix parameters:\n");
+      T0_fprintf(stderr,"----------------------------------------------------\n");
+      T0_fprintf(stderr, "Graph model: %s.\n",model);
+      T0_fprintf(stderr,"%s, %s, %s\n",
+                 (gargs->directed ? "Directed": "Undirected"),
+                 (gargs->weighted ? "Weighted": "Unweighted"),
+                 (gargs->loops ? "Loops": "No Loops"));
+      
+      
+      T0_fprintf(stderr,"Number of rows per PE    (-n): %"PRId64"\n", gargs->l_numrows);
+      T0_fprintf(stderr,"Avg # nnz per row        (-z): %2.2lf\n", gargs->nz_per_row);
+      T0_fprintf(stderr,"Edge probability         (-e): %lf\n\n", gargs->edge_prob);
+    }
   }else{
-    T0_fprintf(stderr,"Reading input from %s\n\n", gargs->filename);
+    if(sargs->json_output && !MYTHREAD){
+      FILE * jp = fopen(sargs->json_output, "a");
+      fprintf(jp,"\"input_file\": \"%s\",\n", gargs->filename);
+      fclose(jp);
+    }else{
+      T0_fprintf(stderr,"Reading input from %s\n\n", gargs->filename);
+    }
   }
 }

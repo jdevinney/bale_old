@@ -20,4 +20,4 @@ typedef struct std_graph_args_t{
 extern struct argp std_graph_options_argp;
 
 sparsemat_t *  get_input_graph(std_args_t * sargs, std_graph_args_t * gargs);
-void           write_std_graph_options(std_graph_args_t * gargs);
+void           write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs);

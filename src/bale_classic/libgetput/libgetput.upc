@@ -162,28 +162,14 @@ int64_t lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, i
  * \ingroup libgetputgrp
  */
 void lgp_init(int argc, char *argv[]) {
-  time_t now = time(NULL);
-  struct tm *date = localtime(&now);
-  T0_fprintf(stderr,"\n***************************************************************\n");
-  T0_fprintf(stderr,"Bale Version %4.2f (UPC %ld): %04d-%02d-%02d.%02d:%02d\n",
-	     BALE_VERSION,
-             __UPC_VERSION__,
-	     date->tm_year+1990, date->tm_mon, date->tm_mday, date->tm_hour, date->tm_min);
-
-  int i;
-
-  T0_fprintf(stderr,"Running below command on %d PEs:", THREADS);
-  for(i=0; i<argc;i++){
-    T0_fprintf(stderr," %s", argv[i]);
-  }
-  T0_fprintf(stderr,"\n");
-  T0_fprintf(stderr,"***************************************************************\n\n");
+  
   setlocale(LC_NUMERIC,"");
 
 #if __UPC_ATOMIC__ && !( __cray__ || _CRAYC )
   lgp_atomic_domain = upc_all_atomicdomain_alloc(UPC_INT64, UPC_ADD | UPC_INC | UPC_MAX | UPC_MIN | UPC_CSWAP, 0);
 #endif
 }
+
 
 /*!
  * \brief function to shutdown a model if needed
@@ -225,24 +211,6 @@ Define_Reducer(lgp_reduce_max_d, double, double, upc_all_reduceD, UPC_MAX)
 
 void lgp_init(int argc, char *argv[]) {
   shmem_init();
-  
-  time_t now = time(NULL);
-  struct tm *date = localtime(&now);
-  T0_fprintf(stderr,"\n***************************************************************\n");
-  T0_fprintf(stderr,"Bale Version %4.2f (OpenShmem version %d.%d): %04d-%02d-%02d.%02d:%02d\n",
-	     BALE_VERSION,
-             SHMEM_MAJOR_VERSION, SHMEM_MINOR_VERSION,
-             date->tm_year+1990, date->tm_mon+1, date->tm_mday, date->tm_hour, date->tm_min); 
-  int i;
-
-  T0_fprintf(stderr,"Running on %d PEs:", THREADS);
-  for(i=0; i<argc;i++){
-    T0_fprintf(stderr," %s", argv[i]);
-  }
-  T0_fprintf(stderr,"\n");
-  T0_fprintf(stderr,"***************************************************************\n\n");
-  //THREADS = shmem_n_pes();
-  //MYTHREAD = shmem_my_pe();
   setlocale(LC_NUMERIC,"");
 }
 
