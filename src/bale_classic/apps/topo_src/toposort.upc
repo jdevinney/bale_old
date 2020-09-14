@@ -153,7 +153,7 @@ int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64
 sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed) {
   sparsemat_t * mat = NULL;
   double t;
-  write_matrix_mm(tri_mat, "tri_mat");
+  //write_matrix_mm(tri_mat, "tri_mat");
   if(!is_upper_triangular(tri_mat, 1)){
     if(is_lower_triangular(tri_mat, 1)){
       mat = transpose_matrix(tri_mat);
