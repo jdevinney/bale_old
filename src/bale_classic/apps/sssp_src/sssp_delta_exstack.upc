@@ -120,6 +120,12 @@ void move_node_from_bucket_i_to_j(llnode_t * w, int64_t i, int64_t j, buckets_t 
   insert_node_in_bucket(w, j, buckets);
 }
 
+// CLAIM:  while Thread foo is foolin with the Buckets,  it can't be reading the buckets for pushes.
+//       So there is no race on the list.
+//      But when the Thread starts pushing again, the list could be different.
+//      Different, but not Busted.
+
+
 // relax an edge from a node to a node w (the current tenative distance to w is tent[windex]).
 // the candidate distance to w is cand_dist.
 static void local_relax(int64_t windex, double cand_dist, d_array_t * tent, buckets_t * buckets){
@@ -170,6 +176,7 @@ double sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r0)
   int64_t J, pe;
   pkg_delta_e_t pkg;
   int64_t lr0 = r0 / THREADS;   // the local row (vertex) name for r0
+  int64_t rbi;
 
   //TODO: Fix the buffer size 
   exstack_t * ex = exstack_init(1024, sizeof(pkg_delta_e_t));
@@ -258,8 +265,10 @@ double sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t r0)
 
   /* main loop */
   //int64_t min_bucket = 0;
-  int64_t current_bucket = 0;
+  int64_t all_cur=0, current_bucket = 0;
   int64_t num_deleted = 0;
+  rbi = 0;
+
   while(1){
 
     /* find the minimum indexed non-empty bucket */
