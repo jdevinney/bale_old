@@ -496,7 +496,7 @@ int is_upper_triangular(sparsemat_t *A, int64_t unit_diagonal) {
 /*! \brief Sets all entries above the kth diagonal to zero.
  * \param A A pointer to a sparse matrix
  * \param k Anything above the kth diagonal will be zero (k > 0 is above the main diagonal k < 0 is below)
- * \return 0 for success nonzero if error.
+ * \return The number of nonzeros that were removed.
  * \ingroup spmatgrp
  */
 int64_t tril(sparsemat_t * A, int64_t k) {
@@ -514,15 +514,17 @@ int64_t tril(sparsemat_t * A, int64_t k) {
     start = A->loffset[i+1];
     A->loffset[i+1] = pos;
   }
-  A->nnz = lgp_reduce_add_l(pos);
+  int64_t new_nnz = lgp_reduce_add_l(pos);
+  int64_t ret = A->nnz - new_nnz;
+  A->nnz = new_nnz;
   A->lnnz = pos;
-  return(0);
+  return(ret);
 }
 
 /*! \brief Sets all entries below the kth diagonal to zero.
  * \param A A pointer to a sparse matrix
  * \param k Anything below the kth diagonal will be zero (k > 0 is above the main diagonal k < 0 is below)
- * \return 0 for success nonzero if error.
+ * \return The number of nonzeros that were removed.
  * \ingroup spmatgrp
  */
 int64_t triu(sparsemat_t * A, int64_t k) {
@@ -540,9 +542,11 @@ int64_t triu(sparsemat_t * A, int64_t k) {
     start = A->loffset[i+1];
     A->loffset[i+1] = pos;
   }
-  A->nnz = lgp_reduce_add_l(pos);
+  int64_t new_nnz = lgp_reduce_add_l(pos);
+  int64_t ret = A->nnz - new_nnz;
+  A->nnz = new_nnz;
   A->lnnz = pos;
-  return(0);
+  return(ret);
 }
 
 
@@ -854,15 +858,15 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
 
 sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num){
   int i;
-  T0_fprintf(stderr,"Generating Mode %d Kronecker Product graph (A = B X C) with parameters:  ", mode);
+  //T0_fprintf(stderr,"Generating Mode %d Kronecker Product graph (A = B X C) with parameters:  ", mode);
   if(num <=2){
     T0_fprintf(stderr,"ERROR: generate_kronecker: spec must contain more than 2 products\n");
     return(NULL);
   }
-  for(int i = 0; i < num; i++)
-    T0_fprintf(stderr,"%dx", spec[i]);
-  T0_fprintf(stderr,"\b");
-  T0_fprintf(stderr,"\n");
+  //for(int i = 0; i < num; i++)
+    //T0_fprintf(stderr,"%dx", spec[i]);
+  //T0_fprintf(stderr,"\b");
+  //T0_fprintf(stderr,"\n");
 
   int64_t *B_spec = calloc(num, sizeof(int64_t));
   int64_t *C_spec = calloc(num, sizeof(int64_t));
@@ -876,8 +880,8 @@ sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num){
     T0_fprintf(stderr,"ERROR: triangles: error generating input!\n"); lgp_global_exit(1);
   }
   
-  T0_fprintf(stderr,"B has %"PRId64" rows/cols and %"PRId64" nnz\n", B->numrows, B->lnnz);
-  T0_fprintf(stderr,"C has %"PRId64" rows/cols and %"PRId64" nnz\n", C->numrows, C->lnnz);
+  //T0_fprintf(stderr,"B has %"PRId64" rows/cols and %"PRId64" nnz\n", B->numrows, B->lnnz);
+  //T0_fprintf(stderr,"C has %"PRId64" rows/cols and %"PRId64" nnz\n", C->numrows, C->lnnz);
   
   sparsemat_t * A = kronecker_product_graph_dist(B, C);
   

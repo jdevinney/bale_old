@@ -47,10 +47,12 @@
 
 This uses matrix algebra approach to counting triangles in a graph.
 
-The adjacency matrix, <b>A</b>, for the graph is a {0,1} matrix
-where the rows and cols correspond to the vertices
-and \f$a_{ij} \f$ = <b>A[i][j]</b> is 1 exactly when there is a edge between 
-vertices <i>v_i</i> and <i>v_j</i>.
+The input is the lower-half of the adjacency matrix <b>A</b> for a
+simple graph.  The matrix must be lower-triangular and have all zeros
+on the diagonal. Further, it is a {0,1} matrix where the rows and cols
+correspond to the vertices and \f$a_{ij} \f$ = <b>A[i][j]</b> is 1
+exactly when there is a edge between vertices <i>v_i</i> and
+<i>v_j</i>.
 
 The triangle with vertices <i>{v_i, v_j, v_k}</i> has associated 
 edges <i>{v_i, v_j}</i>, <i>{v_j, v_k}</i> and <i>{v_k, v_i}</i> 
@@ -134,13 +136,21 @@ int main(int argc, char * argv[]) {
   args.alg = 0;
   if(MYTHREAD == 0){
     ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
+
+    //override command line
+    if(args.gstd.loops)
+      T0_fprintf(stderr,"WARNING: triangles requires no-loops, overriding command line.\n");
+    if(args.gstd.directed)
+      T0_fprintf(stderr,"WARNING: triangles requires undirected graph, overriding command line.\n");
+    args.gstd.loops = 0;
+    args.gstd.directed = 0; 
   }
+  
   ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
   if(!MYTHREAD && !args.std.quiet){
-    T0_fprintf(stderr,"Running on %d PEs\n", THREADS);
     write_std_graph_options(&args.gstd);
     write_std_options(&args.std);
   }
@@ -149,13 +159,14 @@ int main(int argc, char * argv[]) {
   sparsemat_t * L = get_input_graph(&args.std, &args.gstd);
   if(!L){T0_fprintf(stderr, "ERROR: transpose: L is NULL!\n");return(-1);}
 
-  if(!is_lower_triangular(L, 0)){
-    if(args.gstd.readfile){
-      tril(L, -1);
-    }else{
-      T0_fprintf(stderr,"ERROR: L is not lower triangular!\n");
-      lgp_global_exit(1);
+  if(args.gstd.readfile){
+    ret = tril(L, -1);
+    if(ret){
+      T0_fprintf(stderr,"WARNING: input graph was not lower-triangular with zero diagonal. Removing illegal nonzeros.\n");
     }
+  }else if(!is_lower_triangular(L, 0)){
+    T0_fprintf(stderr,"ERROR: L is not lower triangular!\n");
+    lgp_global_exit(1);  
   }  
   
   lgp_barrier();
@@ -168,8 +179,7 @@ int main(int argc, char * argv[]) {
   }
   
   sparsemat_t * U;
-  if(args.alg == 1)
-    U = transpose_matrix(L);
+  if(args.alg == 1) U = transpose_matrix(L);
 
   lgp_barrier();
 

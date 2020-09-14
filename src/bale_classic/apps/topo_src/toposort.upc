@@ -245,6 +245,9 @@ int main(int argc, char * argv[]) {
   if(MYTHREAD == 0){
     ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
     /* force input graph to be undirected and to have loops, no matter what the options */
+    if(args.gstd.directed == 1){
+      T0_fprintf(stderr, "toposort needs undirected graph input, overriding -d option.\n");
+    }
     args.gstd.directed = 0;
     args.gstd.loops = 1;
   }

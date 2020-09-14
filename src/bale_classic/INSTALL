@@ -57,7 +57,7 @@
 #
 # First, in the bale_classic directory, run the run_autoreconf script.
 #
-# Next, simply run the install.sh script. This script visits each
+# Next, run the install.sh script (see below for options). This script visits each
 # subpackage in bale and runs configure, make, and make install. You
 # could of course do this yourself. The default build and install
 # directory is $BALEDIR/build_$PLATFORM. There are several important
