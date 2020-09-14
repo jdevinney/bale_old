@@ -1,5 +1,5 @@
 #include "spmat_utils.h"
-#if 1
+#if 0
 /**/typedef struct llnode_t{
 /**/  int64_t index;
 /**/  struct llnode_t * next;
@@ -57,7 +57,8 @@
 /**/void move_node_from_bucket_i_to_j(llnode_t * w, int64_t i, int64_t j, buckets_t * buckets)
 /**/{
 /**/  llnode_t * node;
-/**/  Dprintf("Move (%"PRId64" which is in bucket %"PRId64") from %"PRId64" to %"PRId64"\n", w->index, buckets->in_bucket[w->index],i, j);
+/**/  Dprintf("Move (%"PRId64" which is in bucket %"PRId64") from %"PRId64" to %"PRId64"\n", 
+/**/          w->index, buckets->in_bucket[w->index],i, j);
 /**/  if(i >= 0){
 /**/    i = i % buckets->num_buckets;
 /**/    if(buckets->in_bucket[w->index] == i){
@@ -208,6 +209,7 @@
 
 #else
 
+#define DEBUG 1
 typedef struct node_t{
   int64_t next;      // next in linked list
   int64_t prev;      // prev in linked list
@@ -224,107 +226,108 @@ typedef struct ds_t{
   double  delta;       // delta
 }ds_t;
 
+
 // Remove node j from bucket i.
-static void remove_node_from_bucket(DS_t *ds, int64_t j, int64_t i)
+static void remove_node_from_bucket(ds_t *ds, int64_t j, int64_t i)
 {
-  int64_t head, tail;
-  i = i % ds->num_buckets;
-  assert(ds->vrts[j].in_bucket == i);
-  assert(ds->B[i] != -1);
-  ds->vrts[j].in_bucket = -1;
+  int64_t i_m, head, tail;
+  i_m = i % ds->num_buckets;
+  assert(ds->V[j].in_bucket == i_m);
+  assert(ds->B[i_m] != -1);
+  ds->V[j].in_bucket = -1;
 
-  Dprintf("Removing %"PRId64" from bucket %"PRId64"\n", j, i);
+  Dprintf("Removing %"PRId64" from bucket %"PRId64"\n", j, i_m);
 
-  if(ds->vrts[j].prev == -1){               // j is the head of the list
-    head = ds->vrts[j].next;                // new head, or -1 if list is now empty
-    ds->B[i] = head;                   
+  if(ds->V[j].prev == -1){               // j is the head of the list
+    head = ds->V[j].next;                // new head, or -1 if list is now empty
+    ds->B[i_m] = head;                   
     if(head >= 0) 
-      ds->vrts[head].prev = -1;             // mark head as the first on the list
+      ds->V[head].prev = -1;             // mark head as the first on the list
     return;
   }
-  if(ds->vrts[j].next == -1){               // j is the tail of the list
-    tail = ds->vrts[j].prev;                // new tail,  != -1 by previous case
-    ds->vrts[tail].head = -1;
+  if(ds->V[j].next == -1){               // j is the tail of the list
+    tail = ds->V[j].prev;                // new tail,  != -1 by previous case
+    ds->V[tail].next = -1;
     return;
-  }
-  //(ds->vrts[j].prev != -1) && (ds->vrts[j].next != -1)  // in the middle 
-  ds->vrts[ds->vrts[j].prev].next = ds->vrts[j].next; 
-  ds->vrts[ds->vrts[j].next].prev = ds->vrts[j].prev; 
+  } 
+  //(ds->V[j].prev != -1) && (ds->V[j].next != -1)  // in the middle 
+  ds->V[ds->V[j].prev].next = ds->V[j].next; 
+  ds->V[ds->V[j].next].prev = ds->V[j].prev; 
   return;
 }
 
 // Prepend node j into a bucket i
-void insert_node_in_bucket(DS_t *ds, int64_t j, int64_t i)
+void insert_node_in_bucket(ds_t *ds, int64_t j, int64_t i)
 {
   int64_t head;  // first vrt on list, if the list is non-empty
-  int64_t actual_i = (i % ds->num_buckets);
+  int64_t i_m = (i % ds->num_buckets);
 
-  Dprintf("Adding %"PRId64" to bucket %"PRId64"\n", j, actual_i);
+  Dprintf("Adding %"PRId64" to bucket %"PRId64"\n", j, i_m);
   
-  if(ds->vrts[j].in_bucket == actual_i){  // this node is already in this bucket
+  if(ds->V[j].in_bucket == i_m){  // this node is already in this bucket
     return; 
   }
-  assert(ds->vrts[j].in_bucket == -1);
+  assert(ds->V[j].in_bucket == -1);  // better not be in a different bucket
 
-  ds->vrts[j].next = -1;
-  ds->vrts[j].prev = -1;
-  if(ds->B[actual_i] != -1){  
-    head = ds->B[actual_i];
-    ds->vrts[j].next = head;
-    ds->vrts[head].prev = j; 
+  ds->V[j].next = -1;
+  ds->V[j].prev = -1;
+  if(ds->B[i_m] != -1){               // something in the list
+    head = ds->B[i_m];
+    ds->V[j].next = head;
+    ds->V[head].prev = j; 
   }
-  ds->B[actual_i] = j;
-  ds->vrts[j].in_bucket = actual_i;
+  ds->B[i_m] = j;
+  ds->V[j].in_bucket = i_m;
 }
 
 
-//// Remove a node from bucket i and put it into bucket j
-//void move_node_from_bucket_i_to_j(llnode_t * w, int64_t i, int64_t j, buckets_t * buckets)
-//{
-//  llnode_t * node;
-//  Dprintf("Move (%"PRId64" which is in bucket %"PRId64") from %"PRId64" to %"PRId64"\n", w->index, buckets->in_bucket[w->index],i, j);
-//  if(i >= 0){
-//    i = i % buckets->num_buckets;
-//    if(buckets->in_bucket[w->index] == i){
-//      node = buckets->B[i]; 
-//      while(node != NULL){ // find w in B[i] if it is there
-//	      if(node == w){
-//	        remove_node_from_bucket(w, i, buckets);
-//	        break;
-//	      }
-//	      node = node->next;
-//      }
-//    }
-//  }
-//  insert_node_in_bucket(w, j, buckets);   // insert w into the front of B[j] 
-//}
-//
-//
-//// relax an edge from a node to a node w (the current tenative distance to w is tent[windex]).
-//// the candidate distance to w is cand_dist.
-//void relax(int64_t windex, double cand_dist, double * tent, buckets_t * buckets)
-//{
-//  if ( cand_dist < tent[windex] ){
-//    Dprintf("relax w=%"PRId64" cand_dist = %lf < %lf?\n", windex, cand_dist, tent[windex]);
-//    /* if w is in B[floor(tent[windex]/delta)], remove it from that bucket */
-//    int64_t j;
-//    if(tent[windex] == INFINITY) 
-//      j = -1;
-//    else 
-//      j = (int64_t)floor(tent[windex]/buckets->delta);
-//    move_node_from_bucket_i_to_j(&(buckets->nodes[windex]), j, (int64_t)floor(cand_dist/buckets->delta), buckets);
-//    tent[windex] = cand_dist;
-//  }
-//}
-//
+// Remove a node from bucket iold to bucket inew
+// if the node is not in a bucket, just insert it into bucket inew
+void move_node_between_buckets(ds_t * ds, int64_t j, int64_t iold, int64_t inew)
+{
+  int64_t i_m_old, ll;
+  Dprintf("Move (%"PRId64" which is in bucket %"PRId64") from %"PRId64" to %"PRId64"\n", 
+          j, ds->V[j].in_bucket, iold, inew);
+  if( ds->V[j].in_bucket >= 0 ){
+    i_m_old = iold % ds->num_buckets;
+    assert(i_m_old == ds->V[j].in_bucket);
+    ll = ds->B[i_m_old];
+    do {
+	     if( j == ll ){
+	       remove_node_from_bucket(ds, j, iold);
+	       break;
+	     }
+    }while((ll = ds->V[ll].next) >= 0);
+  }
+  insert_node_in_bucket(ds, j, inew); 
+}
+
+// relax an edge to the head vertex, given the new tentative distance
+// (= the tentative distance to the tail plus the weight of the edge).
+// the candidate distance to w is cand_dist.
+void relax(ds_t *ds, int64_t j, double cand_dist)
+{
+  int64_t b;
+  if ( cand_dist < ds->V[j].tent ){
+    Dprintf("relax head %"PRId64" cand_dist = %lf < %lf?\n", j, cand_dist, ds->V[j].tent);
+    /* if j is in B[floor((ds->V[j].tent)/delta)], remove it from that bucket */
+    if(ds->V[j].tent == INFINITY) 
+      b = -1;
+    else 
+      b = (int64_t)floor((ds->V[j].tent)/ds->delta);
+    move_node_between_buckets(ds, j, b, (int64_t)floor(cand_dist/ds->delta));
+    ds->V[j].tent = cand_dist;
+  }
+}
+
 // This is the delta stepping algorithm as it appears in
 // the paper "Delta-stepping: a parallelizable shortest path algorithm" by
 // U. Meyer and P. Sanders.
 
 double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0)
 {
-  int64_t i, j;
-  int64_t current; // current bucket
+  int64_t i, i_m, j, k;
+  int64_t cur; // current bucket
 
   double tm = wall_seconds();
 
@@ -349,96 +352,84 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   Dprintf("max edge weight = %lf\n", max_edge_weight);
   int64_t num_buckets = (int64_t)ceil(max_edge_weight/delta) + 1;
   
-  DS_t * ds = calloc(1,sizeof(ds_t *));
-  ds->vrts =  calloc(mat->numrows, sizeof(node_t));
+  ds_t * ds = calloc(1,sizeof(ds_t *));
+  ds->V =  calloc(mat->numrows, sizeof(node_t));
   for(i = 0; i < mat->numrows; i++){
-    ds->vrts[i].next      = -1;
-    ds->vrts[i].prev      = -1;
-    ds->vrts[i].in_bucket = -1;
-    ds->vrts[i].deleted   =  0;
-    ds->vrts[i].tent      = INFINITY;
+    ds->V[i].next      = -1;
+    ds->V[i].prev      = -1;
+    ds->V[i].in_bucket = -1;
+    ds->V[i].deleted   =  0;
+    ds->V[i].tent      = INFINITY;
   }
   ds->num_buckets = num_buckets;
   ds->B =  calloc(num_buckets, sizeof(int64_t));
-  for(i = 0; i < num_buckets; i++){
-    ds->B[i] = -1;
+  for(i_m = 0; i_m < num_buckets; i_m++){
+    ds->B[i_m] = -1;
   }
   ds->delta = delta;
 
   /* set the source distance to r0 */
-  ds->vrts[r0].tent = 0.0;
-  current = 0;                  // current bucket
+  ds->V[r0].tent = 0.0;
+  cur = 0;
   insert_node_in_bucket(ds, r0, cur);
   
   /* main loop */
-  current = 0;
   while(1){
     // find the minimum indexed non-empty bucket 
-    for(i = 0; i < ds->num_buckets; i++)
-      if(ds->B[(current + i) % ds->num_buckets] != -1)
+    for(i_m = 0; i_m < ds->num_buckets; i_m++){
+      if(ds->B[(cur + i_m) % ds->num_buckets] != -1)
         break;
-    if(i == num_buckets)
+    }
+    if(i_m == num_buckets)  //No non-empty buckets, we are done
       break;
-    current = (current + i) % num_buckets;
-    Dprintf("Starting inner loop: working on bucket %"PRId64"\n", current);
+    i = cur + i_m;
+    Dprintf("Starting inner loop: working on i = %"PRId64" in bucket %"PRId64"\n", i, i_m);
 
     // inner loop
     int64_t start = 0;
     int64_t end = 0;
-    llnode_t * v = buckets->B[current];
-    
-    while(ds->B[current] != -1){
-      head = ds->B[current];
-      Dprintf("Processing Node %"PRId64" in Bucket %"PRId64"\n", head, current);
+    for( j=ds->B[i_m]; ds->V[j].in_bucket == i_m; j=ds->V[j].next){
+      Dprintf("Processing Node %"PRId64" in Bucket %"PRId64"\n", j, i_m);
 
-      remove_node_from_bucket(ds, head, current);
+      remove_node_from_bucket(ds, j, i_m);
       
       /* relax light edges from v */
-      for(j = mat->offset[v->index]; j < mat->offset[v->index + 1]; j++){
-        if(mat->value[j] <= delta){	  
-          relax(mat->nonzero[j], tent[v->index] + mat->value[j], tent, buckets);
+      for(k = mat->offset[j]; k < mat->offset[j + 1]; k++){
+        if(mat->value[k] <= delta){	  
+          relax(ds, mat->nonzero[k], ds->V[j].tent + mat->value[k]);
         }
       } 
       
       /* insert v into R if it is not already there */
-      if(deleted[v->index] == 0){
-        deleted[v->index] = 1;
-        R[end++] = v->index;
-        Dprintf("deleted %"PRId64"s\n", v->index);
+      if(ds->V[j].deleted == 0){
+        ds->V[j].deleted = 1;
+        R[end++] = j;
+        Dprintf("deleted %"PRId64"s\n", j);
       }
-      
-      //v = v->next;
-      dump_llnode("before next v", current, v);
-      v = buckets->B[current];
-      dump_llnode("after  next v", current, v);
-    }// end inner loop
+    }
 
     /* relax heavy requests edges for everything in R */
-    while(start < end){
-      v = &(buckets->nodes[R[start++]]);
-      for(j = mat->offset[v->index]; j < mat->offset[v->index + 1]; j++){
-        if(mat->value[j] > delta){
-          relax(mat->nonzero[j], tent[v->index] + mat->value[j], tent, buckets);
+    for(start=0; start<end; start++){
+      j = R[start];
+      for(k = mat->offset[j]; k < mat->offset[j + 1]; k++){
+        if(mat->value[k] > delta){
+          relax(ds, mat->nonzero[k], ds->V[j].tent + mat->value[k]);
         }
       }      
     }
-    current++;
+    cur++;
   }// end main loop
 
   // Copy the answers to dist array
   for(i = 0; i < mat->numrows; i++){
-    dist->entry[i] = ds->vrts[i].tent;
+    dist->entry[i] = ds->V[i].tent;
   }
 
-
-  free(buckets->B);
-  free(buckets->nodes);
-  free(buckets->empty);
-  //free(buckets->level);
-  free(deleted);
+  free(ds->V);
+  free(ds->B);
+  free(ds);
   free(R);
   
   return(wall_seconds() - tm);
 }
 #endif
-
