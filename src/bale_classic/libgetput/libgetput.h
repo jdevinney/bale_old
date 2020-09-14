@@ -251,9 +251,9 @@ int64_t  lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, 
 double wall_seconds(); /*!< wall time timer using gettimeofday */
 
 /* command line processing */
-int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, int ret);
+//int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, int ret);
 void share_args(void * args, size_t n);
-int check_for_exit(int argc, char * argv[], int ret);
+//int check_for_exit(int argc, char * argv[], int ret);
 //int bale_process_cmd_line(int argc, char * argv[], struct argp_option * options,
 //                          int (*parse_opt)(int key, char * arg, struct argp_state * state),
 //                          struct argp_child * children_parsers, void * args, size_t args_len);

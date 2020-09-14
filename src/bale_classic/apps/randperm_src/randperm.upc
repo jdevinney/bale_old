@@ -98,26 +98,22 @@ static struct argp_child children_parsers[] =
 
 
 int main(int argc, char * argv[]) {
-  lgp_init(argc, argv);
   
   int64_t i;
 
   /* process command line */
   int ret = 0;
   args_t args;
-  if(MYTHREAD == 0){
-    args.l_num_rows = 10000;
-    struct argp argp = {options, parse_opt, 0,
-                        "Create a random permutation in parallel.", children_parsers};
-    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
-  }
-  
-  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  args.l_num_rows = 10000;
+  struct argp argp = {options, parse_opt, 0,
+                      "Create a random permutation in parallel.", children_parsers};
+
+  ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
-
-  if(!MYTHREAD && !args.std.quiet){
-    T0_fprintf(stderr,"Number of rows / PE      (-n): %"PRId64"\n\n", args.l_num_rows );
+  
+  if(!MYTHREAD){
+    bale_app_write_int(&args.std, "num_rows_per_pe", args.l_num_rows);
     write_std_options(&args.std);
   }
 
@@ -129,34 +125,35 @@ int main(int argc, char * argv[]) {
   SHARED int64_t * out;
   int64_t seed = args.std.seed + MYTHREAD;
   int64_t use_model;
+  char model_str[32];
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
 
     case AGI_Model:
+      sprintf(model_str, "AGI");
       out = rand_permp_agi(numrows, seed);
-      T0_fprintf(stderr,"rand_permp_AGI:           ");
       break;
 
     case EXSTACK_Model:
+      sprintf(model_str, "Exstack");
       out = rand_permp_exstack(numrows, seed, args.std.buffer_size);
-      T0_fprintf(stderr,"rand_permp_EXSTACK:       ");
       break;
 
     case EXSTACK2_Model:
+      sprintf(model_str, "Exstack2");
       out = rand_permp_exstack2(numrows, seed, args.std.buffer_size);
-      T0_fprintf(stderr,"rand_permp_EXSTACK2:      ");
       break;
 
     case CONVEYOR_Model:
+      sprintf(model_str, "Conveyor");
       out = rand_permp_conveyor(numrows, seed);
-      T0_fprintf(stderr,"rand_permp_CONVEYOR:      ");
       break;
 
     case ALTERNATE_Model:
       //T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
+      sprintf(model_str, "rand_permp_agi_opt");
       out = rand_permp_agi_opt(numrows, seed);
-      T0_fprintf(stderr,"rand_permp_agi_opt :      ");
       break;
 
     case 0:
@@ -165,7 +162,9 @@ int main(int argc, char * argv[]) {
     
     t1 = wall_seconds() - t1;    
     lgp_min_avg_max_d( stat, t1, THREADS );
-    T0_fprintf(stderr,"%8.3lf\n", stat->avg);
+    bale_app_write_time(&args.std, model_str, stat->avg);
+    
+    
     if(!is_perm(out, numrows)){
       error++;
       T0_printf("\nERROR: rand_permp_%"PRId64" failed!\n\n", use_model & args.std.models_mask);

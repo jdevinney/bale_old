@@ -44,7 +44,7 @@ lib_LIBRARIES=libstd_options.a
 pkconfig_DATA = @PACKAGE_NAME@.pc
 libstd_options_a_CPPFLAGS=@libdeps_CFLAGS@
 
-common_sources=std_options.c
+common_sources=std_options.upc
 
 if BUILD_UPC
 libstd_options_a_SOURCES = $(common_sources:.c=__upc.upc)

@@ -76,8 +76,9 @@ AM_CONDITIONAL(BUILD_UPC, [test "x$with_upc" = xyes])
 AM_CONDITIONAL(BUILD_SHMEM, [test "x$mpp_use_shmem" = xyes])
 
 PKG_CHECK_MODULES([libdeps],
-  [
+  [        
         libgetput
+            spmat
   ]
 )
 

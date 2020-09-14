@@ -38,7 +38,6 @@
 #include <getopt.h>
 #include <libgetput.h>
 #include <spmat.h>
-#include <spmat_opts.h>
 #include <std_options.h>
 
 //#include "alternates/transpose_matrix_alternates.h"
@@ -76,8 +75,6 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
     }
   return(0);
 }
-
-//static struct argp_option options[] = {{0}};
 
 static struct argp_child children_parsers[] =
   {
@@ -124,23 +121,22 @@ int main(int argc, char * argv[])
     switch( use_model & args.std.models_mask ) {
     case AGI_Model:
       outmat = transpose_matrix_agi(inmat);
-      sprintf(model_str, "AGI      ");
+      sprintf(model_str, "AGI");
       break;
     case EXSTACK_Model:
       outmat = transpose_matrix_exstack(inmat, args.std.buffer_size);
-      sprintf(model_str, "Exstack  ");
+      sprintf(model_str, "Exstack");
       break;
     case EXSTACK2_Model:
       outmat = transpose_matrix_exstack2(inmat, args.std.buffer_size);
-      sprintf(model_str, "Exstack2 ");
+      sprintf(model_str, "Exstack2");
       break;
     case CONVEYOR_Model:
       outmat = transpose_matrix_conveyor(inmat);
-      sprintf(model_str, "Conveyor ");
+      sprintf(model_str, "Conveyor");
       break;    
     case ALTERNATE_Model:
-      //T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
-      break;
+      continue;
     case 0:
       continue;
     }
@@ -149,7 +145,7 @@ int main(int argc, char * argv[])
     bale_app_write_time(&args.std, model_str, stat->avg);
     
     /* correctness check */
-    if(check){      
+    if(check){
       sparsemat_t * outmatT = transpose_matrix(outmat);
       if(compare_matrix(outmatT, inmat)){
         T0_fprintf(stderr,"ERROR: transpose of transpose does not match!\n");

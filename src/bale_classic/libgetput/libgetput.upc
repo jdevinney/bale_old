@@ -426,53 +426,6 @@ void share_args(void * args, size_t n){
   lgp_all_free(temp);
 }
 
-int check_for_exit(int argc, char * argv[], int ret){
-  int i;
-  for(i = 0; i < argc; i++){
-    //printf("argv[%d] : %s\n", i, argv[i]);
-    if(strcmp(argv[i], "--help") == 0)
-      return(1);
-    if(strcmp(argv[i], "-?") == 0)
-      return 1;
-    if(strcmp(argv[i], "--usage") == 0)
-      return 1;
-  }
-  ret = (int)lgp_reduce_add_l((long)ret);
-  if(ret) return(-1);
-  return(0);
-}
-
-#if 0
-int distribute_command_line(int argc, char ** argv, struct argp * argp, void * args, size_t arg_len){
-  int ret = 0;
-  if(MYTHREAD == 0){
-    ret = argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, &args);
-  }
-
-  ret = check_for_exit(argc, argv, ret);
-  if(ret){
-    lgp_finalize();
-    return(ret);
-  }
-  share_args(args, arg_len);
-
-}
-#endif
-
-#if 1
-int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, int ret){
-
-  
-  ret = check_for_exit(argc, argv, ret);
-  if(ret){
-    lgp_finalize();
-    return(ret);
-  }
-  
-  share_args(args, args_len);
-  return(0);
-}
-#endif
 
 /*! 
  * \brief This routine uses gettimeofday routine to give access 

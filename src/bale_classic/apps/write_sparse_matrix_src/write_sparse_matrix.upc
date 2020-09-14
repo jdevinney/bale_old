@@ -38,7 +38,6 @@
 #include <getopt.h>
 #include <libgetput.h>
 #include <spmat.h>
-#include <spmat_opts.h>
 #include <std_options.h>
 
 /*! \file write_sparse_matrix.upc
@@ -99,11 +98,6 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   return(0);
 }
 
-static struct argp_option options[] =
-  {
-    {0}
-  };
-
 static struct argp_child children_parsers[] =
   {
     {&std_options_argp, 0, "Standard Options", -2},
@@ -113,24 +107,18 @@ static struct argp_child children_parsers[] =
 
 int main(int argc, char * argv[])
 {
-  lgp_init(argc, argv);
-  
-  int64_t i;
 
   /* process command line */
-  int ret = 0;
   args_t args;
-  struct argp argp = {options, parse_opt, 0,
+  struct argp argp = {NULL, parse_opt, 0,
                       "Parallel sparse matrix transpose.", children_parsers};
-  if(MYTHREAD == 0){
-    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
-  }
-  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
-  if(!MYTHREAD && !args.std.quiet){
-    write_std_graph_options(&args.gstd);
+  if(!MYTHREAD){
+    write_std_graph_options(&args.std, &args.gstd);
     write_std_options(&args.std);
   }
 
@@ -142,9 +130,8 @@ int main(int argc, char * argv[])
   
   double t1;
   minavgmaxD_t stat[1];
-  int64_t error = 0;  
   char * datadir = calloc(64, sizeof(char));
-
+  char model_str[32];
   int64_t use_model;
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
@@ -152,21 +139,21 @@ int main(int argc, char * argv[])
     case AGI_Model:
       sprintf(datadir,"%s","write_matrix_test_agi");
       write_sparse_matrix_agi(datadir, inmat);
-      T0_fprintf(stderr, "AGI:     ");
+      sprintf(model_str, "AGI");
       break;
     case EXSTACK_Model:
       sprintf(datadir,"%s","write_matrix_test_exstack");
       write_sparse_matrix_exstack(datadir, inmat, args.std.buffer_size);
       //read_sparse_matrix_agi(datadir);
-      T0_fprintf(stderr, "Exstack: ");
+      sprintf(model_str, "Exstack");
       break;
     case EXSTACK2_Model:
       continue;
-      //T0_fprintf(stderr, "Exstack2:");
+      //sprintf(model_str, "Exstack2");
       //break;
     case CONVEYOR_Model:
       continue;
-      //T0_fprintf(stderr, "Conveyor:");
+      sprintf(model_str, "Conveyor");
       //break;    
     case ALTERNATE_Model:
       T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
@@ -176,12 +163,12 @@ int main(int argc, char * argv[])
     }
     t1 = wall_seconds() - t1;
     lgp_min_avg_max_d( stat, t1, THREADS );
-    T0_fprintf(stderr, "%8.3lf\n", stat->avg);  
+    bale_app_write_time(&args.std, model_str, stat->avg);
   }
   
   free(datadir);
   clear_matrix(inmat);
   lgp_barrier();
-  lgp_finalize();
-  return(error);
+  bale_app_finish(&args.std);
+  return(0);
 }

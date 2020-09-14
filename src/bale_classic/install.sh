@@ -58,7 +58,7 @@ export BUILDDIR=$HERE/build_$PLATFORM
 export INSTALLDIR=$BUILDDIR
 mkdir -p $BUILDDIR
 
-packages=("libgetput" "std_options" "exstack" "convey" "spmat" "apps")
+packages=("libgetput" "exstack" "convey" "spmat" "std_options" "apps")
 
 fromscratch=0
 justmake=0

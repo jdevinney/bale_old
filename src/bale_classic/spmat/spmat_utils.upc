@@ -156,6 +156,7 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
 }
 
 
+
 //
 // this is new code not ready for release in bale2.0
 //
