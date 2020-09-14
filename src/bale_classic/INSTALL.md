@@ -1,37 +1,32 @@
-See [README](README.md) or Doxygen documentation for more information about bale.
+Start with the [README](README.md) or Doxygen documentation for more information about bale.
 
 # Environment Configuration
 
 For this document, let BALEDIR = the directory containing this file.
-We handle building on multiple architectures by setting an environment variable PLATFORM and then
-building in the directory BALEDIR/build_$PLATFORM.
-If you don't set this, your platform will be set to "unknown".
 
 You can build bale on top of UPC or SHMEM. 
 
-- UPC:   You should set the UPC environment variable to point to the UPC compiler and 
+- UPC:   You should set the $UPC environment variable to point to the UPC compiler and 
         the UPCFLAGS variable to whatever options you pass to the compiler (for example:
         UPCFLAGS="-gupc -network=ibv".
 - SHMEM: If you are using openshmem, set CC=oshcc (the openshmem compiler).
 
 # Other Dependencies
 Bale also depends on:
-- argp
+- argp (part of glibc)
+- autoconf (2.69)
+- automake (1.13.4)
 
 
 # Build and Install
 
-bale uses autotools.
-
 To make building and installing easier, we have included a few scripts.
 
-First, in the bale_classic directory, run the run_autoreconf script.
+First, in the bale_classic directory, run the **run_autoreconf** script.
 
-Next, run the install.sh script (see below for options). This script visits each
-subpackage in bale and runs configure, make, and make install. You
-could of course do this yourself. The default build and install
-directory is $BALEDIR/build_$PLATFORM. There are several important
-options for the script...
+Next, run the **install.sh** script (see below for options). This script visits each subpackage in bale and runs configure, make, and make install. You could of course do this yourself by hand; the install script automates the process, makes it easy to keep speparte build and install directories for multiple platforms and keeps these directories separate from the source directory. The default build and install directory is $BALEDIR/build_$PLATFORM. If you don't set the $PLATFORM variable, your platform will be set to "unknown". 
+
+There are several important options for the install.sh script...
 
 - -u OR -s : specify you would like to build libgetput on top of UPC or SHMEM. default: UPC
 - -p : specify an alternate install dir
@@ -39,10 +34,8 @@ options for the script...
 - -c : specify options to configure step
 - -m : just make, don't configure
 
-We use a separate build directory for each architecture. 
-The configure process creates architecture depend files (e.g. Makefile)
-it also creates symbolic links back to the source. This allows us to
-rename files to satisfy various compilers (e.g. 
+
+The configure process creates architecture dependent files (e.g. Makefile) and creates symbolic links back to the source. This allows us to rename files to satisfy various compilers (e.g. 
 some compilers require that UPC programs end in .upc)
 
 If you are interested in optimizing the conveyor code, after running install.sh
