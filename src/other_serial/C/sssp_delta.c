@@ -1,10 +1,6 @@
 #include "spmat_utils.h"
 
-#define POINTER 0
-#define STRUCT 0
-#define ARRAY 1
-
-#if POINTER
+#if 0
 /*P*/typedef struct llnode_t{
 /*P*/  int64_t index;
 /*P*/  struct llnode_t * next;
@@ -212,245 +208,9 @@
 /*P*/  return(wall_seconds() - tm);
 /*P*/}
 
-#endif
+#else 
 
-#if STRUCT 
-
-/*S*/#define DEBUG 1
-/*S*/typedef struct node_t{
-/*S*/  int64_t next;      // next in linked list
-/*S*/  int64_t prev;      // prev in linked list
-/*S*/  int64_t in_bucket; // which bucket it is in, else -1
-/*S*/  int64_t deleted;   // deleted means resolved?
-/*S*/  double  tent;      // the tentative weight for the vertex
-/*S*/}node_t;
-/*S*/
-/*S*/typedef struct ds_t{
-/*S*/  int64_t num_buckets;
-/*S*/  int64_t * B;         // array of Buckets: B[i] is the index of the first node on the list, or -1 if empty
-/*S*/  node_t  * V;         // array of nodes to hold vertex information
-/*S*/  
-/*S*/  double  delta;       // delta
-/*S*/}ds_t;
-/*S*/
-/*S*/
-/*S*/// Remove node v from bucket i.
-/*S*/static void remove_node_from_bucket(ds_t *ds, int64_t v, int64_t i)
-/*S*/{
-/*S*/  int64_t i_m, first, last;
-/*S*/  i_m = i % ds->num_buckets;
-/*S*/  assert(ds->V[v].in_bucket == i_m);
-/*S*/  assert(ds->B[i_m] != -1);
-/*S*/  ds->V[v].in_bucket = -1;
-/*S*/
-/*S*/  Dprintf("Removing %"PRId64" from bucket %"PRId64"\n", v, i_m);
-/*S*/
-/*S*/  if(ds->V[v].prev == -1){               // v is the first node of this list
-/*S*/    first = ds->V[v].next;                // new first, or -1 if list is now empty
-/*S*/    ds->B[i_m] = first;                   
-/*S*/    if(first >= 0) 
-/*S*/      ds->V[first].prev = -1;             // mark the new first as the first on the list
-/*S*/    return;
-/*S*/  }
-/*S*/  if(ds->V[v].next == -1){               // v is the last node on the list
-/*S*/    last = ds->V[v].prev;                // new last,  != -1 by previous case
-/*S*/    ds->V[last].next = -1;               // mark the new last as the end of the list
-/*S*/    return;
-/*S*/  } 
-/*S*/  //(ds->V[v].prev != -1) && (ds->V[v].next != -1)  // in the middle 
-/*S*/  ds->V[ds->V[v].prev].next = ds->V[v].next; 
-/*S*/  ds->V[ds->V[v].next].prev = ds->V[v].prev; 
-/*S*/  return;
-/*S*/}
-/*S*/
-/*S*/// Prepend node v into a bucket i
-/*S*/void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i)
-/*S*/{
-/*S*/  int64_t first;         // first node on list, if the list is non-empty
-/*S*/  int64_t i_m = (i % ds->num_buckets);
-/*S*/
-/*S*/  Dprintf("Adding %"PRId64" to bucket %"PRId64"\n", v, i_m);
-/*S*/  
-/*S*/  if(ds->V[v].in_bucket == i_m){      // this node is already in this bucket
-/*S*/    return; 
-/*S*/  }
-/*S*/  assert(ds->V[v].in_bucket == -1);   // better not be in a different bucket
-/*S*/
-/*S*/  ds->V[v].next = -1;
-/*S*/  ds->V[v].prev = -1;
-/*S*/  if(ds->B[i_m] != -1){               // something in the list
-/*S*/    first = ds->B[i_m];               // was the first on the list
-/*S*/    ds->V[v].next = first;            
-/*S*/    ds->V[first].prev = v;            
-/*S*/  }
-/*S*/  ds->B[i_m] = v;
-/*S*/  ds->V[v].in_bucket = i_m;
-/*S*/}
-/*S*/
-/*S*/
-/*S*/// Remove a node from bucket iold to bucket inew
-/*S*/// if the node is not in a bucket, just insert it into bucket inew
-/*S*/// if v is not in the old bucket, this is just an insert into the new bucket
-/*S*/void move_node_between_buckets(ds_t * ds, int64_t v, int64_t iold, int64_t inew)
-/*S*/{
-/*S*/  int64_t i_m_old, ll;
-/*S*/  Dprintf("Move (%"PRId64" which is in bucket %"PRId64") from %"PRId64" to %"PRId64"\n", 
-/*S*/          v, ds->V[v].in_bucket, iold, inew);
-/*S*/  if( ds->V[v].in_bucket >= 0 ){
-/*S*/    i_m_old = iold % ds->num_buckets;
-/*S*/    assert(i_m_old == ds->V[v].in_bucket);
-/*S*/    ll = ds->B[i_m_old];
-/*S*/    do {
-/*S*/	     if( v == ll ){
-/*S*/	       remove_node_from_bucket(ds, v, iold);
-/*S*/	       break;
-/*S*/	     }
-/*S*/    }while((ll = ds->V[ll].next) >= 0);
-/*S*/  }
-/*S*/  assert(ll != -1);
-/*S*/  insert_node_in_bucket(ds, v, inew); 
-/*S*/}
-/*S*/
-/*S*/// relax an edge to the head vertex, given the new tentative distance
-/*S*/// (= the tentative distance to the tail plus the weight of the edge).
-/*S*/// the candidate distance to w is cand_dist.
-/*S*/void relax(ds_t *ds, int64_t j, double cand_dist)
-/*S*/{
-/*S*/  int64_t b;
-/*S*/  if ( cand_dist < ds->V[j].tent ){
-/*S*/    Dprintf("relax head %"PRId64" cand_dist = %lf < %lf?\n", j, cand_dist, ds->V[j].tent);
-/*S*/    /* if j is in B[floor((ds->V[j].tent)/delta)], remove it from that bucket */
-/*S*/    if(ds->V[j].tent == INFINITY) 
-/*S*/      b = -1;
-/*S*/    else 
-/*S*/      b = (int64_t)floor((ds->V[j].tent)/ds->delta);
-/*S*/    move_node_between_buckets(ds, j, b, (int64_t)floor(cand_dist/ds->delta));
-/*S*/    ds->V[j].tent = cand_dist;
-/*S*/  }
-/*S*/}
-/*S*/
-/*S*/// This is the delta stepping algorithm as it appears in
-/*S*/// the paper "Delta-stepping: a parallelizable shortest path algorithm" by
-/*S*/// U. Meyer and P. Sanders.
-/*S*/
-/*S*/double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0)
-/*S*/{
-/*S*/  int64_t i, i_m, j, k;
-/*S*/  int64_t v;
-/*S*/  int64_t cur; // current bucket
-/*S*/
-/*S*/  double tm = wall_seconds();
-/*S*/
-/*S*/  assert((r0 >= 0) && (r0<mat->numrows));
-/*S*/  
-/*S*/  int64_t * R = calloc(mat->numrows, sizeof(int64_t));
-/*S*/  
-/*S*/  /* calculate delta and set tentative distances to infinity */  
-/*S*/  double delta = 0.0;
-/*S*/  int64_t max_degree = 0;
-/*S*/  for(i = 0; i < mat->numrows; i++){
-/*S*/    if(max_degree < (mat->offset[i+1] - mat->offset[i]))
-/*S*/      max_degree = (mat->offset[i+1] - mat->offset[i]);
-/*S*/  }
-/*S*/  assert(max_degree > 0);
-/*S*/  delta = 1.0/max_degree;
-/*S*/  
-/*S*/  double max_edge_weight = 0.0;
-/*S*/  for(i = 0; i < mat->nnz; i++)
-/*S*/    if(max_edge_weight < mat->value[i])
-/*S*/      max_edge_weight = mat->value[i];
-/*S*/  Dprintf("max edge weight = %lf\n", max_edge_weight);
-/*S*/  int64_t num_buckets = (int64_t)ceil(max_edge_weight/delta) + 1;
-/*S*/  
-/*S*/  ds_t * ds = (ds_t *)calloc(1,sizeof(ds_t));
-/*S*/  assert(ds != NULL);
-/*S*/  ds->V = (node_t *)calloc(mat->numrows, sizeof(node_t));
-/*S*/  assert(ds->V != NULL);
-/*S*/  for(i = 0; i < mat->numrows; i++){
-/*S*/    ds->V[i].next      = -1;
-/*S*/    ds->V[i].prev      = -1;
-/*S*/    ds->V[i].in_bucket = -1;
-/*S*/    ds->V[i].deleted   =  0;
-/*S*/    ds->V[i].tent      = INFINITY;
-/*S*/  }
-/*S*/  ds->num_buckets = num_buckets;
-/*S*/  ds->B = (int64_t *)calloc(num_buckets, sizeof(int64_t));
-/*S*/  assert(ds->B != NULL);
-/*S*/  for(i_m = 0; i_m < num_buckets; i_m++){
-/*S*/    ds->B[i_m] = -1;
-/*S*/  }
-/*S*/  ds->delta = delta;
-/*S*/
-/*S*/  /* set the source distance to r0 */
-/*S*/  ds->V[r0].tent = 0.0;
-/*S*/  cur = 0;
-/*S*/  insert_node_in_bucket(ds, r0, cur);
-/*S*/  
-/*S*/  /* main loop */
-/*S*/  for(cur=0;  ; cur++){
-/*S*/    // find the minimum indexed non-empty bucket 
-/*S*/    for(i_m = 0; i_m < ds->num_buckets; i_m++){
-/*S*/      if(ds->B[(cur + i_m) % ds->num_buckets] != -1)
-/*S*/        break;
-/*S*/    }
-/*S*/    if(i_m == num_buckets)  //No non-empty buckets, we are done
-/*S*/      break;
-/*S*/    i = cur + i_m;
-/*S*/    Dprintf("Starting inner loop: working on i = %"PRId64" in bucket %"PRId64"\n", i, i_m);
-/*S*/
-/*S*/    // inner loop
-/*S*/    int64_t start = 0;
-/*S*/    int64_t end = 0;
-/*S*/    for( j=ds->B[i_m]; ds->V[j].in_bucket == i_m; j=ds->V[j].next){
-/*S*/      Dprintf("Processing Node %"PRId64" in Bucket %"PRId64"\n", j, i_m);
-/*S*/
-/*S*/      remove_node_from_bucket(ds, j, i_m);
-/*S*/      
-/*S*/      /* relax light edges from v */
-/*S*/      for(k = mat->offset[j]; k < mat->offset[j + 1]; k++){
-/*S*/        if(mat->value[k] <= delta){	  
-/*S*/          relax(ds, mat->nonzero[k], ds->V[j].tent + mat->value[k]);
-/*S*/        }
-/*S*/      } 
-/*S*/      
-/*S*/      /* insert v into R if it is not already there */
-/*S*/      if(ds->V[j].deleted == 0){
-/*S*/        ds->V[j].deleted = 1;
-/*S*/        R[end++] = j;
-/*S*/        Dprintf("deleted %"PRId64"s\n", j);
-/*S*/      }
-/*S*/    }
-/*S*/
-/*S*/    /* relax heavy requests edges for everything in R */
-/*S*/    for(start=0; start<end; start++){
-/*S*/      j = R[start];
-/*S*/      for(k = mat->offset[j]; k < mat->offset[j + 1]; k++){
-/*S*/        if(mat->value[k] > delta){
-/*S*/          relax(ds, mat->nonzero[k], ds->V[j].tent + mat->value[k]);
-/*S*/        }
-/*S*/      }      
-/*S*/    }
-/*S*/  }// end main loop
-/*S*/
-/*S*/  Dprintf("copy tentative to distance array\n");
-/*S*/  // Copy the answers to dist array
-/*S*/  for(v = 0; v < mat->numrows; v++){
-/*S*/    dist->entry[v] = ds->V[v].tent;
-/*S*/  }
-/*S*/
-/*S*/  assert(ds->V != NULL);
-/*S*/  //free(ds->V);
-/*S*/  free(ds->B);
-/*S*/  free(ds);
-/*S*/  free(R);
-/*S*/  
-/*S*/  return(wall_seconds() - tm);
-/*S*/}
-#endif
-
-#if ARRAY 
-
-#define DEBUG 1
+#define DEBUG 0
 typedef struct ds_t{
   int64_t *next;      // next in linked list
   int64_t *prev;      // prev in linked list
@@ -462,6 +222,22 @@ typedef struct ds_t{
   double  delta;      // delta
 }ds_t;
 
+// debugging function
+void dump_bucket(ds_t *ds, int64_t i_m)
+{
+  int64_t v, w ;
+  printf("Bucket[%ld] =", i_m);
+  if( ds->B[i_m] == -1 ){
+    printf("empty \n");
+    return;
+  }
+  v = w = ds->B[i_m];
+  do {
+    printf("%ld ", w);
+  } while( (w = ds->next[w]) != v );
+  printf("\n");
+  return;
+}
 
 // Prepend node v into a bucket i
 void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m)
@@ -480,12 +256,21 @@ void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m)
   ds->prev[v] = v;
   if(ds->B[i_m] != -1){    
     w = ds->B[i_m];             // w is "first" on the list, insert v before w              
+#if 0
     int64_t pv = ds->prev[w];
     Dprintf("non-empty: w=%ld, prev=%ld\n", w, pv);
     ds->next[pv] = v;            
     ds->prev[w] = v;
     ds->next[v] = w;
     ds->prev[v] = pv;            
+    Dprintf("   v=%ld, prev=%ld, next %ld, (%ld,%ld)\n", v, ds->prev[v], ds->next[v], ds->prev[ds->next[v]], ds->next[ds->prev[v]] );
+#endif
+    int64_t pv = ds->prev[w];
+    Dprintf("non-empty: w=%ld, prev=%ld\n", w, pv);
+    ds->prev[v] = ds->prev[w];            
+    ds->next[ds->prev[w]] = v;            
+    ds->prev[w] = v;
+    ds->next[v] = w;
     Dprintf("   v=%ld, prev=%ld, next %ld, (%ld,%ld)\n", v, ds->prev[v], ds->next[v], ds->prev[ds->next[v]], ds->next[ds->prev[v]] );
   }
   ds->B[i_m] = v;                       // set v to be the "first" on the list
@@ -521,37 +306,6 @@ static void remove_node_from_bucket(ds_t *ds, int64_t v)
   return;
 }
 
-#if 0
-// Remove a node from bucket iold to bucket inew
-// if the node is not in a bucket, just insert it into bucket inew
-// if v is not in the old bucket, this is just an insert into the new bucket
-void move_node_between_buckets(ds_t * ds, int64_t v, int64_t iold, int64_t inew)
-{
-  int64_t i_m_old, w;
-  Dprintf("Move (%"PRId64" which is in bucket %"PRId64") from %"PRId64" to %"PRId64"\n", 
-          v, ds->in_bucket[v], iold, inew);
-  if( ds->in_bucket[v] >= 0 ){
-    i_m_old = iold % ds->num_buckets;
-    assert(i_m_old == ds->in_bucket[v]);
-    // linear search the bucket
-    w = ds->B[i_m_old]; 
-
-    ll >= 0; ll = ds->next[ll]){
-
-    for(ll = ds->B[i_m_old]; ll >= 0; ll = ds->next[ll]){
-	    if( v == ll ){
-	      remove_node_from_bucket(ds, v, iold);
-	      break;
-	    }
-    }
-  }
-  assert(ll != -1);    // should have found v in the bucket
-  insert_node_in_bucket(ds, v, inew); 
-}
-
-#endif
-
-int64_t home_bucket(ds_t *ds, double dist);
 // relax an edge to the head vertex, given the new tentative distance
 // (= the tentative distance to the tail plus the weight of the edge).
 // the candidate distance to w is cand_dist.
@@ -575,21 +329,6 @@ void relax(ds_t *ds, int64_t w, double cand_dist)
   }
 }
 
-void dump_bucket(ds_t *ds, int64_t i_m)
-{
-  int64_t v, w ;
-  printf("Bucket[%ld] =", i_m);
-  if( ds->B[i_m] == -1 ){
-    printf("empty \n");
-    return;
-  }
-  v = w = ds->B[i_m];
-  do {
-    printf("%ld ", w);
-  } while( (w = ds->next[w]) != v );
-  printf("\n");
-  return;
-}
 // This is the delta stepping algorithm as it appears in
 // the paper "Delta-stepping: a parallelizable shortest path algorithm" by
 // U. Meyer and P. Sanders.
@@ -653,7 +392,8 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   Dprintf("putting source r0=%ld in bucket %ld\n", r0, 0L);
   
   /* main loop */
-  for(cur=0;  ; cur++){
+  cur = 0;
+  while(1){
     Dprintf("Outer loop cur = %"PRId64"\n", cur);
     // find the minimum indexed non-empty bucket 
     for(i = 0; i < ds->num_buckets; i++){
@@ -662,7 +402,8 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0)
     }
     if(i == num_buckets)  //All buckets are empty, we are done
       break;
-    i_m = (cur + i) % ds->num_buckets;
+    cur = cur + i;
+    i_m = cur % ds->num_buckets;
     Dprintf("Starting inner loop: working on bucket %"PRId64"\n", i_m);
     if(DEBUG) dump_bucket(ds, i_m);
 
