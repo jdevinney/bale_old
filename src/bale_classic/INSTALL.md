@@ -33,11 +33,11 @@ could of course do this yourself. The default build and install
 directory is $BALEDIR/build_$PLATFORM. There are several important
 options for the script...
 
--u OR -s : specify you would like to build libgetput on top of UPC or SHMEM. default: UPC
--p : specify an alternate install dir
--f : run autoreconf steps also
--c : specify options to configure step
--m : just make, don't configure
+- -u OR -s : specify you would like to build libgetput on top of UPC or SHMEM. default: UPC
+- -p : specify an alternate install dir
+- -f : run autoreconf steps also
+- -c : specify options to configure step
+- -m : just make, don't configure
 
 We use a separate build directory for each architecture. 
 The configure process creates architecture depend files (e.g. Makefile)
@@ -68,7 +68,9 @@ This is a bit tricky :)
 2. to get autotools, best to use brew (https://brew.sh):
 
     % brew install autoconf
+    
     % brew install automake
+    
     % brew install libtool
 
 3. to get clang-upc, which seems to run well, go to:
