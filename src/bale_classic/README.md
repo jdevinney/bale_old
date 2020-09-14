@@ -28,6 +28,7 @@ The main components are :
 - [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
 - [convey](convey/README.md) - The conveyor library for aggregating communication
 - [spmat](spmat/README.md)  -  a sparse matrix library
+- [std_options](std_options/README.md) - options parsing library
 - [apps](apps/README.md)  -  the applications directory. Includes [histogram](apps/histo_src/README.md), 
    [indexgather](apps/ig_src/README.md), [toposort](apps/topo_src/README.md), [transpose_matrix](apps/transpose_matrix_src/README.md), [triangle counting](apps/triangle_src/README.md), [randperm](apps/randperm_src/README.md), etc.
 - install.sh - the build and install script
