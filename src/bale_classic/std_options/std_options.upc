@@ -360,7 +360,7 @@ void bale_app_finish(std_args_t * sargs){
   if(sargs->json && !MYTHREAD){    
     FILE * jp = fopen(sargs->json_output, "r+");
     fseek(jp,-2,SEEK_END);
-    fprintf(jp,"\n}\n");
+    fprintf(jp,"\n},\n");
     fclose(jp);
   }
   lgp_finalize();

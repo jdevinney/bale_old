@@ -15,22 +15,25 @@ def determine_launcher():
 
 apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles", "write_sparse_matrix"]
 
-def test_all(path, node_range, app_list, impl_mask, json_file):
+def run_app(path, node_range, app_list, option_str, impl_mask, json_file):
   for app in app_list:
     runs = []
-    runs.append(" ")
-    if app == 'histo' or app == 'ig':
-      runs.append("-T 1024 ")
-    if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles' or app == 'write_sparse_matrix':
-      runs.append("-F -z 2 ")
-      runs.append("-G -z 4 ")
-    if app == 'triangles' or app == 'transpose_matrix' or app == 'permute_matrix':
-      runs.append("-K 0:3x4x5 ")
-      runs.append("-K 1:3x4x5 ")
-      runs.append("-K 2:3x4x5 ")
-      runs.append("-K 0:2x4x7 ")
-      runs.append("-K 1:2x4x7 ")
-      runs.append("-K 2:2x4x7 ")
+    if option_str == None:
+      runs.append(" ")
+    else:
+      runs.append("{0} ".format(option_str))
+#    if app == 'histo' or app == 'ig':
+#      runs.append("-T 1024 ")
+#    if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles' or app == 'write_sparse_matrix':
+#      runs.append("-F -z 2 ")
+#      runs.append("-G -z 4 ")
+#    if app == 'triangles' or app == 'transpose_matrix' or app == 'permute_matrix':
+#      runs.append("-K 0:3x4x5 ")
+#      runs.append("-K 1:3x4x5 ")
+#      runs.append("-K 2:3x4x5 ")
+#      runs.append("-K 0:2x4x7 ")
+#      runs.append("-K 1:2x4x7 ")
+#      runs.append("-K 2:2x4x7 ")
       
     if impl_mask is not None:
       for i,run in enumerate(runs):
@@ -43,7 +46,7 @@ def test_all(path, node_range, app_list, impl_mask, json_file):
       #if pes == 0: continue      
       for run in runs:
         cmd = launcher.format(os.path.join(path,app),2**pes) +" "+run
-        #print(cmd)
+        print(cmd)
         ret = subprocess.run(cmd, capture_output=True, shell=True)
         assert(ret.returncode == 0)
         lines = ret.stderr.decode('utf-8')
@@ -66,6 +69,7 @@ if __name__ == '__main__':
   parser.add_option('-M','--impl_mask', action="store", dest='impl_mask', help="Pass -M <mask> to all apps", default=None)
   parser.add_option(    '--node_range', action="store", dest='node_range', help="Specify the node range to run on as a range <start>:<end>:<stride>. "
                         "The job will run each app with 2^x PEs where x is in range(node_range) PEs", default="1,4,1")
+  parser.add_option('-o',"--option_str", action="store", dest='option_str', help="Specify a string to pass to all apps (must be valid for all apps!", default=None)
   parser.add_option('-P','--path',      action="store", dest='path',      help="Specify path to binaries", default=None)
   
   (options, ignore) = parser.parse_args()
@@ -98,4 +102,4 @@ if __name__ == '__main__':
     exit(1)
   
   
-  test_all(options.path, node_range, app_list, options.impl_mask, options.json_file)
+  run_app(options.path, node_range, app_list, options.option_str, options.impl_mask, options.json_file)
