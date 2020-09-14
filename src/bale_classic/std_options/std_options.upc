@@ -82,7 +82,6 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
       i++;
       ptr++; 
       if(*ptr != 'x'){
-        //fprintf(stderr,"nope");
         break;
       }
       ptr++; 
