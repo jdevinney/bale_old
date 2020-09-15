@@ -2,12 +2,15 @@ use crate::perm::Perm;
 use convey_hpc::collect::{IVal, PType, ValueCollect};
 use convey_hpc::session::ConveySession;
 use convey_hpc::Convey;
+use rand::Rng;
+use regex::Regex;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::fs::File;
 use std::io::BufReader;
 use std::io::BufRead;
 use std::io::BufWriter;
+use std::io::{Error, ErrorKind};
 use std::io::Write;
 
 use std::path::Path;
@@ -105,6 +108,7 @@ impl SparseMat {
             value: None,
             convey: None,
         }
+    }
 
     pub fn new_local_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         SparseMat {
@@ -225,7 +229,7 @@ impl SparseMat {
     /// * maxrows the number of rows that are written, 0 means everything,
     ///           otherwise write the first and last maxrows/2 rows
     /// * filename the filename to written to
-    pub fn dump(&self, maxrows: usize, filename: &str) -> Result<(), std::io::Error> {
+    pub fn dump(&self, maxrows: usize, filename: &str) -> Result<(), Error> {
         let path = Path::new(&filename);
         let mut file = File::create(path)?;
 
@@ -293,40 +297,34 @@ impl SparseMat {
     /// read a local sparse matrix from a file in a MatrixMarket ASCII format
     /// # Arguments
     /// * filename the file to be read
-    pub fn read_mm_file(filename: &str) -> Result<(), std::io::Error> {
+    pub fn read_mm_file(filename: &str) -> Result<SparseMat, Error> {
         let path = Path::new(&filename);
         let fp = File::open(path)?;
         let mut reader = BufReader::new(fp);
         SparseMat::read_mm(&mut reader)
     }
 
-    pub fn read_mm<R>(reader: &mut R) -> Result<(), std::io::Error> 
+    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat, Error> 
     where
         R: BufRead,
     {
         let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
-        let re1 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *pattern*")?;
-        let re2 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *real*")?;
+        let re1 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *pattern*").expect("bad regex");
+        let re2 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *real*").expect("bad regex");
         if !re1.is_match(&line) && !re2.is_match(&line){
-            return Err(Sparsemat(ParseMmError::new(format!(
-                "invalid header {}",
-                line
-            ))));
+            return Err(Error::new(ErrorKind::Other, format!("invalid MatrixMarket header {}", line)));
         }
         let has_values = re2.is_match(&line);
 
         let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
-        let re = Regex::new(r"^(\d*)\s*(\d*)\s*(\d*)\s*")?;
+        let re = Regex::new(r"^(\d*)\s*(\d*)\s*(\d*)\s*").expect("bad regex");
         let cleaned = re.replace_all(&line, "$1 $2 $3");
         let inputs: Vec<String> = cleaned.split(" ").map(|x| x.to_string()).collect();
-        let nr: usize = inputs[0].parse()?;
-        let nc: usize = inputs[1].parse()?;
-        let nnz: usize = inputs[2].parse()?;
+        let nr: usize = inputs[0].parse().expect("bad row dimension");
+        let nc: usize = inputs[1].parse().expect("bad column dimension");
+        let nnz: usize = inputs[2].parse().expect("bad nnz");
         if nr == 0 || nc == 0 || nnz == 0 {
-            return Err(Sparsemat(ParseMmError::new(format!(
-                "bad matrix sizes {} {} {}",
-                nr, nc, nnz
-            ))));
+            panic!(format!("bad matrix sizes {} {} {}", nr, nc, nnz));
         }
 
         #[derive(Debug)]
@@ -340,14 +338,11 @@ impl SparseMat {
         for line in reader.lines() {
             let line = line.expect("read error");
             let inputs: Vec<&str> = line.split_whitespace().collect();
-            let row: usize = inputs[0].parse()?;
-            let col: usize = inputs[1].parse()?;
-            let val: f64 = if has_values {inputs[2].parse()?} else {1.0};
+            let row: usize = inputs[0].parse().expect("bad row number");
+            let col: usize = inputs[1].parse().expect("bad column number");
+            let val: f64 = if has_values {inputs[2].parse().expect("bad element value")} else {1.0};
             if row == 0 || row > nr || col == 0 || col > nc {
-                return Err(Sparsemat(ParseMmError::new(format!(
-                    "bad matrix nonzero coordinates {} {}",
-                    row, col
-                ))));
+                    panic!(format!("bad matrix nonzero coordinates {} {}", row, col));
             }
             elts.push(Elt {
                 row: row - 1,
@@ -356,11 +351,7 @@ impl SparseMat {
             }); // MatrixMarket format is 1-up, not 0-up
         }
         if elts.len() != nnz {
-            return Err(Sparsemat(ParseMmError::new(format!(
-                "incorrect number of nonzeros {} != {}",
-                elts.len(),
-                nnz
-            ))));
+            panic!(format!("incorrect number of nonzeros {} != {}", elts.len(), nnz));
         }
 
         elts.sort_by(|a, b| {
@@ -399,14 +390,14 @@ impl SparseMat {
     /// Does this work for non-local matrices? It won't get the row numbers right.
     /// # Arguments
     /// * filename the filename to written to
-    pub fn write_mm_file(&self, filename: &str) -> Result<(), std::io::Error> {
+    pub fn write_mm_file(&self, filename: &str) -> Result<(), Error> {
         let path = Path::new(&filename);
         let file = File::create(path)?;
         let mut writer = BufWriter::new(file);
         self.write_mm(&mut writer)
     }
 
-    pub fn write_mm<W>(&self, writer: &mut W) -> Result<(), std::io::Error>
+    pub fn write_mm<W>(&self, writer: &mut W) -> Result<(), Error>
     where
         W: Write,
     {
@@ -630,8 +621,10 @@ impl SparseMat {
         }
         // need to sort nonzeros before compare 0-0 why? 
         for row in 0..self.numrows_this_rank {
-            let mut self_sorted:  Vec<(<usize>,<f64>)>;
-            let mut other_sorted: Vec<(<usize>,<f64>)>;
+            // let mut self_sorted:  Vec<(<usize>,<f64>)>;
+            // let mut other_sorted: Vec<(<usize>,<f64>)>;
+            let mut self_sorted;
+            let mut other_sorted;
             if let Some(sval) = self.value {
                 if let Some(oval) = other.value {
                     self_sorted  = self.nonzero[self.offset[row]..self.offset[row + 1]]
