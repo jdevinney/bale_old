@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local};
-use sparsemat::wall_seconds;
-use sparsemat::SparseMat;
+use spmat::wall_seconds;
+use spmat::SparseMat;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::io::Error;
@@ -399,7 +399,7 @@ impl DeltaStepping for SparseMat {
         assert!(self.numrows == self.numcols);
         assert!(source < self.numrows);
 
-        let t1 = wall_seconds().expect("wall second error");
+        let t1 = wall_seconds();
 
         let (_mindeg, maxdeg, _sumdeg) = self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
             (acc.0.min(x), acc.1.max(x), acc.2 + x)
@@ -481,7 +481,7 @@ impl DeltaStepping for SparseMat {
         SsspInfo {
             distance: searcher.tentative_dist,
             source: source,
-            laptime: wall_seconds().expect("wall second error") - t1,
+            laptime: wall_seconds() - t1,
         }
     }
 

@@ -133,6 +133,13 @@ impl SparseMat {
         self.value = Some(value);
     }
 
+    /// an iterator over row counts
+    pub fn rowcounts<'a>(&'a self) -> impl Iterator<Item = usize> + 'a {
+        self.offset[0..self.numrows_this_rank]
+            .iter()
+            .zip(&self.offset[1..self.numrows_this_rank + 1])
+            .map(|(a, b)| b - a)
+    }
 
     pub fn my_rank(&self) -> usize {
         if let Some(convey) = &self.convey {
@@ -224,6 +231,39 @@ impl SparseMat {
             unimplemented!("Conveyors not implemented for local SparseMat");
         }
     }
+
+    /// prints some stats of a sparse matrix
+    pub fn stats(&self) -> () {
+        if let Some(_) = self.convey {
+            if self.my_rank() != 0 {
+                return ();
+            }
+            println!("    distributed matrix");
+            println!("    num_ranks = {}", self.num_ranks());
+            println!("    numrows.0 = {}", self.numrows_this_rank);
+            println!("    nnz.0     = {}", self.nnz_this_rank);
+        } else {
+            println!("    local matrix on rank {}", self.my_rank());
+        }
+        if let Some(_) = self.value {
+            println!("    matrix with values");
+        } else {
+            println!("    matrix pattern only");
+        }
+        println!("    numrows   = {}", self.numrows);
+        println!("    numcols   = {}", self.numcols);
+        println!("    nnz       = {}", self.nnz);
+
+        // compute min, max, sum all at once for efficiency, only once thru itereator
+        let (mindeg, maxdeg, sumdeg) = self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
+            (acc.0.min(x), acc.1.max(x), acc.2 + x)
+        });
+
+        let avgdeg = sumdeg as f64 / self.numrows as f64;
+
+        println!("    min, avg, max degree (rank 0) = {}, {}, {}", mindeg, avgdeg, maxdeg);
+    }
+
     /// dumps a sparse matrix to a file in a ASCII format
     /// # Arguments
     /// * maxrows the number of rows that are written, 0 means everything,
@@ -688,15 +728,15 @@ impl SparseMat {
         mode: u8,
         seed: i64,
     ) -> Self {
-        if mode == 0 {
+        if mode == 0 {          // symmetric matrix, undirected graph
             let upper = SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, false, seed);
             let lower = upper.transpose();
             upper.add(&lower)
-        } else if mode == 1 {
+        } else if mode == 1 {   // lower triangular matrix
             SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, true, seed)
-        } else if mode == 2 {
+        } else if mode == 2 {   // upper triangular matrix
             SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, false, seed)
-        } else {
+        } else {                // nonsymmetric matrix, directed graph 
             let upper = SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, false, seed);
             let lower = SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, true, seed + 1);
             upper.add(&lower)
@@ -710,7 +750,8 @@ impl SparseMat {
         lower: bool,
         _seed: i64,
     ) -> Self {
-        let mut tri = SparseMat::new(num_vert, num_vert, 0);
+        // let mut tri = SparseMat::new(num_vert, num_vert, 0);
+        let mut tri = SparseMat::new_local(num_vert, num_vert, 0); // 0-0 jg: make local mtx for test
         let l_max = (std::u32::MAX as f64).ln();
         let d = (1.0 - prob).ln();
         let numrows = num_vert;
