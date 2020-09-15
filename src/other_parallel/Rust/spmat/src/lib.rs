@@ -619,30 +619,40 @@ impl SparseMat {
             println!("offsets differ {:?} {:?}", self, other);
             return false;
         }
-        // need to sort nonzeros before compare 0-0 why? 
+        // need to sort nonzeros before compare 0-0 jg: why? 
         for row in 0..self.numrows_this_rank {
-            // let mut self_sorted:  Vec<(<usize>,<f64>)>;
-            // let mut other_sorted: Vec<(<usize>,<f64>)>;
-            let mut self_sorted;
-            let mut other_sorted;
-            if let Some(sval) = self.value {
-                if let Some(oval) = other.value {
-                    self_sorted  = self.nonzero[self.offset[row]..self.offset[row + 1]]
-                        .zip(sval[self.offset[row]..self.offset[row + 1]]);
-                    other_sorted = other.nonzero[other.offset[row]..other.offset[row + 1]]
-                        .zip(oval[other.offset[row]..other.offset[row + 1]]);
+            // we already know self & other offsets are the same
+            let range = self.offset[row]..self.offset[row + 1]; 
+            if let Some(sval) = &self.value {
+                if let Some(oval) = &other.value {
+                    let mut self_sorted: Vec<_> = self.nonzero[range.clone()]
+                        .iter()
+                        .zip(&sval[range.clone()])
+                        .collect();
+                    let mut other_sorted: Vec<_> = other.nonzero[range.clone()]
+                        .iter()
+                        .zip(&oval[range.clone()])
+                        .collect();
+                    self_sorted.sort_by( |a,b| b.0.cmp(&a.0));
+                    other_sorted.sort_by(|a,b| b.0.cmp(&a.0));
+                    if self_sorted != other_sorted {
+                        println!("nonzeros differ {:?} {:?}", self, other);
+                        return false;
+                    }
                 }
             } else {
-                self_sorted  = self.nonzero[self.offset[row]..self.offset[row + 1]]
-                    .zip(vec![1.0_f64; self.offset[row + 1] - self.offset[row]]);
-                other_sorted = other.nonzero[other.offset[row]..other.offset[row + 1]]
-                    .zip(vec![1.0_f64; other.offset[row + 1] - other.offset[row]]);
+                let mut self_sorted: Vec<_>  = self.nonzero[range.clone()]
+                    .iter()
+                    .collect();
+                let mut other_sorted: Vec<_> = other.nonzero[range.clone()]
+                    .iter()
+                    .collect();
+                self_sorted.sort();
+                other_sorted.sort();
+                if self_sorted != other_sorted {
+                    println!("nonzeros differ {:?} {:?}", self, other);
+                    return false;
             }
-            self_sorted.sort_by( |a,b| b[0].cmp(a[0]));
-            other_sorted.sort_by(|a,b| b[0].cmp(a[0]));
-            if self_sorted != other_sorted {
-                println!("nonzeros differ {:?} {:?}", self, other);
-                return false;
             }
         }
         true
