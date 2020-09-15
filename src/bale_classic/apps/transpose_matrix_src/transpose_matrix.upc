@@ -86,7 +86,6 @@ static struct argp_child children_parsers[] =
 int main(int argc, char * argv[])
 {
 
-  int64_t i;
   int64_t check = 1;
 
   /* process command line */

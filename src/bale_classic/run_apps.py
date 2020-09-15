@@ -15,6 +15,17 @@ def determine_launcher():
 
 apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles", "write_sparse_matrix"]
 
+
+def append_to_file(master_file, file_to_add, first):
+    fin = open(file_to_add, 'r')
+    newdata = fin.read()
+    fin.close()
+    fout = open(master_file, 'a')
+    if not first:
+        fout.write(",")
+    fout.write(newdata)
+    fout.close()        
+        
 def run_app(path, node_range, app_list, option_str, impl_mask, json_file):
   for app in app_list:
     runs = []
@@ -38,9 +49,15 @@ def run_app(path, node_range, app_list, option_str, impl_mask, json_file):
     if impl_mask is not None:
       for i,run in enumerate(runs):
         runs[i] = "{0} -M {1}".format(run, impl_mask)
+    first = True
     if json_file is not None:
+      fout = open(json_file,'w')
+      fout.write("[\n")
+      fout.close()
+      tmp_json_file = "tmp_{0}".format(json_file)  
       for i,run in enumerate(runs):
-        runs[i] = "{0} -j {1}".format(run, json_file)
+        runs[i] = "{0} -j {1}".format(run, tmp_json_file)
+
     
     for pes in node_range:
       #if pes == 0: continue      
@@ -51,8 +68,15 @@ def run_app(path, node_range, app_list, option_str, impl_mask, json_file):
         assert(ret.returncode == 0)
         lines = ret.stderr.decode('utf-8')
         with open('run_all.log','a') as wp:
-          wp.write(lines)          
-
+          wp.write(lines)
+        if json_file is not None:
+            append_to_file(json_file, tmp_json_file, first)
+            first=False
+            
+    if json_file is not None:
+        fout = open(json_file,"a")
+        fout.write("]")
+        fout.close()
 
 if __name__ == '__main__':
 

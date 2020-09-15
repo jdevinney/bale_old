@@ -315,7 +315,7 @@ int bale_app_init(int argc, char ** argv,
   if(sargs->json){
   /* open the json file */ 
     if(MYTHREAD == 0){
-      FILE * fp = fopen(sargs->json_output, "a");
+      FILE * fp = fopen(sargs->json_output, "w");
       fprintf(fp, "{\n\"bale_version\": \"%4.2f\",\n", BALE_VERSION);
       fprintf(fp, "\"date\": \"%04d-%02d-%02d.%02d:%02d\",\n",
                 date->tm_year+1990, date->tm_mon, date->tm_mday,
@@ -359,7 +359,7 @@ void bale_app_finish(std_args_t * sargs){
   if(sargs->json && !MYTHREAD){    
     FILE * jp = fopen(sargs->json_output, "r+");
     fseek(jp,-2,SEEK_END);
-    fprintf(jp,"\n},\n");
+    fprintf(jp,"\n}");
     fclose(jp);
   }
   lgp_finalize();

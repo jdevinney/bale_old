@@ -316,7 +316,6 @@ int main(int argc, char * argv[]) {
     lgp_barrier();
 
     bale_app_write_time(&args.std, model_str, laptime);
-    //T0_fprintf(stderr,"  %8.3lf seconds\n", laptime);
 
     if( check_is_triangle(mat, rperminv2, cperminv2, args.std.dump_files) ) {
       T0_fprintf(stderr,"\nERROR: After toposort_matrix_upc: mat2 is not upper-triangular!\n");
