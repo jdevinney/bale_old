@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -38,7 +38,6 @@
 #include <getopt.h>
 #include <libgetput.h>
 #include <spmat.h>
-#include <spmat_opts.h>
 #include <std_options.h>
 
 //#include "alternates/transpose_matrix_alternates.h"
@@ -77,11 +76,6 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   return(0);
 }
 
-static struct argp_option options[] =
-  {
-    {0}
-  };
-
 static struct argp_child children_parsers[] =
   {
     {&std_options_argp, 0, "Standard Options", -2},
@@ -91,26 +85,21 @@ static struct argp_child children_parsers[] =
 
 int main(int argc, char * argv[])
 {
-  lgp_init(argc, argv);
-  
-  int64_t i;
+
   int64_t check = 1;
-  sparsemat_t * outmat;
 
   /* process command line */
   int ret = 0;
   args_t args;
-  struct argp argp = {options, parse_opt, 0,
+  struct argp argp = {NULL, parse_opt, 0,
                       "Parallel sparse matrix transpose.", children_parsers};
-  if(MYTHREAD == 0){
-    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
-  }
-  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  
+  ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
-  if(!MYTHREAD && !args.std.quiet){
-    write_std_graph_options(&args.gstd);
+  if(!MYTHREAD){
+    write_std_graph_options(&args.std, &args.gstd);
     write_std_options(&args.std);
   }
 
@@ -122,42 +111,44 @@ int main(int argc, char * argv[])
     
   double t1;
   minavgmaxD_t stat[1];
-  int64_t error = 0;  
+  int64_t error = 0;
   int64_t use_model;
+  sparsemat_t * outmat;
+  char model_str[32];
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
     case AGI_Model:
       outmat = transpose_matrix_agi(inmat);
-      T0_fprintf(stderr, "AGI:     ");
+      sprintf(model_str, "AGI");
       break;
     case EXSTACK_Model:
       outmat = transpose_matrix_exstack(inmat, args.std.buffer_size);
-      T0_fprintf(stderr, "Exstack: ");
+      sprintf(model_str, "Exstack");
       break;
     case EXSTACK2_Model:
       outmat = transpose_matrix_exstack2(inmat, args.std.buffer_size);
-      T0_fprintf(stderr, "Exstack2:");
+      sprintf(model_str, "Exstack2");
       break;
     case CONVEYOR_Model:
       outmat = transpose_matrix_conveyor(inmat);
-      T0_fprintf(stderr, "Conveyor:");
+      sprintf(model_str, "Conveyor");
       break;    
     case ALTERNATE_Model:
-      T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
-      break;
+      continue;
     case 0:
       continue;
     }
     t1 = wall_seconds() - t1;
     lgp_min_avg_max_d( stat, t1, THREADS );
-    T0_fprintf(stderr, "%8.3lf\n", stat->avg);
-
+    bale_app_write_time(&args.std, model_str, stat->avg);
+    
     /* correctness check */
-    if(0 && check){      
+    if(check){
       sparsemat_t * outmatT = transpose_matrix(outmat);
       if(compare_matrix(outmatT, inmat)){
         T0_fprintf(stderr,"ERROR: transpose of transpose does not match!\n");
+        error = 1;
         if(args.std.dump_files){
           write_matrix_mm(outmat, "outmat");
           write_matrix_mm(outmatT, "outmatT");
@@ -170,7 +161,7 @@ int main(int argc, char * argv[])
   
   clear_matrix(inmat);
   lgp_barrier();
-  lgp_finalize();
+  bale_app_finish(&args.std);
   return(error);
 }
 
