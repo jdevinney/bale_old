@@ -1,3 +1,45 @@
+/******************************************************************
+//
+//
+//  Copyright(C) 2018, Institute for Defense Analyses
+//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+//  This material may be reproduced by or for the US Government
+//  pursuant to the copyright license under the clauses at DFARS
+//  252.227-7013 and 252.227-7014.
+// 
+//
+//  All rights reserved.
+//  
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//    * Neither the name of the copyright holder nor the
+//      names of its contributors may be used to endorse or promote products
+//      derived from this software without specific prior written permission.
+// 
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+//  OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
+ *****************************************************************/
+
+/*! \file std_options.upc
+ * \brief The main source for the std_options library.
+ */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +48,7 @@
 #include <libgetput.h>
 #include "std_options.h"
 
+// the arg_parse function for std_args_t.
 static int std_parse_opt(int key, char * arg, struct argp_state * state){
   std_args_t * args = (std_args_t *)state->input;
   switch(key){
@@ -42,6 +85,7 @@ struct argp std_options_argp = {
   std_options, std_parse_opt, 0, 0, 0
 };
 
+// This function writes some of the standard options and their values to the screen (or json file).
 void write_std_options(std_args_t * sargs){
   if(sargs->json == 0){
     fprintf(stderr,"Standard options:\n");
@@ -58,7 +102,7 @@ void write_std_options(std_args_t * sargs){
 }
 
 
-
+// the arg_parse function for std_graph_args_t.
 static int graph_parse_opt(int key, char * arg, struct argp_state * state){
   std_graph_args_t * args = (std_graph_args_t *)state->input;
   switch(key){
@@ -267,6 +311,18 @@ int check_for_exit(int argc, char * argv[], int ret){
   return(0);
 }
 
+
+void share_args(void * args, size_t n){
+  SHARED char * temp = lgp_all_alloc(THREADS, n);
+  if(!MYTHREAD)
+    lgp_memput(temp, (void*)args, n, 0);
+  lgp_barrier();
+  lgp_memget((void*)args, temp, n, 0);
+  lgp_barrier();
+  lgp_all_free(temp);
+}
+
+
 int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, int ret){
   
   ret = check_for_exit(argc, argv, ret);
@@ -278,6 +334,7 @@ int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, in
   share_args(args, args_len);
   return(0);
 }
+
 
 
 /*! \brief This function initializes the parallel environment, parses the command line, and prints

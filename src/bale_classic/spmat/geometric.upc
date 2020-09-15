@@ -93,6 +93,8 @@ int64_t pe_and_offset_to_global_index(int64_t pe, int64_t offset, int64_t n, lay
 }
 
 
+
+// This function computes all edges between two sectors and added them to the edge list
 void append_edges_between_sectors(uint64_t this_sec_idx,
                                   uint64_t other_sec_idx,
                                   int64_t my_first_sector,

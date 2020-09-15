@@ -152,7 +152,7 @@ int main(int argc, char * argv[]) {
   // read in a matrix or generate a random graph
   sparsemat_t * L = get_input_graph(&args.std, &args.gstd);
   if(!L){T0_fprintf(stderr, "ERROR: transpose: L is NULL!\n");return(-1);}
-
+  
   if(args.gstd.readfile){
     ret = tril(L, -1);
     if(ret){
@@ -162,6 +162,10 @@ int main(int argc, char * argv[]) {
     T0_fprintf(stderr,"ERROR: L is not lower triangular!\n");
     lgp_global_exit(1);  
   }  
+
+  if(args.std.dump_files){
+    write_matrix_mm(L, "triangle_inmat");
+  }
   
   lgp_barrier();
   

@@ -416,16 +416,6 @@ void dump_header(int argc, char *argv[]) {
 #endif
 
 
-void share_args(void * args, size_t n){
-  SHARED char * temp = lgp_all_alloc(THREADS, n);
-  if(!MYTHREAD)
-    lgp_memput(temp, (void*)args, n, 0);
-  lgp_barrier();
-  lgp_memget((void*)args, temp, n, 0);
-  lgp_barrier();
-  lgp_all_free(temp);
-}
-
 
 /*! 
  * \brief This routine uses gettimeofday routine to give access 

@@ -119,10 +119,9 @@ Run with the --help, -?, or --usage flags for run details.
  * \param mat the original matrix
  * \param rperminv the row permutation
  * \param cperminv the column permutation
- * \param dump_files debugging flag
  * \return 0 on success, 1 otherwise
  */
-int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t dump_files) {
+int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64_t * cperminv) {
   int ret = 0;
 
   int rf = is_perm(rperminv, mat->numrows);
@@ -317,7 +316,7 @@ int main(int argc, char * argv[]) {
 
     bale_app_write_time(&args.std, model_str, laptime);
 
-    if( check_is_triangle(mat, rperminv2, cperminv2, args.std.dump_files) ) {
+    if( check_is_triangle(mat, rperminv2, cperminv2) ) {
       T0_fprintf(stderr,"\nERROR: After toposort_matrix_upc: mat2 is not upper-triangular!\n");
     }
   }
