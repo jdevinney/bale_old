@@ -1,7 +1,7 @@
 #/******************************************************************
 #
 #
-#  Copyright(C) 2018, Institute for Defense Analyses
+#  Copyright(C) 2020, Institute for Defense Analyses
 #  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 #  This material may be reproduced by or for the US Government
 #  pursuant to the copyright license under the clauses at DFARS
@@ -41,13 +41,11 @@ common_sources += spmat_exstack.upc
 common_sources += spmat_exstack2.upc 
 common_sources += spmat_conveyor.upc
 common_sources += spmat_utils.upc
-common_sources += spmat_opts.upc
 common_sources += geometric.upc
 pkconfigdir=@libdir@/pkgconfig
 
-include_HEADERS=spmat.h spmat_enums.h spmat_opts.h
+include_HEADERS=spmat.h spmat_enums.h
 
-#lib_LIBRARIES = 
 lib_LIBRARIES = libspmat.a
 
 pkconfig_DATA = @PACKAGE_NAME@.pc

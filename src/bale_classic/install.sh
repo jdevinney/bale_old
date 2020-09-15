@@ -1,7 +1,7 @@
 #!/bin/bash 
 #
 #
-#  Copyright(C) 2018, Institute for Defense Analyses
+#  Copyright(C) 2020, Institute for Defense Analyses
 #  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 #  This material may be reproduced by or for the US Government
 #  pursuant to the copyright license under the clauses at DFARS
@@ -58,7 +58,7 @@ export BUILDDIR=$HERE/build_$PLATFORM
 export INSTALLDIR=$BUILDDIR
 mkdir -p $BUILDDIR
 
-packages=("libgetput" "std_options" "exstack" "convey" "spmat" "apps")
+packages=("libgetput" "exstack" "convey" "spmat" "std_options" "apps")
 
 fromscratch=0
 justmake=0

@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -41,7 +41,6 @@
  */
 
 #include "toposort.h"
-#include <spmat_opts.h>
 #include <std_options.h>
 
 /*!
@@ -120,10 +119,9 @@ Run with the --help, -?, or --usage flags for run details.
  * \param mat the original matrix
  * \param rperminv the row permutation
  * \param cperminv the column permutation
- * \param dump_files debugging flag
  * \return 0 on success, 1 otherwise
  */
-int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t dump_files) {
+int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64_t * cperminv) {
   int ret = 0;
 
   int rf = is_perm(rperminv, mat->numrows);
@@ -154,7 +152,7 @@ int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64
 sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed) {
   sparsemat_t * mat = NULL;
   double t;
-  write_matrix_mm(tri_mat, "tri_mat");
+  //write_matrix_mm(tri_mat, "tri_mat");
   if(!is_upper_triangular(tri_mat, 1)){
     if(is_lower_triangular(tri_mat, 1)){
       mat = transpose_matrix(tri_mat);
@@ -217,11 +215,6 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   return(0);
 }
 
-static struct argp_option options[] =
-  {
-    {0}
-  };
-
 static struct argp_child children_parsers[] =
   {
     {&std_options_argp, 0, "Standard Options", -2},
@@ -231,38 +224,32 @@ static struct argp_child children_parsers[] =
 
 
 int main(int argc, char * argv[]) {
-  lgp_init(argc, argv);
-
-  int64_t i;
-  double t1;
 
   /* process command line */
   args_t args;
-  struct argp argp = {options, parse_opt, 0,
+  struct argp argp = {NULL, parse_opt, 0,
                       "Parallel topological sort.", children_parsers};
-  
-  int ret = 0;
-  if(MYTHREAD == 0){
-    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
-    /* force input graph to be undirected and to have loops, no matter what the options */
-    if(args.gstd.directed == 1){
-      T0_fprintf(stderr, "toposort needs undirected graph input, overriding -d option.\n");
-    }
-    args.gstd.directed = 0;
-    args.gstd.loops = 1;
-  }
 
-  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
+
+  /* force input graph to be undirected and to have loops, no matter what the options */
+  if(args.gstd.directed == 1){
+    T0_fprintf(stderr, "toposort needs undirected graph input, overriding -d flag.\n");
+    args.gstd.directed = 0;
+  }
+  if(args.gstd.loops == 0){
+    T0_fprintf(stderr, "toposort needs loops, overriding absence of -l flag.\n");
+    args.gstd.loops = 1;
+  }
   
-  if(!MYTHREAD && !args.std.quiet){
-    write_std_graph_options(&args.gstd);
+  if(!MYTHREAD){
+    write_std_graph_options(&args.std, &args.gstd);
     write_std_options(&args.std);
   }
   
   // read in a matrix or generate a random graph
-
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
   if(!inmat){T0_printf("Error! toposort: inmat is NULL");lgp_global_exit(-1);}
   
@@ -291,33 +278,33 @@ int main(int argc, char * argv[]) {
 
   int64_t use_model;
   double laptime = 0.0;
-  
+  char model_str[32];
   for( use_model=1L; use_model < 32; use_model *=2 ) {
 
     switch( use_model & args.std.models_mask ) {
     case AGI_Model:
-      T0_fprintf(stderr,"      AGI: ");
+      sprintf(model_str, "AGI");
       laptime = toposort_matrix_agi(rperminv2, cperminv2, mat, tmat);
       break;
 
     case EXSTACK_Model:
-      T0_fprintf(stderr,"  Exstack: ");
+      sprintf(model_str, "Exstack");
       laptime = toposort_matrix_exstack(rperminv2, cperminv2, mat, tmat, args.std.buffer_size);
       break;
 
     case EXSTACK2_Model:
-      T0_fprintf(stderr," Exstack2: ");
+      sprintf(model_str, "Exstack2");
       laptime = toposort_matrix_exstack2(rperminv2, cperminv2, mat, tmat, args.std.buffer_size);
       break;
 
     case CONVEYOR_Model:
-      T0_fprintf(stderr," Conveyor: ");
+      sprintf(model_str, "Conveyor");
       laptime = toposort_matrix_convey(rperminv2, cperminv2, mat, tmat);
       break;
 
     case ALTERNATE_Model:
       //T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
-      T0_fprintf(stderr," ALTERNATE: ");
+      sprintf(model_str, "Alternate");
       laptime = toposort_matrix_cooler(rperminv2, cperminv2, mat, tmat);
       break;
     
@@ -326,15 +313,18 @@ int main(int argc, char * argv[]) {
       
     }
     lgp_barrier();
-    T0_fprintf(stderr,"  %8.3lf seconds\n", laptime);
 
-    if( check_is_triangle(mat, rperminv2, cperminv2, args.std.dump_files) ) {
+    bale_app_write_time(&args.std, model_str, laptime);
+
+    if( check_is_triangle(mat, rperminv2, cperminv2) ) {
       T0_fprintf(stderr,"\nERROR: After toposort_matrix_upc: mat2 is not upper-triangular!\n");
     }
   }
 
   lgp_barrier();
-  lgp_finalize();
+
+  bale_app_finish(&args.std);
+  
   return(0);  
 }
 

@@ -162,28 +162,14 @@ int64_t lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, i
  * \ingroup libgetputgrp
  */
 void lgp_init(int argc, char *argv[]) {
-  time_t now = time(NULL);
-  struct tm *date = localtime(&now);
-  T0_fprintf(stderr,"\n***************************************************************\n");
-  T0_fprintf(stderr,"Bale Version %4.2f (UPC %ld): %04d-%02d-%02d.%02d:%02d\n",
-	     BALE_VERSION,
-             __UPC_VERSION__,
-	     date->tm_year+1990, date->tm_mon, date->tm_mday, date->tm_hour, date->tm_min);
-
-  int i;
-
-  T0_fprintf(stderr,"Running below command on %d PEs:", THREADS);
-  for(i=0; i<argc;i++){
-    T0_fprintf(stderr," %s", argv[i]);
-  }
-  T0_fprintf(stderr,"\n");
-  T0_fprintf(stderr,"***************************************************************\n\n");
+  
   setlocale(LC_NUMERIC,"");
 
 #if __UPC_ATOMIC__ && !( __cray__ || _CRAYC )
   lgp_atomic_domain = upc_all_atomicdomain_alloc(UPC_INT64, UPC_ADD | UPC_INC | UPC_MAX | UPC_MIN | UPC_CSWAP, 0);
 #endif
 }
+
 
 /*!
  * \brief function to shutdown a model if needed
@@ -225,24 +211,6 @@ Define_Reducer(lgp_reduce_max_d, double, double, upc_all_reduceD, UPC_MAX)
 
 void lgp_init(int argc, char *argv[]) {
   shmem_init();
-  
-  time_t now = time(NULL);
-  struct tm *date = localtime(&now);
-  T0_fprintf(stderr,"\n***************************************************************\n");
-  T0_fprintf(stderr,"Bale Version %4.2f (OpenShmem version %d.%d): %04d-%02d-%02d.%02d:%02d\n",
-	     BALE_VERSION,
-             SHMEM_MAJOR_VERSION, SHMEM_MINOR_VERSION,
-             date->tm_year+1990, date->tm_mon+1, date->tm_mday, date->tm_hour, date->tm_min); 
-  int i;
-
-  T0_fprintf(stderr,"Running on %d PEs:", THREADS);
-  for(i=0; i<argc;i++){
-    T0_fprintf(stderr," %s", argv[i]);
-  }
-  T0_fprintf(stderr,"\n");
-  T0_fprintf(stderr,"***************************************************************\n\n");
-  //THREADS = shmem_n_pes();
-  //MYTHREAD = shmem_my_pe();
   setlocale(LC_NUMERIC,"");
 }
 
@@ -448,63 +416,6 @@ void dump_header(int argc, char *argv[]) {
 #endif
 
 
-void share_args(void * args, size_t n){
-  SHARED char * temp = lgp_all_alloc(THREADS, n);
-  if(!MYTHREAD)
-    lgp_memput(temp, (void*)args, n, 0);
-  lgp_barrier();
-  lgp_memget((void*)args, temp, n, 0);
-  lgp_barrier();
-  lgp_all_free(temp);
-}
-
-int check_for_exit(int argc, char * argv[], int ret){
-  int i;
-  for(i = 0; i < argc; i++){
-    //printf("argv[%d] : %s\n", i, argv[i]);
-    if(strcmp(argv[i], "--help") == 0)
-      return(1);
-    if(strcmp(argv[i], "-?") == 0)
-      return 1;
-    if(strcmp(argv[i], "--usage") == 0)
-      return 1;
-  }
-  ret = (int)lgp_reduce_add_l((long)ret);
-  if(ret) return(-1);
-  return(0);
-}
-
-#if 0
-int distribute_command_line(int argc, char ** argv, struct argp * argp, void * args, size_t arg_len){
-  int ret = 0;
-  if(MYTHREAD == 0){
-    ret = argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, &args);
-  }
-
-  ret = check_for_exit(argc, argv, ret);
-  if(ret){
-    lgp_finalize();
-    return(ret);
-  }
-  share_args(args, arg_len);
-
-}
-#endif
-
-#if 1
-int distribute_cmd_line(int argc, char ** argv, void * args, size_t args_len, int ret){
-
-  
-  ret = check_for_exit(argc, argv, ret);
-  if(ret){
-    lgp_finalize();
-    return(ret);
-  }
-  
-  share_args(args, args_len);
-  return(0);
-}
-#endif
 
 /*! 
  * \brief This routine uses gettimeofday routine to give access 
