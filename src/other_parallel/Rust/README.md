@@ -3,10 +3,15 @@
 This is the implementation of the Bale applications, using the Rust
 programming language.
 
-It builds on the rust conveyor library [available
-here](https://github.com/wwc559/convey_private). 
+It depends on the rust conveyor library [available
+here](https://github.com/wwc559/convey_private).  It is 
+strongly advised that you do a *standalone build and test* of 
+`convey_private` *first*, following the instructions in that library.
+This can be a *bit tricky* as you probably need to specify where the
+underlying parallel communication library is installed on
+your system.
 
-The build is setup to run correctly if you place convey_private
+This build is setup to run correctly if you place `convey_private`
 in the same directory where you placed bale.  Modify Cargo.toml,
 spmat/Cargo.toml, triangle/Cargo.toml, and toposort/Cargo.toml
 if you have placed it in a different location.
