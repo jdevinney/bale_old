@@ -750,8 +750,8 @@ impl SparseMat {
         lower: bool,
         _seed: i64,
     ) -> Self {
-        // let mut tri = SparseMat::new(num_vert, num_vert, 0);
-        let mut tri = SparseMat::new_local(num_vert, num_vert, 0); // 0-0 jg: make local mtx for test
+        let mut tri = SparseMat::new(num_vert, num_vert, 0);
+        // let mut tri = SparseMat::new_local(num_vert, num_vert, 0); // jg: make local mtx for test
         let l_max = (std::u32::MAX as f64).ln();
         let d = (1.0 - prob).ln();
         let numrows = num_vert;
