@@ -86,7 +86,6 @@ double sssp_bellman_agi(d_array_t *tent, sparsemat_t * mat, int64_t v0)
   int64_t i, li, k, loop;
   int64_t lnumrows = mat->lnumrows;
 
-  set_d_array(tent,INFINITY);
   lgp_barrier();
   if( MYTHREAD == 0 ){
     lgp_put_double(tent->entry, v0, 0.0);

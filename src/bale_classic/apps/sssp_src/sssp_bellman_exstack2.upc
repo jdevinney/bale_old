@@ -80,7 +80,7 @@ static int64_t bellman_exstack2_relax_process(d_array_t *tent, exstack2_t *ex2, 
  * \param v0 is the the staring row (vertex)
  * \return average run time
  */
-double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
+double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 {
   double t1 = wall_seconds();
 
@@ -102,7 +102,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
   pe_v0 = v0 % THREADS;
   li_v0 = v0 / THREADS;
 
-  tent0 = init_d_array(tent->num);
+  tent0 = init_d_array(dist->num);
   set_d_array(tent0, INFINITY);
   lgp_barrier();
   if(pe_v0 == MYTHREAD){
@@ -122,7 +122,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
   //dump_tent("Exstack2: 1", tent1);
 
   lgp_barrier();
-  tent2 = init_d_array(tent->num);
+  tent2 = init_d_array(tent1->num);
 
   tent_old = tent0;
   tent_cur = tent1;
@@ -142,8 +142,8 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
         J = mat->lnonzero[k];
         pe  = J % THREADS;
         pkg.lj = J / THREADS;
-        pkg.tw = tent->lentry[li] + mat->lvalue[k];
-        if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, pkg.i, J, tent->lentry[li],  pkg.tw);}
+        pkg.tw = tent_cur->lentry[li] + mat->lvalue[k];
+        if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, pkg.i, J, tent_cur->lentry[li],  pkg.tw);}
         if( exstack2_push(ex2, &pkg, pe) == 0 ) {
             bellman_exstack2_relax_process(tent_new, ex2, 0);
             k--;
@@ -155,7 +155,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 
     lgp_barrier();
     if( lgp_reduce_add_l(changed) == 0 ){
-      replace_d_array(tent, tent_cur);
+      replace_d_array(dist, tent_cur);
       break;
     }
 
@@ -170,7 +170,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
     exstack2_reset(ex2);
   }
 
-  //dump_tent("EXSTACK2: ", tent);
+  //dump_tent("EXSTACK2: ", dist);
   lgp_barrier();
   minavgmaxD_t stat[1];
   t1 = wall_seconds() - t1;

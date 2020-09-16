@@ -105,7 +105,7 @@ int main(int argc, char * argv[])
 
   int64_t buf_cnt = 1024;
   int64_t models_mask = ALL_Models;  // default is running all models
-  int64_t l_numrows = 4000;         // number of a rows per thread
+  int64_t l_numrows = 150;         // number of a rows per thread
   int64_t read_graph = 0L;           // read graph from a file
   char filename[64];
   int64_t cores_per_node = 0;
@@ -192,14 +192,20 @@ int main(int argc, char * argv[])
       switch( (use_model & models_mask) | use_alg ) {
       case (AGI_Model | USE_BELLMAN):
         T0_fprintf(stderr,"    Bellman-Ford  AGI: ");
+        //dump_tent("AGI          :",tent);
+        set_d_array(tent, INFINITY);
         laptime = sssp_bellman_agi(tent, mat, 0); 
+        //dump_tent("AGI:",tent);
         comp_tent = copy_d_array(tent);
         T0_fprintf(stderr,"Bellman AGI nothing to compare\n");
         break;
 
       case (EXSTACK_Model | USE_BELLMAN):
         T0_fprintf(stderr,"  Bellman-Ford Exstack: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("Ex Bell      :",tent);
         laptime = sssp_bellman_exstack(tent, mat, 0);
+        //dump_tent("Ex Bell      :",tent);
         if(comp_tent == NULL){
           comp_tent = copy_d_array(tent);
           T0_fprintf(stderr,"Bellman Exstack nothing to compare\n");
@@ -211,7 +217,10 @@ int main(int argc, char * argv[])
 
       case (EXSTACK_Model | USE_DELTA):
         T0_fprintf(stderr,"  Delta Exstack: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("Ex Delta     :",tent);
         laptime = sssp_delta_exstack(tent, mat, 0);
+        //dump_tent("Ex Delta     :",tent);
         if(comp_tent == NULL){
           comp_tent = copy_d_array(tent);
           T0_fprintf(stderr,"Delta Exstack nothing to compare\n");
@@ -223,7 +232,10 @@ int main(int argc, char * argv[])
 
       case (EXSTACK2_Model | USE_BELLMAN):
         T0_fprintf(stderr,"  Bellman-Ford: Exstack2: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("Ex2 Bell     :",tent);
         laptime = sssp_bellman_exstack2(tent, mat, 0);
+        //dump_tent("Ex2 Bell     :",tent);
         if(comp_tent == NULL){
           comp_tent = copy_d_array(tent);
           T0_fprintf(stderr,"Bellman Exstack2 nothing to compare\n");
@@ -236,7 +248,10 @@ int main(int argc, char * argv[])
 
       case (CONVEYOR_Model | USE_BELLMAN):
       T0_fprintf(stderr,"  Bellman-Ford Convey: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("C  Bell      :",tent);
         laptime = sssp_bellman_convey(tent, mat, 0);
+        //dump_tent("C  Bell      :",tent);
         if(comp_tent == NULL){
           comp_tent = copy_d_array(tent);
           T0_fprintf(stderr,"Bellman Conveyor nothing to compare\n");

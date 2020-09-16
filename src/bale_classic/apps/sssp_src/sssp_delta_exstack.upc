@@ -153,8 +153,9 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   pkg_delta_e_t pkg;
 
 
+
   //TODO: Fix the buffer size 
-  exstack_t * ex = exstack_init(64, sizeof(pkg_delta_e_t));
+  exstack_t * ex = exstack_init(32, sizeof(pkg_delta_e_t));
   if( ex == NULL) return(-1.0);
   double tm = wall_seconds();
 
@@ -230,6 +231,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   int64_t all_i = 0;
   while(1){
     if(DPRT){printf("%02d: Outer loop rbi = %"PRId64"\n", MYTHREAD, rbi);}
+
     // find the minimum indexed non-empty bucket 
     for(i = 0; i < ds->num_buckets; i++){
       if(ds->B[(rbi + i) % ds->num_buckets] != -1)
@@ -238,6 +240,12 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
     if(DPRT){printf("%02d: my min bucket %ld\n", MYTHREAD, rbi+i);}
 
     all_i = lgp_reduce_min_l(i);
+
+    //if(all_i == 0){ // B[rbi] is empty on all threads
+    //  rbi = rbi + 1;
+    //  continue;
+    //}
+
     if(all_i == num_buckets){  //All buckets are empty, we are done
         break;
     }

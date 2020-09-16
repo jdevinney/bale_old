@@ -61,7 +61,7 @@ static int64_t bellman_convey_relax_process(d_array_t *tent, convey_t *conv, int
     
   while(convey_pull(conv, &pkg, NULL) == convey_OK){
     if( tent->lentry[pkg.lj] > pkg.tw ) {
-      printf("Convey: replace %ld weight %lg with %lg\n", pkg.lj*THREADS + MYTHREAD, tent->lentry[pkg.lj], pkg.tw);
+      if(0){printf("Convey: replace %ld weight %lg with %lg\n", pkg.lj*THREADS + MYTHREAD, tent->lentry[pkg.lj], pkg.tw);}
       tent->lentry[pkg.lj] = pkg.tw;
     }
   }
@@ -75,62 +75,93 @@ static int64_t bellman_convey_relax_process(d_array_t *tent, convey_t *conv, int
  * \param v0 is the starting vertex
  * \return average run time
  */
-double sssp_bellman_convey(d_array_t *tent, sparsemat_t *mat, int64_t v0) 
+double sssp_bellman_convey(d_array_t *dist, sparsemat_t *mat, int64_t v0) 
 {
-  printf(" Running Conveyor SSSP Bellman-Ford\n");
+  int64_t k, li, J, pe;
+  int64_t pe_v0, li_v0;
+  int64_t loop;
+  int64_t changed;
+  conv_bellman_t  pkg;
+  d_array_t *tent0, *tent1, *tent2;
+  d_array_t *tent_old, *tent_cur, *tent_new, *tent_temp;
+
+  if(0){printf(" Running Conveyor SSSP Bellman-Ford\n");}
 
   convey_t * conv = convey_new(SIZE_MAX, 0, NULL, 0);
   if(conv == NULL){return(-1);}
 
   double t1 = wall_seconds();
-  if(mat->numrows > 20){
-    if(!MYTHREAD)
-     printf("too_big \n");
-    return(-1.0);
+
+  pe_v0 = v0 % THREADS;
+  li_v0 = v0 / THREADS;
+
+  tent0 = init_d_array(dist->num);
+  set_d_array(tent0, INFINITY);
+  lgp_barrier();
+  if(pe_v0 == MYTHREAD){
+    tent0->lentry[li_v0] = 0.0;
+  }
+  //dump_tent("\nConvey: 0", tent0);
+
+  tent1 = copy_d_array(tent0);
+  if(pe_v0 == MYTHREAD ){
+    for(k = mat->loffset[li_v0]; k < mat->loffset[li_v0+1]; k++){
+      lgp_put_double(tent1->entry, mat->lnonzero[k], mat->lvalue[k]);
+    }
   }
 
-  conv_bellman_t  pkg;
-  int64_t k, pe, li, J;
-  int64_t loop;
-
-  set_d_array(tent, INFINITY);
-  lgp_barrier();
-  if( MYTHREAD == 0 ){
-    lgp_put_double(tent->entry, v0, 0.0);
-  }
   lgp_barrier();
 
-  //dump_tent("Convey: ", tent);
+  //dump_tent("Convey: 1", tent1);
+
   lgp_barrier();
+  tent2 = init_d_array(tent1->num);
+
+  tent_old = tent0;
+  tent_cur = tent1;
+  tent_new = tent2;
 
   for(loop=0; loop<mat->numrows; loop++){
+    changed = 0;
     convey_begin(conv, sizeof(conv_bellman_t ));
-    for(li=0; li < mat->lnumrows; li++){
-//      if( ltent[li]  == INFINITY )
-//        continue;
-      pkg.i = li * THREADS + MYTHREAD;
+    for(li=0; li < mat->lnumrows; li++)
+      tent_new->lentry[li] = tent_cur->lentry[li];
 
-      for(k=mat->loffset[li]; k< mat->loffset[li + 1]; k++){
-        J = mat->nonzero[k];
+    for(li=0; li < mat->lnumrows; li++){
+      if(tent_old->lentry[li] == tent_cur->lentry[li])
+        continue;
+      changed = 1;
+      pkg.i = li * THREADS + MYTHREAD;
+      for(k=mat->loffset[li]; k< mat->loffset[li+1]; k++){
+        J = mat->lnonzero[k];
         pe  = J % THREADS;
         pkg.lj = J / THREADS;
-        pkg.tw = tent->lentry[li] + mat->value[k];
-        //printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, pkg.i, J, tent->lentry[li],  pkg.tw); 
+        pkg.tw = tent_cur->lentry[li] + mat->lvalue[k];
+        if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, pkg.i, J, tent_cur->lentry[li],  pkg.tw);}
         if( convey_push(conv, &pkg, pe) != convey_OK ){
-          bellman_convey_relax_process(tent, conv, 0); 
+          bellman_convey_relax_process(tent_new, conv, 0); 
           k--;
         }
       }
     }
-    while(bellman_convey_relax_process(tent, conv, 1))// keep popping til all threads are done
+    while(bellman_convey_relax_process(tent_new, conv, 1))// keep popping til all threads are done
       ;
     lgp_barrier();
-    //dump_tent("Convey : ", tent);
+    if( lgp_reduce_add_l(changed) == 0 ){
+      replace_d_array(dist, tent_new);
+      break;
+    }
+    //dump_tent("Convey:  ", tent_new);
+    tent_temp = tent_old;
+    tent_old = tent_cur;
+    tent_cur = tent_new;
+    tent_new = tent_temp;
+
+    lgp_barrier();
     convey_reset(conv);
   }
 
   lgp_barrier();
-
   minavgmaxD_t stat[1];
   t1 = wall_seconds() - t1;
   lgp_min_avg_max_d( stat, t1, THREADS );
