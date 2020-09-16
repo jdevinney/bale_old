@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -154,6 +154,7 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
   
   return(0);
 }
+
 
 
 //

@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -38,7 +38,6 @@
 #include <getopt.h>
 #include <libgetput.h>
 #include <spmat.h>
-#include <spmat_opts.h>
 #include <std_options.h>
 //#include "alternates/permute_matrix_alternates.h"
 
@@ -79,7 +78,6 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   return(0);
 }
 
-static struct argp_option options[] = {{0}};
 
 static struct argp_child children_parsers[] =
   {
@@ -89,62 +87,68 @@ static struct argp_child children_parsers[] =
   };
 
 int main(int argc, char * argv[]) {
-  lgp_init(argc, argv);
-
-  int64_t i;
   
   /* process command line */
-  int ret = 0;
   args_t args;
-  struct argp argp = {options, parse_opt, 0,
+  struct argp argp = {NULL, parse_opt, 0,
                       "Parallel permute sparse matrix.", children_parsers};
-  if(MYTHREAD == 0){
-    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
-  }
-  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+ 
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
-
-  if(!MYTHREAD && !args.std.quiet){
-    write_std_graph_options(&args.gstd);
+  
+  if(!MYTHREAD){
+    write_std_graph_options(&args.std, &args.gstd);
     write_std_options(&args.std);
   }
-  
+
   // read in a matrix or generate a random graph
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
   if(!inmat){T0_fprintf(stderr, "ERROR: permute_matrix: inmat is NULL!\n");return(-1);}
-
-  double t1;
-  minavgmaxD_t stat[1];
-  int64_t error = 0;
   
   SHARED int64_t * rp = rand_permp(inmat->numrows, args.std.seed + MYTHREAD);
-  SHARED int64_t * cp = rand_permp(inmat->numrows, args.std.seed + MYTHREAD + 1);  
+  SHARED int64_t * cp = rand_permp(inmat->numcols, args.std.seed + MYTHREAD + 1);  
+
+  if(args.std.dump_files){
+    write_matrix_mm(inmat, "inmat_permute_matrix");
+    if(!MYTHREAD){
+      int64_t i;
+      FILE * fp = fopen("rperm_permute_matrix", "w");
+      for(i = 0; i < inmat->numrows; i++)
+        fprintf(fp, "%ld\n", lgp_get_int64(rp, i));
+      fclose(fp);
+      fp = fopen("cperm_permute_matrix", "w");
+      for(i = 0; i < inmat->numcols; i++)
+        fprintf(fp, "%ld\n", lgp_get_int64(cp, i));
+      fclose(fp);
+    }
+  }
   
   int64_t use_model;
   sparsemat_t * outmat;
+  char model_str[32];
   for( use_model=1L; use_model < 32; use_model *=2 ) {
-    t1 = wall_seconds();
+    double t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
 
     case AGI_Model:
       outmat = permute_matrix_agi(inmat, rp, cp);
-      T0_fprintf(stderr,"permute_matrix_AGI:           ");
+      sprintf(model_str, "AGI");
       break;
 
     case EXSTACK_Model:
       outmat = permute_matrix_exstack(inmat, rp, cp, args.std.buffer_size);
-      T0_fprintf(stderr,"permute_matrix_EXSTACK:       ");
+      sprintf(model_str, "Exstack");
       break;
 
     case EXSTACK2_Model:
       outmat = permute_matrix_exstack2(inmat, rp, cp, args.std.buffer_size);
-      T0_fprintf(stderr,"permute_matrix_EXSTACK2:      ");
+      sprintf(model_str, "Exstack2");
       break;
 
     case CONVEYOR_Model:
       outmat = permute_matrix_conveyor(inmat, rp, cp);
-      T0_fprintf(stderr,"permute_matrix_CONVEYOR:      ");
+      sprintf(model_str, "Conveyor");
       break;
     case ALTERNATE_Model:
       T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
@@ -153,9 +157,10 @@ int main(int argc, char * argv[]) {
       continue;
     }
     
+    minavgmaxD_t stat[1];
     t1 = wall_seconds() - t1;
     lgp_min_avg_max_d( stat, t1, THREADS );
-    T0_fprintf(stderr,"%8.3lf\n", stat->avg);    
+    bale_app_write_time(&args.std, model_str, stat->avg);
     clear_matrix(outmat);
   }
     
@@ -163,8 +168,10 @@ int main(int argc, char * argv[]) {
   lgp_all_free(rp);
   lgp_all_free(cp);
   lgp_barrier();
-  lgp_finalize();
-  return(error);
+
+  bale_app_finish(&args.std);
+  
+  return(0);
 }
 
 

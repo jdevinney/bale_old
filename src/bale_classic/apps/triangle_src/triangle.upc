@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -40,7 +40,6 @@
  */
 
 #include "triangle.h"
-#include <spmat_opts.h>
 #include <std_options.h>
 /*!
   \page triangles_page Triangles
@@ -123,8 +122,6 @@ static struct argp_child children_parsers[] =
 
 int main(int argc, char * argv[]) {
 
-  lgp_init(argc, argv);
-
   double t1;
   int64_t i, j;
 
@@ -132,33 +129,30 @@ int main(int argc, char * argv[]) {
   int ret = 0;
   args_t args;
   struct argp argp = {options, parse_opt, 0,
-                      "Parallel sparse matrix transpose.", children_parsers};
+                      "Parallel sparse matrix transpose.", children_parsers};  
   args.alg = 0;
-  if(MYTHREAD == 0){
-    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
 
-    //override command line
-    if(args.gstd.loops)
-      T0_fprintf(stderr,"WARNING: triangles requires no-loops, overriding command line.\n");
-    if(args.gstd.directed)
-      T0_fprintf(stderr,"WARNING: triangles requires undirected graph, overriding command line.\n");
-    args.gstd.loops = 0;
-    args.gstd.directed = 0; 
-  }
-  
-  ret = distribute_cmd_line(argc, argv, &args, sizeof(args_t), ret);
+  ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
+  
+  //override command line
+  if(args.gstd.loops)
+    T0_fprintf(stderr,"WARNING: triangles requires no-loops, overriding command line.\n");
+  if(args.gstd.directed)
+    T0_fprintf(stderr,"WARNING: triangles requires undirected graph, overriding command line.\n");
+  args.gstd.loops = 0;
+  args.gstd.directed = 0; 
 
-  if(!MYTHREAD && !args.std.quiet){
-    write_std_graph_options(&args.gstd);
+  if(!MYTHREAD){
+    write_std_graph_options(&args.std, &args.gstd);
     write_std_options(&args.std);
   }
   
   // read in a matrix or generate a random graph
   sparsemat_t * L = get_input_graph(&args.std, &args.gstd);
   if(!L){T0_fprintf(stderr, "ERROR: transpose: L is NULL!\n");return(-1);}
-
+  
   if(args.gstd.readfile){
     ret = tril(L, -1);
     if(ret){
@@ -168,13 +162,20 @@ int main(int argc, char * argv[]) {
     T0_fprintf(stderr,"ERROR: L is not lower triangular!\n");
     lgp_global_exit(1);  
   }  
+
+  if(args.std.dump_files){
+    write_matrix_mm(L, "triangle_inmat");
+  }
   
   lgp_barrier();
   
   /* calculate the number of triangles */
   double correct_answer = -1;
+  int wrote_num_triangles = 0;
   if(args.gstd.model == KRONECKER){
     correct_answer = calculate_num_triangles(args.gstd.kron_mode, args.gstd.kron_spec, args.gstd.kron_num);
+    bale_app_write_int(&args.std, "num_triangles", correct_answer);
+    wrote_num_triangles = 1;
     //T0_fprintf(stderr, "Pre-calculated answer = %"PRId64"\n", (int64_t)correct_answer);
   }
   
@@ -230,11 +231,13 @@ int main(int argc, char * argv[]) {
   }
 
   lgp_all_free(cc);
-  
-  T0_fprintf(stderr,"Calculated: Pulls = %"PRId64"\n            Pushes = %"PRId64"\n\n",pulls_calc, pushes_calc);
+
+  if(!args.std.json)
+    T0_fprintf(stderr,"Calculated: Pulls = %"PRId64"\n            Pushes = %"PRId64"\n\n",pulls_calc, pushes_calc);
   
   int64_t use_model;
   double laptime = 0.0;
+  char model_str[32];
   
   for( use_model=1L; use_model < 32; use_model *=2 ) {
 
@@ -245,27 +248,27 @@ int main(int argc, char * argv[]) {
 
     switch( use_model & args.std.models_mask ) {
     case AGI_Model:
-      T0_fprintf(stderr,"      AGI: ");
+      sprintf(model_str, "AGI");
       laptime = triangle_agi(&tri_cnt, &sh_refs, L, U, args.alg); 
       break;
     
     case EXSTACK_Model:
-      T0_fprintf(stderr,"  Exstack: ");
+      sprintf(model_str, "Exstack");
       laptime = triangle_exstack_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
       break;
 
     case EXSTACK2_Model:
-      T0_fprintf(stderr," Exstack2: ");
+      sprintf(model_str, "Exstack2");
       laptime = triangle_exstack2_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
       break;
 
     case CONVEYOR_Model:
-      T0_fprintf(stderr," Conveyor: ");
+      sprintf(model_str, "Conveyor");
       laptime = triangle_convey_push(&tri_cnt, &sh_refs, L, U, args.alg);
       break;
 
     case ALTERNATE_Model:
-      T0_fprintf(stderr,"ALTERNATE: ");      
+      sprintf(model_str, "Alternate");
       laptime = triangle_agi_iter(&tri_cnt, &sh_refs, L, U, args.alg);
       break;
     case 0:
@@ -275,8 +278,15 @@ int main(int argc, char * argv[]) {
     lgp_barrier();
     total_tri_cnt = lgp_reduce_add_l(tri_cnt);
     total_sh_refs = lgp_reduce_add_l(sh_refs);
-    T0_fprintf(stderr,"  %8.3lf seconds: %16"PRId64" triangles", laptime, total_tri_cnt);
-    T0_fprintf(stderr,"%16"PRId64" shared refs\n", total_sh_refs);
+
+    if(!wrote_num_triangles){
+      bale_app_write_int(&args.std, "triangles", total_tri_cnt);
+      wrote_num_triangles = 1;
+    }
+    
+    bale_app_write_time(&args.std, model_str, laptime);    
+    //T0_fprintf(stderr,"shared refs: %16"PRId64"\n", total_sh_refs);
+   
     if((correct_answer >= 0) && (total_tri_cnt != (int64_t)correct_answer)){
       T0_fprintf(stderr, "ERROR: Wrong answer!\n");
     }
@@ -287,6 +297,7 @@ int main(int argc, char * argv[]) {
   }
   
   lgp_barrier();
-  lgp_finalize();
+  
+  bale_app_finish(&args.std);
   return(0);
 }

@@ -23,15 +23,17 @@ Bale is written in C and can be compiled with UPC or linked against OpenSHMEM 1.
 The main components are :
 
 - README.md  - this file
-- INSTALL  - instructions for building bale
+- [INSTALL.md](INSTALL.md)  - instructions for building bale
 - [libgetput](libgetput/README.md)  - parallel programming utility library. libgetput is a library that can be compiled on top of UPC or SHMEM and implements puts, gets, collectives, and atomics. Everything in bale except conveyors is built on top of libgetput.
 - [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
 - [convey](convey/README.md) - The conveyor library for aggregating communication
 - [spmat](spmat/README.md)  -  a sparse matrix library
+- [std_options](std_options/README.md) - options parsing library
 - [apps](apps/README.md)  -  the applications directory. Includes [histogram](apps/histo_src/README.md), 
    [indexgather](apps/ig_src/README.md), [toposort](apps/topo_src/README.md), [transpose_matrix](apps/transpose_matrix_src/README.md), [triangle counting](apps/triangle_src/README.md), [randperm](apps/randperm_src/README.md), etc.
 - install.sh - the build and install script
-- runall.sh - a demo script that runs all applications
+- run_apps.py - a python script that runs applications
+- plot_results.ipynb - a jupyter notebook for plotting results of bale app runs
 - Doxyfile - the main file for building the documentation with doxygen
 - mainpage.h - The main documentation page.
 - clang_upc_run.sh - a script to add "-fupc-threads-N" as appropriate when using clang-upc
@@ -55,6 +57,7 @@ There is an install script (called install.sh) to make building easier for most 
 ### Testing
 We are working on a new test script that uses pytest as a harness. To run this test, go to
 the apps directory and run
+
     pytest -s -P=<path/to/bale/binaries> --node_range=0,10,2 -M 15
 
 ### Documentation
