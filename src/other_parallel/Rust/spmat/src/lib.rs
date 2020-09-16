@@ -124,6 +124,30 @@ impl SparseMat {
         }
     }
 
+    // collect all of a distributed sparse matrix to a local matrix on rank 0.
+    // must be called collectively by all ranks, returns empty matrix of same dims on all ranks but 0.
+    pub fn to_local(&self) -> SparseMat {
+        let ret: SparseMat;
+        if self.my_rank() == 0 {
+            ret = SparseMat::new_local(self.numrows, self.numcols, 0);
+        } else {
+            ret = SparseMat::new_local(self.numrows, self.numcols, 0);
+        }
+        ret
+    }
+
+    // distribute a local sparse matrix on rank 0 to a distributed sparse matrix.
+    // must be called collectively by all ranks, though only rank 0 supplies the input matrix.
+    pub fn to_distributed(&self) -> SparseMat {
+        let ret: SparseMat;
+        if self.my_rank() == 0 {
+            ret = SparseMat::new(self.numrows, self.numcols, 0);
+        } else {
+            ret = SparseMat::new(self.numrows, self.numcols, 0);
+        }
+        ret
+    }
+
     pub fn randomize_values(&mut self) {
         let mut value = Vec::new();
         let mut rng = rand::thread_rng();
