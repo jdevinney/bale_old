@@ -105,7 +105,7 @@ int main(int argc, char * argv[])
 
   int64_t buf_cnt = 1024;
   int64_t models_mask = ALL_Models;  // default is running all models
-  int64_t l_numrows = 6;         // number of a rows per thread
+  int64_t l_numrows = 4000;         // number of a rows per thread
   int64_t read_graph = 0L;           // read graph from a file
   char filename[64];
   int64_t cores_per_node = 0;
@@ -170,8 +170,6 @@ int main(int argc, char * argv[])
     mat = random_graph(numrows, model, DIRECTED_WEIGHTED, 0, erdos_renyi_prob, seed);
   }
 
-  // TODO:  we should check that A has the required format
-
   lgp_barrier();
   
   T0_fprintf(stderr,"mat has %"PRId64" rows/cols and %"PRId64" nonzeros.\n", mat->numrows, mat->nnz);
@@ -187,7 +185,6 @@ int main(int argc, char * argv[])
 
 #define USE_BELLMAN (1L<<16)
 #define USE_DELTA   (1L<<17)
-#define USE_DELTA   (0)
   
   for( use_alg=(1L<<16); use_alg<(1L<<18); use_alg *=2 ){
     for( use_model=1L; use_model < 32; use_model *=2 ) {

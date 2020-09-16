@@ -96,7 +96,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 
 
   //TODO: Fix the buffer size 
-  exstack2_t * ex2 = exstack2_init(32, sizeof(ex2_bellman_t));
+  exstack2_t * ex2 = exstack2_init(64, sizeof(ex2_bellman_t));
   if( ex2 == NULL) return(-1.0);
 
   pe_v0 = v0 % THREADS;
@@ -108,7 +108,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
   if(pe_v0 == MYTHREAD){
     tent0->lentry[li_v0] = 0.0;
   }
-  dump_tent("\nExstack2: 0", tent0);
+  //dump_tent("\nExstack2: 0", tent0);
 
   tent1 = copy_d_array(tent0);
   if(pe_v0 == MYTHREAD ){
@@ -119,7 +119,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 
   lgp_barrier();
 
-  dump_tent("Exstack2: 1", tent1);
+  //dump_tent("Exstack2: 1", tent1);
 
   lgp_barrier();
   tent2 = init_d_array(tent->num);
@@ -159,7 +159,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
       break;
     }
 
-    dump_tent("Exstack2: ", tent_new);
+    //dump_tent("Exstack2: ", tent_new);
 
     tent_temp = tent_old;
     tent_old = tent_cur;
@@ -170,7 +170,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
     exstack2_reset(ex2);
   }
 
-  dump_tent("EXSTACK2: ", tent);
+  //dump_tent("EXSTACK2: ", tent);
   lgp_barrier();
   minavgmaxD_t stat[1];
   t1 = wall_seconds() - t1;

@@ -83,6 +83,11 @@ double sssp_bellman_convey(d_array_t *tent, sparsemat_t *mat, int64_t v0)
   if(conv == NULL){return(-1);}
 
   double t1 = wall_seconds();
+  if(mat->numrows > 20){
+    if(!MYTHREAD)
+     printf("too_big \n");
+    return(-1.0);
+  }
 
   conv_bellman_t  pkg;
   int64_t k, pe, li, J;
@@ -95,7 +100,7 @@ double sssp_bellman_convey(d_array_t *tent, sparsemat_t *mat, int64_t v0)
   }
   lgp_barrier();
 
-  dump_tent("Convey: ", tent);
+  //dump_tent("Convey: ", tent);
   lgp_barrier();
 
   for(loop=0; loop<mat->numrows; loop++){
@@ -120,7 +125,7 @@ double sssp_bellman_convey(d_array_t *tent, sparsemat_t *mat, int64_t v0)
     while(bellman_convey_relax_process(tent, conv, 1))// keep popping til all threads are done
       ;
     lgp_barrier();
-    dump_tent("Convey : ", tent);
+    //dump_tent("Convey : ", tent);
     convey_reset(conv);
   }
 

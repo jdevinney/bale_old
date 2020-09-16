@@ -4,7 +4,7 @@
 
 #include "sssp.h"
 
-#define DPRT 1
+#define DPRT 0
 #define D0PRT (!MYTHREAD && DPRT)
 
 typedef struct ds_t{
@@ -154,7 +154,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
 
 
   //TODO: Fix the buffer size 
-  exstack_t * ex = exstack_init(4, sizeof(pkg_delta_e_t));
+  exstack_t * ex = exstack_init(64, sizeof(pkg_delta_e_t));
   if( ex == NULL) return(-1.0);
   double tm = wall_seconds();
 
@@ -220,10 +220,10 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   }
 
   lgp_barrier();
-  for(v = 0; v < mat->lnumrows; v++){ dist->lentry[v] = ds->tent[v]; }
-  lgp_barrier();
-  dump_tent("Delta Exstack Init:", dist);
-  lgp_barrier();
+  //for(v = 0; v < mat->lnumrows; v++){ dist->lentry[v] = ds->tent[v]; }
+  //lgp_barrier();
+  //dump_tent("Delta Exstack Init:", dist);
+  //lgp_barrier();
 
   /* main loop */
   rbi = 0;   // collectively, the real min bucket 
@@ -297,7 +297,8 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
       }
     }
     if(DPRT){printf("%02d: Finishing inner loop: rbi %ld\n",MYTHREAD, rbi);}
-    delta_exstack_relax_process(ds, ex, 1);
+    while( delta_exstack_relax_process(ds, ex, 1) )
+      ;
     lgp_barrier();
     exstack_reset(ex);
   }
@@ -307,7 +308,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   for(v = 0; v < mat->lnumrows; v++){
     dist->lentry[v] = ds->tent[v];
   }
-  dump_tent("Delta Exstack Done:", dist);
+  //dump_tent("Delta Exstack Done:", dist);
 
   free(ds->next);
   free(ds->prev);

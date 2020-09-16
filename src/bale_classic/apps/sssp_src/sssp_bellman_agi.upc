@@ -93,7 +93,7 @@ double sssp_bellman_agi(d_array_t *tent, sparsemat_t * mat, int64_t v0)
   }
   lgp_barrier();
 
-  dump_tent("AGI: ", tent);
+  //dump_tent("AGI: ", tent);
 
   for(loop=0; loop<mat->numrows; loop++){
     for(li=0; li<lnumrows; li++){ 
@@ -105,7 +105,7 @@ double sssp_bellman_agi(d_array_t *tent, sparsemat_t * mat, int64_t v0)
     }
     lgp_barrier();
 
-    dump_tent("AGI: ", tent);
+    //dump_tent("AGI: ", tent);
   }
 
   lgp_barrier();
