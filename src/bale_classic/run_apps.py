@@ -33,18 +33,6 @@ def run_app(path, node_range, app_list, option_str, impl_mask, json_file):
       runs.append(" ")
     else:
       runs.append("{0} ".format(option_str))
-#    if app == 'histo' or app == 'ig':
-#      runs.append("-T 1024 ")
-#    if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles' or app == 'write_sparse_matrix':
-#      runs.append("-F -z 2 ")
-#      runs.append("-G -z 4 ")
-#    if app == 'triangles' or app == 'transpose_matrix' or app == 'permute_matrix':
-#      runs.append("-K 0:3x4x5 ")
-#      runs.append("-K 1:3x4x5 ")
-#      runs.append("-K 2:3x4x5 ")
-#      runs.append("-K 0:2x4x7 ")
-#      runs.append("-K 1:2x4x7 ")
-#      runs.append("-K 2:2x4x7 ")
       
     if impl_mask is not None:
       for i,run in enumerate(runs):
