@@ -339,7 +339,7 @@ impl<'a> BucketSearcher<'a> {
         // (maybe also barrier at beginning of relax_requests?)
         // convey the request r=(w_g,d) to the PE that owns vtx w_g here, and have it call relax
         for r in requests {
-            self.graph.convey(relax(r) to PE home_rank(r.w_g)); // r.w_g is a global vtx index
+            self.graph.convey(self.relax(r) to PE home_rank(r.w_g)); // r.w_g is a global vtx index
             // self.relax(r);
         }
         self.graph.barrier();
@@ -382,6 +382,7 @@ impl DeltaStepping for SparseMat {
 
         let t1 = wall_seconds();
 
+        // 0-0 need a reduce on max vertex degree here
         let (_mindeg, maxdeg, _sumdeg) = self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
             (acc.0.min(x), acc.1.max(x), acc.2 + x)
         });
