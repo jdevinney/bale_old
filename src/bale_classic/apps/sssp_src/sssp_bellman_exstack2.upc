@@ -96,7 +96,7 @@ double sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 
 
   //TODO: Fix the buffer size 
-  exstack2_t * ex2 = exstack2_init(1024, sizeof(ex2_bellman_t));
+  exstack2_t * ex2 = exstack2_init(32, sizeof(ex2_bellman_t));
   if( ex2 == NULL) return(-1.0);
 
   pe_v0 = v0 % THREADS;

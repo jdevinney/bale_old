@@ -97,7 +97,7 @@ double sssp_bellman_exstack(d_array_t *tent, sparsemat_t * mat, int64_t v0)
   d_array_t *tent_old, *tent_cur, *tent_new, *tent_temp;
 
   //TODO: Fix the buffer size 
-  exstack_t * ex = exstack_init(1024, sizeof(pkg_bellman_e_t));
+  exstack_t * ex = exstack_init(32, sizeof(pkg_bellman_e_t));
   if( ex == NULL) return(-1.0);
 
 

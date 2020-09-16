@@ -105,7 +105,7 @@ int main(int argc, char * argv[])
 
   int64_t buf_cnt = 1024;
   int64_t models_mask = ALL_Models;  // default is running all models
-  int64_t l_numrows = 5;         // number of a rows per thread
+  int64_t l_numrows = 6;         // number of a rows per thread
   int64_t read_graph = 0L;           // read graph from a file
   char filename[64];
   int64_t cores_per_node = 0;
@@ -187,73 +187,73 @@ int main(int argc, char * argv[])
 
 #define USE_BELLMAN (1L<<16)
 #define USE_DELTA   (1L<<17)
-//#define USE_DELTA   (0L)
-
+#define USE_DELTA   (0)
   
-  for( use_model=1L; use_model < 32; use_model *=2 ) {
-    for( use_alg=(1L<<16); use_alg<(1L<<18); use_alg *=2 )
+  for( use_alg=(1L<<16); use_alg<(1L<<18); use_alg *=2 ){
+    for( use_model=1L; use_model < 32; use_model *=2 ) {
 
-    switch( (use_model & models_mask) | use_alg ) {
-    case (AGI_Model | USE_BELLMAN):
-      T0_fprintf(stderr,"    Bellman-Ford  AGI: ");
-      laptime = sssp_bellman_agi(tent, mat, 0); 
-      comp_tent = copy_d_array(tent);
-      T0_fprintf(stderr,"Bellman AGI nothing to compare\n");
-      break;
-
-    case (EXSTACK_Model | USE_BELLMAN):
-      T0_fprintf(stderr,"  Bellman-Ford Exstack: ");
-      laptime = sssp_bellman_exstack(tent, mat, 0);
-      if(comp_tent == NULL){
+      switch( (use_model & models_mask) | use_alg ) {
+      case (AGI_Model | USE_BELLMAN):
+        T0_fprintf(stderr,"    Bellman-Ford  AGI: ");
+        laptime = sssp_bellman_agi(tent, mat, 0); 
         comp_tent = copy_d_array(tent);
-        T0_fprintf(stderr,"Bellman Exstack nothing to compare\n");
-      }else{
-        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-          T0_fprintf(stderr, "Exstack compares success!\n");
-      }
-      break;
+        T0_fprintf(stderr,"Bellman AGI nothing to compare\n");
+        break;
 
-    case (EXSTACK_Model | USE_DELTA):
-      T0_fprintf(stderr,"  Delta Exstack: ");
-      laptime = sssp_delta_exstack(tent, mat, 0);
-      if(comp_tent == NULL){
-        comp_tent = copy_d_array(tent);
-        T0_fprintf(stderr,"Delta Exstack nothing to compare\n");
-      }else{
-        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-          T0_fprintf(stderr, "Delta Exstack compares success!\n");
-      }
-      break;
+      case (EXSTACK_Model | USE_BELLMAN):
+        T0_fprintf(stderr,"  Bellman-Ford Exstack: ");
+        laptime = sssp_bellman_exstack(tent, mat, 0);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Bellman Exstack nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Exstack compares success!\n");
+        }
+        break;
 
-    case (EXSTACK2_Model | USE_BELLMAN):
-      T0_fprintf(stderr,"  Bellman-Ford: Exstack2: ");
-      laptime = sssp_bellman_exstack2(tent, mat, 0);
-      if(comp_tent == NULL){
-        comp_tent = copy_d_array(tent);
-        T0_fprintf(stderr,"Bellman Exstack2 nothing to compare\n");
-      }else{
-        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-          T0_fprintf(stderr, "Exstack2 compares success!\n");
-      }
-      break;
+      case (EXSTACK_Model | USE_DELTA):
+        T0_fprintf(stderr,"  Delta Exstack: ");
+        laptime = sssp_delta_exstack(tent, mat, 0);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Delta Exstack nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Delta Exstack compares success!\n");
+        }
+        break;
+
+      case (EXSTACK2_Model | USE_BELLMAN):
+        T0_fprintf(stderr,"  Bellman-Ford: Exstack2: ");
+        laptime = sssp_bellman_exstack2(tent, mat, 0);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Bellman Exstack2 nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Exstack2 compares success!\n");
+        }
+        break;
 
 
-    case (CONVEYOR_Model | USE_BELLMAN):
-    T0_fprintf(stderr,"  Bellman-Ford Convey: ");
-      laptime = sssp_bellman_convey(tent, mat, 0);
-      if(comp_tent == NULL){
-        comp_tent = copy_d_array(tent);
-        T0_fprintf(stderr,"Bellman Conveyor nothing to compare\n");
-      }else{
-        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-          T0_fprintf(stderr, "Conveyor compares success!\n");
+      case (CONVEYOR_Model | USE_BELLMAN):
+      T0_fprintf(stderr,"  Bellman-Ford Convey: ");
+        laptime = sssp_bellman_convey(tent, mat, 0);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Bellman Conveyor nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Conveyor compares success!\n");
+        }
+        break;
       }
-      break;
+      
+      lgp_barrier();
+      T0_fprintf(stderr,"  %8.3lf seconds.\n", laptime);
+      // TODO: Check result
     }
-    
-    lgp_barrier();
-    T0_fprintf(stderr,"  %8.3lf seconds.\n", laptime);
-    // TODO: Check result
   }
   
   lgp_barrier();
