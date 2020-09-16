@@ -47,6 +47,7 @@
 #define libgetput_INCLUDED  /*!< std trick */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <inttypes.h>
 #include <string.h>
 #include <unistd.h>
@@ -239,6 +240,12 @@ int64_t  lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, 
 
 double wall_seconds(); /*!< wall time timer using gettimeofday */
 
+/////////////////////////
+// RNG functions
+/////////////////////////
+double lgp_rand_double();
+int64_t lgp_rand_int64(int64_t N);
+void lgp_rand_seed(int64_t seed);
 
 
 #endif

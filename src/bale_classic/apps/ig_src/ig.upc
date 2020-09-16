@@ -170,9 +170,9 @@ int main(int argc, char * argv[]) {
   int64_t *index   = calloc(args.l_num_req, sizeof(int64_t)); assert(index != NULL);
   int64_t *pckindx = calloc(args.l_num_req, sizeof(int64_t)); assert(pckindx != NULL);
   int64_t indx, lindx, pe;
-  srand(MYTHREAD+ args.std.seed);
+  lgp_rand_seed(args.std.seed);
   for(i = 0; i < args.l_num_req; i++){
-    indx = rand() % tab_siz;
+    indx = lgp_rand_int64(tab_siz);
     index[i] = indx;
     lindx = indx / THREADS;      // the distributed version of indx
     pe  = indx % THREADS;      

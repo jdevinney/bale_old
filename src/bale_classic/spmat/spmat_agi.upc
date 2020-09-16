@@ -58,7 +58,7 @@ SHARED int64_t * rand_permp_agi(int64_t N, int seed) {
   int64_t r, i, j;
   int64_t pos, numdarts, numtargets, lnumtargets;
 
-  if( seed != 0 ) srand48( seed );
+  lgp_rand_seed(seed);
 
   //T0_printf("Entering rand_permp_atomic...");fflush(0);
 
@@ -80,7 +80,7 @@ SHARED int64_t * rand_permp_agi(int64_t N, int seed) {
 
   i=0;
   while(i < l_N){                // throw the darts until you get l_N hits
-    r = lrand48() % M;
+    r = lgp_rand_int64(M);
     if( lgp_cmp_and_swap(target, r, -1L, (i*THREADS + MYTHREAD)) == (-1L) ){
       i++;
     }

@@ -89,7 +89,7 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
   for(i = 0; i < lM; i++)
     ltarget[i] = -1L;
 
-  if( seed != 0 ) srand48( seed );
+  lgp_rand_seed(seed);
 
   lgp_barrier();
   
@@ -111,7 +111,7 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
         more | convey_advance(conv_reply, !more)){
     i = iend;
     while(i < lN){
-      int64_t r = lrand48() % M;
+      int64_t r = lgp_rand_int64(M);
       pe = r % THREADS;
       pkg.idx = r/THREADS;
       pkg.val = lperm[i];

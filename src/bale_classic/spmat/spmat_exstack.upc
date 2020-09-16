@@ -90,7 +90,7 @@ SHARED int64_t * rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt) {
   for(i = 0; i < lM; i++)
     ltarget[i] = -1L;
 
-  if( seed != 0 ) srand48( seed );
+  lgp_rand_seed(seed);
 
   lgp_barrier();
   
@@ -104,7 +104,7 @@ SHARED int64_t * rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt) {
   while(exstack_proceed(ex, (iend == lN))){
     i = iend;
     while(i < lN){
-      int64_t r = lrand48() % M;
+      int64_t r = lgp_rand_int64(seed);
       pe = r % THREADS;
       pkg.idx = r/THREADS;
       pkg.val = lperm[i];

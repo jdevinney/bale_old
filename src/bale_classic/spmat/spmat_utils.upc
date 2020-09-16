@@ -679,19 +679,20 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
   int64_t row, col, i;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
   int64_t lnnz = 0, lnnz_orig=0;
-  int64_t P = p*RAND_MAX;
-  double lM = log((double)RAND_MAX);
+  //int64_t P = p*RAND_MAX;
+  //double lM = log((double)RAND_MAX);
   double D = log(1 - p);
   int64_t r;
   int64_t end = n;
   int64_t ndiag = ln;
   
-  srand(seed + 1 + MYTHREAD);
+  lgp_rand_seed(seed);
 
   /* count lnnz so we can allocate A correctly */   
   row = MYTHREAD;
-  do { r = rand(); } while(r == RAND_MAX);
-  col = 1 + floor((log((double)(RAND_MAX - r)) - lM)/D);
+  //do { r = rand(); } while(r == RAND_MAX);
+  //col = 1 + floor((log((double)(RAND_MAX - r)) - lM)/D);
+  col = 1 + floor(log(1 - lgp_rand_double()) / D);
   while(row < n){
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       end = row;
@@ -699,8 +700,9 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
       // if we just hit a diagonal entry (we don't have to generate this one later)
       if(col == row) ndiag--; 
       lnnz_orig++;
-      do { r = rand(); } while(r == RAND_MAX);
-      col += 1 + floor((log(RAND_MAX - r) - lM)/D);
+      //do { r = rand(); } while(r == RAND_MAX);
+      //col += 1 + floor((log(RAND_MAX - r) - lM)/D);
+      col += 1 + floor(log(1 - lgp_rand_double()) / D);
     }
 
     row += THREADS;
@@ -715,13 +717,14 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
   if(!A){T0_printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL);}
 
   /* reset the seed so we get the same sequence of coin flips */
-  srand(seed + 1 + MYTHREAD);
+  lgp_rand_seed(seed);
 
   /* now go through the same sequence of random events and fill in nonzeros */
   A->loffset[0] = 0;
   row = MYTHREAD;
-  do { r = rand(); } while(r == RAND_MAX);     
-  col = 1 + floor((log(RAND_MAX - r) - lM)/D);
+  //do { r = rand(); } while(r == RAND_MAX);     
+  //col = 1 + floor((log(RAND_MAX - r) - lM)/D);
+  col = 1 + floor(log(1 - lgp_rand_double()) / D);
   while(row < n){
     int need_diag = (loops == LOOPS);
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
@@ -729,8 +732,9 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     while(col < end){
       if(col == row) need_diag = 0;
       A->lnonzero[lnnz++] = col;
-      do { r = rand(); } while(r == RAND_MAX);
-      col += 1 + floor((log(RAND_MAX - r) - lM)/D);
+      //do { r = rand(); } while(r == RAND_MAX);
+      //col += 1 + floor((log(RAND_MAX - r) - lM)/D);
+      col += 1 + floor(log(1 - lgp_rand_double()) / D);
     }
     if(need_diag) {
       A->lnonzero[lnnz++] = row;
@@ -748,7 +752,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
   // fill in the weights
   if(weighted){
     for(i = 0; i < lnnz; i++){
-      A->lvalue[i] = (double)rand()/RAND_MAX;
+      A->lvalue[i] = lgp_rand_double();
     }
   }
 
@@ -774,11 +778,11 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   int64_t row, col, i, j;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
   int64_t lnnz, lnnz_orig;
-  int64_t P = p*RAND_MAX;
+  //int64_t P = p*RAND_MAX;
   int64_t end = n;
   
   /* count lnnz so we can allocate A correctly */
-  srand(seed + 1 + MYTHREAD);
+  lgp_rand_seed(seed);
   lnnz_orig = 0;
   for(row = MYTHREAD; row < n; row += THREADS){
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
@@ -786,7 +790,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
     for(col = 0; col < end; col++){
       if(col == row) 
         continue;
-      if(rand() < P)
+      if(lgp_rand_double() < p)
         lnnz_orig++;
     }    
   }
@@ -799,7 +803,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   if(!A){T0_printf("ERROR: erdos_renyi_random_graph_naive: init_matrix failed!\n"); return(NULL);}
 
   /* reset the seed so we get the same sequence of coin flips */
-  srand(seed + 1 + MYTHREAD);
+  lgp_rand_seed(seed);
 
   /* now go through the same sequence of random events and fill in nonzeros */
   A->loffset[0] = 0;  
@@ -812,7 +816,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
         A->nonzero[lnnz++] = row;
         continue;
       }
-      if(rand() < P){
+      if(lgp_rand_double() < p){
         A->lnonzero[lnnz++] = col;
       }      
     }
@@ -828,7 +832,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   if(weighted){
     int64_t i;
     for(i = 0; i < lnnz; i++){
-      A->lvalue[i] = (double)rand()/RAND_MAX;
+      A->lvalue[i] = lgp_rand_double();
     }
   }
 
@@ -1284,7 +1288,7 @@ sparsemat_t * direct_undirected_graph(sparsemat_t * L){
     for(; i < L->lnnz; i++){
       while((row < L->lnumrows) && (i >= L->loffset[row+1]))
         row++;
-      if(rand() & 1L){
+      if(lgp_rand_double() < 0.5){
         //printf("i %ld row %ld off %ld\n", i, row, L->loffset[row+1]);
         //printf("A Appending edge %ld %ld\n", row*THREADS + MYTHREAD, L->lnonzero[i]);
         append_edge(el, row*THREADS + MYTHREAD, L->lnonzero[i]);

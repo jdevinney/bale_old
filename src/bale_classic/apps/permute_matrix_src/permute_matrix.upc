@@ -106,8 +106,8 @@ int main(int argc, char * argv[]) {
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
   if(!inmat){T0_fprintf(stderr, "ERROR: permute_matrix: inmat is NULL!\n");return(-1);}
   
-  SHARED int64_t * rp = rand_permp(inmat->numrows, args.std.seed + MYTHREAD);
-  SHARED int64_t * cp = rand_permp(inmat->numcols, args.std.seed + MYTHREAD + 1);  
+  SHARED int64_t * rp = rand_permp(inmat->numrows, args.std.seed);
+  SHARED int64_t * cp = rand_permp(inmat->numcols, args.std.seed + 12345);  
 
   if(args.std.dump_files){
     write_matrix_mm(inmat, "inmat_permute_matrix");

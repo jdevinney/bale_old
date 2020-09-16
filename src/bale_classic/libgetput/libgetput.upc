@@ -429,3 +429,21 @@ double wall_seconds() {
   return ( (double) tp.tv_sec + (double) tp.tv_usec * 1.e-6 );
 }
 
+
+#define LGP_RAND_MAX 281474976710656
+
+
+void lgp_rand_seed(int64_t seed){
+  srand48(seed + 1 + MYTHREAD);
+}
+
+/*! \brief return a random integer mod N.
+ */
+int64_t lgp_rand_int64(int64_t N){
+  assert(N < LGP_RAND_MAX);
+  return((int64_t)(drand48()*N));
+}
+
+double lgp_rand_double(){
+  return(drand48());
+}

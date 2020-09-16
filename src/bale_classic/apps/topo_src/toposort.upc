@@ -168,8 +168,8 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
 
   // get row and column permutations
   t = wall_seconds();
-  SHARED int64_t * rperminv = rand_permp(mat->numrows, rand_seed + 1 + MYTHREAD);
-  SHARED int64_t * cperminv = rand_permp(mat->numrows, rand_seed + 2 + MYTHREAD);
+  SHARED int64_t * rperminv = rand_permp(mat->numrows, rand_seed);
+  SHARED int64_t * cperminv = rand_permp(mat->numrows, rand_seed + 12345);
   //T0_printf("generate perms time %lf\n", wall_seconds() - t);
   lgp_barrier();
 
@@ -254,7 +254,7 @@ int main(int argc, char * argv[]) {
   if(!inmat){T0_printf("Error! toposort: inmat is NULL");lgp_global_exit(-1);}
   
   // permate the rows and columns of the matrix randomly
-  sparsemat_t * mat = generate_toposort_input(inmat, args.std.seed);
+  sparsemat_t * mat = generate_toposort_input(inmat, args.std.seed + 23456);
   if(!mat){T0_printf("Error! toposort: mat is NULL");lgp_global_exit(-1);}
 
   // get the transpose of mat (needed for toposort implemmentations)
