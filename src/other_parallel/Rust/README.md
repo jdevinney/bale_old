@@ -9,7 +9,7 @@ strongly advised that you do a *standalone build and test* of
 `convey_private` *first*, following the instructions in that library.
 This can be a *bit tricky* as you probably need to specify where the
 underlying parallel communication library is installed on
-your system.
+your system, via the `SHMEM_PATH` environment variable.
 
 This build is setup to run correctly if you place `convey_private`
 in the same directory where you placed bale.  Modify Cargo.toml,
