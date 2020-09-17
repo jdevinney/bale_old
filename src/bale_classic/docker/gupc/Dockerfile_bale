@@ -10,7 +10,7 @@ WORKDIR /opt/bale_private
 
 
 
-RUN ./run_autoreconf
+RUN ./bootstrap.sh
 ENV UPC gupc
 ENV PLATFORM gupc
 RUN ./install.sh -u

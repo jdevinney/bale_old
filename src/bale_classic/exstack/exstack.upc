@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -199,7 +199,7 @@ void exstack_exchange(exstack_t *Xstk )
   }
 
   lgp_barrier();
-
+  //fprintf(stderr,"recvd %ld\n", Xstk->l_rcv_buf[th]->count);
   // clear send buffers for my thread and 
   // reset crnt_min_headroom and first_ne_rcv
   for(th=0; th<THREADS; th++) {
@@ -264,8 +264,9 @@ void exstack_unpop_thread(exstack_t *Xstk , int64_t th_num)
 int64_t exstack_pop(exstack_t *Xstk, void *pop_item ,  int64_t *from_th)
 {
   int64_t th;
-
+  //fprintf(stderr,"I AM Calling exstack pop\n");
   for(th=Xstk->first_ne_rcv; th<THREADS; th++) {
+    //fprintf(stderr,"calling exstack_pop count = %ld\n", Xstk->l_rcv_buf[th]->count);
     if(Xstk->l_rcv_buf[th]->count == 0L) continue;
 
     // non-empty rcv buffer found: pop work item:
@@ -277,7 +278,7 @@ int64_t exstack_pop(exstack_t *Xstk, void *pop_item ,  int64_t *from_th)
        *from_th = th;
     return(1);
   }
-
+  //fprintf(stderr,"I AM ALL DONE\n");
   // all receive buffers empty:  get ready for next exstack_memcpy and  return failure
   Xstk->first_ne_rcv = 0;
   for(th=0; th<THREADS; th++) {

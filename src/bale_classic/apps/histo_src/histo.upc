@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -34,8 +34,7 @@
 //  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
-*****************************************************************/ 
-
+*****************************************************************/
 /*! \file histo.upc
  * \brief Demo program that computes a histogram of uint64_t's
  *  The number of histogram bins should be large enough that they need 
@@ -107,38 +106,28 @@ static struct argp_child children_parsers[] =
 
 
 int main(int argc, char * argv[]) {
-  lgp_init(argc, argv);
   int64_t i;
 
   /* process command line */
-  int ret = 0;
   args_t args;
   args.l_tbl_size = 1000;
   args.l_num_ups = 100000;
   struct argp argp = {options, parse_opt, 0,
                       "Accumulate updates into a table.", children_parsers};
-  if(MYTHREAD == 0){
-    ret = argp_parse(&argp, argc, argv, ARGP_NO_EXIT, 0, &args);
-  }
-  ret = check_for_exit(argc, argv, ret);
-  if(ret){
-    lgp_finalize();
-    if(ret < 0) return(ret);
-    else return(0);
-  }
-  share_args(&args, sizeof(args_t));
-  
 
-  T0_fprintf(stderr,"Running histo on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (number of buffer pkgs)      (-b)= %"PRId64"\n", args.std.buffer_size);
-  T0_fprintf(stderr,"Number updates / thread              (-n)= %"PRId64"\n", args.l_num_ups);
-  T0_fprintf(stderr,"Table size / thread                  (-T)= %"PRId64"\n", args.l_tbl_size);
-  T0_fprintf(stderr,"models_mask                          (-M)= %"PRId64"\n", args.std.models_mask);
-  T0_fprintf(stderr,"-------------------------------------------------------\n");
-  fflush(stderr);
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if(ret < 0) return(ret);
+  else if(ret) return(0);
 
+  if(!MYTHREAD){
+    bale_app_write_int(&args.std, "num_updates_per_pe", args.l_num_ups);
+    bale_app_write_int(&args.std, "table_size_per_pe", args.l_tbl_size);
+    write_std_options(&args.std);
+  }
+
+
+  /* package all the inputs up into a struct */
   histo_t data;  
-  // Allocate and zero out the counts array
   data.l_num_ups = args.l_num_ups;
   data.lnum_counts = args.l_tbl_size;
   data.num_counts = data.lnum_counts*THREADS;
@@ -150,9 +139,10 @@ int main(int argc, char * argv[]) {
   
   // index is a local array of indices into the shared counts array.
   // This is used by the _agi version. 
-  // To avoid paying the UPC tax of computing index[i]/THREADS and index[i]%THREADS
+  // To avoid paying for computing index[i]/THREADS and index[i]%THREADS
   // when using the exstack and conveyor models
-  // we also store a packed version that holds the pe (= index%THREADS) and lindx (=index/THREADS)
+  // we also store a packed version that holds the
+  // pe (= index%THREADS) and lindx (=index/THREADS)
   data.index   = calloc(data.l_num_ups, sizeof(int64_t)); assert(data.index != NULL);
   data.pckindx = calloc(data.l_num_ups, sizeof(int64_t)); assert(data.pckindx != NULL);
 
@@ -174,37 +164,38 @@ int main(int argc, char * argv[]) {
   
   lgp_barrier();
 
-  int64_t use_model;
+  int use_model;
   double laptime = 0.0;
   double injection_bw = 0.0;
   int64_t num_models = 0L;               // number of models that are executed
+  char model_str[32];
 
   for( use_model=1L; use_model < 32; use_model *=2 ) {
 
     switch( use_model & args.std.models_mask ) {
     case AGI_Model:
-      T0_fprintf(stderr,"      AGI: ");
+      sprintf(model_str, "AGI");
       laptime = histo_agi(&data);
       num_models++;
       lgp_barrier();
       break;
     
     case EXSTACK_Model:
-      T0_fprintf(stderr,"  Exstack: ");
+      sprintf(model_str, "Exstack");
       laptime = histo_exstack(&data, args.std.buffer_size);
       num_models++;
       lgp_barrier();
       break;
 
     case EXSTACK2_Model:
-      T0_fprintf(stderr," Exstack2: ");
+      sprintf(model_str, "Exstack2");
       laptime = histo_exstack2(&data, args.std.buffer_size);
       num_models++;
       lgp_barrier();
       break;
 
     case CONVEYOR_Model:
-      T0_fprintf(stderr,"Conveyors: ");
+      sprintf(model_str, "Conveyor");
       laptime = histo_conveyor(&data);
       num_models++;
       lgp_barrier();
@@ -223,12 +214,16 @@ int main(int argc, char * argv[]) {
 
     default:
       continue;
-
+      
     }
     injection_bw = volume_per_node / laptime;
-    T0_fprintf(stderr,"  %8.3lf seconds  %8.3lf GB/s injection bandwidth\n", laptime, injection_bw);
+    if(args.std.json == 0){
+      T0_fprintf(stderr,"%10s: %8.3lf seconds  %8.3lf GB/s injection bandwidth\n", model_str, laptime, injection_bw);
+    }else{
+      bale_app_write_time(&args.std, model_str, laptime);
+    }
   }
-
+  
   lgp_barrier();
 
   // Check the results
@@ -255,7 +250,7 @@ int main(int argc, char * argv[]) {
   lgp_all_free(data.counts);
   free(data.index);
   free(data.pckindx);
-  lgp_finalize();
+  bale_app_finish(&args.std);
 
   return(totalerrors);
 }

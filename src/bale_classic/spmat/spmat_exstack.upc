@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -374,7 +374,7 @@ sparsemat_t * transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt) {
   int64_t lnnz, i, col, row, fromth; 
   int64_t idx, *idxp;
 
-  //if(!MYTHREAD)printf("Exstack version of matrix transpose...");
+  //T0_fprintf(stderr,"Exstack version of matrix transpose...");fflush(stderr);
   
   /* get the colcnts */
   int64_t lnumcols = (A->numrows + THREADS - MYTHREAD - 1)/THREADS;  
@@ -431,8 +431,10 @@ sparsemat_t * transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt) {
   i = row = 0;
   while(exstack_proceed(ex1, (i == A->lnnz))){
     while(i < A->lnnz){
-      while( i == A->loffset[row+1] ) 
+      while( i == A->loffset[row+1] ){
         row++;
+        assert(row < A->lnumrows);
+      }
       pkg_nz.row = row * THREADS + MYTHREAD;
       pkg_nz.col = A->lnonzero[i] / THREADS;
       pe = A->lnonzero[i]%THREADS;
@@ -440,7 +442,7 @@ sparsemat_t * transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt) {
         break;
       i++;
     }
-
+    //fprintf(stderr,"exstack...i = %ld/%ld\n", i, A->lnnz);fflush(stderr);
     exstack_exchange(ex1);
 
     while(exstack_pop(ex1, &pkg_nz, &fromth)){
@@ -448,6 +450,7 @@ sparsemat_t * transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt) {
       At->lnonzero[ At->loffset[pkg_nz.col] + wrkoff[pkg_nz.col] ] = pkg_nz.row;
       wrkoff[pkg_nz.col]++;
     }
+    //fprintf(stderr,"num_times_pop %ld\n", numtimespop);
   }
   
   lgp_barrier();

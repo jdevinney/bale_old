@@ -1,7 +1,7 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2018, Institute for Defense Analyses
+//  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 //  This material may be reproduced by or for the US Government
 //  pursuant to the copyright license under the clauses at DFARS
@@ -38,6 +38,7 @@
 #include <getopt.h>
 #include <libgetput.h>
 #include <spmat.h>
+#include <std_options.h>
 //#include "alternates/permute_matrix_alternates.h"
 
 /*! \file permute_matrix.upc
@@ -57,131 +58,97 @@
  * See files spmat_agi.upc, spmat_exstack.upc, spmat_exstack2.upc, and spmat_conveyor.upc
  * for the source for the kernels.
  * 
- * Usage:
- * permute_matrix [-h][-e prob][-M mask][-n num][-s seed][-Z num]
- * - -h Print usage banner only
- * - -b count is the number of packages in an exstack(2) buffer
- * - -e=p Set the Erdos-Renyi probability to p.
- * - -M=m Set the models mask (1,2,4,8,16,32 for AGI, exstack, exstack2,conveyor,alternate)
- * - -n=n Set the number of rows per PE to n (default = 1000).
- * - -s=s Set a seed for the random number generation.
- * - -Z=z Set the avg number of nonzeros per row to z (default = 10, overrides Erdos-Renyi p).
- *
+ * Run with the --help, -?, or --usage flags for run details.
  */
 
-static void usage(void) {
-  T0_fprintf(stderr,"\
-This is a demo program that runs various implementations of the permute_matrix kernel.\n\
-Usage:\n\
-permute_matrix [-h][-e prob][-M mask][-n num][-s seed][-Z num]\n\
- -h Print usage banner only\n\
- -b count is the number of packages in an exstack(2) buffer\n\
- -e=prob Set the edge probability to p.\n\
- -F Set the graph model to FLAT\n\
- -G Set the graph model to GEOMETRIC\n\
- -M=mask Set the models mask (1,2,4,8,16,32 for AGI, exstack, exstack2,conveyor,alternate)\n\
- -n=num Set the number of rows per PE to n (default = 1000).\n\
- -s=seed Set a seed for the random number generation.\n\
- -Z=num  Set the avg number of nonzeros per row to z (default = 10, overrides Erdos-Renyi p).\n\
-\n");
-  lgp_finalize();
-  lgp_global_exit(0);
+typedef struct args_t{
+  std_args_t std;
+  std_graph_args_t gstd;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case ARGP_KEY_INIT:
+      state->child_inputs[0] = &args->std;
+      state->child_inputs[1] = &args->gstd;
+      break;
+    }
+  return(0);
 }
 
 
+static struct argp_child children_parsers[] =
+  {
+    {&std_options_argp, 0, "Standard Options", -2},
+    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+    {0}
+  };
+
 int main(int argc, char * argv[]) {
-  lgp_init(argc, argv);
-
-  int64_t i;
-  int64_t models_mask = 0xF;
-  int printhelp = 0;
-  double erdos_renyi_prob = 0.0;
-  int64_t buf_cnt = 1024;
-  int64_t nz_per_row = -1;
-  int64_t l_numrows = 10000;
-  int64_t numrows;
-  int64_t seed = 101892+MYTHREAD;
-  int64_t cores_per_node = 1;
-  graph_model model = FLAT;
   
-  int opt; 
+  /* process command line */
+  args_t args;
+  struct argp argp = {NULL, parse_opt, 0,
+                      "Parallel permute sparse matrix.", children_parsers};
+ 
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if(ret < 0) return(ret);
+  else if(ret) return(0);
+  
+  if(!MYTHREAD){
+    write_std_graph_options(&args.std, &args.gstd);
+    write_std_options(&args.std);
+  }
 
-  while( (opt = getopt(argc, argv, "b:e:FGhc:n:M:s:Z:")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'b': sscanf(optarg,"%"PRId64"", &buf_cnt);  break;
-    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
-    case 'e': sscanf(optarg,"%lf", &erdos_renyi_prob);  break;
-    case 'F': model = FLAT; break;
-    case 'G': model = GEOMETRIC; break;  
-    case 'n': sscanf(optarg,"%"PRId64"", &l_numrows);   break;
-    case 'M': sscanf(optarg,"%"PRId64"", &models_mask);  break;
-    case 's': sscanf(optarg,"%"PRId64"", &seed); break;
-    case 'Z': sscanf(optarg,"%"PRId64"", &nz_per_row);  break;
-    default:  break;
+  // read in a matrix or generate a random graph
+  sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
+  if(!inmat){T0_fprintf(stderr, "ERROR: permute_matrix: inmat is NULL!\n");return(-1);}
+  
+  SHARED int64_t * rp = rand_permp(inmat->numrows, args.std.seed + MYTHREAD);
+  SHARED int64_t * cp = rand_permp(inmat->numcols, args.std.seed + MYTHREAD + 1);  
+
+  if(args.std.dump_files){
+    write_matrix_mm(inmat, "inmat_permute_matrix");
+    if(!MYTHREAD){
+      int64_t i;
+      FILE * fp = fopen("rperm_permute_matrix", "w");
+      for(i = 0; i < inmat->numrows; i++)
+        fprintf(fp, "%ld\n", lgp_get_int64(rp, i));
+      fclose(fp);
+      fp = fopen("cperm_permute_matrix", "w");
+      for(i = 0; i < inmat->numcols; i++)
+        fprintf(fp, "%ld\n", lgp_get_int64(cp, i));
+      fclose(fp);
     }
   }
-  if(printhelp) usage();
-
-  numrows = l_numrows * THREADS;
-
-  /* set erdos_renyi_prob and nz_per_row to be consistent */
-  if(nz_per_row == -1 && erdos_renyi_prob == 0.0){
-    nz_per_row = 10;
-  }else if(nz_per_row == -1){
-    nz_per_row = erdos_renyi_prob*numrows;
-  }
-  erdos_renyi_prob = (2.0*(nz_per_row - 1))/numrows;
-  if(erdos_renyi_prob > 1.0)
-    erdos_renyi_prob = 1.0;  
   
-  T0_fprintf(stderr,"Running permute_matrix on %d threads\n", THREADS);
-  T0_fprintf(stderr,"buf_cnt (stack size)         (-b)= %"PRId64"\n", buf_cnt);
-  T0_fprintf(stderr,"Edge probability (-e)= %lf\n", erdos_renyi_prob);
-  T0_fprintf(stderr,"Graph Model              (-F or -G)   %s\n", (model == FLAT ? "FLAT" : "GEOMETRIC"));
-  T0_fprintf(stderr,"rows per thread (-n)             = %"PRId64"\n", l_numrows);
-  T0_fprintf(stderr,"Avg # of nonzeros per row    (-Z)= %"PRId64"\n", nz_per_row);
-  T0_fprintf(stderr,"models_mask (-M)                 = %"PRId64" or of 1,2,4,8,16,32 for gets,classic,exstack2,conveyor,ex2cyclic,ex2goto\n", models_mask);
-  T0_fprintf(stderr,"seed (-s)                        = %"PRId64"\n", seed);
-
-
-  double t1;
-  minavgmaxD_t stat[1];
-  int64_t error = 0;
-  
-  SHARED int64_t * rp = rand_permp(numrows, seed);
-  SHARED int64_t * cp = rand_permp(numrows, seed + 1);  
-  
-  sparsemat_t * inmat = random_graph(numrows, model, DIRECTED, 0, erdos_renyi_prob, seed + 2);
-  if(inmat == NULL){
-    T0_printf("ERROR: inmat is null!\n");
-    return(-1);
-  }
-
   int64_t use_model;
   sparsemat_t * outmat;
+  char model_str[32];
   for( use_model=1L; use_model < 32; use_model *=2 ) {
-    t1 = wall_seconds();
-    switch( use_model & models_mask ) {
+    double t1 = wall_seconds();
+    switch( use_model & args.std.models_mask ) {
 
     case AGI_Model:
       outmat = permute_matrix_agi(inmat, rp, cp);
-      T0_fprintf(stderr,"permute_matrix_AGI:           ");
+      sprintf(model_str, "AGI");
       break;
 
     case EXSTACK_Model:
-      outmat = permute_matrix_exstack(inmat, rp, cp, buf_cnt);
-      T0_fprintf(stderr,"permute_matrix_EXSTACK:       ");
+      outmat = permute_matrix_exstack(inmat, rp, cp, args.std.buffer_size);
+      sprintf(model_str, "Exstack");
       break;
 
     case EXSTACK2_Model:
-      outmat = permute_matrix_exstack2(inmat, rp, cp, buf_cnt);
-      T0_fprintf(stderr,"permute_matrix_EXSTACK2:      ");
+      outmat = permute_matrix_exstack2(inmat, rp, cp, args.std.buffer_size);
+      sprintf(model_str, "Exstack2");
       break;
 
     case CONVEYOR_Model:
       outmat = permute_matrix_conveyor(inmat, rp, cp);
-      T0_fprintf(stderr,"permute_matrix_CONVEYOR:      ");
+      sprintf(model_str, "Conveyor");
       break;
     case ALTERNATE_Model:
       T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
@@ -190,9 +157,10 @@ int main(int argc, char * argv[]) {
       continue;
     }
     
+    minavgmaxD_t stat[1];
     t1 = wall_seconds() - t1;
     lgp_min_avg_max_d( stat, t1, THREADS );
-    T0_fprintf(stderr,"%8.3lf\n", stat->avg);    
+    bale_app_write_time(&args.std, model_str, stat->avg);
     clear_matrix(outmat);
   }
     
@@ -200,8 +168,10 @@ int main(int argc, char * argv[]) {
   lgp_all_free(rp);
   lgp_all_free(cp);
   lgp_barrier();
-  lgp_finalize();
-  return(error);
+
+  bale_app_finish(&args.std);
+  
+  return(0);
 }
 
 

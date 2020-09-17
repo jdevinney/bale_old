@@ -14,7 +14,7 @@ COPY . /opt/bale_private
 
 WORKDIR /opt/bale_private/src/bale_classic
 
-RUN ./run_autoreconf
+RUN ./bootstrap.sh
 ENV UPC gupc
 ENV PLATFORM gupc
 RUN ./install.sh -u

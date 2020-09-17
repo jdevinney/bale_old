@@ -37,7 +37,7 @@
 *****************************************************************/ 
 
 /*! \file sssp.c
- * \brief Demo application that implements different 
+ * \brief Demo application that calls different 
  * Single Source Shortest Path alogrithms.
  *
  * versions of
@@ -53,7 +53,8 @@ double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);
 double sssp_bellmanford_simple(d_array_t * tent, sparsemat_t *dmat, int64_t r0);
 double sssp_bellmanford_dynprog(d_array_t * tent, sparsemat_t *dmat, int64_t r0);
 double sssp_bellmanford(d_array_t * tent, sparsemat_t *dmat, int64_t r0);
-double sssp_delta_stepping(d_array_t * tent, sparsemat_t *dmat, int64_t r0);
+double sssp_delta_stepping_ptr(d_array_t * tent, sparsemat_t *dmat, int64_t r0, double del);
+double sssp_delta_stepping_arr(d_array_t * tent, sparsemat_t *dmat, int64_t r0, double del);
 double sssp_answer_diff(d_array_t *A, d_array_t *B);
 
 
@@ -114,9 +115,9 @@ int main(int argc, char * argv[])
   //graph_model model = FLAT;
   //int64_t readgraph = 0;
   char filename[256]={"filename"};
-  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING=4, BELLMAN_SIMPLE=8, BELLMAN=16, ALL_Models=32};
+  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING_PTR=4, DELTA_STEPPING_ARR=8, BELLMAN_SIMPLE=16, BELLMAN=32, ALL_Models=64};
   uint32_t use_model;
-  uint32_t models_mask=ALL_Models - 1;
+  uint32_t models_mask;
   int printhelp = 0;
   //int quiet = 0;
 
@@ -138,6 +139,7 @@ int main(int argc, char * argv[])
   int quiet = args.std.quiet;
   graph_model model = args.gstd.model;
   models_mask = args.std.models_mask;
+  models_mask=ALL_Models - 1;
   
   if(args.gstd.readfile == 0){
     resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
@@ -224,9 +226,23 @@ int main(int argc, char * argv[])
       }
       break;
 
-    case DELTA_STEPPING:
-      if( !quiet ) printf("Delta Stepping   sssp: ");
-      laptime = sssp_delta_stepping(tent, dmat, 0);
+    case DELTA_STEPPING_PTR:
+      if( !quiet ) printf("Delta Stepping ptr   : ");
+      laptime = sssp_delta_stepping_ptr(tent, dmat, 0, 0.0);
+      if(comp_tent == NULL){
+        comp_tent = init_d_array(numrows);
+        copy_d_array( comp_tent, tent);
+        printf("Delta Stepping: nothing to compare to!\n");
+      }else{
+        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+          printf("Delta Stepping: compares successfully!\n");
+      }
+      
+      break;
+
+    case DELTA_STEPPING_ARR:
+      if( !quiet ) printf("Delta Stepping arr   : ");
+      laptime = sssp_delta_stepping_arr(tent, dmat, 0, 0.0);
       if(comp_tent == NULL){
         comp_tent = init_d_array(numrows);
         copy_d_array( comp_tent, tent);
@@ -270,7 +286,7 @@ int main(int argc, char * argv[])
     if(!quiet) printf("%8.3lf seconds\n", laptime);
   }
 
-  if(WRITE_MAT){write_d_array(comp_tent, "sssp.wts");}
+  if(WRITE_MAT){write_d_array(comp_tent, "ssspout.wts");}
   
   clear_matrix(dmat); free(dmat);
   clear_d_array(tent); free(tent);

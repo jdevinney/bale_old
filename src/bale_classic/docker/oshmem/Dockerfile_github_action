@@ -15,7 +15,7 @@ COPY . /opt/bale_private
 
 WORKDIR /opt/bale_private/src/bale_classic
 
-RUN ./run_autoreconf
+RUN ./bootstrap.sh
 ENV CC oshcc 
 ENV PLATFORM oshmem
 RUN ./install.sh -s

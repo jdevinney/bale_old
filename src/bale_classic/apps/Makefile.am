@@ -1,7 +1,7 @@
 #/******************************************************************
 #
 #
-#  Copyright(C) 2018, Institute for Defense Analyses
+#  Copyright(C) 2020, Institute for Defense Analyses
 #  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
 #  This material may be reproduced by or for the US Government
 #  pursuant to the copyright license under the clauses at DFARS
@@ -40,6 +40,7 @@ bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles 
 
 #BDEBUG = -g -O0
 BDEBUG =
+
 ###################################################################
 noinst_HEADERS = histo_src/histo.h 
 
@@ -64,7 +65,7 @@ histo_LINK=$(UPCLINK)
 endif
 
 if BUILD_SHMEM
-histo_SOURCES = $(histo_sources:.upc=__c.c)
+histo_SOURCES = $(histo_sources:.upc=__c.c) 
 histo_CPPFLAGS += -DUSE_SHMEM
 histo_LINK = $(LINK) $(BDEBUG)
 endif
@@ -114,7 +115,7 @@ topo_LINK=$(UPCLINK)
 endif
 
 if BUILD_SHMEM
-topo_SOURCES = $(topo_sources:.upc=__c.c)
+topo_SOURCES = $(topo_sources:.upc=__c.c) 
 topo_CPPFLAGS += -DUSE_SHMEM
 topo_LINK=$(LINK) $(BDEBUG)
 endif
