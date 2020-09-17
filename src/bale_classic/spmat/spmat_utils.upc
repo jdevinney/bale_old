@@ -132,10 +132,16 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
   if(!MYTHREAD){
     FILE * fp = fopen(name, "w");
     /* write the banner */
-    fprintf(fp,"%%%%MatrixMarket matrix coordinate pattern\n");
+    if(A->value){
+      fprintf(fp,"%%%%MatrixMarket matrix coordinate real\n");
+    }else{
+      fprintf(fp,"%%%%MatrixMarket matrix coordinate pattern\n");
+    }
     fprintf(fp,"%"PRId64" %"PRId64" %"PRId64"\n", A->numrows, A->numcols, A->nnz);
     fclose(fp);
   }
+  
+  lgp_barrier();
   
   int64_t i, j,k, row;
   for(k = 0; k < THREADS; k++){
@@ -144,7 +150,15 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
       for(i = 0; i < A->lnumrows; i++){
         row = i*THREADS + MYTHREAD;
         for(j = A->loffset[i]; j < A->loffset[i+1]; j++){
-          fprintf(fp, "%"PRId64" %"PRId64"\n", row + 1, A->lnonzero[j] + 1);
+          if(A->value)
+            fprintf(fp, "%"PRId64" %"PRId64" %lf\n",
+                    row + 1,
+                    A->lnonzero[j] + 1,
+                    A->value[j]);
+          else
+            fprintf(fp, "%"PRId64" %"PRId64"\n",
+                    row + 1,
+                    A->lnonzero[j] + 1);
         }
       }
       fclose(fp);
@@ -503,13 +517,16 @@ int is_upper_triangular(sparsemat_t *A, int64_t unit_diagonal) {
 int64_t tril(sparsemat_t * A, int64_t k) {
   // remove entries below the diagonal
   int64_t i, j, col, pos = 0, start = 0;
+  int weighted = (A->value != NULL);
   for(i = 0; i < A->lnumrows; i++){
     int64_t global_row = i*THREADS + MYTHREAD;
     int pivot = 0;
     for(j = start; j < A->loffset[i+1]; j++){
       col = A->lnonzero[j];
       if(col - global_row <= k){
-        A->lnonzero[pos++] = col;
+        A->lnonzero[pos] = col;
+        if(weighted) A->lvalue[pos] = A->lvalue[j];
+        pos++;
       }
     }
     start = A->loffset[i+1];
@@ -531,13 +548,16 @@ int64_t tril(sparsemat_t * A, int64_t k) {
 int64_t triu(sparsemat_t * A, int64_t k) {
   // remove entries below the diagonal
   int64_t i, j, col, pos = 0, start = 0;
+  int weighted = (A->value != NULL);
   for(i = 0; i < A->lnumrows; i++){
     int64_t global_row = i*THREADS + MYTHREAD;
     int pivot = 0;
     for(j = start; j < A->loffset[i+1]; j++){
       col = A->lnonzero[j];
       if(col - global_row >= k){
-        A->lnonzero[pos++] = col;
+        A->lnonzero[pos] = col;
+        if(weighted) A->lvalue[pos] = A->lvalue[j];
+        pos++;
       }
     }
     start = A->loffset[i+1];
@@ -679,8 +699,6 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
   int64_t row, col, i;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
   int64_t lnnz = 0, lnnz_orig=0;
-  //int64_t P = p*RAND_MAX;
-  //double lM = log((double)RAND_MAX);
   double D = log(1 - p);
   int64_t r;
   int64_t end = n;
@@ -690,8 +708,6 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
 
   /* count lnnz so we can allocate A correctly */   
   row = MYTHREAD;
-  //do { r = rand(); } while(r == RAND_MAX);
-  //col = 1 + floor((log((double)(RAND_MAX - r)) - lM)/D);
   col = 1 + floor(log(1 - lgp_rand_double()) / D);
   while(row < n){
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
@@ -700,8 +716,6 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
       // if we just hit a diagonal entry (we don't have to generate this one later)
       if(col == row) ndiag--; 
       lnnz_orig++;
-      //do { r = rand(); } while(r == RAND_MAX);
-      //col += 1 + floor((log(RAND_MAX - r) - lM)/D);
       col += 1 + floor(log(1 - lgp_rand_double()) / D);
     }
 
@@ -722,8 +736,6 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
   /* now go through the same sequence of random events and fill in nonzeros */
   A->loffset[0] = 0;
   row = MYTHREAD;
-  //do { r = rand(); } while(r == RAND_MAX);     
-  //col = 1 + floor((log(RAND_MAX - r) - lM)/D);
   col = 1 + floor(log(1 - lgp_rand_double()) / D);
   while(row < n){
     int need_diag = (loops == LOOPS);
@@ -732,8 +744,6 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     while(col < end){
       if(col == row) need_diag = 0;
       A->lnonzero[lnnz++] = col;
-      //do { r = rand(); } while(r == RAND_MAX);
-      //col += 1 + floor((log(RAND_MAX - r) - lM)/D);
       col += 1 + floor(log(1 - lgp_rand_double()) / D);
     }
     if(need_diag) {
@@ -788,7 +798,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       end = row;
     for(col = 0; col < end; col++){
-      if(col == row) 
+      if(col == row)//skip diagonal (we handle loops separately)
         continue;
       if(lgp_rand_double() < p)
         lnnz_orig++;
@@ -840,19 +850,18 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
 }
 
 /*! \brief Generate a distributed graph that is the product of a
- collection of star graphs. This is done * in two stages. In the first
+ collection of star graphs. This is done in two stages. In the first
  stage, the list of stars (parameterized by an integer m, K_{1,m}) is
  split in half and each half-list forms a local adjacency matrix for
  the Kronecker product of the stars (matrices B and C). Then the two
  local matrices are combined to form a distributed adjacency matrix
  for the Kronecker product of B and C.
  *
- * \param B_spec An array of sizes in one half of the list.
- * \param B_num The number of stars in one half of the list.
- * \param C_spec An array of sizes in the other half of the list.
- * \param C_num The number of stars in the other half of the list.
  * \param mode Mode 0 graphs have no triangles, mode 1 graphs have lots of triangles 
- *  and mode 2 graphs have few triangles.
+ *             and mode 2 graphs have few triangles.
+ * \param spec An array of star sizes (if spec[i] = m, the ith element in the Kronecker product
+ *             will be K_{1,m}.
+ * \param num The number of stars in the spec list.
  *
  * See "Design, Generation, and Validation of Extreme Scale Power-Law Graphs" by Kepner et. al.
  * for more information on Kronecker product graphs. 
@@ -868,11 +877,6 @@ sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num){
     T0_fprintf(stderr,"ERROR: generate_kronecker: spec must contain more than 2 products\n");
     return(NULL);
   }
-  //for(int i = 0; i < num; i++)
-    //T0_fprintf(stderr,"%dx", spec[i]);
-  //T0_fprintf(stderr,"\b");
-  //T0_fprintf(stderr,"\n");
-
   int64_t *B_spec = calloc(num, sizeof(int64_t));
   int64_t *C_spec = calloc(num, sizeof(int64_t));
   int64_t B_num = num/2;
@@ -880,7 +884,7 @@ sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num){
   for(; i <  num; i++) C_spec[i - B_num] = spec[i];
   
   sparsemat_t * B = kronecker_product_of_stars(B_num, B_spec, mode);
-  sparsemat_t * C = kronecker_product_of_stars(num - B_num, C_spec, mode);   
+  sparsemat_t * C = kronecker_product_of_stars(num - B_num, C_spec, mode);
   if(!B || !C){
     T0_fprintf(stderr,"ERROR: triangles: error generating input!\n"); lgp_global_exit(1);
   }
@@ -1147,7 +1151,7 @@ sparsemat_t * kronecker_product_of_stars(int64_t M, int64_t * m, int mode) {
 int sort_nonzeros( sparsemat_t *mat) {
   int i,j;
   if(mat->value){
-
+    
     // we have to sort the column indicies, but we also have to permute the value array accordingly
     // this is annoying in C
     // we have to create an array of stucts that holds col,val pairs for a row
@@ -1166,6 +1170,7 @@ int sort_nonzeros( sparsemat_t *mat) {
       for(j = mat->loffset[i]; j < mat->loffset[i+1]; j++){
         tmparr[pos].col = mat->lnonzero[j];
         tmparr[pos++].value = mat->lvalue[j];
+        //fprintf(stderr, "value[%ld] = %lf\n", j , mat->lvalue[j]);
       }
       qsort(tmparr, mat->loffset[i+1] - mat->loffset[i], sizeof(col_val_t), col_val_comp );
       pos = 0;
@@ -1218,39 +1223,41 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
   int i,j;
 
   if( lmat->numrows != rmat->numrows ){
-    if(!MYTHREAD)printf("(lmat->numrows = %"PRId64")  != (rmat->numrows = %"PRId64")", lmat->numrows, rmat->numrows );
+    fprintf(stderr,"PE %d: lmat->numrows = %"PRId64" != rmat->numrows = %"PRId64"\n",
+           MYTHREAD, lmat->numrows, rmat->numrows );
     return(1);
   }
   if( lmat->lnumrows != rmat->lnumrows ){
-    fprintf(stderr,"THREAD %03d: (lmat->lnumrows = %"PRId64")  != (rmat->lnumrows = %"PRId64")", 
+    fprintf(stderr,"PE %d: lmat->lnumrows = %"PRId64"  !=rmat->lnumrows = %"PRId64"\n", 
             MYTHREAD, lmat->lnumrows, rmat->lnumrows );
     return(1);
   }
   if( lmat->numcols != rmat->numcols ){
-    if(!MYTHREAD)printf("(lmat->numcols = %"PRId64")  != (rmat->numcols = %"PRId64")", lmat->numcols, rmat->numcols );
+    fprintf(stderr,"lmat->numcols = %"PRId64" != rmat->numcols = %"PRId64"\n", lmat->numcols, rmat->numcols );
     return(1);
   }
   if( lmat->nnz != rmat->nnz ){
-    if(!MYTHREAD)printf("(lmat->nnz = %"PRId64")  != (rmat->nnz = %"PRId64")", lmat->nnz, rmat->nnz );
+    fprintf(stderr,"lmat->nnz = %"PRId64" != rmat->nnz = %"PRId64"\n",
+            lmat->nnz, rmat->nnz );
     return(1);
   }
   if( lmat->lnnz != rmat->lnnz ){
-    fprintf(stderr,"THREAD %03d: (lmat->lnnz = %"PRId64")  != (rmat->lnnz = %"PRId64")", 
+    fprintf(stderr,"PE %d: lmat->lnnz = %"PRId64" != (rmat->lnnz = %"PRId64"\n", 
             MYTHREAD, lmat->lnnz, rmat->lnnz );
     return(1);
   }
 
   if( lmat->loffset[0] != 0 || rmat->loffset[0] != 0 
     || (lmat->loffset[0] != rmat->loffset[0] ) ){
-    if(!MYTHREAD)printf("THREAD %03d: (lmat->loffset[0] = %"PRId64")  != (rmat->loffset[0] = %"PRId64")", 
-       MYTHREAD, lmat->loffset[0], rmat->loffset[0] );
+    fprintf(stderr,"PE %d: lmat->loffset[0] = %"PRId64" != rmat->loffset[0] = %"PRId64"\n", 
+            MYTHREAD, lmat->loffset[0], rmat->loffset[0] );
     return(1);
   }
 
   
   for(i = 0; i < lmat->lnumrows; i++){
     if( lmat->loffset[i+1] != rmat->loffset[i+1] ){
-       if(!MYTHREAD)printf("THREAD %03d: (lmat->loffset[%d] = %"PRId64")  != (rmat->loffset[%d] = %"PRId64")", 
+      fprintf(stderr,"PE %d: lmat->loffset[%d] = %"PRId64" != rmat->loffset[%d] = %"PRId64"\n", 
           MYTHREAD, i+1, lmat->loffset[i+1], i+1, rmat->loffset[i+1] );
        return(1);
     }
@@ -1258,12 +1265,25 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
   
   for(j=0; j< lmat->lnnz; j++) {
     if( lmat->lnonzero[j] != rmat->lnonzero[j] ){
-      if(!MYTHREAD)printf("THREAD %03d: (lmat->lnonzero[%d] = %"PRId64")  != (rmat->lnonzero[%d] = %"PRId64")", 
+      fprintf(stderr,"PE %d:lmat->lnonzero[%d] = %"PRId64" != rmat->lnonzero[%d] = %"PRId64"\n", 
                 MYTHREAD, j, lmat->lnonzero[j], j, rmat->lnonzero[j] );
       return(1);
     }
   }
-
+  if((lmat->value != 0) != (rmat->value != 0)){
+    fprintf(stderr,"ERROR: compare_matrix: both matrices need to be weighted or unweighted\n");
+    return(1);
+  }
+  if(lmat->value){
+    for(j=0; j< lmat->lnnz; j++){
+      if( spmat_compare_doubles(lmat->lvalue[j],rmat->lvalue[j])) {
+        fprintf(stderr,"PE %d: lmat->lvalue[%d] = %lf != rmat->lvalue[%d] = %lf\n", 
+                MYTHREAD, j, lmat->lvalue[j], j, rmat->lvalue[j] );
+        return(1);
+      }
+    }
+  }
+  
   return(0);
 }
 
@@ -1272,29 +1292,29 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
 // We randomly orient each edge and return the new adjacency matrix.
 sparsemat_t * direct_undirected_graph(sparsemat_t * L){
   int64_t i, j;
-  edge_list_t * el = init_edge_list(L->lnnz);
+  int weighted = (L->value != NULL);
+  edge_list_t * el = init_edge_list(L->lnnz, weighted);
 
-  exstack_t * ex = exstack_init(128, sizeof(edge_t));
-  if(ex == NULL){return(NULL);}
-
-  edge_t edge;
+  w_edge_t edge;
   int64_t pe, col, row = 0;
 
   i = 0;
-  //while((row < L->lnumrows) && (i >= L->loffset[row+1])){
-  //row++;
-  //}
+  exstack_t * ex = exstack_init(128, sizeof(w_edge_t));
+  if(ex == NULL){return(NULL);}
+
   while(exstack_proceed(ex, (i == L->lnnz))){
     for(; i < L->lnnz; i++){
       while((row < L->lnumrows) && (i >= L->loffset[row+1]))
         row++;
       if(lgp_rand_double() < 0.5){
-        //printf("i %ld row %ld off %ld\n", i, row, L->loffset[row+1]);
-        //printf("A Appending edge %ld %ld\n", row*THREADS + MYTHREAD, L->lnonzero[i]);
-        append_edge(el, row*THREADS + MYTHREAD, L->lnonzero[i]);
+        if(weighted)
+          append_weighted_edge(el, row*THREADS + MYTHREAD, L->lnonzero[i], L->lvalue[i]);
+        else
+          append_edge(el, row*THREADS + MYTHREAD, L->lnonzero[i]);
       }else{
         edge.row = L->lnonzero[i];
         edge.col = row*THREADS + MYTHREAD;
+        if(weighted) edge.val = L->lvalue[i];
         pe = edge.row % THREADS;
         if(exstack_push(ex, &edge, pe) == 0L)
           break;
@@ -1302,17 +1322,20 @@ sparsemat_t * direct_undirected_graph(sparsemat_t * L){
     }
     
     exstack_exchange(ex);
-
+      
     while(exstack_pop(ex, &edge, NULL)){
       //printf("B Appending edge %ld %ld\n", edge.row, edge.col);
-      append_edge(el, edge.row, edge.col);
+      if(weighted)
+        append_weighted_edge(el, edge.row, edge.col, edge.val);
+      else
+        append_edge(el, edge.row, edge.col);
     }
   }
 
   lgp_barrier();
   exstack_clear(ex);
   
-  sparsemat_t * A = init_matrix(L->numrows, L->numcols, el->num, L->value!=NULL);
+  sparsemat_t * A = init_matrix(L->numrows, L->numcols, el->num, weighted);
   if(!A){
     T0_fprintf(stderr,"ERROR: direct_undirected_graph: Could not initialize A\n");
     return(NULL);
@@ -1320,7 +1343,10 @@ sparsemat_t * direct_undirected_graph(sparsemat_t * L){
 
   int64_t * lrowcounts = calloc(A->lnumrows, sizeof(int64_t));  
   for(i = 0; i < el->num; i++){
-    lrowcounts[el->edges[i].row/THREADS]++;
+    if(weighted)
+      lrowcounts[el->wedges[i].row/THREADS]++;
+    else
+      lrowcounts[el->edges[i].row/THREADS]++;
   }
   
   // initialize the offsets for the sparse matrix
@@ -1333,16 +1359,22 @@ sparsemat_t * direct_undirected_graph(sparsemat_t * L){
 
   // populate A
   for(i = 0; i < el->num; i++){
-    row = el->edges[i].row/THREADS;
-    int64_t pos = A->loffset[row] + lrowcounts[row]++;
-    A->lnonzero[pos] = el->edges[i].col;
+    if(weighted){
+      row = el->wedges[i].row/THREADS;
+      int64_t pos = A->loffset[row] + lrowcounts[row]++;
+      A->lnonzero[pos] = el->wedges[i].col;
+      A->lvalue[pos] = el->wedges[i].val;
+    }else{
+      row = el->edges[i].row/THREADS;
+      int64_t pos = A->loffset[row] + lrowcounts[row]++;
+      A->lnonzero[pos] = el->edges[i].col;
+    }
   }
 
   sort_nonzeros(A);
   free(lrowcounts);
   clear_edge_list(el);
   
-
   return(A);
   
 }
@@ -1361,8 +1393,9 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat) {
   for(i = 0; i < (srcmat->lnumrows)+1; i++){
      destmat->loffset[i] = srcmat->loffset[i];
   }
-  for(j=0; j < srcmat->lnnz; j++) {
-     destmat->lnonzero[j] = srcmat->lnonzero[j];
+  for(j=0; j < srcmat->lnnz; j++) {    
+    destmat->lnonzero[j] = srcmat->lnonzero[j];
+    if(srcmat->value) destmat->lvalue[j] = srcmat->lvalue[j];
   }
 
   lgp_barrier();
@@ -1395,6 +1428,17 @@ void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, i
   assert(*edge_prob <= 1.0);
 }
 
+
+// return 1 if the two values are different "enough" relative to their size.
+
+int spmat_compare_doubles(double a, double b){
+  if(a == 0.0){
+    if(fabs(b) < 1e-8) return(0);
+    return(1);
+  }
+  if((fabs(a - b)  / fabs(a)) < FLT_EPSILON) return(0);
+  return(1);
+}
 
 /*! \brief initializes the struct that holds a sparse matrix
  *    given the total number of rows and columns and the local number of non-zeros
@@ -1471,11 +1515,17 @@ sparsemat_t * init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz) {
   return(mat);
 }
 
-edge_list_t * init_edge_list(int64_t nalloc){
+edge_list_t * init_edge_list(int64_t nalloc, int weighted){
   edge_list_t * el = calloc(1, sizeof(edge_list_t));
   el->num = 0;
   el->nalloc = nalloc;
-  el->edges = calloc(nalloc, sizeof(edge_t));
+  if(!weighted){
+    el->edges = calloc(nalloc, sizeof(edge_t));
+    el->wedges = NULL;
+  }else{
+    el->edges = NULL;
+    el->wedges = calloc(nalloc, sizeof(w_edge_t));
+  }
   return(el);
 }
 
@@ -1565,6 +1615,23 @@ int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
   return(el->num);
 }
 
+int64_t append_weighted_edge(edge_list_t * el, int64_t row, int64_t col, double val){
+    if(el->nalloc == el->num){
+    //printf("PE %d: out of space! nalloc = %ld\n", MYTHREAD, el->nalloc);
+    // we need to expand our allocations!
+    if(el->nalloc < 10000)
+      el->nalloc = 2*el->nalloc;
+    else
+      el->nalloc = el->nalloc*1.25;
+    //printf("PE %d: new space! nalloc = %ld\n", MYTHREAD, el->nalloc);
+    el->wedges = realloc(el->wedges, el->nalloc*sizeof(w_edge_t));
+  }
+  el->wedges[el->num].row = row;
+  el->wedges[el->num].col = col;
+  el->wedges[el->num].val = val;
+  el->num++;
+  return(el->num);
+}
 /* \brief Convert a triples_t to a sparsemat_t.
  * 
  * \param T A triples_t struct.

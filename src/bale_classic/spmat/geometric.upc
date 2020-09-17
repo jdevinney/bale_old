@@ -377,8 +377,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   // Step 6. Determine which edges are present
   int64_t space = ceil(1.1*my_total_points*(n*M_PI*r*r));
-  //printf("PE %d: Initial allocation: %ld\n", MYTHREAD, space);
-  edge_list_t * el = init_edge_list(space);
+  // we don't worry about values at this point (thus we are creating an edge list
+  // without values.
+  edge_list_t * el = init_edge_list(space, 0);
   if(el == NULL){
     printf("ERROR: geometric graph: el is NULL\n");
     return(NULL);
@@ -506,7 +507,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
         int64_t row = e.row/THREADS;
         int64_t pos = A->loffset[row] + lrow_counts[row]++;
         A->lnonzero[pos] = e.col;
-        if(weighted) A->lvalue[pos] = lgp_rand_double();
+        if(weighted){
+          A->lvalue[pos] = lgp_rand_double();
+        }
       }else{
         //printf("Pushing %ld %ld to pe %ld\n", e.row, e.col, pe);
         if(exstack_push(ex, &e, pe) == 0L)
@@ -523,7 +526,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       assert(pos < A->lnnz);
       assert(edge.col < n);
       A->lnonzero[pos] = edge.col;
-      if(weighted) A->lvalue[pos] = lgp_rand_double();
+      if(weighted) {
+        A->lvalue[pos] = lgp_rand_double();
+      }
     }
   }
 
@@ -536,7 +541,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   exstack_clear(ex);
   free(el);
   lgp_all_free(row_counts);
-  
+
   sort_nonzeros(A);
   
 #if 0

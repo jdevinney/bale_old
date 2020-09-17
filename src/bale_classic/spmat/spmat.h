@@ -115,6 +115,7 @@ typedef struct edge_t{
 
 typedef struct edge_list_t{
   edge_t * edges;
+  w_edge_t * wedges;
   int64_t nalloc;
   int64_t num;
 }edge_list_t;
@@ -160,6 +161,7 @@ int64_t rowcount_l( sparsemat_t *mat, int64_t l_row );
 int64_t rowcount_S( sparsemat_t *mat, int64_t S_row );
 
 int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
+int64_t             append_weighted_edge(edge_list_t * el, int64_t row, int64_t col, double val);
 int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
 
 int64_t             calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num);
@@ -178,7 +180,7 @@ sparsemat_t *       generate_kronecker_graph_from_spec(int mode, int * spec, int
 sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
 
 
-edge_list_t *       init_edge_list(int64_t nalloc);
+edge_list_t *       init_edge_list(int64_t nalloc, int weighted);
 sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted);
 triples_t *         init_triples(int64_t numrows, int64_t numcols, int64_t lnnz, int weighted);
 sparsemat_t *       init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz);
@@ -207,6 +209,9 @@ SHARED int64_t *    rand_permp_agi(int64_t N, int seed);
 sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                                  double edge_density, int64_t seed);
 void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops);
+
+int                 spmat_compare_doubles(double a, double b);
+  
 sparsemat_t *       transpose_matrix(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);

@@ -163,7 +163,7 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
   }else{
     mat = tri_mat;
   }
-  
+
   if(!mat){T0_printf("ERROR: mat is NULL!\n"); return(NULL);}
 
   // get row and column permutations
@@ -173,6 +173,7 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
   //T0_printf("generate perms time %lf\n", wall_seconds() - t);
   lgp_barrier();
 
+  
   if(!rperminv || !cperminv){
     T0_printf("ERROR: topo_rand_permp returns NULL!\n");fflush(0);
     return(NULL);
@@ -186,7 +187,7 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
     return(NULL);
   }
   //T0_printf("permute matrix time %lf\n", wall_seconds() - t);
-  
+
   lgp_barrier();
   if(mat != tri_mat){
     clear_matrix( mat );free(mat);
@@ -194,7 +195,7 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
   
   lgp_all_free(rperminv);
   lgp_all_free(cperminv);
-
+  
   return( pmat );
 }
 
@@ -226,10 +227,11 @@ static struct argp_child children_parsers[] =
 int main(int argc, char * argv[]) {
 
   /* process command line */
-  args_t args;
+  args_t args = {0}; // initialize args struct to all zero
   struct argp argp = {NULL, parse_opt, 0,
                       "Parallel topological sort.", children_parsers};
 
+  args.gstd.loops = 1; // force loops into graph
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
@@ -239,11 +241,7 @@ int main(int argc, char * argv[]) {
     T0_fprintf(stderr, "toposort needs undirected graph input, overriding -d flag.\n");
     args.gstd.directed = 0;
   }
-  if(args.gstd.loops == 0){
-    T0_fprintf(stderr, "toposort needs loops, overriding absence of -l flag.\n");
-    args.gstd.loops = 1;
-  }
-  
+    
   if(!MYTHREAD){
     write_std_graph_options(&args.std, &args.gstd);
     write_std_options(&args.std);
@@ -263,9 +261,8 @@ int main(int argc, char * argv[]) {
 
 
   if(args.std.dump_files){
-    write_matrix_mm(inmat, "inmat");
-    write_matrix_mm(mat, "mat");
-    write_matrix_mm(tmat, "tmat");
+    write_matrix_mm(inmat, "topo_inmat");
+    write_matrix_mm(mat, "topo_permuted_mat");
   }
 
   lgp_barrier();

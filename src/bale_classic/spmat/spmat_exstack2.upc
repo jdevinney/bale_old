@@ -224,10 +224,7 @@ SHARED int64_t * rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt) {
  * \ingroup spmatgrp
  */
 sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt) {
-  typedef struct pkg_rowcol_t{
-    int64_t row;    
-    int64_t col;
-  }pkg_rowcol_t;
+
   typedef struct pkg_rowcnt_t{
     int64_t row;
     int64_t cnt;
@@ -276,8 +273,11 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
   assert(A->nnz == lgp_reduce_add_l(lnnz));
 
   // allocate pmat to the max of the new number of nonzeros per thread  
-  Ap = init_matrix(A->numrows, A->numcols, lnnz, (A->value != NULL));
+  int weighted = (A->value != NULL);
+  
+  Ap = init_matrix(A->numrows, A->numcols, lnnz, weighted);  
   if(Ap == NULL) return(NULL);
+
   lgp_barrier();
 
   // convert row counts to offsets 
@@ -290,28 +290,49 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
   // working offset: wrkoff[row] gives the first empty spot on row row  
   /****************************************************************/
   int64_t * wrkoff = calloc(A->lnumrows, sizeof(int64_t)); 
-  pkg_rowcol_t pkg_nz;
-  
-  exstack2_t * exr = exstack2_init(buf_cnt, sizeof(pkg_rowcol_t));
+  exstack2_t * exr;
+
+  if(weighted)
+    exr = exstack2_init(buf_cnt, sizeof(w_edge_t));
+  else
+    exr = exstack2_init(buf_cnt, sizeof(edge_t));  
   if( exr == NULL )return(NULL);
 
+  edge_t edge;
+  w_edge_t wedge;
   i = row = 0;
   while(exstack2_proceed(exr, (i == A->lnnz))){
     while(i < A->lnnz){
       while( i == A->loffset[row+1] ) // skip empty rows 
-        row++; 
-      pkg_nz.row = lrperminv[row] / THREADS;
-      pkg_nz.col = A->lnonzero[i];
-      //printf("th %d: pushing (%"PRId64", %"PRId64") to pe %"PRId64"\n", MYTHREAD, lrperminv[row], pkg_nz.col, lrperminv[row] % THREADS);
-      if( !exstack2_push(exr, &pkg_nz, lrperminv[row] % THREADS ) )
-        break;
-      i++;
+        row++;
+      pe = lrperminv[row] % THREADS;
+      if(weighted){
+        wedge.row = lrperminv[row] / THREADS;
+        wedge.col = A->lnonzero[i];
+        wedge.val = A->lvalue[i];
+        if( !exstack2_push(exr, &wedge, pe ) )
+          break;
+        i++;
+      }else{
+        edge.row = lrperminv[row] / THREADS;
+        edge.col = A->lnonzero[i];
+        if( !exstack2_push(exr, &edge, pe ) )
+          break;
+        i++;
+      }
     }
 
-    while(exstack2_pop(exr, &pkg_nz, &fromth)) {
-      //printf("th %d: rcv %"PRId64" %"PRId64"\n", MYTHREAD, pkg_nz.row, pkg_nz.col);
-      Ap->lnonzero[ Ap->loffset[pkg_nz.row] + wrkoff[pkg_nz.row] ] = pkg_nz.col;
-      wrkoff[pkg_nz.row]++;
+    if(weighted){
+      while(exstack2_pop(exr, &wedge, &fromth)) {
+        Ap->lnonzero[ Ap->loffset[wedge.row] + wrkoff[wedge.row] ] = wedge.col;
+        Ap->lvalue[ Ap->loffset[wedge.row] + wrkoff[wedge.row] ] = wedge.val;
+        wrkoff[wedge.row]++;
+      }
+    }else{
+      while(exstack2_pop(exr, &edge, &fromth)) {
+        Ap->lnonzero[ Ap->loffset[edge.row] + wrkoff[edge.row] ] = edge.col;
+        wrkoff[edge.row]++;
+      }
     }
   }
   lgp_barrier();
@@ -364,7 +385,7 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
 
   lgp_barrier();
   
-  //if(!MYTHREAD)printf("done\n");
+  sort_nonzeros(Ap);
 
   return(Ap);
 
@@ -377,21 +398,17 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
  * \ingroup spmatgrp
  */
 sparsemat_t * transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt) {
-  typedef struct pkg_rowcol_t{
-    int64_t row;    
-    int64_t col;
-  }pkg_rowcol_t;
 
   int64_t ret, pe;
   int64_t lnnz, i, col, row, fromth; 
-  int64_t idx, *idxp;
-
-  //if(!MYTHREAD)printf("Exstack2 version of matrix transpose\n");
+  int64_t idx, *idxp;  
   
   /* get the colcnts */
   int64_t lnumcols = (A->numrows + THREADS - MYTHREAD - 1)/THREADS;  
   int64_t * lcounts = calloc(lnumcols, sizeof(int64_t));
   lgp_barrier();
+
+  int weighted = (A->value != NULL);
   
   exstack2_t * ex2c = exstack2_init(buf_cnt, sizeof(int64_t));
 
@@ -416,7 +433,7 @@ sparsemat_t * transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt) {
   int64_t sum = lgp_reduce_add_l(lnnz);
   assert( A->nnz == sum ); 
   
-  sparsemat_t * At = init_matrix(A->numcols, A->numrows, lnnz, (A->value != NULL));
+  sparsemat_t * At = init_matrix(A->numcols, A->numrows, lnnz, weighted);
   if(!At){printf("ERROR: transpose_matrix: init_matrix failed!\n");return(NULL);}
 
   /* convert colcounts to offsets */
@@ -430,28 +447,51 @@ sparsemat_t * transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt) {
   int64_t *wrkoff = calloc(At->lnumrows, sizeof(int64_t));
   if(!wrkoff) {printf("ERROR: transpose_matrix: wrkoff alloc fail!\n"); return(NULL);}
 
-  pkg_rowcol_t pkg_nz;
-  
-  exstack2_t * ex2r = exstack2_init(buf_cnt, sizeof(pkg_rowcol_t));
+  exstack2_t * ex2r;
+  if(weighted)
+     ex2r = exstack2_init(buf_cnt, sizeof(w_edge_t));
+  else
+    ex2r = exstack2_init(buf_cnt, sizeof(edge_t));
   if( ex2c == NULL ) return(NULL);
 
   uint64_t numtimespop=0;
+  w_edge_t wedge;
+  edge_t edge;
   i = row = 0;
   while(exstack2_proceed(ex2r, (i == A->lnnz))){
     while(i < A->lnnz){
       while( i == A->loffset[row+1] ) 
         row++;
-      pkg_nz.row = row * THREADS + MYTHREAD;
-      pkg_nz.col = A->lnonzero[i] / THREADS;
       pe = A->lnonzero[i]%THREADS;
-      if( !exstack2_push(ex2r, &pkg_nz, pe) )
-        break;
-      i++;
+      if(weighted){
+        wedge.row = row * THREADS + MYTHREAD;
+        wedge.col = A->lnonzero[i] / THREADS;
+        wedge.val = A->lvalue[i];     
+        if( !exstack2_push(ex2r, &wedge, pe))
+          break;
+        i++;  
+      }else{
+        edge.row = row * THREADS + MYTHREAD;
+        edge.col = A->lnonzero[i] / THREADS;        
+        if( !exstack2_push(ex2r, &edge, pe) )
+          break;
+        i++;
+      }
     }
-    while(exstack2_pop(ex2r, &pkg_nz, &fromth)){
-      numtimespop++;
-      At->lnonzero[ At->loffset[pkg_nz.col] + wrkoff[pkg_nz.col] ] = pkg_nz.row;
-      wrkoff[pkg_nz.col]++;
+
+    if(weighted){
+      while(exstack2_pop(ex2r, &wedge, &fromth)){
+        numtimespop++;
+        At->lnonzero[ At->loffset[wedge.col] + wrkoff[wedge.col] ] = wedge.row;
+        At->lvalue[ At->loffset[wedge.col] + wrkoff[wedge.col] ] = wedge.val;
+        wrkoff[wedge.col]++;
+      }
+    }else{
+      while(exstack2_pop(ex2r, &edge, &fromth)){
+        numtimespop++;
+        At->lnonzero[ At->loffset[edge.col] + wrkoff[edge.col] ] = edge.row;
+        wrkoff[edge.col]++;
+      }
     }
   }
   
