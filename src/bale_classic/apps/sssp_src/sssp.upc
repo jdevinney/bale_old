@@ -40,6 +40,7 @@
  */
 
 #include "sssp.h"
+#include <std_options.h>
 
 /*!
   \page sssp_page Single Source Shortest Path
@@ -104,7 +105,7 @@ int main(int argc, char * argv[])
   lgp_init(argc, argv);
 
   int64_t buf_cnt = 1024;
-  int64_t models_mask = ALL_Models;  // default is running all models
+  int64_t models_mask = 31;  // default is running all models
   int64_t l_numrows = 1000;         // number of a rows per thread
   int64_t read_graph = 0L;           // read graph from a file
   char filename[64];
