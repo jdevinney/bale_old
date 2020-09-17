@@ -254,11 +254,9 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
     int64_t start = 0;
     int64_t end = 0;
 
-    //for( v=ds->B[i_m]; v>=0 && ds->in_bucket[v] == i_m; v=ds->next[v]){//}
     while( lgp_reduce_max_l(ds->B[i_m]) > -1){
-      v = ds->B[i_m];
-      if(v != -1){
-        
+      while( ds->B[i_m] >= 0 ) {
+        v = ds->B[i_m]; 
         if(DPRT){printf("%02d: Processing Node %"PRId64" in Bucket %"PRId64"\n",MYTHREAD, v, i_m);}
 
         remove_node_from_bucket_arr(ds, v);
