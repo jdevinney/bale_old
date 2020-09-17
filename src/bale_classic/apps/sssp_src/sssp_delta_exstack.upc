@@ -98,7 +98,7 @@ static void remove_node_from_bucket_arr(ds_t *ds, int64_t v)
   w = ds->next[v];
   ds->prev[w] = ds->prev[v];
   ds->next[ds->prev[v]] = w;
-  ds->B[i_m] = w;
+  ds->B[i_m] = w;         //move the B[i] pointer to w, 
   return;
 }
 
@@ -241,11 +241,6 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
 
     all_i = lgp_reduce_min_l(i);
 
-    //if(all_i == 0){ // B[rbi] is empty on all threads
-    //  rbi = rbi + 1;
-    //  continue;
-    //}
-
     if(all_i == num_buckets){  //All buckets are empty, we are done
         break;
     }
@@ -258,34 +253,40 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
     // inner loop
     int64_t start = 0;
     int64_t end = 0;
-    for( v=ds->B[i_m]; v>=0 && ds->in_bucket[v] == i_m; v=ds->next[v]){
-      if(DPRT){printf("%02d: Processing Node %"PRId64" in Bucket %"PRId64"\n",MYTHREAD, v, i_m);}
 
-      remove_node_from_bucket_arr(ds, v);
-      
-      /* relax light edges from v */
-      pkg.i = v*THREADS + MYTHREAD; 
-      if(0&&DPRT){printf("%02d: v=%ld has degree %ld\n", MYTHREAD, pkg.i, mat->loffset[v+1]-mat->loffset[v]);}
-      for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
-        if(mat->lvalue[k] <= delta){	  
-          J = mat->lnonzero[k];
-          pe  = J % THREADS;
-          pkg.lj = J / THREADS;
-          pkg.tw = ds->tent[v] + mat->lvalue[k];
-          if( exstack_push(ex, &pkg, pe) == 0 ) {
-            delta_exstack_relax_process(ds, ex, 0);
-            k--;
+    //for( v=ds->B[i_m]; v>=0 && ds->in_bucket[v] == i_m; v=ds->next[v]){//}
+    while( lgp_reduce_max_l(ds->B[i_m]) > -1){
+      v = ds->B[i_m];
+      if(v != -1){
+        
+        if(DPRT){printf("%02d: Processing Node %"PRId64" in Bucket %"PRId64"\n",MYTHREAD, v, i_m);}
+
+        remove_node_from_bucket_arr(ds, v);
+        /* relax light edges from v */
+        pkg.i = v*THREADS + MYTHREAD; 
+        if(0&&DPRT){printf("%02d: v=%ld has degree %ld\n", MYTHREAD, pkg.i, mat->loffset[v+1]-mat->loffset[v]);}
+        for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
+          if(mat->lvalue[k] <= delta){	  
+            J = mat->lnonzero[k];
+            pe  = J % THREADS;
+            pkg.lj = J / THREADS;
+            pkg.tw = ds->tent[v] + mat->lvalue[k];
+            if( exstack_push(ex, &pkg, pe) == 0 ) {
+              delta_exstack_relax_process(ds, ex, 0);
+              k--;
+            }
           }
+        } 
+        if(ds->deleted[v] == 0){  // insert v into R if it is not already there
+          ds->deleted[v] = 1;
+          R[end++] = v;
+          //if(DPRT){printf("%02d: deleted %"PRId64"\n", MYTHREAD, v);}
         }
-      } 
-      
-      /* insert v into R if it is not already there */
-      if(ds->deleted[v] == 0){
-        ds->deleted[v] = 1;
-        R[end++] = v;
-        //if(DPRT){printf("%02d: deleted %"PRId64"\n", MYTHREAD, v);}
       }
-    }
+      while( delta_exstack_relax_process(ds, ex, 1)) 
+        ;
+    } 
+    exstack_reset(ex);
 
     /* relax heavy requests edges for everything in R */
     for(start=0; start<end; start++){
@@ -307,7 +308,6 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
     if(DPRT){printf("%02d: Finishing inner loop: rbi %ld\n",MYTHREAD, rbi);}
     while( delta_exstack_relax_process(ds, ex, 1) )
       ;
-    lgp_barrier();
     exstack_reset(ex);
   }
 
