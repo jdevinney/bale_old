@@ -241,10 +241,24 @@ int main(int argc, char * argv[])
           T0_fprintf(stderr,"Bellman Exstack2 nothing to compare\n");
         }else{
           if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            T0_fprintf(stderr, "Exstack2 compares success!\n");
+            T0_fprintf(stderr, "Bellman Exstack2 compares success!\n");
         }
         break;
 
+      case (EXSTACK2_Model | USE_DELTA):
+        T0_fprintf(stderr,"  Delta Exstack2: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("Ex2 Delta     :",tent);
+        laptime = sssp_delta_exstack2(tent, mat, 0);
+        //dump_tent("Ex2 Delta     :",tent);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Delta Exstack2 nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Delta Exstack2 compares success!\n");
+        }
+        break;
 
       case (CONVEYOR_Model | USE_BELLMAN):
       T0_fprintf(stderr,"  Bellman-Ford Convey: ");
@@ -257,7 +271,22 @@ int main(int argc, char * argv[])
           T0_fprintf(stderr,"Bellman Conveyor nothing to compare\n");
         }else{
           if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            T0_fprintf(stderr, "Conveyor compares success!\n");
+            T0_fprintf(stderr, "Bellman Conveyor compares success!\n");
+        }
+        break;
+
+      case (CONVEYOR_Model | USE_DELTA):
+      T0_fprintf(stderr,"  Delta Convey: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("C  Delta     :",tent);
+        laptime = sssp_delta_convey(tent, mat, 0);
+        //dump_tent("C  Delta     :",tent);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Delta Conveyor nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Delta Conveyor compares success!\n");
         }
         break;
       }

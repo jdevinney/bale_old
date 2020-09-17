@@ -26,7 +26,7 @@ typedef struct pkg_delta_e_t{
 
 
 // debugging function
-void dump_bucket_arr(ds_t *ds, int64_t i_m)
+static void dump_bucket_arr(ds_t *ds, int64_t i_m)
 {
   int64_t v, w ;
   char lineout[2048];
@@ -46,7 +46,7 @@ void dump_bucket_arr(ds_t *ds, int64_t i_m)
 }
 
 // Prepend node v into a bucket i
-void insert_node_in_bucket_arr(ds_t *ds, int64_t v, int64_t i_m)
+static void insert_node_in_bucket_arr(ds_t *ds, int64_t v, int64_t i_m)
 {
   int64_t w;                   // node on list, given by ds->B[i_m]
   //if(DPRT){printf("%02d: Adding %"PRId64" to bucket %"PRId64" of %"PRId64"\n", MYTHREAD, v, i_m, ds->num_buckets);}
@@ -105,7 +105,7 @@ static void remove_node_from_bucket_arr(ds_t *ds, int64_t v)
 // relax an edge to the head vertex, given the new tentative distance
 // (= the tentative distance to the tail plus the weight of the edge).
 // the candidate distance to w is cand_dist.
-void relax_arr(ds_t *ds, int64_t w, double cand_dist)
+static void relax_arr(ds_t *ds, int64_t w, double cand_dist)
 {
   int64_t iold, inew;
   //if(DPRT){printf("%02d: relax head %"PRId64" cand_dist = %lf < %lf?\n", MYTHREAD, w, cand_dist, ds->tent[w]);}
@@ -221,10 +221,6 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   }
 
   lgp_barrier();
-  //for(v = 0; v < mat->lnumrows; v++){ dist->lentry[v] = ds->tent[v]; }
-  //lgp_barrier();
-  //dump_tent("Delta Exstack Init:", dist);
-  //lgp_barrier();
 
   /* main loop */
   rbi = 0;   // collectively, the real min bucket 

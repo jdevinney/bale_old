@@ -217,6 +217,8 @@ sssp_sources += sssp_src/sssp_bellman_exstack.upc
 sssp_sources += sssp_src/sssp_bellman_exstack2.upc
 sssp_sources += sssp_src/sssp_bellman_conveyor.upc
 sssp_sources += sssp_src/sssp_delta_exstack.upc
+sssp_sources += sssp_src/sssp_delta_conveyor.upc
+sssp_sources += sssp_src/sssp_delta_exstack2.upc
 #sssp_sources += sssp_src/alternates/sssp_alt.upc
 
 sssp_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/sssp
