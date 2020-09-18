@@ -320,7 +320,7 @@ int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index,
 /*!
 * \ingroup libgetputgrp
 */
-int64_t lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, size_t blocksize) {
+double lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, size_t blocksize) {
   int pe;
   size_t local_index;
   double *local_ptr;
