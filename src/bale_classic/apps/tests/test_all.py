@@ -79,7 +79,8 @@ def test_all(path, node_range, implementation_mask):
       for run in runs:        
         cmd = launcher.format(os.path.join(path,app),pes) +" "+run+" -M "+implementation_mask
         print(launcher.format(app, pes)+" "+run+" -M "+implementation_mask)
-        cp = subprocess.run(cmd, capture_output=True, shell=True)
+        #cp = subprocess.run(cmd, capture_output=True, shell=True)
+        cp = subprocess.run(cmd, shell=True)
         assert(cp.returncode == 0)
 
 
