@@ -104,7 +104,7 @@ int main(int argc, char * argv[]) {
   /* process command line */
   int ret = 0;
   args_t args;
-  args.l_num_rows = 10000;
+  args.l_num_rows = 1000000;
   struct argp argp = {options, parse_opt, 0,
                       "Create a random permutation in parallel.", children_parsers};
 

@@ -139,8 +139,8 @@ int main(int argc, char * argv[]) {
   /* process command line */
   int ret = 0;
   args_t args;
-  args.l_tbl_size = 1000;
-  args.l_num_req = 100000;
+  args.l_tbl_size = 10000;
+  args.l_num_req = 5000000;
   struct argp argp = {options, parse_opt, 0,
                       "Many remote reads from a distributed table.", children_parsers};
   
