@@ -222,7 +222,7 @@ sssp_sources += sssp_src/sssp_delta_conveyor.upc
 sssp_sources += sssp_src/sssp_delta_exstack2.upc
 #sssp_sources += sssp_src/alternates/sssp_alt.upc
 
-sssp_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/sssp
+sssp_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/sssp_src
 sssp_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
