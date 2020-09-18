@@ -31,7 +31,6 @@ def test_all(path, node_range, implementation_mask):
       return()
   else:
     node_range = range(1,4)
-  #print(node_range)
 
 
   for app in apps:
@@ -77,9 +76,10 @@ def test_all(path, node_range, implementation_mask):
           
     for pes in node_range:
       if pes == 0: continue
-      for run in runs:
+      for run in runs:        
         cmd = launcher.format(os.path.join(path,app),pes) +" "+run+" -M "+implementation_mask
-        cp = subprocess.run(cmd, shell=True)
+        print(launcher.format(app, pes)+" "+run+" -M "+implementation_mask)
+        cp = subprocess.run(cmd, capture_output=True, shell=True)
         assert(cp.returncode == 0)
 
 
