@@ -284,6 +284,21 @@ void lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t 
   shmem_int64_p ( local_ptr, val, pe );
 }
 
+void lgp_shmem_write_upc_array_double(SHARED double *addr, size_t index, size_t blocksize, double val) {
+  int pe;
+  size_t local_index;
+  double *local_ptr;
+
+
+  pe = index % shmem_n_pes();
+  local_index = (index / shmem_n_pes())*blocksize;
+
+  local_ptr =(double*)(( (char*)addr ) + local_index);
+
+  shmem_double_p ( local_ptr, val, pe );
+}
+
+
 /*!
 * \ingroup libgetputgrp
 */
@@ -298,6 +313,24 @@ int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index,
   local_index = (index / shmem_n_pes())*blocksize;
 
   local_ptr =(int64_t*)(( (char*)addr ) + local_index);
+
+  return shmem_int64_g ( local_ptr, pe );
+}
+
+/*!
+* \ingroup libgetputgrp
+*/
+int64_t lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, size_t blocksize) {
+  int pe;
+  size_t local_index;
+  double *local_ptr;
+
+  /* asupc_init tests that (long long) == (int64_t) */
+
+  pe = index % shmem_n_pes();
+  local_index = (index / shmem_n_pes())*blocksize;
+
+  local_ptr =(double*)(( (char*)addr ) + local_index);
 
   return shmem_int64_g ( local_ptr, pe );
 }
