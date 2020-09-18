@@ -29,6 +29,7 @@ T = {0..#M}; // identity permutation
 
 t.stop();
 writeln("Set up time: ", t.elapsed());
+t.clear();
 t.start();
 
 /* Main loop 1 */
@@ -38,6 +39,7 @@ forall i in rindex.domain{
 
 t.stop();
 writeln("Loop 1: ", t.elapsed());
+t.clear();
 t.start();
 
 /* Main loop 2 */
@@ -51,6 +53,7 @@ coforall loc in Locales do on loc do{
 
 t.stop();
 writeln("Loop 2: ", t.elapsed());
+t.clear();
 t.start();
 
 //We can check for success easily:
