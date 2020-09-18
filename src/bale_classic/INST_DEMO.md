@@ -1,4 +1,4 @@
-# Building bale on some common platforms
+# Building and Running bale on some common platforms
 
 Assuming you have cloned bale in a directory called $BALEDIR.
 
@@ -42,19 +42,58 @@ unset CC
 
 This builds everything in $BALEDIR/build_linux_oshmem. Binaries appear in $BALEDIR/build_linux_oshmem/bin.
 
-## ... on a Cray XC30 on UPC
+## ... on a Cray XC30
 
-Use the PrgEnvCray module to access the Cray UPC compiler
+- If you want to use Cray UPC:
+    - Use the PrgEnvCray module to access the Cray UPC compiler.
+    - `export UPC="cc -hupc"`
+- If you want to use Cray SHMEM: Use PrgEnvCray and load the cray-shmem module.
+- If you want to use Cray OpenSHMEMX: Use PrgEnvgnu and load cray-openshmemx. 
 
 ```bash
 cd $BALEDIR
-export PLATFORM=xc30_upc
-export UPC="cc -hupc"
+export PLATFORM=xc30
 ./bootstrap.sh
 ./install.sh
 ```
 
-## ... on a Cray XC30 with Cray-shmem
 
 
+# Run a test
+Try running a simple test (remember to use -M 3 with OpenMPI/oshmem or SOS)
+### with oshrun
+```bash
+oshrun -n 4 $BALEDIR/src/bale_classic/build_$PLATFORM/bin/histo
+```
+### with slurm
+```bash
+srun -n 4 $BALEDIR/src/bale_classic/build_$PLATFORM/bin/histo
+```
+### with gupc
+```bash
+$BALEDIR/src/bale_classic/build_$PLATFORM/bin/histo -n 4
+```
 
+You should see something like this...
+
+```bash
+
+***************************************************************
+Bale Version 3.00 (UPC 201311): 2110-08-17.12:50
+Running command on 4 PEs: ../build_ucs3_gupc/bin/histo
+***************************************************************
+
+num_updates_per_pe: 100000
+table_size_per_pe: 1000
+Standard options:
+----------------------------------------------------
+buf_cnt (buffer size)    (-b): 1024
+seed                     (-s): 122222
+cores_per_node           (-c): 0
+Models Mask              (-M): 15
+
+       AGI:    0.009 seconds     0.000 GB/s injection bandwidth
+   Exstack:    0.003 seconds     0.000 GB/s injection bandwidth
+  Exstack2:    0.004 seconds     0.000 GB/s injection bandwidth
+  Conveyor:    0.012 seconds     0.000 GB/s injection bandwidth
+```

@@ -295,7 +295,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   //T0_printf("                 edge_type = %d loops = %d\n", edge_type, loops);
 
   
-  srand(seed + MYTHREAD + 1);
+  lgp_rand_seed(seed);
   // TODO: permute matrix at end to get Zmorton order (which would improve locality)
   //       or round-robin point order (which would destroy locality)
 
@@ -309,7 +309,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 
   lgp_barrier();    
   
-  for(i = 0; i < ln; i++) lgp_atomic_add(counts, rand() % nsectors, 1L);
+  for(i = 0; i < ln; i++) lgp_atomic_add(counts, lgp_rand_int64(nsectors), 1L);
     
   lgp_barrier();
 
@@ -366,8 +366,8 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     double y_off = (sector % nsectors_across) * sector_width;
     pt = i*sector_max;
     for(j = 0; j < lcounts[i]; j++){    
-      lpoints[pt].x = ((double)rand()/RAND_MAX)*sector_width + x_off;
-      lpoints[pt].y = ((double)rand()/RAND_MAX)*sector_width + y_off;
+      lpoints[pt].x = lgp_rand_double()*sector_width + x_off;
+      lpoints[pt].y = lgp_rand_double()*sector_width + y_off;
       pt++;
     }
     //Sort the points in each sector lexiographically
@@ -377,8 +377,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   // Step 6. Determine which edges are present
   int64_t space = ceil(1.1*my_total_points*(n*M_PI*r*r));
-  //printf("PE %d: Initial allocation: %ld\n", MYTHREAD, space);
-  edge_list_t * el = init_edge_list(space);
+  // we don't worry about values at this point (thus we are creating an edge list
+  // without values.
+  edge_list_t * el = init_edge_list(space, 0);
   if(el == NULL){
     printf("ERROR: geometric graph: el is NULL\n");
     return(NULL);
@@ -506,7 +507,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
         int64_t row = e.row/THREADS;
         int64_t pos = A->loffset[row] + lrow_counts[row]++;
         A->lnonzero[pos] = e.col;
-        if(weighted) A->lvalue[pos] = (double)rand()/RAND_MAX;
+        if(weighted){
+          A->lvalue[pos] = lgp_rand_double();
+        }
       }else{
         //printf("Pushing %ld %ld to pe %ld\n", e.row, e.col, pe);
         if(exstack_push(ex, &e, pe) == 0L)
@@ -523,7 +526,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       assert(pos < A->lnnz);
       assert(edge.col < n);
       A->lnonzero[pos] = edge.col;
-      if(weighted) A->lvalue[pos] = (double)rand()/RAND_MAX;
+      if(weighted) {
+        A->lvalue[pos] = lgp_rand_double();
+      }
     }
   }
 
@@ -536,7 +541,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   exstack_clear(ex);
   free(el);
   lgp_all_free(row_counts);
-  
+
   sort_nonzeros(A);
   
 #if 0

@@ -109,7 +109,7 @@ int main(int argc, char * argv[])
 {
 
   /* process command line */
-  args_t args;
+  args_t args = {0};
   struct argp argp = {NULL, parse_opt, 0,
                       "Parallel sparse matrix transpose.", children_parsers};
   

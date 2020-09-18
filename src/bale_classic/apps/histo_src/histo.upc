@@ -147,10 +147,12 @@ int main(int argc, char * argv[]) {
   data.pckindx = calloc(data.l_num_ups, sizeof(int64_t)); assert(data.pckindx != NULL);
 
   int64_t indx, lindx, pe;
-  srand(MYTHREAD + args.std.seed);
+
+  lgp_rand_seed(args.std.seed);
+  
   for(i = 0; i < data.l_num_ups; i++) {
     //indx = i % data.num_counts;          //might want to do this for debugging
-    indx = rand() % data.num_counts;
+    indx = lgp_rand_int64(data.num_counts);
     data.index[i] = indx;                 
     lindx = indx / THREADS;
     pe  = indx % THREADS;

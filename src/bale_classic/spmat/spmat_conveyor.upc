@@ -89,7 +89,7 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
   for(i = 0; i < lM; i++)
     ltarget[i] = -1L;
 
-  if( seed != 0 ) srand48( seed );
+  lgp_rand_seed(seed);
 
   lgp_barrier();
   
@@ -111,7 +111,7 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
         more | convey_advance(conv_reply, !more)){
     i = iend;
     while(i < lN){
-      int64_t r = lrand48() % M;
+      int64_t r = lgp_rand_int64(M);
       pe = r % THREADS;
       pkg.idx = r/THREADS;
       pkg.val = lperm[i];
@@ -212,10 +212,6 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
  * \return a pointer to the matrix that has been produced or NULL if the model can't be used
  */
 sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv) {
-  typedef struct pkg_rowcol_t{
-    int64_t row;    
-    int64_t col;
-  }pkg_rowcol_t;
   typedef struct pkg_rowcnt_t{
     int64_t row;
     int64_t cnt;
@@ -264,7 +260,8 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
   assert(A->nnz == lgp_reduce_add_l(lnnz));
 
   // allocate pmat to the max of the new number of nonzeros per thread  
-  Ap = init_matrix(A->numrows, A->numcols, lnnz, (A->value != NULL));
+  int weighted = (A->value != NULL);
+  Ap = init_matrix(A->numrows, A->numcols, lnnz, weighted);
   if(Ap == NULL) return(NULL);
   lgp_barrier();
 
@@ -278,26 +275,46 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
   // working offset: wrkoff[row] gives the first empty spot on row row  
   /****************************************************************/
   int64_t * wrkoff = calloc(A->lnumrows, sizeof(int64_t)); 
-  pkg_rowcol_t pkg_nz, pkgnz_p;
-  
+  edge_t edge;
+  w_edge_t wedge;
   convey_t* cnv_nz = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
-  convey_begin(cnv_nz, sizeof(pkg_rowcol_t));
+  if(weighted)
+    convey_begin(cnv_nz, sizeof(w_edge_t));
+  else
+    convey_begin(cnv_nz, sizeof(edge_t));
 
   i = row = 0;
   while(convey_advance(cnv_nz, (i == A->lnnz))){
     for( ;i < A->lnnz; i++){
       while( i == A->loffset[row+1] ) // skip empty rows 
-        row++; 
-      pkg_nz.row = lrperminv[row] / THREADS;
-      pkg_nz.col = A->lnonzero[i];
+        row++;
       pe = lrperminv[row] % THREADS;
-      if( !convey_push(cnv_nz, &pkg_nz, pe) )
-        break;
+      if(weighted){
+        wedge.row = lrperminv[row] / THREADS;
+        wedge.col = A->lnonzero[i];
+        wedge.val = A->lvalue[i];
+        if( !convey_push(cnv_nz, &wedge, pe) )
+          break;
+
+      }else{
+        edge.row = lrperminv[row] / THREADS;
+        edge.col = A->lnonzero[i];
+        if( !convey_push(cnv_nz, &edge, pe) )
+          break;
+      }
     }
 
-    while( convey_pull(cnv_nz, &pkgnz_p, NULL) == convey_OK) {
-      Ap->lnonzero[ Ap->loffset[pkgnz_p.row] + wrkoff[pkgnz_p.row] ] = pkgnz_p.col;
-      wrkoff[pkgnz_p.row]++;
+    if(weighted){
+      while( convey_pull(cnv_nz, &wedge, NULL) == convey_OK) {
+        Ap->lnonzero[ Ap->loffset[wedge.row] + wrkoff[wedge.row] ] = wedge.col;
+        Ap->lvalue[ Ap->loffset[wedge.row] + wrkoff[wedge.row] ] = wedge.val;
+        wrkoff[wedge.row]++;
+      }
+    }else{
+      while( convey_pull(cnv_nz, &edge, NULL) == convey_OK) {
+        Ap->lnonzero[ Ap->loffset[edge.row] + wrkoff[edge.row] ] = edge.col;
+        wrkoff[edge.row]++;
+      }
     }
   }
   lgp_barrier();
@@ -348,7 +365,7 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
   lgp_barrier();
   convey_free(cnv_e);
   convey_free(cnv_r);
-  
+  sort_nonzeros(Ap);
   return(Ap);
 }
 
@@ -357,11 +374,6 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv
  * \return a pointer to the matrix that has been produced or NULL if the model can't be used
  */
 sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
-  typedef struct pkg_rowcol_t{
-    int64_t row;    
-    int64_t col;
-  }pkg_rowcol_t;
-
   int64_t ret, pe;
   int64_t lnnz, i, col, row, fromth; 
   int64_t idx, idxp;
@@ -370,9 +382,10 @@ sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
   int64_t lnumcols = (A->numrows + THREADS - MYTHREAD - 1)/THREADS;  
   int64_t * lcounts = calloc(lnumcols, sizeof(int64_t));
   lgp_barrier();
-  
+
+  int weighted = (A->value != NULL);
   convey_t* cnv_cnt = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
-  convey_begin(cnv_cnt, sizeof(long));
+  convey_begin(cnv_cnt, sizeof(int64_t));
 
   lnnz = i = 0;
   while(convey_advance(cnv_cnt, (i == A->lnnz))){
@@ -392,7 +405,7 @@ sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
   int64_t sum = lgp_reduce_add_l(lnnz);
   assert( A->nnz == sum ); 
   
-  sparsemat_t * At = init_matrix(A->numcols, A->numrows, lnnz, (A->value != NULL));
+  sparsemat_t * At = init_matrix(A->numcols, A->numrows, lnnz, weighted);
   if(!At){printf("ERROR: transpose_matrix: init_matrix failed!\n");return(NULL);}
 
   /* convert colcounts to offsets */
@@ -406,27 +419,49 @@ sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
   int64_t *wrkoff = calloc(At->lnumrows, sizeof(int64_t));
   if(!wrkoff) {printf("ERROR: transpose_matrix: wrkoff alloc fail!\n"); return(NULL);}
 
-  pkg_rowcol_t pkg_nz, pkg_p;
   
   convey_t* cnv_rd = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
-  convey_begin(cnv_rd, sizeof(pkg_rowcol_t));
+  if(weighted)
+    convey_begin(cnv_rd, sizeof(w_edge_t));
+  else
+    convey_begin(cnv_rd, sizeof(edge_t));
 
   uint64_t numtimespop=0;
+  edge_t edge;
+  w_edge_t wedge;  
   i = row = 0;
   while(convey_advance(cnv_rd, (i == A->lnnz))){
     for( ; i < A->lnnz; i++){
       while( i == A->loffset[row+1] ) 
         row++;
-      pkg_nz.row = row * THREADS + MYTHREAD;
-      pkg_nz.col = A->lnonzero[i] / THREADS;
       pe = A->lnonzero[i]%THREADS;
-      if( !convey_push(cnv_rd, &pkg_nz, pe) )
-        break;
+      if(weighted){
+        wedge.row = row * THREADS + MYTHREAD;
+        wedge.col = A->lnonzero[i] / THREADS;
+        wedge.val = A->lvalue[i];
+        if( !convey_push(cnv_rd, &wedge, pe) )
+          break;
+      }else{
+        edge.row = row * THREADS + MYTHREAD;
+        edge.col = A->lnonzero[i] / THREADS;
+        if( !convey_push(cnv_rd, &edge, pe) )
+          break;
+      }
     }
-    while(convey_pull(cnv_rd, &pkg_p, NULL ) == convey_OK){
-      numtimespop++;
-      At->lnonzero[ At->loffset[pkg_p.col] + wrkoff[pkg_p.col] ] = pkg_p.row;
-      wrkoff[pkg_p.col]++;
+
+    if(weighted){
+      while(convey_pull(cnv_rd, &wedge, NULL ) == convey_OK){
+        numtimespop++;
+        At->lnonzero[ At->loffset[wedge.col] + wrkoff[wedge.col] ] = wedge.row;
+        At->lvalue[ At->loffset[wedge.col] + wrkoff[wedge.col] ] = wedge.val;
+        wrkoff[wedge.col]++;
+      }
+    }else{
+      while(convey_pull(cnv_rd, &edge, NULL ) == convey_OK){
+        numtimespop++;
+        At->lnonzero[ At->loffset[edge.col] + wrkoff[edge.col] ] = edge.row;
+        wrkoff[edge.col]++;
+      }
     }
   }
   
