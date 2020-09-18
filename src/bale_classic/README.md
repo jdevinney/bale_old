@@ -49,7 +49,11 @@ There are problems with the following...
 - Sandia OpenSHMEM (SOS) (1.4.5) without MCA (all but conveyors)
 
 ### Build Instructions
-There is an install script (called install.sh) to make building easier for most people. Follow the directions in INSTALL. 
+There is an install script (called install.sh) to make building easier for most people. Follow the directions in [INSTALL.md](INSTALL.md). 
+
+### Running
+
+All bale apps have a common set of standard options. In addition, bale apps that work on matrices or graphs have a common set graph input options. Run any app with '--help' for more information.
 
 ### Testing
 We are working on a new test script that uses pytest as a harness. To run this test, go to

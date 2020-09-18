@@ -1,4 +1,4 @@
-Start with the [README](README.md) or Doxygen documentation for more information about bale. Also see the [INST_DEMO.md](INST_DEMO.md) for instructions for some common platforms.
+Start with the [README](README.md) or Doxygen documentation for more information about bale. Also see the [DEMO.md](DEMO.md) for instructions for some common platforms.
 
 # Environment Configuration
 
@@ -78,11 +78,12 @@ sudo xcodebuild -license
 brew install cmake
    ```
    
+
 to get this to work.  On recent OS X versions (10.15, maybe 10.14) you need
     to pass another argument to cmake:
     
      `-DDEFAULT_SYSROOT:STRING="$(xcrun --show-sdk-path)"`
-    
+
 4. to use shmem, SOS openShmem seems best for now.  Go to:
     https://github.com/Sandia-OpenSHMEM/SOS/wiki/OFI-Build-Instructions
    and follow the directions.  For recent versions OS X (10.15, maybe 10.14) you
@@ -91,7 +92,7 @@ to get this to work.  On recent OS X versions (10.15, maybe 10.14) you need
    performance is horrid because it only has a socket based implementation
 
 5. when using the runit.sh script with clang, you need to say
-    
+   
    ```bash
    ./runit.sh -l $PWD/clang_upc_run.sh -c 2
    ```

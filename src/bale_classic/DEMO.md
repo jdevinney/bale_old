@@ -97,3 +97,11 @@ Models Mask              (-M): 15
   Exstack2:    0.004 seconds     0.000 GB/s injection bandwidth
   Conveyor:    0.012 seconds     0.000 GB/s injection bandwidth
 ```
+
+## Running a suite of tests
+
+The run_apps.py script allows you to launch a suite of tests of one or more bale apps. Run with the --help option to see the usage.
+
+## Analyzing tests
+
+All bale apps can output profiling data into a json file. Use the run_apps.py script to run multiple runs and collect the data into one consolidated json file.  We have included an example Jupyter notebook (plot_results.ipynb) that demonstrates reading the json file and plotting some results. 
