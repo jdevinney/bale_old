@@ -37,7 +37,7 @@
 *****************************************************************/ 
 
 /*! \file sssp.c
- * \brief Demo application that implements different 
+ * \brief Demo application that calls different 
  * Single Source Shortest Path alogrithms.
  *
  * versions of
@@ -286,7 +286,7 @@ int main(int argc, char * argv[])
     if(!quiet) printf("%8.3lf seconds\n", laptime);
   }
 
-  if(WRITE_MAT){write_d_array(comp_tent, "sssp.wts");}
+  if(WRITE_MAT){write_d_array(comp_tent, "ssspout.wts");}
   
   clear_matrix(dmat); free(dmat);
   clear_d_array(tent); free(tent);
