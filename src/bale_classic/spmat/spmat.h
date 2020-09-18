@@ -53,19 +53,20 @@
 /*! \struct sparsemat_t spmat.h
  * \brief A structure to hold a sparse matrix.
  *
- * We use a distributed version of the standard Compressed Sparse Row
- * (CSR) format.  Since the applications in bale (so far) only need to
- * know whether a matrix entry is zero or nonzero, we don't keep track
- * of the values themselves for the nonzeros in the matrix only the
- * position of the nonzeros.  This reduces the amount of memory needed
- * to store the matrices.  This also saves a lot local sorting and
- * combining that would be required to actually handle values (other
- * than one).
- 
+ * We use a distributed version of the standard Compressed Sparse Row (CSR) format.  
+ * In most cases we don't have values in the sparse matrix.
+ * For example, in toposort we only track the positions of the nonzeros,
+ * in permute matrix or transpose matrix having values would only double the size
+ * of messages. In some apps we store simple graphs in the matrix.
+ * In these cases, the value pointer will be NULL.
+ * For sssp, we store weighted directed graph in the matrix, so we do need values.
+ * We only support values that are doubles.
+ *
  * We store the nonzeros with affinity by rows.  That is, if row i has
- * affinity to PE t, then all the nonzeros in row i have affinity to
- * PE t. The affinity rule for a row is as follows. Row i is
- * assigned to PE (i % NPES).
+ * affinity to PE t, then all the nonzeros in row i also have affinity 
+ * to PE t. 
+ * We used a striped layout for affinity.  
+ * That is, row i has affinity to PE (i % NPES).
  *
  * We call a matrix "tidy" if the column indices of nonzeros in every
  * row are sorted in ascending order.
@@ -89,7 +90,15 @@ typedef struct sparsemat_t {
   double * lvalue;              //!< local array of values (values for rows on this PE)
 }sparsemat_t;
 
-typedef struct triples_t{
+
+typedef struct d_array_t {
+  int64_t num;                  //!< the total number of entries in the array
+  int64_t lnum;                 //!< the number of entries on this PE. lnum = (num / NPES) + {0 or 1}
+  SHARED double * entry;        //!< the shared array, striped across PE's
+  double * lentry;              //!< the localized part of the shared array
+} d_array_t;
+
+typedef struct triples_t {
   int64_t * row;
   int64_t * col;
   double * val;
@@ -243,6 +252,11 @@ int col_val_comp(const void *a, const void *b);
 int edge_comp(const void *a, const void *b);
 int w_edge_comp(const void *a, const void *b);
 
+d_array_t * init_d_array(int64_t num); 
+d_array_t * copy_d_array(d_array_t *S);
+void        set_d_array(d_array_t * A, double v);
+int64_t     replace_d_array(d_array_t * D, d_array_t *S);
+void        clear_d_array(d_array_t *A);
 
 #endif
 

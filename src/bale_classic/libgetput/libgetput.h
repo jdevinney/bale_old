@@ -124,8 +124,10 @@ typedef struct minavgmaxD_t{
 
 /*! \ingroup libgetputgrp */
 #define lgp_put_int64(array,index,val) (((shared int64_t*)(array))[index]=(val)) /*!< wraps a shared write to be compatible with shmem */
+#define lgp_put_double(array,index,val) (((shared double*)(array))[index]=(val)) /*!< wraps a shared write to be compatible with shmem */
 /*! \ingroup libgetputgrp */
 #define lgp_get_int64(array,index)(((const shared int64_t*)(array))[index]) /*!< wraps a shared read to be compatible with shmem */
+#define lgp_get_double(array,index)(((const shared double*)(array))[index]) /*!< wraps a shared read to be compatible with shmem */
 /*! \ingroup libgetputgrp */
 #define lgp_global_exit(i) upc_global_exit(i) /*! wrapper for global exit */ 
 /*! \ingroup libgetputgrp */
@@ -186,12 +188,16 @@ typedef struct minavgmaxD_t{
   lgp_memget_bytes_by_pe( (dst), (src), (n),  sizeof(*(src))*(((size_t)(index))/THREADS), (index)%THREADS )
 
 void    lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t blocksize, int64_t val); /*!< macro magic */
+void    lgp_shmem_write_upc_array_double(SHARED double *addr, size_t index, size_t blocksize, double val); /*!< macro magic */
 int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index, size_t blocksize); /*!< macro magic */
+double  lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, size_t blocksize); /*!< macro magic */
 #define shmem_int64_p(addr,val,pe) shmem_longlong_p( (long long*)(addr), (val), (pe) ) /*!< macro magic */
 #define shmem_int64_g(addr,pe) shmem_longlong_g( (const long long*)(addr), (pe) ) /*!< macro magic */
 
 #define lgp_put_int64(array,index,val) (lgp_shmem_write_upc_array_int64((array),(index),sizeof(int64_t),(val))) /*!< user callable global single word put */
+#define lgp_put_double(array,index,val) (lgp_shmem_write_upc_array_double((array),(index),sizeof(double),(val))) /*!< user callable global single word put */
 #define lgp_get_int64(array,index) (lgp_shmem_read_upc_array_int64((array),(index),sizeof(int64_t))) /*!< user callable global single word get */
+#define lgp_get_double(array,index) (lgp_shmem_read_upc_array_double((array),(index),sizeof(double))) /*!< user callable global single word get */
 
 //extern long THREADS; /*!< number of shmem threads */
 //extern long MYTHREAD; /*!< shmem thread id */

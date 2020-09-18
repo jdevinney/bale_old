@@ -40,6 +40,7 @@
  */
 
 #include "sssp.h"
+#include <std_options.h>
 
 /*!
   \page sssp_page Single Source Shortest Path
@@ -69,14 +70,43 @@ sssp [-h][-a 0,1][-e prob][-K str][-f filename]\n\
   lgp_global_exit(0);
 }
 
+void dump_tent(char *str, d_array_t *tent)
+{
+  int64_t i;
+  if( MYTHREAD == 0 ){
+    printf("%s ", str);
+    for(i=0; i<tent->num; i++){
+      printf(" %lg ", lgp_get_double(tent->entry, i) );
+    }
+    printf("\n");
+  }
+}
+
+double sssp_answer_diff(d_array_t *A, d_array_t *B)
+{
+  int64_t i;
+  double ldiff = 0.0;
+
+  if(A->num != B->num)
+    return(INFINITY);
+
+  for(i=0; i<A->lnum; i++) {
+    if( A->lentry[i] == INFINITY && B->lentry[i] == INFINITY )
+      continue;
+    ldiff += (A->lentry[i] - B->lentry[i]) * (A->lentry[i] - B->lentry[i]);
+  }
+  return(sqrt(lgp_reduce_add_d(ldiff)));
+}
+
+
 int main(int argc, char * argv[])
 {
 
   lgp_init(argc, argv);
 
   int64_t buf_cnt = 1024;
-  int64_t models_mask = ALL_Models;  // default is running all models
-  int64_t l_numrows = 10000;         // number of a rows per thread
+  int64_t models_mask = 31;  // default is running all models
+  int64_t l_numrows = 1000;         // number of a rows per thread
   int64_t read_graph = 0L;           // read graph from a file
   char filename[64];
   int64_t cores_per_node = 0;
@@ -84,7 +114,7 @@ int main(int argc, char * argv[])
   double t1;
   int64_t i, j;
   int64_t alg = 0;
-  double erdos_renyi_prob = 0.1;
+  double erdos_renyi_prob = 0.3;
   int64_t nz_per_row = -1;
   graph_model model = FLAT;
   int64_t seed = 1231;
@@ -114,7 +144,7 @@ int main(int argc, char * argv[])
   nz_per_row = erdos_renyi_prob * numrows;
   
   T0_fprintf(stderr,"Running triangle on %d threads\n", THREADS);
-  if(!read_graph && !gen_kron_graph){
+  if(!read_graph){
     T0_fprintf(stderr,"Number of rows per thread   (-N)  %"PRId64"\n", l_numrows);
     T0_fprintf(stderr,"Edge prob                   (-e)  %g\n", erdos_renyi_prob);
     T0_fprintf(stderr,"Graph Model           (-F or -G)  %s\n", (model == FLAT ? "FLAT" : "GEOMETRIC"));
@@ -130,49 +160,150 @@ int main(int argc, char * argv[])
   double correct_answer = -1;
  
   // TODO: Don't know what we want to require for the input. 
-  sparsemat_t *A, *L, *U;
+  sparsemat_t *mat;
   if(read_graph){
-    A = read_matrix_mm_to_dist(filename);
-    if(!A)
+    mat = read_matrix_mm_to_dist(filename);
+    if(!mat)
       lgp_global_exit(1);
     T0_fprintf(stderr,"Reading file %s...\n", filename);
-    T0_fprintf(stderr, "A has %"PRId64" rows/cols and %"PRId64" nonzeros.\n", A->numrows, A->nnz);
+    T0_fprintf(stderr, "A has %"PRId64" rows/cols and %"PRId64" nonzeros.\n", mat->numrows, mat->nnz);
   }else{
-    L = random_graph(numrows, model, DIRECTED_WEIGHTED, 0, erdos_renyi_prob, seed);
+    mat = random_graph(numrows, model, DIRECTED_WEIGHTED, 0, erdos_renyi_prob, seed);
   }
-  // we should check that A has the required format
 
   lgp_barrier();
   
-  T0_fprintf(stderr,"L has %"PRId64" rows/cols and %"PRId64" nonzeros.\n", L->numrows, L->nnz);
+  T0_fprintf(stderr,"mat has %"PRId64" rows/cols and %"PRId64" nonzeros.\n", mat->numrows, mat->nnz);
   
   T0_fprintf(stderr,"Run sssp ...\n");
 
-  int64_t use_model;
+  d_array_t * tent        = init_d_array(numrows);
+  d_array_t * comp_tent = NULL;
+
+  uint64_t use_model, use_alg;
   double laptime = 0.0;
 
-  // allocate dist array
-  
-  for( use_model=1L; use_model < 4; use_model *=2 ) {
 
-    switch( use_model & models_mask ) {
-    case AGI_BELLMAN:
-      T0_fprintf(stderr,"    Bellman-Ford  AGI: ");
-      laptime = sssp_bellman_agi(dist, dmat, 0); 
-      break;
-    
-    case EXSTACK_BELLMAN:
-      T0_fprintf(stderr,"  Exstack: ");
-      laptime = sssp_bellman_exstack(dist, dmat, 0);
-      break;
+#define USE_BELLMAN (1L<<16)
+#define USE_DELTA   (1L<<17)
+  
+  for( use_alg=(1L<<16); use_alg<(1L<<18); use_alg *=2 ){
+    for( use_model=1L; use_model < 32; use_model *=2 ) {
+
+      switch( (use_model & models_mask) | use_alg ) {
+      case (AGI_Model | USE_BELLMAN):
+        T0_fprintf(stderr,"    Bellman-Ford  AGI: ");
+        //dump_tent("AGI          :",tent);
+        set_d_array(tent, INFINITY);
+        laptime = sssp_bellman_agi(tent, mat, 0); 
+        //dump_tent("AGI:",tent);
+        comp_tent = copy_d_array(tent);
+        T0_fprintf(stderr,"Bellman AGI nothing to compare\n");
+        break;
+
+      case (EXSTACK_Model | USE_BELLMAN):
+        T0_fprintf(stderr,"  Bellman-Ford Exstack: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("Ex Bell      :",tent);
+        laptime = sssp_bellman_exstack(tent, mat, 0);
+        //dump_tent("Ex Bell      :",tent);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Bellman Exstack nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Exstack compares success!\n");
+        }
+        break;
+
+      case (EXSTACK_Model | USE_DELTA):
+        T0_fprintf(stderr,"  Delta Exstack: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("Ex Delta     :",tent);
+        laptime = sssp_delta_exstack(tent, mat, 0);
+        //dump_tent("Ex Delta     :",tent);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Delta Exstack nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Delta Exstack compares success!\n");
+        }
+        break;
+
+      case (EXSTACK2_Model | USE_BELLMAN):
+        T0_fprintf(stderr,"  Bellman-Ford: Exstack2: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("Ex2 Bell     :",tent);
+        laptime = sssp_bellman_exstack2(tent, mat, 0);
+        //dump_tent("Ex2 Bell     :",tent);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Bellman Exstack2 nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Bellman Exstack2 compares success!\n");
+        }
+        break;
+
+      case (EXSTACK2_Model | USE_DELTA):
+        T0_fprintf(stderr,"  Delta Exstack2: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("Ex2 Delta     :",tent);
+        laptime = sssp_delta_exstack2(tent, mat, 0);
+        //dump_tent("Ex2 Delta     :",tent);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Delta Exstack2 nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Delta Exstack2 compares success!\n");
+        }
+        break;
+
+      case (CONVEYOR_Model | USE_BELLMAN):
+      T0_fprintf(stderr,"  Bellman-Ford Convey: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("C  Bell      :",tent);
+        laptime = sssp_bellman_convey(tent, mat, 0);
+        //dump_tent("C  Bell      :",tent);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Bellman Conveyor nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Bellman Conveyor compares success!\n");
+        }
+        break;
+
+      case (CONVEYOR_Model | USE_DELTA):
+      T0_fprintf(stderr,"  Delta Convey: ");
+        set_d_array(tent, INFINITY);
+        //dump_tent("C  Delta     :",tent);
+        laptime = sssp_delta_convey(tent, mat, 0);
+        //dump_tent("C  Delta     :",tent);
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          T0_fprintf(stderr,"Delta Conveyor nothing to compare\n");
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            T0_fprintf(stderr, "Delta Conveyor compares success!\n");
+        }
+        break;
+      }
+      
+      lgp_barrier();
+      T0_fprintf(stderr,"  %8.3lf seconds.\n", laptime);
+      // TODO: Check result
     }
-    
-    lgp_barrier();
-    T0_fprintf(stderr,"  %8.3lf seconds.\n", laptime);
-    // TODO: Check result
   }
   
   lgp_barrier();
+
+  clear_d_array(tent);
+  clear_d_array(comp_tent);
+  free(tent);
+  free(comp_tent);
   lgp_finalize();
   return(0);
 }
