@@ -15,7 +15,7 @@ directory in bale_classic). Each of these cousin directories is a separate proje
 
 * [README](src/bale_classic/README.md)
 * [Detailed Install instructions](src/bale_classic/INSTALL.md)
-* [Install Demos](src/bale_classic/INST_DEMO.md)
+* [Build and Run Demos](src/bale_classic/DEMO.md)
 
 **C**: (src/other_serial/C)
 

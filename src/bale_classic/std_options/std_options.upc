@@ -141,7 +141,7 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
     args->edge_prob = 0.0;
     args->readfile = 0;
     args->model = FLAT;
-    args->l_numrows = 10000;
+    //args->l_numrows = 10000;
     args->nz_per_row = 10.0;
     //args->directed = 0;
     //args->weighted = 0;

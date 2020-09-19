@@ -232,6 +232,7 @@ int main(int argc, char * argv[]) {
                       "Parallel topological sort.", children_parsers};
 
   args.gstd.loops = 1; // force loops into graph
+  args.gstd.l_numrows = 500000;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);

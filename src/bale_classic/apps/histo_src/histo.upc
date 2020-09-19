@@ -110,8 +110,8 @@ int main(int argc, char * argv[]) {
 
   /* process command line */
   args_t args;
-  args.l_tbl_size = 1000;
-  args.l_num_ups = 100000;
+  args.l_tbl_size = 10000;
+  args.l_num_ups = 5000000;
   struct argp argp = {options, parse_opt, 0,
                       "Accumulate updates into a table.", children_parsers};
 

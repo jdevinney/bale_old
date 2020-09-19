@@ -463,6 +463,7 @@ double wall_seconds() {
 
 #define LGP_RAND_MAX 281474976710656
 
+// all PEs should call this with the same seed.
 void lgp_rand_seed(int64_t seed){
   srand48(seed + 1 + MYTHREAD);
 }
@@ -473,6 +474,7 @@ int64_t lgp_rand_int64(int64_t N){
   assert(N < LGP_RAND_MAX);
   return((int64_t)(drand48()*N));
 }
+
 
 double lgp_rand_double(){
   return(drand48());
