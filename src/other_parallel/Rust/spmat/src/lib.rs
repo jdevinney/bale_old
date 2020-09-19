@@ -189,12 +189,27 @@ impl SparseMat {
         }
     }
 
-    pub fn offset_rank(&self, n: usize) -> (usize, usize) {
+    // global row index to local row index on its home rank, and home rank
+    pub fn offset_rank(&self, n: usize) -> (usize, usize) { 
         if let Some(convey) = &self.convey {
             convey.offset_rank(n)
         } else {
             (n, 0)
         }
+    }
+
+    // global row index to local row index on this rank
+    pub fn local_index(&self, n: usize) -> usize { 
+        let (offset, rank) = self.offset_rank(n);
+        if rank != self.my_rank() {
+            panic!("attempt to get local index for row not on this rank");
+        }
+        offset
+    }
+
+    // local row index on this rank to global row index
+    pub fn global_index(&self, n: usize) -> usize {
+        self.num_ranks() * n + self.my_rank()
     }
 
     /// create a session without a pull_fn

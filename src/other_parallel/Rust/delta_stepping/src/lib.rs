@@ -158,7 +158,7 @@ impl<'a> BucketSearcher<'a> {
         let nvtxs_this_rank = self.graph.numrows_this_rank;
         let now: DateTime<Local> = Local::now();
         writeln!(file, "==========================================================")?;
-        write!(file, "BucketSearcher: rank {}: {}", self.my_rank(), title)?;
+        write!(file, "BucketSearcher: rank {}: {}", self.graph.my_rank(), title)?;
         for n in nums {
             write!(file, " {}", n)?;
         }
@@ -174,7 +174,7 @@ impl<'a> BucketSearcher<'a> {
                     file, 
                     "{}: {} {} {} {} {} {}", 
                     v,
-                    self.global_index(v),
+                    self.graph.global_index(v),
                     self.prev_elt[v], 
                     self.next_elt[v], 
                     if let Some(b) = self.vtx_bucket[v] {
@@ -209,6 +209,7 @@ impl<'a> BucketSearcher<'a> {
     // total size of a bucket over all ranks
     fn global_bucket_size(&self, bucket: usize) -> usize {
         let ret = self.graph.convey.reduce_sum(self.bucket_size[bucket]);
+        ret
     }
 
     // find the next nonempty bucket after start_bucket, % num_buckets, if any
@@ -268,7 +269,7 @@ impl<'a> BucketSearcher<'a> {
                     if vw_len <= self.delta { // light edge
                         requests.push(
                             Request {
-                                w_g:  self.global_index(self.graph.nonzero[adj]),
+                                w_g:  self.graph.global_index(self.graph.nonzero[adj]),
                                 dist: self.tentative_dist[v] + vw_len,
                             }
                         );
@@ -347,7 +348,7 @@ impl<'a> BucketSearcher<'a> {
                 self.relax(item);
             });
             for r in requests {
-                let rank = home_rank(r.w_g);
+                let rank = self.graph.offset_rank(r.w_g).1;
                 session.push(r, rank);
             }
             session.finish();
@@ -358,7 +359,7 @@ impl<'a> BucketSearcher<'a> {
     // relax an incoming edge to vtx r.w_g with new source distance r.dist, and rebucket r.w_g if necessary
     // this will be called by r.w_g's PE, so there is no race on tent[r.w_g] 
     fn relax(&mut self, r: Request) {
-        let w = self.local_index(r.w_g); // local_index() panics if its argument is not on this rank
+        let w = self.graph.local_index(r.w_g); // panics if argument is not on this rank
         if r.dist < self.tentative_dist[w] {
             let new_bucket = self.home_bucket(r.dist);
             if let Some(old_bucket) = self.vtx_bucket[w] {
@@ -395,7 +396,7 @@ impl DeltaStepping for SparseMat {
         let (_mindeg, maxdeg, _sumdeg) = self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
             (acc.0.min(x), acc.1.max(x), acc.2 + x)
         });
-        let maxdeg = self.graph.convey.reduce_max(maxdeg);
+        let maxdeg = self.convey.reduce_max(maxdeg);
 
         // choose a value for delta, the bucket width
         let delta;
