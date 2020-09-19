@@ -68,7 +68,7 @@ impl SsspInfo {
 }
 
 /// A potential edge relaxation to be examined
-#[derive (Clone, Copy, Debug, DeSerializeOwned, Serialize)]
+#[derive (Clone, Copy, Debug, DeserializeOwned, Serialize)]
 struct Request {
     w_g: usize,  // head of edge being relaxed, global vertex index
     dist: f64,   // new distance from source to w_g using that edge
