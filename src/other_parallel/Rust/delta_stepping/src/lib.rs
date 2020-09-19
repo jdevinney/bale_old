@@ -84,6 +84,7 @@ struct BucketSearcher<'a> {
     vtx_bucket: Vec<Option<usize>>, // what bucket if any is this vtx in?
     bucket_size: Vec<usize>,        // number of vertices (from this rank) in this bucket
     bucket_header: Vec<usize>,      // which elt is this bucket's header? (just to make code clearer)
+//  perhaps should copy convey out of the graph?
 
     // parallel notes: 
     // Vertices belong to PEs in round-robin order. 
@@ -115,7 +116,7 @@ impl<'a> BucketSearcher<'a> {
         } else {
             panic!("Graph must have edge weights (values)");
         }
-        let max_edge_len = graph.reduce_max(max_edge_len);
+        let max_edge_len = graph.convey.reduce_max(max_edge_len);
         println!("max_edge_len = {}", max_edge_len);
         // upper bound on number of buckets we will ever need at the same time
         let num_buckets = (max_edge_len/delta).ceil() as usize + 1;
@@ -207,7 +208,7 @@ impl<'a> BucketSearcher<'a> {
 
     // total size of a bucket over all ranks
     fn global_bucket_size(&self, bucket: usize) -> usize {
-        let ret = self.graph.reduce_sum(self.bucket_size[bucket]);
+        let ret = self.graph.convey.reduce_sum(self.bucket_size[bucket]);
     }
 
     // find the next nonempty bucket after start_bucket, % num_buckets, if any
@@ -218,7 +219,7 @@ impl<'a> BucketSearcher<'a> {
         {
             steps += 1;
         }
-        let steps = self.graph.reduce_min(steps);
+        let steps = self.graph.convey.reduce_min(steps);
         if steps < self.num_buckets {
             Some((start_bucket + steps) % self.num_buckets)
         } else {
@@ -336,13 +337,22 @@ impl<'a> BucketSearcher<'a> {
 
     // relax all the requests from this phase (could be parallel)
     fn relax_requests(&mut self, requests: Vec<Request>) {
-        // (maybe also barrier at beginning of relax_requests?)
+        // maybe also barrier at beginning of relax_requests? or superfluous before creating session?
         // convey the request r=(w_g,d) to the PE that owns vtx w_g here, and have it call relax
-        for r in requests {
-            self.graph.convey(self.relax(r) to PE home_rank(r.w_g)); // r.w_g is a global vtx index
-            // self.relax(r);
+        // is there a way to do this without opening a new conveyor session at each middle loop iter?
+        {
+            // Always put the session in a new block, as you will
+            // not be able to able to local after conveyor is done
+            let mut session = self.graph.convey.begin(|item: Request, _from_rank| {
+                self.relax(item);
+            });
+            for r in requests {
+                let rank = home_rank(r.w_g);
+                session.push(r, rank);
+            }
+            session.finish();
         }
-        self.graph.barrier();
+        self.graph.convey.barrier(); // maybe this is superfluous after session.finish?
     }
 
     // relax an incoming edge to vtx r.w_g with new source distance r.dist, and rebucket r.w_g if necessary
@@ -382,10 +392,10 @@ impl DeltaStepping for SparseMat {
 
         let t1 = wall_seconds();
 
-        // 0-0 need a reduce on max vertex degree here
         let (_mindeg, maxdeg, _sumdeg) = self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
             (acc.0.min(x), acc.1.max(x), acc.2 + x)
         });
+        let maxdeg = self.graph.convey.reduce_max(maxdeg);
 
         // choose a value for delta, the bucket width
         let delta;
