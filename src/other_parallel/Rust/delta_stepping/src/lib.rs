@@ -2,6 +2,11 @@ use chrono::{DateTime, Local};
 use convey_hpc::collect::{IVal, PType, ValueCollect};
 use convey_hpc::session::ConveySession;
 use convey_hpc::Convey;
+use serde::de::DeserializeOwned;
+use serde::ser::Serialize;
+// use serde::DeserializeOwned;
+// use serde::Deserialize;
+// use serde::Serialize;
 use spmat::wall_seconds;
 use spmat::SparseMat;
 use std::fs::OpenOptions;
@@ -63,6 +68,7 @@ impl SsspInfo {
 }
 
 /// A potential edge relaxation to be examined
+#[derive (Clone, Copy, Debug, DeSerializeOwned, Serialize)]
 struct Request {
     w_g: usize,  // head of edge being relaxed, global vertex index
     dist: f64,   // new distance from source to w_g using that edge
