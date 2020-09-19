@@ -19,7 +19,7 @@ Histogram is the simplest application in bale, yet it is worthy of our attention
 The performance of this simple loop is key to the performance of most of the other apps in bale.
 
 ### Performance requirements and implications
- This is the pattern where PEs are asynchronously sending lots of small and easy-to-perform updates to other PEs. The histogram pattern is rather easy to write in plain UPC and SHMEM and even in our exstack/conveyor aggregation libraries. We should make the distinction between an app like histogram, where the updates are simple and can be done easily using atomics, or even just puts, versus an app like Single Source Shortst Path ([SSSP](../sssp_src/README.md)) where the update is complicated and would not be simple (or in some cases possible) to achieve with atomics and puts.
+This is the pattern where PEs are asynchronously sending lots of small and easy-to-perform updates to other PEs. The histogram pattern is rather easy to write in plain UPC and SHMEM and even in our exstack/conveyor aggregation libraries. We should make the distinction between an app like histogram, where the updates are simple and can be done easily using atomics, or even just puts, versus an app like Single Source Shortst Path ([SSSP](../sssp_src/README.md)) where the update is complicated and would not be simple (or in some cases possible) to achieve with atomics and puts.
 
 Clearly, it does not matter what order the updates are done in the
 histogram application, in fact there are no dependencies at all. All
