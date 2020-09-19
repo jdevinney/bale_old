@@ -7,8 +7,8 @@ use std::io::Error;
 use std::ops::Range;
 use std::path::Path;
 
-// A helper function for dumping only part of a big data structure.
-// This should really go somewhere else than the delta_stepper lib.
+/// A helper function for dumping only part of a big data structure.
+/// This should really go somewhere else than the delta_stepper lib.
 pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
         let mut ranges: Vec<Range<usize>> = Vec::new();
         if max_disp <= num_items && max_disp > 0 {
@@ -20,7 +20,7 @@ pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
         ranges
 }
 
-// Output structure for single-source shortest path
+/// Output structure for single-source shortest path
 #[derive(Debug, Clone)]
 pub struct SsspInfo {
     pub distance: Vec<f64>,
@@ -29,7 +29,7 @@ pub struct SsspInfo {
 }
 
 impl SsspInfo {
-    // Dump output distances to a file
+    /// Dump output distances to a file
     pub fn dump(&self, max_disp: usize, filename: &str) -> Result<(),Error> { 
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().write(true).create(true).open(path)?;
@@ -46,8 +46,8 @@ impl SsspInfo {
         Ok(())
     }
 
-    // Dump output distances to a file in Phil's .wts format
-    // needs parallel version 0-0
+    /// Dump output distances to a file in Phil's .wts format
+    /// needs parallel version 0-0
     pub fn dump_wts(&self, filename: &str) -> Result<(),Error> { 
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().write(true).create(true).open(path)?;
@@ -60,18 +60,18 @@ impl SsspInfo {
 
 }
 
-// A potential edge relaxation to be examined
+/// A potential edge relaxation to be examined
 struct Request {
     w_g: usize,  // head of edge being relaxed, global vertex index
     dist: f64,   // new distance from source to w_g using that edge
 //  v_g: usize,  // could include tail of edge (v_g,w_g) in request to build shortest path tree
 }
 
-// A struct and methods for all the data structures in delta stepping
-// Each bucket is a circular doubly-linked list, linked by prev_elt and next_elt,
-// indexed by an "elt" that is either a vertex in the bucket, or a "bucket header".
-// A vertex's "elt" number is its vertex number.
-// The header of bucket i (with reuse) is "elt" number num_buckets + i.
+/// A struct and methods for all the data structures in delta stepping
+/// Each bucket is a circular doubly-linked list, linked by prev_elt and next_elt,
+/// indexed by an "elt" that is either a vertex in the bucket, or a "bucket header".
+/// A vertex's "elt" number is its vertex number.
+/// The header of bucket i (with reuse) is "elt" number num_buckets + i.
 
 struct BucketSearcher<'a> {
     graph: &'a SparseMat,           // the graph being searched
@@ -84,7 +84,7 @@ struct BucketSearcher<'a> {
     vtx_bucket: Vec<Option<usize>>, // what bucket if any is this vtx in?
     bucket_size: Vec<usize>,        // number of vertices (from this rank) in this bucket
     bucket_header: Vec<usize>,      // which elt is this bucket's header? (just to make code clearer)
-//  perhaps should copy convey out of the graph?
+///  perhaps should copy convey out of the graph?
 
     // parallel notes: 
     // Vertices belong to PEs in round-robin order. 
@@ -101,7 +101,7 @@ struct BucketSearcher<'a> {
 
 impl<'a> BucketSearcher<'a> { 
 
-    // Create a bucket structure for a weighted graph
+    /// Create a bucket structure for a weighted graph
     fn new(graph: &SparseMat, delta: f64) -> BucketSearcher { 
         let nvtxs = graph.numrows;
         let nvtxs_this_rank = graph.numrows_this_rank;
@@ -151,7 +151,7 @@ impl<'a> BucketSearcher<'a> {
         }
     }
 
-    // Dump bucket structure state to a file
+    /// Dump bucket structure state to a file
     fn dump(&self, max_disp: usize, filename: &str, title: &str, nums: Vec<usize>) -> Result<(),Error> { 
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().append(true).create(true).open(path)?;
@@ -206,13 +206,13 @@ impl<'a> BucketSearcher<'a> {
         Ok(())
     }   
 
-    // total size of a bucket over all ranks
+    /// total size of a bucket over all ranks
     fn global_bucket_size(&self, bucket: usize) -> usize {
         let ret = self.graph.convey.reduce_sum(self.bucket_size[bucket]);
         ret
     }
 
-    // find the next nonempty bucket after start_bucket, % num_buckets, if any
+    /// find the next nonempty bucket after start_bucket, % num_buckets, if any
     fn next_nonempty_bucket(&self, start_bucket: usize) -> Option<usize> {
         let mut steps = 1;
         while steps < self.num_buckets 
@@ -228,12 +228,12 @@ impl<'a> BucketSearcher<'a> {
         }
     }
 
-    // what bucket does a vtx with this tentative distance go in?
+    /// what bucket does a vtx with this tentative distance go in?
     fn home_bucket(&self, dist: f64) -> usize {
         ((dist/self.delta).floor() as usize) % self.num_buckets
     }
 
-    // remove a vtx from the bucket it's in. (harmless if not in a bucket). w is a local vtx index.
+    /// remove a vtx from the bucket it's in. (harmless if not in a bucket). w is a local vtx index.
     fn remove_from_bucket(&mut self, w: usize) {
         if let Some(b) = self.vtx_bucket[w] {
             self.prev_elt[self.next_elt[w]] = self.prev_elt[w];
@@ -245,7 +245,7 @@ impl<'a> BucketSearcher<'a> {
         }
     }
 
-    // insert a vtx into a bucket it's not in. (vtx must not be in a bucket) w is a local vtx index.
+    /// insert a vtx into a bucket it's not in. (vtx must not be in a bucket) w is a local vtx index.
     fn place_in_bucket(&mut self, w:usize, new_bucket: usize) {
         assert!(self.vtx_bucket[w] == None);
         assert!(self.prev_elt[w] == w);
@@ -258,7 +258,7 @@ impl<'a> BucketSearcher<'a> {
         self.bucket_size[new_bucket] += 1;
     }
 
-    // make a list of all relaxation requests from light edges with tails in bucket
+    /// make a list of all relaxation requests from light edges with tails in bucket
     fn find_light_requests(&self, b: usize) -> Vec<Request> { 
         let mut requests: Vec<Request> = Vec::new();
         if let Some(edge_len) = &self.graph.value { 
@@ -283,7 +283,7 @@ impl<'a> BucketSearcher<'a> {
         requests
     }
 
-    // make a list of all relaxation requests from heavy edges with tails on vtx_list
+    /// make a list of all relaxation requests from heavy edges with tails on vtx_list
     fn find_heavy_requests(&self, vtx_list: Vec<usize>) -> Vec<Request> { 
         let mut requests: Vec<Request> = Vec::new();
         if let Some(edge_len) = &self.graph.value { 
@@ -306,7 +306,7 @@ impl<'a> BucketSearcher<'a> {
         requests
     }
 
-    // return vertices in bucket that have not been activated(removed from an active bucket) before
+    /// return vertices in bucket that have not been activated(removed from an active bucket) before
     fn newly_active_vertices(&self, b: usize) -> Vec<usize> { 
         let mut new_vtxs: Vec<usize> = Vec::new(); 
         let mut v = self.next_elt[self.bucket_header[b]];
@@ -319,7 +319,7 @@ impl<'a> BucketSearcher<'a> {
         new_vtxs
     }
 
-    // remove all vertices from the bucket and mark them activated
+    /// remove all vertices from the bucket and mark them activated
     fn empty_bucket(&mut self, b: usize) { 
         let header = self.bucket_header[b];
         let mut v = self.next_elt[header];
@@ -336,7 +336,7 @@ impl<'a> BucketSearcher<'a> {
         self.bucket_size[b] = 0;
     }
 
-    // relax all the requests from this phase (could be parallel)
+    /// relax all the requests from this phase (could be parallel)
     fn relax_requests(&mut self, requests: Vec<Request>) {
         // maybe also barrier at beginning of relax_requests? or superfluous before creating session?
         // convey the request r=(w_g,d) to the PE that owns vtx w_g here, and have it call relax
@@ -356,8 +356,8 @@ impl<'a> BucketSearcher<'a> {
         self.graph.convey.barrier(); // maybe this is superfluous after session.finish?
     }
 
-    // relax an incoming edge to vtx r.w_g with new source distance r.dist, and rebucket r.w_g if necessary
-    // this will be called by r.w_g's PE, so there is no race on tent[r.w_g] 
+    /// relax an incoming edge to vtx r.w_g with new source distance r.dist, and rebucket r.w_g if necessary
+    /// this will be called by r.w_g's PE, so there is no race on tent[r.w_g] 
     fn relax(&mut self, r: Request) {
         let w = self.graph.local_index(r.w_g); // panics if argument is not on this rank
         if r.dist < self.tentative_dist[w] {

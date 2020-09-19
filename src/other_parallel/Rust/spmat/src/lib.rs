@@ -124,8 +124,8 @@ impl SparseMat {
         }
     }
 
-    // collect all of a distributed sparse matrix to a local matrix on rank 0.
-    // must be called collectively by all ranks, returns empty matrix of same dims on all ranks but 0.
+    /// collect all of a distributed sparse matrix to a local matrix on rank 0.
+    /// must be called collectively by all ranks, returns empty matrix of same dims on all ranks but 0.
     pub fn to_local(&self) -> SparseMat {
         let ret: SparseMat;
         if self.my_rank() == 0 {
@@ -136,8 +136,8 @@ impl SparseMat {
         ret
     }
 
-    // distribute a local sparse matrix on rank 0 to a distributed sparse matrix.
-    // must be called collectively by all ranks, though only rank 0 supplies the input matrix.
+    /// distribute a local sparse matrix on rank 0 to a distributed sparse matrix.
+    /// must be called collectively by all ranks, though only rank 0 supplies the input matrix.
     pub fn to_distributed(&self) -> SparseMat {
         let ret: SparseMat;
         if self.my_rank() == 0 {
@@ -189,7 +189,7 @@ impl SparseMat {
         }
     }
 
-    // global row index to local row index on its home rank, and home rank
+    /// global row index to local row index on its home rank, and home rank
     pub fn offset_rank(&self, n: usize) -> (usize, usize) { 
         if let Some(convey) = &self.convey {
             convey.offset_rank(n)
@@ -198,7 +198,7 @@ impl SparseMat {
         }
     }
 
-    // global row index to local row index on this rank
+    /// global row index to local row index on this rank
     pub fn local_index(&self, n: usize) -> usize { 
         let (offset, rank) = self.offset_rank(n);
         if rank != self.my_rank() {
@@ -207,7 +207,7 @@ impl SparseMat {
         offset
     }
 
-    // local row index on this rank to global row index
+    /// local row index on this rank to global row index
     pub fn global_index(&self, n: usize) -> usize {
         self.num_ranks() * n + self.my_rank()
     }
