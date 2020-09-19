@@ -212,14 +212,14 @@ impl SparseMat {
         self.num_ranks() * n + self.my_rank()
     }
 
-    /// create a session without a pull_fn
+    /// barrier that works for local SparseMat too
     pub fn barrier(&self) {
         if let Some(convey) = &self.convey {
             convey.barrier()
         }
     }
 
-    /// create a session without a pull_fn
+    /// create a session with a pull_fn
     pub fn begin<'a, T: Copy + Serialize + DeserializeOwned>(
         &'a self,
         pull_fn: impl FnMut(T, usize) + 'a,
@@ -231,6 +231,7 @@ impl SparseMat {
         }
     }
 
+    /// create a session without a pull_fn
     pub fn session<'a, T: Copy + Serialize + DeserializeOwned>(&'a self) -> ConveySession<'a, T> {
         if let Some(convey) = &self.convey {
             convey.session()

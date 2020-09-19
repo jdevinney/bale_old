@@ -1,9 +1,11 @@
 use chrono::{DateTime, Local};
+use convey_hpc::collect::{IVal, PType, ValueCollect};
+use convey_hpc::session::ConveySession;
+use convey_hpc::Convey;
 use spmat::wall_seconds;
 use spmat::SparseMat;
 use std::fs::OpenOptions;
-use std::io::Write;
-use std::io::Error;
+use std::io::{Write, Error};
 use std::ops::Range;
 use std::path::Path;
 
@@ -70,8 +72,8 @@ struct Request {
 /// A struct and methods for all the data structures in delta stepping
 /// Each bucket is a circular doubly-linked list, linked by prev_elt and next_elt,
 /// indexed by an "elt" that is either a vertex in the bucket, or a "bucket header".
-/// A vertex's "elt" number is its vertex number.
-/// The header of bucket i (with reuse) is "elt" number num_buckets + i.
+/// A vertex's "elt" number is its vertex number, locally indexed on this rank.
+/// The header of bucket i (with reuse) is "elt" number nvtxs_this_rank + i.
 
 struct BucketSearcher<'a> {
     graph: &'a SparseMat,           // the graph being searched
@@ -84,19 +86,19 @@ struct BucketSearcher<'a> {
     vtx_bucket: Vec<Option<usize>>, // what bucket if any is this vtx in?
     bucket_size: Vec<usize>,        // number of vertices (from this rank) in this bucket
     bucket_header: Vec<usize>,      // which elt is this bucket's header? (just to make code clearer)
-///  perhaps should copy convey out of the graph?
 
     // parallel notes: 
     // Vertices belong to PEs in round-robin order. 
     // Each PE has its own copy of every bucket, but only containing vertices it owns.
-    // (Say nv >= 100 * num_buckets * THREADS. Then storage for buckets is relatively small.)
+    //     (Say nv >= 100 * num_buckets * THREADS. Then storage for buckets is relatively small.)
+    // There is no shared memory; every array is either local or split and locally indexed.
     // Arrays bucket_size and bucket_header are local to each PE.
-    // Arrays indexed only by vtx are split among PEs (but don't have to be shared, I think): 
+    // Arrays indexed only by vtx are split among PEs, with local indexing, but are not shared:
     //     tentative_dist, activated, bucket.
     // Arrays prev_elt and next_elt are also split, linking together only the vtxs on the local PE.
-    // The bucket-header nodes at the end of prev_elt and next_elt have copies on each PE.
+    //     The bucket-header nodes at the end of prev_elt and next_elt have copies on each PE.
     // The parallelism all happens in relax_requests, where a request to relax an edge with head w_g
-    // gets conveyed to the PE that owns w_g.
+    //     gets conveyed to the PE that owns w_g.
 }
 
 impl<'a> BucketSearcher<'a> { 
@@ -106,17 +108,17 @@ impl<'a> BucketSearcher<'a> {
         let nvtxs = graph.numrows;
         let nvtxs_this_rank = graph.numrows_this_rank;
 
-        let mut max_edge_len: f64 = 0.0;
+        let mut my_max_edge_len: f64 = 0.0;
         if let Some(edge_len) = &graph.value { 
             for c in edge_len {
-                if *c > max_edge_len { 
-                    max_edge_len = *c;
+                if *c > my_max_edge_len { 
+                    my_max_edge_len = *c;
                 }
             }
         } else {
             panic!("Graph must have edge weights (values)");
         }
-        let max_edge_len = graph.convey.reduce_max(max_edge_len);
+        let max_edge_len = graph.reduce_max(my_max_edge_len);
         println!("max_edge_len = {}", max_edge_len);
         // upper bound on number of buckets we will ever need at the same time
         let num_buckets = (max_edge_len/delta).ceil() as usize + 1;
@@ -151,9 +153,15 @@ impl<'a> BucketSearcher<'a> {
         }
     }
 
-    /// Dump bucket structure state to a file
-    fn dump(&self, max_disp: usize, filename: &str, title: &str, nums: Vec<usize>) -> Result<(),Error> { 
-        let path = Path::new(&filename);
+    /// Append bucket structure state to a file (which will get big if tracing)
+    fn trace(&self, 
+        max_disp: usize, 
+        filename: &str, 
+        title: &str, 
+        nums: Vec<usize>) -> Result<(),Error> 
+    { 
+        let filename_rank = format!("{}_{}", filename, self.graph.my_rank());
+        let path = Path::new(&filename_rank);
         let mut file = OpenOptions::new().append(true).create(true).open(path)?;
         let nvtxs_this_rank = self.graph.numrows_this_rank;
         let now: DateTime<Local> = Local::now();
@@ -208,19 +216,19 @@ impl<'a> BucketSearcher<'a> {
 
     /// total size of a bucket over all ranks
     fn global_bucket_size(&self, bucket: usize) -> usize {
-        let ret = self.graph.convey.reduce_sum(self.bucket_size[bucket]);
+        let ret = self.graph.reduce_sum(self.bucket_size[bucket]);
         ret
     }
 
     /// find the next nonempty bucket after start_bucket, % num_buckets, if any
     fn next_nonempty_bucket(&self, start_bucket: usize) -> Option<usize> {
-        let mut steps = 1;
-        while steps < self.num_buckets 
-            && self.bucket_size[(start_bucket + steps) % self.num_buckets] == 0 
+        let mut my_steps = 1;
+        while my_steps < self.num_buckets 
+            && self.bucket_size[(start_bucket + my_steps) % self.num_buckets] == 0 
         {
-            steps += 1;
+            my_steps += 1;
         }
-        let steps = self.graph.convey.reduce_min(steps);
+        let steps = self.graph.reduce_min(my_steps);
         if steps < self.num_buckets {
             Some((start_bucket + steps) % self.num_buckets)
         } else {
@@ -246,7 +254,7 @@ impl<'a> BucketSearcher<'a> {
     }
 
     /// insert a vtx into a bucket it's not in. (vtx must not be in a bucket) w is a local vtx index.
-    fn place_in_bucket(&mut self, w:usize, new_bucket: usize) {
+    fn place_in_bucket(&mut self, w: usize, new_bucket: usize) {
         assert!(self.vtx_bucket[w] == None);
         assert!(self.prev_elt[w] == w);
         assert!(self.next_elt[w] == w);
@@ -258,7 +266,7 @@ impl<'a> BucketSearcher<'a> {
         self.bucket_size[new_bucket] += 1;
     }
 
-    /// make a list of all relaxation requests from light edges with tails in bucket
+    /// make a list of all relaxation requests from light edges with tails in bucket b
     fn find_light_requests(&self, b: usize) -> Vec<Request> { 
         let mut requests: Vec<Request> = Vec::new();
         if let Some(edge_len) = &self.graph.value { 
@@ -269,7 +277,7 @@ impl<'a> BucketSearcher<'a> {
                     if vw_len <= self.delta { // light edge
                         requests.push(
                             Request {
-                                w_g:  self.graph.global_index(self.graph.nonzero[adj]),
+                                w_g:  self.graph.nonzero[adj],  // nonzero[] contains global indices
                                 dist: self.tentative_dist[v] + vw_len,
                             }
                         );
@@ -293,7 +301,7 @@ impl<'a> BucketSearcher<'a> {
                     if vw_len > self.delta { // heavy edge
                         requests.push(
                             Request {
-                                w_g:  self.graph.nonzero[adj],
+                                w_g:  self.graph.nonzero[adj],  // nonzero[] contains global indices
                                 dist: self.tentative_dist[v] + vw_len,
                             }
                         );
@@ -306,7 +314,7 @@ impl<'a> BucketSearcher<'a> {
         requests
     }
 
-    /// return vertices in bucket that have not been activated(removed from an active bucket) before
+    /// return vertices in bucket that have not ever been activated (removed from an active bucket)
     fn newly_active_vertices(&self, b: usize) -> Vec<usize> { 
         let mut new_vtxs: Vec<usize> = Vec::new(); 
         let mut v = self.next_elt[self.bucket_header[b]];
@@ -336,28 +344,31 @@ impl<'a> BucketSearcher<'a> {
         self.bucket_size[b] = 0;
     }
 
-    /// relax all the requests from this phase (could be parallel)
+    /// relax all the requests from this phase, in parallel
     fn relax_requests(&mut self, requests: Vec<Request>) {
         // maybe also barrier at beginning of relax_requests? or superfluous before creating session?
         // convey the request r=(w_g,d) to the PE that owns vtx w_g here, and have it call relax
-        // is there a way to do this without opening a new conveyor session at each middle loop iter?
+        // is there a way to do this without opening a new conveyor session every time?
         {
             // Always put the session in a new block, as you will
             // not be able to able to local after conveyor is done
-            let mut session = self.graph.convey.begin(|item: Request, _from_rank| {
-                self.relax(item);
-            });
+            // (jg: is this superfluous since the scope is the function anyway?)
+            let mut session = self.graph.begin(
+                |item: Request, _from_rank| { self.relax(item); }
+            );
             for r in requests {
                 let rank = self.graph.offset_rank(r.w_g).1;
                 session.push(r, rank);
             }
             session.finish();
         }
-        self.graph.convey.barrier(); // maybe this is superfluous after session.finish?
+        self.graph.barrier(); // maybe this is superfluous after session.finish?
     }
 
-    /// relax an incoming edge to vtx r.w_g with new source distance r.dist, and rebucket r.w_g if necessary
-    /// this will be called by r.w_g's PE, so there is no race on tent[r.w_g] 
+    /// relax an incoming edge to vtx r.w_g with new source distance r.dist, 
+    ///     and rebucket r.w_g if necessary.
+    /// this functions like a user-defined atomic: since it is called by r.w_g's PE, 
+    ///     there is no race on tentative_dist[r.w_g] .
     fn relax(&mut self, r: Request) {
         let w = self.graph.local_index(r.w_g); // panics if argument is not on this rank
         if r.dist < self.tentative_dist[w] {
@@ -385,24 +396,26 @@ pub trait DeltaStepping {
 
 impl DeltaStepping for SparseMat {
 
-    /// This implements the sequential AGI variant of delta stepping.
-    /// # Argument: source vertex
+    /// This implements parallel delta stepping.
+    /// # Arguments: source vertex, optional overriding delta value 
     fn delta_stepping(&self, source: usize, forced_delta: Option<f64>) -> SsspInfo {
         assert!(self.numrows == self.numcols);
         assert!(source < self.numrows);
 
         let t1 = wall_seconds();
 
-        let (_mindeg, maxdeg, _sumdeg) = self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
-            (acc.0.min(x), acc.1.max(x), acc.2 + x)
-        });
-        let maxdeg = self.convey.reduce_max(maxdeg);
-
         // choose a value for delta, the bucket width
         let delta;
         if let Some(d) = forced_delta {
             delta = d;
         } else {
+            let (_my_mindeg, my_maxdeg, _my_sumdeg) = self
+                .rowcounts()
+                .fold(
+                    (self.numcols, 0, 0), 
+                    |acc, x| { (acc.0.min(x), acc.1.max(x), acc.2 + x) }
+                );
+            let maxdeg = self.reduce_max(my_maxdeg);
             delta = 1.0 / (maxdeg as f64);
         }
         println!(
@@ -415,11 +428,11 @@ impl DeltaStepping for SparseMat {
         // initialize buckets, activated flags, etc.
         let mut searcher = BucketSearcher::new(&self, delta);
 
-        // use relax to set tent(source) to 0, which also puts it in bucket 0
+        // use relax to set tentative_dist[source] to 0, which also puts it in bucket 0
         searcher.relax(Request{w_g: source, dist: 0.0});
 
         searcher
-            .dump(20, "trace.out", "after relax source", vec![source])
+            .trace(20, "trace.out", "after relax source", vec![source])
             .expect("bucket dump failed");
 
         // outer loop: for each nonempty bucket in order ...
@@ -449,7 +462,7 @@ impl DeltaStepping for SparseMat {
                 searcher.relax_requests(requests);
 
                 searcher
-                    .dump(20, "trace.out", "end of middle iter", vec![outer, phase])
+                    .trace(20, "trace.out", "end of middle iter", vec![outer, phase])
                     .expect("bucket dump failed");
                 phase += 1;
                 
@@ -460,7 +473,7 @@ impl DeltaStepping for SparseMat {
             searcher.relax_requests(requests);
 
             searcher
-                .dump(20, "trace.out", "end of outer iter", vec![outer])
+                .trace(20, "trace.out", "end of outer iter", vec![outer])
                 .expect("bucket dump failed");
             outer += 1;
 
