@@ -1,4 +1,4 @@
-Start with the [README](README.md) or Doxygen documentation for more information about bale.
+Start with the [README](README.md) or Doxygen documentation for more information about bale. Also see the [DEMO.md](DEMO.md) for instructions for some common platforms.
 
 # Environment Configuration
 
@@ -22,7 +22,7 @@ Bale also depends on:
 
 To make building and installing easier, we have included a few scripts.
 
-First, in the bale_classic directory, run the **run_autoreconf** script.
+First, in the bale_classic directory, run the **bootstrap.sh** script.
 
 Next, run the **install.sh** script (see below for options). This script visits each subpackage in bale and runs configure, make, and make install. You could of course do this yourself by hand; the install script automates the process, makes it easy to keep speparte build and install directories for multiple platforms and keeps these directories separate from the source directory. The default build and install directory is $BALEDIR/build_$PLATFORM. If you don't set the $PLATFORM variable, your platform will be set to "unknown". 
 
@@ -56,34 +56,49 @@ This is a bit tricky :)
 1. install osx compiling environment, bring up the mac app store and install xcode
    After installation you need to accept the license:
 
-    % sudo xcodebuild -license
-
+   ```bash
+sudo xcodebuild -license
+   ```
+   
+   
+   
 2. to get autotools, best to use brew (https://brew.sh):
 
-    % brew install autoconf
-    
-    % brew install automake
-    
-    % brew install libtool
+    ```bash
+    brew install autoconf
+    brew install automake
+    brew install libtool
+    ```
 
 3. to get clang-upc, which seems to run well, go to:
     https://clangupc.github.io/clang-upc/install.html
    and follow the directions. You will need to do
 
-    % brew install cmake
+   ```bash
+brew install cmake
+   ```
+   
 
-   to get this to work.  On recent OS X versions (10.15, maybe 10.14) you need
-   to pass another argument to cmake: -DDEFAULT_SYSROOT:STRING="$(xcrun --show-sdk-path)"
+to get this to work.  On recent OS X versions (10.15, maybe 10.14) you need
+    to pass another argument to cmake:
+    
+     `-DDEFAULT_SYSROOT:STRING="$(xcrun --show-sdk-path)"`
 
 4. to use shmem, SOS openShmem seems best for now.  Go to:
     https://github.com/Sandia-OpenSHMEM/SOS/wiki/OFI-Build-Instructions
    and follow the directions.  For recent versions OS X (10.15, maybe 10.14) you
    need to set an environment variable before runnig anything will work.
-    export SHMEM_OFI_DOMAIN=lo0
+   `export SHMEM_OFI_DOMAIN=lo0`
    performance is horrid because it only has a socket based implementation
 
 5. when using the runit.sh script with clang, you need to say
-    ./runit.sh -l $PWD/clang_upc_run.sh -c 2
+   
+   ```bash
+   ./runit.sh -l $PWD/clang_upc_run.sh -c 2
+   ```
+   
+   Note that -c should be small but not less than 2, otherwise some things hang
+   
    Note that -c should be small but not less than 2, otherwise some things hang
 
 # Documentation 
@@ -92,6 +107,6 @@ Bale is documented using Doxygen. To generate the html documentation you must ha
 doxygen on your system (I recommend version 1.8.6). To generate the docs, simply change
 to the $BALEDIR directory and type:
 
-   doxygen
+`doxygen`
 
 Then navigate your browser to $BALEDIR/html/index.html.

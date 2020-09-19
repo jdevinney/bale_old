@@ -1,6 +1,8 @@
 import subprocess
 import os
 import sys
+import argparse
+from shutil import which
 
 def determine_launcher():
     ret = subprocess.run('srun --help',capture_output=True,shell=True)
@@ -11,9 +13,9 @@ def determine_launcher():
     if ret.returncode == 0: return('oshrun -n {1} {0}')
     ret = subprocess.run('upcrun --help', capture_output=True,shell=True)
     if ret.returncode == 0: return('upcrun -n {1} {0}')
-    return("{0} -n {1}")
+    return("{0} -n {1} --")
 
-apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles", "write_sparse_matrix"]
+all_apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles", "write_sparse_matrix"]
 
 
 def append_to_file(master_file, file_to_add, first):
@@ -26,43 +28,35 @@ def append_to_file(master_file, file_to_add, first):
     fout.write(newdata)
     fout.close()        
         
-def run_app(path, node_range, app_list, option_str, impl_mask, json_file):
-  for app in app_list:
+def run_apps(app_dict, node_range, option_str, impl_mask, json_file):
+  
+  if json_file is not None:
+    # write initial [ to master json file
+    fout = open(json_file,'w')
+    fout.write("[\n")
+    fout.close()
+    tmp_json_file = "tmp_{0}".format(json_file)
+
+  for app in app_dict:
     runs = []
     if option_str == None:
       runs.append(" ")
     else:
       runs.append("{0} ".format(option_str))
-#    if app == 'histo' or app == 'ig':
-#      runs.append("-T 1024 ")
-#    if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles' or app == 'write_sparse_matrix':
-#      runs.append("-F -z 2 ")
-#      runs.append("-G -z 4 ")
-#    if app == 'triangles' or app == 'transpose_matrix' or app == 'permute_matrix':
-#      runs.append("-K 0:3x4x5 ")
-#      runs.append("-K 1:3x4x5 ")
-#      runs.append("-K 2:3x4x5 ")
-#      runs.append("-K 0:2x4x7 ")
-#      runs.append("-K 1:2x4x7 ")
-#      runs.append("-K 2:2x4x7 ")
-      
+    
     if impl_mask is not None:
       for i,run in enumerate(runs):
         runs[i] = "{0} -M {1}".format(run, impl_mask)
     first = True
+    
     if json_file is not None:
-      fout = open(json_file,'w')
-      fout.write("[\n")
-      fout.close()
-      tmp_json_file = "tmp_{0}".format(json_file)  
       for i,run in enumerate(runs):
         runs[i] = "{0} -j {1}".format(run, tmp_json_file)
 
     
     for pes in node_range:
-      #if pes == 0: continue      
       for run in runs:
-        cmd = launcher.format(os.path.join(path,app),2**pes) +" "+run
+        cmd = launcher.format(app_dict[app],2**pes) +" "+run
         print(cmd)
         ret = subprocess.run(cmd, capture_output=True, shell=True)
         assert(ret.returncode == 0)
@@ -70,13 +64,13 @@ def run_app(path, node_range, app_list, option_str, impl_mask, json_file):
         with open('run_all.log','a') as wp:
           wp.write(lines)
         if json_file is not None:
-            append_to_file(json_file, tmp_json_file, first)
-            first=False
+          append_to_file(json_file, tmp_json_file, first)
+          first=False
             
-    if json_file is not None:
-        fout = open(json_file,"a")
-        fout.write("]")
-        fout.close()
+  if json_file is not None:
+    fout = open(json_file,"a")
+    fout.write("]")
+    fout.close()
 
 if __name__ == '__main__':
 
@@ -84,38 +78,65 @@ if __name__ == '__main__':
     print("This script requires at least Python version 3.7")
     sys.exit(1)
   
-  from optparse import OptionParser
-  parser = OptionParser(description="""Script to run any or all of bale apps.""", usage="python %prog [options]")
+    
+  parser = argparse.ArgumentParser(description="""Script to run any or all of bale apps.""")
 
-  parser.add_option('-a','--app_list',  action="store", dest='app_list',  help="Specify a list of apps to run. Must be of form [<app>, <app2>,...] "
-                    " and apps must be in {0}".format(apps), default="All")
-  parser.add_option('-j','--json_file', action="store", dest='json_file', help="Pass -j <file> to all apps", default=None)
-  parser.add_option('-M','--impl_mask', action="store", dest='impl_mask', help="Pass -M <mask> to all apps", default=None)
-  parser.add_option(    '--node_range', action="store", dest='node_range', help="Specify the node range to run on as a range <start>:<end>:<stride>. "
+  parser.add_argument('-a','--app',  action="append", dest='app_list',  help="Specify an app to run. "
+                      " Adding multiple -a options will create a list of apps to run. "
+                      " Apps must be in {0}".format(all_apps), default=[])
+  parser.add_argument('-j','--json_file', action="store", dest='json_file', help="Pass -j <file> to all apps", default=None)
+  parser.add_argument('-M','--impl_mask', action="store", dest='impl_mask', help="Pass -M <mask> to all apps", default=None)
+  parser.add_argument(    '--node_range', action="store", dest='node_range', help="Specify the node range to run on as a range <start>:<end>:<stride>. "
                         "The job will run each app with 2^x PEs where x is in range(node_range) PEs", default="1,4,1")
-  parser.add_option('-o',"--option_str", action="store", dest='option_str', help="Specify a string to pass to all apps (must be valid for all apps!", default=None)
-  parser.add_option('-P','--path',      action="store", dest='path',      help="Specify path to binaries", default=None)
+  parser.add_argument('-o',"--option_str", action="store", dest='option_str', help="Specify a string to pass to all apps (must be valid for all apps!", default=None)
+  parser.add_argument('-P','--path',      action="store", dest='path',      help="Specify path to binaries. If no path is specified "
+                      " this script checks ./ and also the PATH environment variable.", default="")
   
-  (options, ignore) = parser.parse_args()
+  args = parser.parse_args()
 
   launcher = determine_launcher()
-  #print(launcher)
-
-  if options.app_list == 'All':
-    app_list = apps
+  
+  app_dict = {}
+  if len(args.app_list) == 0:
+    for app in all_apps:
+      app_dict[app] = None
   else:
-    #print(options.app_list)
-    app_list = options.app_list
-    if not app_list.startswith('[') or not app_list.endswith(']'):
-      print("bad app list")
-      exit(0)
-    app_list = app_list[1:-1]
-    app_list = app_list.split(",")
-    app_list = [i.strip() for i in app_list]
-    #print(app_list)
+    for app in args.app_list:
+      if app not in all_apps:
+        print("I don't know app {0}".format(app))
+        exit(1)
+      else:
+        app_dict[app] = None
+
+
+  # verify that all app binaries are in our given PATH
+  if args.path != "":
+    for app in app_dict:
+      if not os.path.exists(os.path.join(args.path, app)):
+        print("Can't find {0} in path {1}.".format(app, args.path))
+        exit(1)
+      else:
+        app_dict[app] = os.path.join(args.path,app)
+
+  else:
+    # the user didn't supply a path, make sure the apps are in the PATH
+    for app in app_dict:
+      if os.path.exists(app):
+        app_dict[app] = "./{0}".format(app)
+
+      elif which(app) is not None:
+        app_dict[app] = which(app)
+        
+      else:
+        print("Can't find {0} in user $PATH.".format(app))
+        exit(1)
+  print()
+  for app in app_dict:
+    print("Using path {0} for {1}".format(app_dict[app], app))
+  print()
     
-  #print(type(options.node_range))
-  node_range = options.node_range
+  #print(type(args.node_range))
+  node_range = args.node_range
   l = [int(i) for i in node_range.split(',')]
   if len(l) == 2:
     node_range = range(l[0],l[1])
@@ -125,5 +146,4 @@ if __name__ == '__main__':
     print("Error: illegal node_range")
     exit(1)
   
-  
-  run_app(options.path, node_range, app_list, options.option_str, options.impl_mask, options.json_file)
+  run_apps(app_dict, node_range, args.option_str, args.impl_mask, args.json_file)

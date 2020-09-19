@@ -18,12 +18,10 @@ Note: We call this directory bale classic because this collection of code is the
 ## Nitty Gritty of Bale Classic
 
 ### What language? Where does it run?
-Bale is written in C and can be compiled with UPC or linked against OpenSHMEM 1.4. Bale has been tested on a variety of architectures including Cray XC30, clusters with Infiniband, and SMP Linux.
+Bale is written in C and can be compiled with UPC or linked against OpenSHMEM 1.4. Bale has been tested on a variety of architectures including Cray XC30, clusters with Infiniband, and SMP Linux. See [INSTALL.md](INSTALL.md) for detailed build instructions and [INST_DEMO.md](INST_DEMO.md) for some quick installation demos.
 
 The main components are :
 
-- README.md  - this file
-- [INSTALL.md](INSTALL.md)  - instructions for building bale
 - [libgetput](libgetput/README.md)  - parallel programming utility library. libgetput is a library that can be compiled on top of UPC or SHMEM and implements puts, gets, collectives, and atomics. Everything in bale except conveyors is built on top of libgetput.
 - [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
 - [convey](convey/README.md) - The conveyor library for aggregating communication
@@ -35,7 +33,6 @@ The main components are :
 - run_apps.py - a python script that runs applications
 - plot_results.ipynb - a jupyter notebook for plotting results of bale app runs
 - Doxyfile - the main file for building the documentation with doxygen
-- mainpage.h - The main documentation page.
 - clang_upc_run.sh - a script to add "-fupc-threads-N" as appropriate when using clang-upc
 
 All of Bale is supported and has been tested on:
@@ -52,7 +49,11 @@ There are problems with the following...
 - Sandia OpenSHMEM (SOS) (1.4.5) without MCA (all but conveyors)
 
 ### Build Instructions
-There is an install script (called install.sh) to make building easier for most people. Follow the directions in INSTALL. 
+There is an install script (called install.sh) to make building easier for most people. Follow the directions in [INSTALL.md](INSTALL.md). 
+
+### Running
+
+All bale apps have a common set of standard options. In addition, bale apps that work on matrices or graphs have a common set graph input options. Run any app with '--help' for more information.
 
 ### Testing
 We are working on a new test script that uses pytest as a harness. To run this test, go to

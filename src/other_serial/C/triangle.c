@@ -37,10 +37,8 @@
 *****************************************************************/ 
 
 /*! \file triangle.c
- * \brief Demo application that counts the number of triangles in the graph
- * given by it's adjacency matr
- *
- * Run triangle --help or --usage for insructions on running.
+ * \brief Demo application that counts the number of triangles in 
+ * a graph given by its adjacency matrix
  */
 
 #include "spmat_utils.h"
@@ -61,25 +59,28 @@
 double triangles_matrix(int64_t *triangles, sparsemat_t *mat) 
 {
   int64_t j, k, l, numtriangles;
-  int64_t U,V;
+  int64_t u,v;
   numtriangles = 0;
 
   double t1 = wall_seconds();
   
-  // for each non-zero (i,j) in L accumulate the size of the intersection
-  // of row_i and row_j.
+  // for each non-zero (i,j) in L accumulate the size 
+  // of the intersection of row_i and row_j.
+  // Note: Because the matrix is tidy,
+  // (the columns in each row appear in increasing order)
+  // we can find the intersection in a single pass over both rows.
 
-  for(U = 0; U < mat->numrows; U++){ 
-    for(j = mat->offset[U]; j < mat->offset[U+1]; j++){
-      V = mat->nonzero[j];
-      for( l = mat->offset[U], k = mat->offset[V];  k < mat->offset[V+1] && l < mat->offset[U+1];  ){  // This requires that the matrix be tidy
+  for(u = 0; u < mat->numrows; u++){ 
+    for(j = mat->offset[u]; j < mat->offset[u+1]; j++){
+      v = mat->nonzero[j];
+      for( l = mat->offset[u], k = mat->offset[v];  k < mat->offset[v+1] && l < mat->offset[u+1];  ){
         if( mat->nonzero[k] == mat->nonzero[l] ){
           numtriangles++;
           k++;
           l++;
         }else if( mat->nonzero[k] > mat->nonzero[l] ){
           l++;
-        }else{ // ( mat->nonzero[U] > mat->nonzero[W] ) {
+        }else{ // ( mat->nonzero[u] > mat->nonzero[W] ) {
           k++;
         }
       }

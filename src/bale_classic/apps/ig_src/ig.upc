@@ -139,8 +139,8 @@ int main(int argc, char * argv[]) {
   /* process command line */
   int ret = 0;
   args_t args;
-  args.l_tbl_size = 1000;
-  args.l_num_req = 100000;
+  args.l_tbl_size = 10000;
+  args.l_num_req = 5000000;
   struct argp argp = {options, parse_opt, 0,
                       "Many remote reads from a distributed table.", children_parsers};
   
@@ -170,9 +170,9 @@ int main(int argc, char * argv[]) {
   int64_t *index   = calloc(args.l_num_req, sizeof(int64_t)); assert(index != NULL);
   int64_t *pckindx = calloc(args.l_num_req, sizeof(int64_t)); assert(pckindx != NULL);
   int64_t indx, lindx, pe;
-  srand(MYTHREAD+ args.std.seed);
+  lgp_rand_seed(args.std.seed);
   for(i = 0; i < args.l_num_req; i++){
-    indx = rand() % tab_siz;
+    indx = lgp_rand_int64(tab_siz);
     index[i] = indx;
     lindx = indx / THREADS;      // the distributed version of indx
     pe  = indx % THREADS;      

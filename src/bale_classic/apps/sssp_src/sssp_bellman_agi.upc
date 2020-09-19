@@ -35,47 +35,76 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-
-/*! \file triangle_exstack.upc
- * \brief Demo application that does triangle counting
- * that uses the exstack form of buffering
+/*! \file triangle_agi.upc
+ * \brief The intuitive implementation of triangle counting 
+ * that uses generic global references
  */
 
 #include "sssp.h"
 
-typedef struct pkg_bellman_e_t{
-  int64_t i;  // row[i] is "tail" of the edge, in case we want to set backpointers
-  int64_t lj; // the local "head" of the edge
-  double tw;  // new tentative weight
-}pkg_bellman_e_t;
+/*!
+ * \brief This routine "relaxes" an edge in the Bellman-Ford algorithm
+ * \param *tent shared tentative distance array
+ * \param J the index of the head of the edge to be relaxed
+ * \param new_tent the new tentative distance 
+ *        (the weight of the tentative distance to the tail plus the weight of the edge).
+ * This is effectively an atomic min operation of the new and old tentative distances.
+ */
+static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tent)
+{
+  // Allows us to use the bits of new and old, either as doubles for the
+  // determining the min, or just as bits for the compare_and_swap.
+  union{double x; uint64_t u;} old;
+  union{double x; uint64_t u;} new;
+
+  new.x = new_tent;
+  while(1){
+    old.x = lgp_get_double(tent->entry, J);
+    if(new.x > old.x) 
+      break;
+    if( old.u == lgp_cmp_and_swap(tent->entry, J, old.u, new.u) )
+      break;
+  }
+}
 
 /*!
- * \brief 
+ * \brief This routine implements the Bellman-Ford algorithm with the agi model
+ *
+ * \param *dist a place to return the distance to the source
+ * \param *mat the input matrix
+ * \return average run time
  */
-
-static exstack_relax_edge(double *tent, sparsemat_t *dmat, int64_t I, int64_t J, double weight_IJ );
-
-double sssp_bellman_exstack(double *tent, sparsemat_t * dmat, int64_t v0)
+double sssp_bellman_agi(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 {
-   
+  T0_printf(" Running AGI SSSP Bellman-Ford\n");
+
   double t1 = wall_seconds();
 
-  if(!dmat){ T0_printf("ERROR: sssp_bellman_agi: NULL L!\n"); return(-1); }
+  if(!mat){ T0_printf("ERROR: sssp_bellman_agi: NULL L!\n"); return(-1); }
   
-	int64_t i, k, loop;
-	int64_t lnumrows = dmat->lnumrows;
+  double tent_tail, new_tent;
+  int64_t i, li, k, loop;
+  int64_t lnumrows = mat->lnumrows;
 
-	for(i=0; i<lnumrows; i++)
-		tent[i] = INFINITY;
+  lgp_barrier();
+  if( MYTHREAD == 0 ){
+    lgp_put_double(tent->entry, v0, 0.0);
+  }
+  lgp_barrier();
 
-  tent[v0] = 0.0;
+  //dump_tent("AGI: ", tent);
 
-  for(loop=0; loop<numrows; loop++){
-    for(i=0; i<numrows; i++){ 
-      for(k = mat->offset[i]; k < mat->offset[i+1]; k++){
-        relax_edge( &(tent[ mat->nonzero[k] ]), &(tent[i]), mat->value[k]);
+  for(loop=0; loop<mat->numrows; loop++){
+    for(li=0; li<lnumrows; li++){ 
+      tent_tail = tent->lentry[li];
+      for(k = mat->loffset[li]; k < mat->loffset[li+1]; k++){
+        new_tent = tent_tail + mat->lvalue[k];
+        relax_bellman_agi(tent, mat->lnonzero[k], new_tent);
       }
     }
+    lgp_barrier();
+
+    //dump_tent("AGI: ", tent);
   }
 
   lgp_barrier();

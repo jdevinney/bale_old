@@ -109,10 +109,11 @@ int main(int argc, char * argv[])
 {
 
   /* process command line */
-  args_t args;
+  args_t args = {0};
   struct argp argp = {NULL, parse_opt, 0,
                       "Parallel sparse matrix transpose.", children_parsers};
-  
+
+  args.gstd.l_numrows = 1000000;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);

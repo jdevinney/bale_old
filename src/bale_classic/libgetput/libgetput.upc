@@ -266,6 +266,7 @@ Define_Reducer(lgp_reduce_min_d, double, double, shmem_double_min_to_all)
 Define_Reducer(lgp_reduce_max_d, double, double, shmem_double_max_to_all)
 
 Define_Reducer(lgp_reduce_or_int, int, int, shmem_int_or_to_all)
+
 /*!
 * \ingroup libgetputgrp
 */
@@ -274,7 +275,6 @@ void lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t 
   size_t local_index;
   int64_t *local_ptr;
 
-  /* asupc_init tests that (long long) == (int64_t) */
 
   pe = index % shmem_n_pes();
   local_index = (index / shmem_n_pes())*blocksize;
@@ -282,6 +282,20 @@ void lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t 
   local_ptr =(int64_t*)(( (char*)addr ) + local_index);
 
   shmem_int64_p ( local_ptr, val, pe );
+}
+
+void lgp_shmem_write_upc_array_double(SHARED double *addr, size_t index, size_t blocksize, double val) {
+  int pe;
+  size_t local_index;
+  double *local_ptr;
+
+
+  pe = index % shmem_n_pes();
+  local_index = (index / shmem_n_pes())*blocksize;
+
+  local_ptr =(double*)(( (char*)addr ) + local_index);
+
+  shmem_double_p ( local_ptr, val, pe );
 }
 
 /*!
@@ -292,12 +306,29 @@ int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index,
   size_t local_index;
   int64_t *local_ptr;
 
-  /* asupc_init tests that (long long) == (int64_t) */
 
   pe = index % shmem_n_pes();
   local_index = (index / shmem_n_pes())*blocksize;
 
   local_ptr =(int64_t*)(( (char*)addr ) + local_index);
+
+  return shmem_int64_g ( local_ptr, pe );
+}
+
+/*!
+* \ingroup libgetputgrp
+*/
+double lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, size_t blocksize) {
+  int pe;
+  size_t local_index;
+  double *local_ptr;
+
+  /* asupc_init tests that (long long) == (int64_t) */
+
+  pe = index % shmem_n_pes();
+  local_index = (index / shmem_n_pes())*blocksize;
+
+  local_ptr =(double*)(( (char*)addr ) + local_index);
 
   return shmem_int64_g ( local_ptr, pe );
 }
@@ -429,3 +460,22 @@ double wall_seconds() {
   return ( (double) tp.tv_sec + (double) tp.tv_usec * 1.e-6 );
 }
 
+
+#define LGP_RAND_MAX 281474976710656
+
+// all PEs should call this with the same seed.
+void lgp_rand_seed(int64_t seed){
+  srand48(seed + 1 + MYTHREAD);
+}
+
+/*! \brief return a random integer mod N.
+ */
+int64_t lgp_rand_int64(int64_t N){
+  assert(N < LGP_RAND_MAX);
+  return((int64_t)(drand48()*N));
+}
+
+
+double lgp_rand_double(){
+  return(drand48());
+}

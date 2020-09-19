@@ -70,11 +70,11 @@ double sssp_bellman_agi(double *tent, sparsemat_t * dmat, int64_t v0)
 
   if(!dmat){ T0_printf("ERROR: sssp_bellman_agi: NULL L!\n"); return(-1); }
   
-	int64_t i, k, loop;
-	int64_t lnumrows = dmat->lnumrows;
+  int64_t i, k, loop;
+  int64_t lnumrows = dmat->lnumrows;
 
-	for(i=0; i<lnumrows; i++)
-		tent[i] = INFINITY;
+  for(i=0; i<lnumrows; i++)
+    tent[i] = INFINITY;
 
   tent[v0] = 0.0;
 

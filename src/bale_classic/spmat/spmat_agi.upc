@@ -58,7 +58,7 @@ SHARED int64_t * rand_permp_agi(int64_t N, int seed) {
   int64_t r, i, j;
   int64_t pos, numdarts, numtargets, lnumtargets;
 
-  if( seed != 0 ) srand48( seed );
+  lgp_rand_seed(seed);
 
   //T0_printf("Entering rand_permp_atomic...");fflush(0);
 
@@ -80,7 +80,7 @@ SHARED int64_t * rand_permp_agi(int64_t N, int seed) {
 
   i=0;
   while(i < l_N){                // throw the darts until you get l_N hits
-    r = lrand48() % M;
+    r = lgp_rand_int64(M);
     if( lgp_cmp_and_swap(target, r, -1L, (i*THREADS + MYTHREAD)) == (-1L) ){
       i++;
     }
@@ -167,8 +167,8 @@ sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperminv, SHARE
   lgp_barrier();
 
   lgp_all_free(rperm);
+  sort_nonzeros(Ap);
 
-  //T0_printf("done\n");
   return(Ap);
 }
 
@@ -207,8 +207,8 @@ sparsemat_t * transpose_matrix_agi(sparsemat_t *A) {
   for( i = 0; i < lnc; i++) {
     lnnz += l_shtmp[i];
   }
-  
-  At = init_matrix(A->numcols, A->numrows, lnnz, (A->value != NULL));
+  int weighted = (A->value != NULL);
+  At = init_matrix(A->numcols, A->numrows, lnnz, weighted);
   if(!At){printf("ERROR: transpose_matrix_upc: init_matrix failed!\n");return(NULL);}
 
   int64_t sum = lgp_reduce_add_l(lnnz);      // check the histogram counted everything
@@ -230,10 +230,9 @@ sparsemat_t * transpose_matrix_agi(sparsemat_t *A) {
     for(j=A->loffset[row]; j<A->loffset[row+1]; j++){
       pos = lgp_fetch_and_add(shtmp, A->lnonzero[j], (int64_t) THREADS);
       lgp_put_int64(At->nonzero, pos, row*THREADS + MYTHREAD);
+      if(weighted) lgp_put_double(At->value, pos, A->lvalue[j]);
     }
   }
-  lgp_barrier();
-
 
   lgp_barrier();
   //if(!MYTHREAD)printf("done\n");
@@ -285,6 +284,11 @@ int64_t write_rowcounts(char * dirname, sparsemat_t * A){
  */
 int64_t write_sparse_matrix_agi(char * dirname, sparsemat_t * A){
   int64_t i;
+
+  if(A->value){
+    T0_fprintf(stderr,"WARNING: write_sparse_matrix_agi: writing a matrix with values not supported.\n");
+    T0_fprintf(stderr,"Only, nonzero positions will be written.\n");
+  }
   
   /* create the directory  */
   mkdir(dirname, 0770);

@@ -89,10 +89,11 @@ static struct argp_child children_parsers[] =
 int main(int argc, char * argv[]) {
   
   /* process command line */
-  args_t args;
+  args_t args = {0};  // initialize args struct to all zero
   struct argp argp = {NULL, parse_opt, 0,
                       "Parallel permute sparse matrix.", children_parsers};
- 
+
+  args.gstd.l_numrows = 1000000;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
@@ -106,18 +107,18 @@ int main(int argc, char * argv[]) {
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
   if(!inmat){T0_fprintf(stderr, "ERROR: permute_matrix: inmat is NULL!\n");return(-1);}
   
-  SHARED int64_t * rp = rand_permp(inmat->numrows, args.std.seed + MYTHREAD);
-  SHARED int64_t * cp = rand_permp(inmat->numcols, args.std.seed + MYTHREAD + 1);  
+  SHARED int64_t * rp = rand_permp(inmat->numrows, args.std.seed);
+  SHARED int64_t * cp = rand_permp(inmat->numcols, args.std.seed + 12345);  
 
   if(args.std.dump_files){
-    write_matrix_mm(inmat, "inmat_permute_matrix");
+    write_matrix_mm(inmat, "permute_matrix_inmat");
     if(!MYTHREAD){
       int64_t i;
-      FILE * fp = fopen("rperm_permute_matrix", "w");
+      FILE * fp = fopen("permute_matrix_rperm", "w");
       for(i = 0; i < inmat->numrows; i++)
         fprintf(fp, "%ld\n", lgp_get_int64(rp, i));
       fclose(fp);
-      fp = fopen("cperm_permute_matrix", "w");
+      fp = fopen("permute_matrix_cperm", "w");
       for(i = 0; i < inmat->numcols; i++)
         fprintf(fp, "%ld\n", lgp_get_int64(cp, i));
       fclose(fp);
@@ -126,6 +127,7 @@ int main(int argc, char * argv[]) {
   
   int64_t use_model;
   sparsemat_t * outmat;
+  sparsemat_t * refmat = NULL;
   char model_str[32];
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     double t1 = wall_seconds();
@@ -156,20 +158,35 @@ int main(int argc, char * argv[]) {
     case 0:
       continue;
     }
-    
+
     minavgmaxD_t stat[1];
     t1 = wall_seconds() - t1;
     lgp_min_avg_max_d( stat, t1, THREADS );
     bale_app_write_time(&args.std, model_str, stat->avg);
-    clear_matrix(outmat);
+
+    /* if running more than one implmentation, save the first to check against the others*/
+    if(!refmat){
+      refmat = outmat;
+    }else{
+      if(compare_matrix(refmat, outmat)){
+        T0_fprintf(stderr,"ERROR: permute_matrix does not match!\n");
+        if(args.std.dump_files){
+          write_matrix_mm(outmat, "outmat");
+          write_matrix_mm(refmat, "refmat");
+        }
+      }
+      clear_matrix(outmat);
+    }
   }
+
+  write_matrix_mm(refmat, "outmat_permute_matrix");
     
   clear_matrix(inmat);
+  clear_matrix(refmat);
   lgp_all_free(rp);
   lgp_all_free(cp);
   lgp_barrier();
 
-  bale_app_finish(&args.std);
   
   return(0);
 }

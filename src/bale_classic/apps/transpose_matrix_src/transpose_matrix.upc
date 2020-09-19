@@ -89,12 +89,12 @@ int main(int argc, char * argv[])
   int64_t check = 1;
 
   /* process command line */
-  int ret = 0;
-  args_t args;
+  args_t args = {0}; // initialize args struct to all zero
   struct argp argp = {NULL, parse_opt, 0,
                       "Parallel sparse matrix transpose.", children_parsers};
-  
-  ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+
+  args.gstd.l_numrows = 1000000;  
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);  
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
@@ -107,7 +107,7 @@ int main(int argc, char * argv[])
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
   if(!inmat){T0_fprintf(stderr, "ERROR: transpose: inmat is NULL!\n");return(-1);}
 
-  if(args.std.dump_files) write_matrix_mm(inmat, "inmat");
+  if(args.std.dump_files) write_matrix_mm(inmat, "transpose_inmat");
     
   double t1;
   minavgmaxD_t stat[1];

@@ -45,9 +45,16 @@
 #include <exstack.h>
 #include <convey.h>
 #include <spmat.h>
+#include <math.h>
 #include <locale.h>
 
-double   sssp_bellman_agi(double *dist, sparsemat_t * mat, int64_t v0);
-double   sssp_bellman_exstack(double *dist, sparsemat_t * mat, int64_t v0);
+double        sssp_bellman_agi(d_array_t *tent, sparsemat_t * mat, int64_t v0);
+double    sssp_bellman_exstack(d_array_t *tent, sparsemat_t * mat, int64_t v0);
+double   sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0);
+double     sssp_bellman_convey(d_array_t *tent, sparsemat_t * mat, int64_t v0);
+double      sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t v0);
+double       sssp_delta_convey(d_array_t *tent, sparsemat_t * mat, int64_t v0);
+
+void dump_tent(char *str, d_array_t *tent);
 
 // alternates go here
