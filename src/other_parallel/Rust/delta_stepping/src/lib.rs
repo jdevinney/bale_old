@@ -1,12 +1,8 @@
 use chrono::{DateTime, Local};
-use convey_hpc::collect::{IVal, PType, ValueCollect};
-use convey_hpc::session::ConveySession;
-use convey_hpc::Convey;
-use serde::de::DeserializeOwned;
-use serde::ser::Serialize;
-// use serde::DeserializeOwned;
-// use serde::Deserialize;
-// use serde::Serialize;
+use convey_hpc::collect::{ValueCollect};
+// use convey_hpc::session::ConveySession;
+// use convey_hpc::Convey;
+use serde::{Deserialize, Serialize};
 use spmat::wall_seconds;
 use spmat::SparseMat;
 use std::fs::OpenOptions;
@@ -68,7 +64,7 @@ impl SsspInfo {
 }
 
 /// A potential edge relaxation to be examined
-#[derive (Clone, Copy, Debug, DeserializeOwned, Serialize)]
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 struct Request {
     w_g: usize,  // head of edge being relaxed, global vertex index
     dist: f64,   // new distance from source to w_g using that edge
@@ -111,7 +107,6 @@ impl<'a> BucketSearcher<'a> {
 
     /// Create a bucket structure for a weighted graph
     fn new(graph: &SparseMat, delta: f64) -> BucketSearcher { 
-        let nvtxs = graph.numrows;
         let nvtxs_this_rank = graph.numrows_this_rank;
 
         let mut my_max_edge_len: f64 = 0.0;
@@ -355,6 +350,7 @@ impl<'a> BucketSearcher<'a> {
         // maybe also barrier at beginning of relax_requests? or superfluous before creating session?
         // convey the request r=(w_g,d) to the PE that owns vtx w_g here, and have it call relax
         // is there a way to do this without opening a new conveyor session every time?
+        let num_ranks = self.graph.num_ranks();
         {
             // Always put the session in a new block, as you will
             // not be able to able to local after conveyor is done
@@ -363,7 +359,8 @@ impl<'a> BucketSearcher<'a> {
                 |item: Request, _from_rank| { self.relax(item); }
             );
             for r in requests {
-                let rank = self.graph.offset_rank(r.w_g).1;
+                // let rank = self.graph.offset_rank(r.w_g).1;
+                let rank = r.w_g / num_ranks;
                 session.push(r, rank);
             }
             session.finish();
