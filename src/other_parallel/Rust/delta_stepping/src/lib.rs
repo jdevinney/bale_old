@@ -154,15 +154,14 @@ impl<'a> BucketSearcher<'a> {
         }
     }
 
-    /// Append bucket structure state to a file (which will get big if tracing)
+    /// Append bucket structure state to the file trace.pe#.out (which will get big)
     fn trace(&self, 
         max_disp: usize, 
-        filename: &str, 
         title: &str, 
         nums: Vec<usize>) -> Result<(),Error> 
     { 
-        let filename_rank = format!("{}_{}", filename, self.graph.my_rank());
-        let path = Path::new(&filename_rank);
+        let filename = format!("trace.{}.out", self.graph.my_rank());
+        let path = Path::new(&filename);
         let mut file = OpenOptions::new().append(true).create(true).open(path)?;
         let nvtxs_this_rank = self.graph.numrows_this_rank;
         let now: DateTime<Local> = Local::now();
@@ -435,7 +434,7 @@ impl DeltaStepping for SparseMat {
         searcher.relax(Request{w_g: source, dist: 0.0});
 
         searcher
-            .trace(20, "trace.out", "after relax source", vec![source])
+            .trace(20, "after relax source", vec![source])
             .expect("bucket dump failed");
 
         // outer loop: for each nonempty bucket in order ...
@@ -465,7 +464,7 @@ impl DeltaStepping for SparseMat {
                 searcher.relax_requests(requests);
 
                 searcher
-                    .trace(20, "trace.out", "end of middle iter", vec![outer, phase])
+                    .trace(20, "end of middle iter", vec![outer, phase])
                     .expect("bucket dump failed");
                 phase += 1;
                 
@@ -476,7 +475,7 @@ impl DeltaStepping for SparseMat {
             searcher.relax_requests(requests);
 
             searcher
-                .trace(20, "trace.out", "end of outer iter", vec![outer])
+                .trace(20, "end of outer iter", vec![outer])
                 .expect("bucket dump failed");
             outer += 1;
 
