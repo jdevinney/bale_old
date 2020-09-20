@@ -360,7 +360,7 @@ impl<'a> BucketSearcher<'a> {
             );
             for r in requests {
                 // let rank = self.graph.offset_rank(r.w_g).1;
-                let rank = r.w_g / num_ranks;
+                let rank = r.w_g % num_ranks;
                 session.push(r, rank);
             }
             session.finish();
