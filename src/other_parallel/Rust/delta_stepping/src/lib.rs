@@ -439,7 +439,7 @@ impl DeltaStepping for SparseMat {
         if !quiet {
             println!(
                 "delta_stepping: nvtxs = {}, nedges = {}, delta = {}",
-                self.numrows, self.offset[self.numrows], delta
+                self.numrows, self.nnz, delta
             );
         }
 

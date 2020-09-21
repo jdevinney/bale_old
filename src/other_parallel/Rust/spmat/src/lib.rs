@@ -263,21 +263,21 @@ impl SparseMat {
 
     /// prints some stats of a sparse matrix
     pub fn stats(&self) -> () {
+        let val_str = if let Some(_) = self.value {
+            "(with values)"
+        } else {
+            "(pattern only)"
+        };
         if let Some(_) = self.convey {
             if self.my_rank() != 0 {
                 return ();
             }
-            println!("    distributed matrix");
+            println!("    distributed matrix {}", val_str);
             println!("    num_ranks = {}", self.num_ranks());
             println!("    numrows.0 = {}", self.numrows_this_rank);
             println!("    nnz.0     = {}", self.nnz_this_rank);
         } else {
-            println!("    local matrix on rank {}", self.my_rank());
-        }
-        if let Some(_) = self.value {
-            println!("    matrix with values");
-        } else {
-            println!("    matrix pattern only");
+            println!("    local matrix {} on rank {}", val_str, self.my_rank());
         }
         println!("    numrows   = {}", self.numrows);
         println!("    numcols   = {}", self.numcols);
