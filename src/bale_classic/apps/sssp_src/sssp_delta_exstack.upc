@@ -3,138 +3,19 @@
  */
 
 #include "sssp.h"
+#include "sssp_delta_common.h"
 
-#define DPRT 0
-#define D0PRT (!MYTHREAD && DPRT)
-
-typedef struct ds_t{
-  int64_t *next;      // next in linked list
-  int64_t *prev;      // prev in linked list
-  int64_t *in_bucket; // which bucket it is in, else -1
-  int64_t *deleted;   // deleted means resolved?
-  double  *tent;      // the tentative weight for the vertex
-  int64_t *B;         // array of Buckets: B[i] is the index of the first node on the list, or -1 if empty
-  int64_t num_buckets;
-  double  delta;      // delta
-}ds_t;
-
-typedef struct pkg_delta_e_t{
-  int64_t i;  // tail of the edge (in case one wanted to make back pointers
-  int64_t lj; // local "head" of the edge on remote pe
-  double tw;  // candidate tentative weight
-}pkg_delta_e_t;
-
-
-// debugging function
-static void dump_bucket_arr(ds_t *ds, int64_t i_m)
-{
-  int64_t v, w ;
-  char lineout[2048];
-
-  lineout[0] = '\0';
-  sprintf(lineout+strlen(lineout), "%02d: Bucket[%ld] =", MYTHREAD, i_m);
-  if( ds->B[i_m] == -1 ){
-    printf("%s empty \n",lineout);
-    return;
-  }
-  v = w = ds->B[i_m];
-  do {
-    sprintf(lineout+strlen(lineout), "%ld ", w);
-  } while( (w = ds->next[w]) != v );
-  printf("%s\n",lineout);
-  return;
-}
-
-// Prepend node v into a bucket i
-static void insert_node_in_bucket_arr(ds_t *ds, int64_t v, int64_t i_m)
-{
-  int64_t w;                   // node on list, given by ds->B[i_m]
-  //if(DPRT){printf("%02d: Adding %"PRId64" to bucket %"PRId64" of %"PRId64"\n", MYTHREAD, v, i_m, ds->num_buckets);}
-  
-  assert(i_m >= -1 && i_m < ds->num_buckets);
-  
-  if(ds->in_bucket[v] == i_m){      // it is ok if this node is already in this bucket
-    return; 
-  }
-  assert(ds->in_bucket[v] == -1);   // better not be in a different bucket
-
-  ds->next[v] = v;
-  ds->prev[v] = v;
-  if(ds->B[i_m] != -1){    
-    w = ds->B[i_m];             // w is "first" on the list, insert v before w              
-    //if(DPRT){printf("%02d: non-empty: w=%ld, prev=%ld\n", MYTHREAD, w, ds->prev[w]);}
-    ds->prev[v] = ds->prev[w];            
-    ds->next[ds->prev[w]] = v;            
-    ds->prev[w] = v;
-    ds->next[v] = w;
-    //if(DPRT){printf("%02d:    v=%ld, prev=%ld, next %ld, (%ld,%ld)\n", MYTHREAD, v, ds->prev[v], ds->next[v], ds->prev[ds->next[v]], ds->next[ds->prev[v]] );}
-  }
-  ds->B[i_m] = v;                       // set v to be the "first" on the list
-  ds->in_bucket[v] = i_m;
-}
-
-
-// Remove node v from its bucket (need not be in any bucket)
-static void remove_node_from_bucket_arr(ds_t *ds, int64_t v)
-{
-  int64_t i_m, w;
-
-  i_m = ds->in_bucket[v];
-  assert(i_m >= -1 && i_m < ds->num_buckets);
-  //if(DPRT){printf("%02d: Removing %"PRId64" from bucket %"PRId64"\n", MYTHREAD, v, i_m);}
-  if(00 && DPRT && !( ((ds->next[v] == v) && (ds->prev[v] == v)) || (ds->next[v] != ds->prev[v]) )){
-    printf("%02d: ERROR:  v, next, prev = %ld %ld %ld\n", MYTHREAD, v, ds->next[v], ds->prev[v] );
-  }
-
-  if(i_m == -1)     // v wasn't in a bucket
-    return;
-
-  ds->in_bucket[v] = -1;
-  if((ds->next[v] == v) && (ds->prev[v] == v)){  // the only thing on the list
-    ds->B[i_m] = -1;
-    return;
-  }
-
-  w = ds->next[v];
-  ds->prev[w] = ds->prev[v];
-  ds->next[ds->prev[v]] = w;
-  ds->B[i_m] = w;         //move the B[i] pointer to w, 
-  return;
-}
-
-// relax an edge to the head vertex, given the new tentative distance
-// (= the tentative distance to the tail plus the weight of the edge).
-// the candidate distance to w is cand_dist.
-static void relax_arr(ds_t *ds, int64_t w, double cand_dist)
-{
-  int64_t iold, inew;
-  //if(DPRT){printf("%02d: relax head %"PRId64" cand_dist = %lf < %lf?\n", MYTHREAD, w, cand_dist, ds->tent[w]);}
-  if ( cand_dist < ds->tent[w] ){
-    iold = ds->in_bucket[w];
-    inew = ((int64_t)floor(cand_dist/ds->delta)) % (ds->num_buckets);
-
-    assert(iold >= -1 && iold < ds->num_buckets);
-    assert(inew >= -1 && inew < ds->num_buckets);
-    //if(DPRT){printf("%02d: winner: %"PRId64"  move from bucket %"PRId64" to %"PRId64"\n", MYTHREAD, w, iold, inew);}
-    if( iold != inew ){
-      if(iold >= 0)
-        remove_node_from_bucket_arr(ds, w);
-      insert_node_in_bucket_arr(ds, w, inew);
-    }
-    ds->tent[w] = cand_dist;
-  }
-}
 
 static int64_t delta_exstack_relax_process(ds_t *ds, exstack_t *ex, int64_t done) 
 {
   int64_t fromth;
-  pkg_delta_e_t pkg;
+  sssp_pkg_t pkg;
   //if(DPRT){printf("%02d: exstack relax process\n",MYTHREAD);}
 
   exstack_exchange(ex);
   
   while(exstack_pop(ex, &pkg, &fromth)){
-    relax_arr(ds, pkg.lj, pkg.tw);
+    local_relax(ds, pkg.lj, pkg.tw);
   }
   return( exstack_proceed(ex, done) );
 }
@@ -150,12 +31,12 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   int64_t v;
   int64_t rbi;     // the real bucket index
   int64_t J, pe;
-  pkg_delta_e_t pkg;
+  struct sssp_pkg_t pkg;
 
 
 
   //TODO: Fix the buffer size 
-  exstack_t * ex = exstack_init(32, sizeof(pkg_delta_e_t));
+  exstack_t * ex = exstack_init(32, sizeof(sssp_pkg_t));
   if( ex == NULL) return(-1.0);
   double tm = wall_seconds();
 
@@ -216,7 +97,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   if( (r0 % THREADS) == MYTHREAD) {
     r0 = r0/THREADS;
     ds->tent[r0] = 0.0;
-    insert_node_in_bucket_arr(ds, r0, 0);
+    insert_node_in_bucket(ds, r0, 0);
     if(DPRT){printf("%02d: Set source node %ld\n", MYTHREAD, r0);}
   }
 
@@ -244,7 +125,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
 
     i_m = rbi % ds->num_buckets;
     if(DPRT){printf("%02d:Starting inner loop: working on bucket %ld, %ld\n",MYTHREAD, rbi, i_m);}
-    if(DPRT) dump_bucket_arr(ds, i_m);
+    if(DPRT) dump_bucket(ds, i_m);
 
     // inner loop
     int64_t start = 0;
@@ -255,10 +136,9 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
         v = ds->B[i_m]; 
         if(DPRT){printf("%02d: Processing Node %"PRId64" in Bucket %"PRId64"\n",MYTHREAD, v, i_m);}
 
-        remove_node_from_bucket_arr(ds, v);
+        remove_node_from_bucket(ds, v);
         /* relax light edges from v */
-        pkg.i = v*THREADS + MYTHREAD; 
-        if(0&&DPRT){printf("%02d: v=%ld has degree %ld\n", MYTHREAD, pkg.i, mat->loffset[v+1]-mat->loffset[v]);}
+        if(0&&DPRT){printf("%02d: v=%ld has degree %ld\n", MYTHREAD, v*THREADS + MYTHREAD, mat->loffset[v+1]-mat->loffset[v]);}
         for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
           if(mat->lvalue[k] <= delta){	  
             J = mat->lnonzero[k];
@@ -285,7 +165,6 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
     /* relax heavy requests edges for everything in R */
     for(start=0; start<end; start++){
       v = R[start];
-      pkg.i = v*THREADS + MYTHREAD; 
       for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
         if(mat->lvalue[k] > delta){	  
           J = mat->lnonzero[k];

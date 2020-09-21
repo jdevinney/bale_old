@@ -42,12 +42,6 @@
 
 #include "sssp.h"
 
-typedef struct pkg_bellman_e_t{
-  int64_t i;  // row[i] is "tail" of the edge, in case we want to set backpointers
-  int64_t lj; // the local "head" of the edge
-  double tw;  // new tentative weight
-}pkg_bellman_e_t;
-
 /*!
  * \brief 
  */
@@ -62,7 +56,7 @@ typedef struct pkg_bellman_e_t{
 static int64_t bellman_exstack_relax_process(d_array_t *tent, exstack_t *ex, int64_t done) 
 {
   int64_t fromth;
-  pkg_bellman_e_t pkg;
+  sssp_pkg_t pkg;
 
   exstack_exchange(ex);
   
@@ -92,12 +86,12 @@ double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t v0)
   int64_t pe_v0, li_v0;
   int64_t loop;
   int64_t changed;
-  pkg_bellman_e_t pkg;
+  sssp_pkg_t pkg;
   d_array_t *tent0, *tent1, *tent2;
   d_array_t *tent_old, *tent_cur, *tent_new, *tent_temp;
 
   //TODO: Fix the buffer size 
-  exstack_t * ex = exstack_init(64, sizeof(pkg_bellman_e_t));
+  exstack_t * ex = exstack_init(64, sizeof(sssp_pkg_t));
   if( ex == NULL) return(-1.0);
 
 
@@ -138,13 +132,12 @@ double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t v0)
       if(tent_old->lentry[li] == tent_cur->lentry[li])
         continue;
       changed = 1;
-      pkg.i = li * THREADS + MYTHREAD;
       for(k=mat->loffset[li]; k< mat->loffset[li+1]; k++){
         J = mat->lnonzero[k];
         pe  = J % THREADS;
         pkg.lj = J / THREADS;
         pkg.tw = tent_cur->lentry[li] + mat->lvalue[k];
-        if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, pkg.i, J, tent_cur->lentry[li],  pkg.tw);}
+        if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, li*THREADS + MYTHREAD, J, tent_cur->lentry[li],  pkg.tw);}
         if( exstack_push(ex, &pkg, pe) == 0 ) {
             bellman_exstack_relax_process(tent_new, ex, 0);
             k--;
