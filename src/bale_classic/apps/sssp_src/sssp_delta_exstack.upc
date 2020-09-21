@@ -42,34 +42,10 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
 
   assert((r0 >= 0) && (r0<mat->numrows));
   
+  double delta;
+  int64_t num_buckets;
+  calculate_delta_and_num_buckets(&delta, &num_buckets, mat);
   
-  /* calculate delta and set tentative distances to infinity */  
-  double delta = 0.0;
-  int64_t max_degree = 0;
-  for(i = 0; i < mat->lnumrows; i++){
-    if(max_degree < (mat->loffset[i+1] - mat->loffset[i]))
-      max_degree = (mat->loffset[i+1] - mat->loffset[i]);
-  }
-  max_degree = lgp_reduce_max_l(max_degree);
-  assert(max_degree > 0);
-  delta = 1.0/max_degree;
-  if(D0PRT){printf("%02d:delta = %lf\n", MYTHREAD, delta);}
-  
-  double max_edge_weight = 0.0;
-  for(i = 0; i < mat->lnnz; i++)
-    if(max_edge_weight < mat->lvalue[i])
-      max_edge_weight = mat->lvalue[i];
-  max_edge_weight = lgp_reduce_max_d(max_edge_weight);
-  if(D0PRT){printf("%02d:max edge weight = %lf\n", MYTHREAD, max_edge_weight);}
-
-  if(D0PRT){printf("%02d:Init Buckets\n", MYTHREAD);}
-  int64_t num_buckets = (int64_t)ceil(max_edge_weight/delta) + 1;
-  
-  // Set up all the ds arrays to be local, ie. shared nothing.
-  // The only way to affect change is local read/writes and exstack pushes/pops.
-  // We will make a global for vertices to match the rows in the matrix 
-  // from the local index and the pe if needed.
-
   ds_t * ds = (ds_t *)calloc(1,sizeof(ds_t)); assert(ds != NULL);
   allocate_and_initialize_delta_stepping_struct(ds, mat->lnumrows, num_buckets, delta);
 

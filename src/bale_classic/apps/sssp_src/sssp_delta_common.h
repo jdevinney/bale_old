@@ -26,6 +26,7 @@ void remove_node_from_bucket(ds_t *ds, int64_t v);
 void local_relax(ds_t *ds, int64_t w, double cand_dist);
 
 
+void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat);
 void allocate_and_initialize_delta_stepping_struct(ds_t *ds, int64_t lnumrows, int64_t num_buckets, double delta);
 void clear_ds_struct(ds_t *ds);
 

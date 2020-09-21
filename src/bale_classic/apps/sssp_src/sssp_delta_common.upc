@@ -147,3 +147,33 @@ void clear_ds_struct(ds_t *ds)
   free(ds->tent);
 }
 
+// calculate delta and num_buckets
+void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat)
+{ 
+  double del;
+  int64_t nb;
+  int64_t i;
+
+  int64_t max_degree = 0;
+  for(i = 0; i < mat->lnumrows; i++){
+    if(max_degree < (mat->loffset[i+1] - mat->loffset[i]))
+      max_degree = (mat->loffset[i+1] - mat->loffset[i]);
+  }
+  max_degree = lgp_reduce_max_l(max_degree);
+  assert(max_degree > 0);
+  del = 1.0/max_degree;
+  if(D0PRT){printf("%02d:del = %lf\n", MYTHREAD, del);}
+  
+  double max_edge_weight = 0.0;
+  for(i = 0; i < mat->lnnz; i++)
+    if(max_edge_weight < mat->lvalue[i])
+      max_edge_weight = mat->lvalue[i];
+  max_edge_weight = lgp_reduce_max_d(max_edge_weight);
+  if(D0PRT){printf("%02d:max edge weight = %lf\n", MYTHREAD, max_edge_weight);}
+
+  if(D0PRT){printf("%02d:Init Buckets\n", MYTHREAD);}
+  nb = (int64_t)ceil(max_edge_weight/del) + 1;
+  *delta = del;
+  *num_buckets = nb;
+}
+
