@@ -1,12 +1,12 @@
 # Table of Contents
 
-* [Building on some common platforms](#Building on some common platforms)
+* [Building on some common platforms](#Building-on-some-common-platforms)
   * Linux SMP OpenMPI/OSHMEM
   * Linux SMP Sandia OpenSHMEM
   * Linux SMP with GNU or CLANG UPC
   * Cray XC30
   * Mac OSX
-* [Running Examples](#Running Examples)
+* [Running Examples](#Running-Examples)
 
 
 
