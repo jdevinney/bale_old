@@ -40,7 +40,7 @@ use std::io::{BufReader};
    light-edge phases, one more phase relaxes all the heavy edges from vertices deleted 
    from the active bucket; this cannot cause any vertices to go into that bucket. 
    
-   The inner (potentially parallel) loop implements the edge relaxations in a single phase.
+   The inner (parallel) loop implements the edge relaxations in a single phase.
    Those relaxations can be done in any order, provided they are done atomically.
 */
 
@@ -89,7 +89,7 @@ fn main() {
                 .short("d")
                 .long("dump_files")
                 .takes_value(false)
-                .help("Produce short dumps as the algorithm progresses"),
+                .help("Write the matrix to sssp.mm and the output distances to sssp.wts"),
         )
         .arg(
             Arg::with_name("quiet")
@@ -142,14 +142,9 @@ fn main() {
         println!("input matrix stats:");
         mat.stats();
     }
-
     if dump_files {
-        mat.dump(20, "mat.out").expect("could not write mat.out");
-    }
-
-    mat.write_mm_file("sssp_mat.mm")
-        .expect("could not write sssp_mat.mm");
-
+        mat.write_mm_file("sssp_mat.mm").expect("could not write sssp_mat.mm");
+}
     if !quiet {
         let now: DateTime<Local> = Local::now();
         println!(
@@ -161,9 +156,10 @@ fn main() {
     }
 
     let matret = mat.delta_stepping(source, if forced_delta == 0.0 {None} else {Some(forced_delta)});
+
     if dump_files {
         // matret.dump(0, "results.out").expect("results write error");
-        matret.dump_wts("results.wts").expect("results write error");
+        matret.dump_wts("sssp.wts").expect("results write error");
     }
 
     // hack to check against Phil's output file if it's there
