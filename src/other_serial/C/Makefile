@@ -31,7 +31,7 @@ EXE= histo
 
 DOC= mainpage.h Doxyfile
 
-OBJ= spmat_utils.o
+OBJ= spmat_utils.o std_options.o
 
 GRAPHS= demo.mm 10_ring.mm 2comps.mm
 
