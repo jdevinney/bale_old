@@ -49,6 +49,7 @@ double dist(point_t a, point_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
+#if 0 //TODO
 // 
 // Input: an item's global index and the total number of points and the layout.
 // The layout is either BLOCK or CYLIC.
@@ -91,7 +92,7 @@ int64_t pe_and_offset_to_global_index(int64_t pe, int64_t offset, int64_t n, lay
   }
   
 }
-
+#endif
 
 
 // This function computes all edges between two sectors and added them to the edge list
@@ -154,7 +155,9 @@ void append_edges_between_sectors(uint64_t this_sec_idx,
   }else{
     /* the other sector is not on our PE */
     int64_t other_sec_pe;
-    int64_t other_sec_local_idx = global_index_to_pe_and_offset(other_sec_idx, nsectors, &other_sec_pe, BLOCK);
+    int64_t other_sec_local_idx;
+    //int64_t other_sec_local_idx = global_index_to_pe_and_offset(other_sec_idx, nsectors, &other_sec_pe, BLOCK);
+    global_index_to_pe_and_offset(&other_sec_pe, &other_sec_local_idx, other_sec_idx, nsectors, BLOCK);
     int64_t first_point_other = lgp_get_int64(first_point_in_sector, other_sec_local_idx*THREADS + other_sec_pe);
     int64_t num_pts_other = lgp_get_int64(counts, pe_and_offset_to_global_index(other_sec_pe, other_sec_local_idx, nsectors, CYCLIC));
     if(num_pts_other == 0)
@@ -420,9 +423,13 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     // Calling global_index_to_pe_and_offset gives us the PE and offset of a point if distribute the points
     // to PEs evenly and in BLOCK fashion.
     // We then convert that pe and offset into a new global index based on CYCLIC row layout.
-    int64_t roffset = global_index_to_pe_and_offset(el->edges[i].row, n, &pe, BLOCK);
+    //int64_t roffset = global_index_to_pe_and_offset(el->edges[i].row, n, &pe, BLOCK);         //TODO
+    int64_t roffset;
+    global_index_to_pe_and_offset(&pe, &roffset, el->edges[i].row, n, BLOCK);
     int64_t row_index = pe_and_offset_to_global_index(pe, roffset, n, CYCLIC);
-    int64_t coffset = global_index_to_pe_and_offset(el->edges[i].col, n, &pe, BLOCK);
+    //int64_t coffset = global_index_to_pe_and_offset(el->edges[i].col, n, &pe, BLOCK);  // TODO
+    int64_t coffset;
+    global_index_to_pe_and_offset(&pe, &coffset, el->edges[i].col, n, BLOCK);
     int64_t col_index = pe_and_offset_to_global_index(pe, coffset, n, CYCLIC);
     if ( col_index > row_index) {
       el->edges[i].row = -1; // mark as NULL since this edge represents a 1 above the diagonal in the adjacency matrix.
@@ -443,7 +450,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     
     for(i = 0; i < lnsectors; i++){
       for(j = 0; j < lcounts[i]; j++){
-        int64_t off = global_index_to_pe_and_offset(point_index, n, &pe, BLOCK);
+        //int64_t off = global_index_to_pe_and_offset(point_index, n, &pe, BLOCK);  //TODO
+        int64_t off;
+        global_index_to_pe_and_offset(&pe, &off, point_index, n, BLOCK);
         int64_t new_index = pe_and_offset_to_global_index(pe, off, n, CYCLIC);
         lgp_memput(op, &lpoints[i*sector_max + j], sizeof(point_t), new_index);
         point_index++;
