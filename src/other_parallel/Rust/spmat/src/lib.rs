@@ -365,7 +365,7 @@ impl SparseMat {
         Ok(())
     }
 
-    /// read a local sparse matrix from a file in a MatrixMarket ASCII format
+    /// read a sparse matrix from a file in a MatrixMarket ASCII format
     /// # Arguments
     /// * filename the file to be read
     pub fn read_mm_file(filename: &str) -> Result<SparseMat, Error> {
@@ -397,9 +397,10 @@ impl SparseMat {
         let nr: usize = inputs[0].parse().expect("bad row dimension");
         let nc: usize = inputs[1].parse().expect("bad column dimension");
         let nnz: usize = inputs[2].parse().expect("bad nnz");
-        if nr == 0 || nc == 0 || nnz == 0 {
+        if nr == 0 || nc == 0 {
             panic!(format!("bad matrix sizes {} {} {}", nr, nc, nnz));
         }
+        let mut matrix = SparseMat::new(nr, nc, 0); // we don't know nnz_this_rank yet
 
         #[derive(Debug)]
         struct Elt {
@@ -412,27 +413,30 @@ impl SparseMat {
         for line in reader.lines() {
             let line = line.expect("read error");
             let inputs: Vec<&str> = line.split_whitespace().collect();
-            let row: usize = inputs[0].parse().expect("bad row number");
-            let col: usize = inputs[1].parse().expect("bad column number");
+            let row: usize = inputs[0].parse::<usize>().expect("bad row number") - 1;
+            let col: usize = inputs[1].parse::<usize>().expect("bad column number") - 1;
             let val: f64 = if has_values {
                 inputs[2].parse().expect("bad element value")
             } else {
                 1.0
             };
-            if row == 0 || row > nr || col == 0 || col > nc {
+            if row >= nr || col >= nc {
                 panic!(format!("bad matrix nonzero coordinates {} {}", row, col));
             }
-            elts.push(Elt {
-                row: row - 1,
-                col: col - 1,
-                val: val,
-            }); // MatrixMarket format is 1-up, not 0-up
+            if matrix.offset_rank(row).1 == matrix.my_rank() {
+                elts.push(Elt {
+                    row: matrix.local_index(row),
+                    col: col,
+                    val: val,
+                });
+            }
         }
-        if elts.len() != nnz {
+        matrix.nnz_this_rank = elts.len();
+        matrix.nnz = matrix.reduce_sum(matrix.nnz_this_rank);
+        if matrix.nnz != nnz {
             panic!(format!(
                 "incorrect number of nonzeros {} != {}",
-                elts.len(),
-                nnz
+                matrix.nnz, nnz
             ));
         }
 
@@ -444,28 +448,27 @@ impl SparseMat {
             }
         });
 
-        let mut ret = SparseMat::new_local(nr, nc, nnz);
         let mut values: Vec<f64> = vec![];
         let mut row: usize = 0;
         for (i, elt) in elts.iter().enumerate() {
             // first adjust so we are on correct row
             while row < elt.row {
                 row += 1;
-                ret.offset[row] = i;
+                matrix.offset[row] = i;
             }
             assert!(elt.row == row);
-            ret.nonzero[i] = elt.col;
+            matrix.nonzero.push(elt.col);
             if has_values {
                 values.push(elt.val);
             }
         }
-        for i in row + 1..ret.numrows + 1 {
-            ret.offset[i] = ret.nnz;
+        for i in row + 1..matrix.numrows_this_rank + 1 {
+            matrix.offset[i] = matrix.nnz_this_rank;
         }
         if has_values {
-            ret.value = Some(values);
+            matrix.value = Some(values);
         }
-        Ok(ret)
+        Ok(matrix)
     }
 
     /// writes a sparse matrix to a file in a MatrixMarket ASCII formats
