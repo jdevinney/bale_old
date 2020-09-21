@@ -1,5 +1,6 @@
 use chrono::{DateTime, Local};
 use clap::{App, Arg};
+use convey_hpc::Convey;
 use delta_stepping::DeltaStepping;
 use itertools::join;
 use regex::Regex;
@@ -46,6 +47,12 @@ use std::io::{BufReader};
 
 fn main() {
 
+    // figure out parallel environment
+    let convey = Convey::new().expect("Conveyor system initialization failed");
+    let num_ranks = convey.num_ranks;
+    let my_rank   = convey.my_rank;
+
+    // parse the command line arguments
     let matches = App::new("DeltaStepping")
         .version("0.1.0")
         .about("Implements a test of DeltaStepping")
@@ -57,9 +64,9 @@ fn main() {
                 .help("The number of rows in test matrix"),
         )
         .arg(
-            Arg::with_name("source")
+            Arg::with_name("source_vtx")
                 .short("s")
-                .long("source")
+                .long("source_vtx")
                 .takes_value(true)
                 .help("The number of the source vertex"),
         )
@@ -89,7 +96,7 @@ fn main() {
                 .short("d")
                 .long("dump_files")
                 .takes_value(false)
-                .help("Write the matrix to sssp.mm and the output distances to sssp.wts"),
+                .help("Write the matrix to sssp.mm and the output distances to sssp.dst"),
         )
         .arg(
             Arg::with_name("quiet")
@@ -106,11 +113,11 @@ fn main() {
         .unwrap_or("10")
         .parse()
         .expect("numrows: not an integer");
-    let source: usize = matches
-        .value_of("source")
+    let source_vtx: usize = matches
+        .value_of("source_vtx")
         .unwrap_or("2")
         .parse()
-        .expect("source: not an integer");
+        .expect("source_vtx: not an integer");
     let erdos_renyi_prob: f64 = matches
         .value_of("er_prob")
         .unwrap_or("0.3")
@@ -124,14 +131,18 @@ fn main() {
         .unwrap_or("0.0")
         .parse()
         .expect("forced_delta: not a float");
-
     let seed = 12346; // the random-number seed is actually never used
-    let quiet = matches.is_present("quiet");
+    let quiet = matches.is_present("quiet") || my_rank > 0;
     let dump_files = matches.is_present("dump_files");
+
+    // done with options, now do it
 
     let mut mat: SparseMat; 
     if matches.is_present("input_file") {
-        mat = SparseMat::read_mm_file(input_file).expect("can't read MatrixMarket file");
+        // only rank 0 does anything in read_mm_file() or write_mm_file()
+        let local_mat = SparseMat::read_mm_file(input_file).expect("can't read MatrixMarket file");
+        // should probably barrier in to_distributed instead convey.barrier();
+        mat = local_mat.to_distributed();
     } else {
         let mode = 3; // mode 3 means nonsymmetric matrix, directed graph (not acyclic)
         mat = SparseMat::gen_erdos_renyi_graph(numrows, erdos_renyi_prob, false, mode, seed);
@@ -143,23 +154,23 @@ fn main() {
         mat.stats();
     }
     if dump_files {
-        mat.write_mm_file("sssp_mat.mm").expect("could not write sssp_mat.mm");
-}
+        let local_mat = mat.to_local(); 
+        local_mat.write_mm_file("sssp.mm").expect("could not write sssp.mm"); // only rank 0 does anything
+    }
     if !quiet {
         let now: DateTime<Local> = Local::now();
         println!(
-            "Running delta_stepping on {} from source {} at {} ...", 
+            "Running delta_stepping on {} from source_vtx {} at {} ...", 
             if matches.is_present("input_file") {input_file} else {"random matrix"},
-            source, 
+            source_vtx, 
             now
         );
     }
 
-    let matret = mat.delta_stepping(source, if forced_delta == 0.0 {None} else {Some(forced_delta)});
+    let matret = mat.delta_stepping(source_vtx, if forced_delta == 0.0 {None} else {Some(forced_delta)});
 
     if dump_files {
-        // matret.dump(0, "results.out").expect("results write error");
-        matret.dump_wts("sssp.wts").expect("results write error");
+        matret.write_dst("sssp.dst").expect("results write error");
     }
 
     // hack to check against Phil's output file if it's there
@@ -168,34 +179,34 @@ fn main() {
         let re = Regex::new(r"\.").unwrap();
         let mut tokens: Vec<&str> = re.split(input_file).collect();
         if let Some(_) = tokens.pop() {
-            tokens.push("wts");
+            tokens.push("dst");
         }
         let check_file = join(&tokens, ".");
         if let Ok(fp) = File::open(&check_file) {
             let reader = BufReader::new(fp);
-            let mut check_dist: Vec<f64> = vec![];
+            let mut check_dst: Vec<f64> = vec![];
             for line in reader.lines() {
                 let d = line
                     .expect("can't read check file")
                     .parse::<f64>()
                     .expect("can't read check file");
-                check_dist.push(d);
+                check_dst.push(d);
             }
-            let check_nv = check_dist[0] as usize;
-            if (check_nv != mat.numrows) || (check_nv != check_dist.len()-1) {
+            let check_nv = check_dst[0] as usize;
+            if (check_nv != mat.numrows) || (check_nv != check_dst.len()-1) {
                 println!(
                     "check file problem: mat.numrows = {}, check says nv = {}, check has {} distances",
-                    mat.numrows, check_nv, check_dist.len()-1
+                    mat.numrows, check_nv, check_dst.len()-1
                 );
             } else {
                 let mut diff: f64 = 0.0;
                 let mut csum: f64 = 0.0;
                 for v in 0..check_nv {
-                    if check_dist[v+1].is_finite() || matret.distance[v].is_finite() {
-                        diff += (check_dist[v+1] - matret.distance[v]).powi(2); 
+                    if check_dst[v+1].is_finite() || matret.distance[v].is_finite() {
+                        diff += (check_dst[v+1] - matret.distance[v]).powi(2); 
                     }
-                    if check_dist[v+1].is_finite() {
-                        csum += check_dist[v+1].powi(2); 
+                    if check_dst[v+1].is_finite() {
+                        csum += check_dst[v+1].powi(2); 
                     }
                 }
                 if diff <= f64::EPSILON.sqrt() * csum  {

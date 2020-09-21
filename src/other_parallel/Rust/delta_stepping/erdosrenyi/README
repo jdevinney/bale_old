@@ -1,17 +1,8 @@
-The files are
+The files are:
 
-er_nn_prob.mm
-er_nn_prob.wts
+Matrices:
+er_nn_prob.mm  reasonably dense ER graphs
+sparsennn.mm   sparser ER graphs
 
-Note the matrices are for a directed graph with some loops.
-Still got to work on this, but loops of positive weight 
-should never get used.
-Or I could fix the code :) 
-
-
-The wts weights file is just num of entry and then entries 
-one per line.
-
-JG: I added two sparser ER graphs, called sparse100 and sparse200
-
-
+er_nn_prob.dst distances with source_vtx 0
+sparsennn.dst  distances with source_vtx 2
