@@ -1,12 +1,18 @@
 use chrono::{DateTime, Local};
 use convey_hpc::collect::{ValueCollect};
+use itertools::join;
+use regex::Regex;
 use serde::{Deserialize, Serialize};
 use spmat::wall_seconds;
 use spmat::SparseMat;
+use std::fs::File;
 use std::fs::OpenOptions;
 use std::io::{Write, Error};
+use std::io::{BufRead};
+use std::io::{BufReader};
 use std::ops::Range;
 use std::path::Path;
+
 
 /// A helper function for dumping only part of a big data structure.
 /// This should really go somewhere else than the delta_stepper lib.
@@ -47,9 +53,9 @@ impl SsspInfo {
         Ok(())
     }
 
-    /// Dump output distances to a file in Phil's .wts format
+    /// Write output distances to a file in Phil's format
     /// needs parallel version 0-0
-    pub fn dump_wts(&self, filename: &str) -> Result<(),Error> { 
+    pub fn write_dst(&self, filename: &str) -> Result<(),Error> { 
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().write(true).create(true).open(path)?;
         writeln!(file, "{}", self.distance.len())?;
@@ -118,7 +124,6 @@ impl<'a> BucketSearcher<'a> {
             panic!("Graph must have edge weights (values)");
         }
         let max_edge_len = graph.reduce_max(my_max_edge_len);
-        println!("max_edge_len = {}", max_edge_len);
         // upper bound on number of buckets we will ever need at the same time
         let num_buckets = (max_edge_len/delta).ceil() as usize + 1;
         // tentative distances all start out infinite, including source
@@ -388,15 +393,15 @@ impl<'a> BucketSearcher<'a> {
 }
 
 pub trait DeltaStepping {
-    fn delta_stepping(&self, source: usize, forced_delta: Option<f64>) -> SsspInfo;
-    fn check_result(&self, info: &SsspInfo, dump_files: bool) -> bool;
+    fn delta_stepping(&self, source: usize, forced_delta: Option<f64>, quiet: bool, trace: bool) -> SsspInfo;
+    fn check_result(&self, info: &SsspInfo, input_file: &str, quiet: bool) -> bool;
 }
 
 impl DeltaStepping for SparseMat {
 
     /// This implements parallel delta stepping.
     /// # Arguments: source vertex, optional overriding delta value 
-    fn delta_stepping(&self, source: usize, forced_delta: Option<f64>) -> SsspInfo {
+    fn delta_stepping(&self, source: usize, forced_delta: Option<f64>, quiet: bool, trace: bool) -> SsspInfo {
         assert!(self.numrows == self.numcols);
         assert!(source < self.numrows);
 
@@ -416,12 +421,14 @@ impl DeltaStepping for SparseMat {
             let maxdeg = self.reduce_max(my_maxdeg);
             delta = 1.0 / (maxdeg as f64);
         }
-        println!(
-            "delta_stepping: nvtxs = {}, nedges = {}, delta = {}",
-            self.numrows, 
-            self.offset[self.numrows], 
-            delta
-        );
+        if !quiet {
+            println!(
+                "delta_stepping: nvtxs = {}, nedges = {}, delta = {}",
+                self.numrows, 
+                self.offset[self.numrows], 
+                delta
+            );
+        }
         
         // initialize buckets, activated flags, etc.
         let mut searcher = BucketSearcher::new(&self, delta);
@@ -429,26 +436,32 @@ impl DeltaStepping for SparseMat {
         // use relax to set tentative_dist[source] to 0, which also puts it in bucket 0
         searcher.relax(Request{w_g: source, dist: 0.0});
 
-        searcher
-            .trace(20, "after relax source", vec![source])
-            .expect("bucket dump failed");
+        if trace {
+            searcher
+                .trace(20, "after relax source", vec![source])
+                .expect("bucket trace write failed");
+        }
 
         // outer loop: for each nonempty bucket in order ...
         let mut outer = 0;
         let mut active_bucket_if_any = Some(0);
         while let Some(active_bucket) = active_bucket_if_any {
-            println!("\nouter loop iteration {}: active_bucket = {}", outer, active_bucket);
+            if !quiet {
+                println!("\nouter loop iteration {}: active_bucket = {}", outer, active_bucket);
+            }
 
             let mut removed: Vec<usize> = Vec::new(); // vertices removed from active bucket, R in paper
         
             // middle loop: while active bucket (B[i] in paper) is not empty ...
             let mut phase = 0;
             while searcher.global_bucket_size(active_bucket) > 0 { 
-                println!(
-                    "middle loop iteration {}: active_bucket has {} vtxs", 
-                    phase, 
-                    searcher.bucket_size[active_bucket]
-                );
+                if !quiet {
+                    println!(
+                        "middle loop iteration {}: active_bucket has {} vtxs", 
+                        phase, 
+                        searcher.bucket_size[active_bucket]
+                    );
+                }
 
                 // find light edges with tails in active bucket;
                 // empty active bucket, keeping a set "removed" of unique vtxs removed from this bucket;
@@ -459,9 +472,11 @@ impl DeltaStepping for SparseMat {
                 searcher.empty_bucket(active_bucket);
                 searcher.relax_requests(requests);
 
-                searcher
-                    .trace(20, "end of middle iter", vec![outer, phase])
-                    .expect("bucket dump failed");
+                if trace {
+                    searcher
+                        .trace(20, "end of middle iter", vec![outer, phase])
+                        .expect("bucket trace write failed");
+                }
                 phase += 1;
                 
             } // end of middle looop
@@ -470,16 +485,20 @@ impl DeltaStepping for SparseMat {
             let requests = searcher.find_heavy_requests(removed);
             searcher.relax_requests(requests);
 
-            searcher
-                .trace(20, "end of outer iter", vec![outer])
-                .expect("bucket dump failed");
+            if trace {
+                searcher
+                    .trace(20, "end of outer iter", vec![outer])
+                    .expect("bucket trace write failed");
+            }
             outer += 1;
 
             active_bucket_if_any = searcher.next_nonempty_bucket(active_bucket);
 
         } // end of outer loop
 
-        println!("\nDid {} iterations of outer loop.", outer);
+        if !quiet {
+            println!("\nDid {} iterations of outer loop.", outer);
+        }
 
         // return the info struct, which will now own the distance array
         SsspInfo {
@@ -493,29 +512,84 @@ impl DeltaStepping for SparseMat {
     ///
     /// # Arguments
     /// * info data from the run to check
-    /// * dump_files debugging flag
-    fn check_result(&self, info: &SsspInfo, dump_files: bool) -> bool {
-        println!("\ncheck_result: source is {}, dump_files is {}", info.source, dump_files);
-        if dump_files {
-            info.dump(20, "dist.out").expect("info dump error");
+    /// * input file name
+    /// * quiet flag
+    fn check_result(&self, info: &SsspInfo, input_file: &str, quiet: bool) -> bool {
+        if !quiet {
+            println!("\ncheck_result: source is {}, rank 0 time is {}", info.source, info.laptime);
         }
-        let mut unreachable = 0;
-        let mut max_dist: f64 = 0.0;
-        let mut sum_dist: f64 = 0.0;
-        for v in 0..self.numrows {
+        let mut l_unreachable = 0;
+        let mut l_max_dist: f64 = 0.0;
+        let mut l_sum_dist: f64 = 0.0;
+        for v in 0..self.numrows_this_rank {
             if info.distance[v].is_finite() {
-                max_dist = f64::max(max_dist, info.distance[v]);
-                sum_dist += info.distance[v];
+                l_max_dist = f64::max(l_max_dist, info.distance[v]);
+                l_sum_dist += info.distance[v];
             } else {
-                unreachable += 1;
+                l_unreachable += 1;
             }
         }
-        println!(
-            "unreachable vertices: {}; max finite distance: {}; avg finite distance: {}", 
-            unreachable, 
-            max_dist, 
-            sum_dist/((self.numrows - unreachable) as f64)
-        );
-        true
+        let unreachable = self.reduce_sum(l_unreachable);
+        let max_dist: f64 = self.reduce_max(l_max_dist);
+        let sum_dist = self.reduce_sum(l_sum_dist);
+        if !quiet {
+            println!(
+                "unreachable vertices: {}; max finite distance: {}; avg finite distance: {}", 
+                unreachable, 
+                max_dist, 
+                sum_dist/(self.numrows as f64 - unreachable as f64)
+            );
+        }
+        // check against ground truth file if it's there
+        if input_file == "NONE" {
+            if !quiet {
+                println!("No ground truth file to check against");
+            }
+        } else {
+            let re = Regex::new(r"\.").unwrap();
+            let mut tokens: Vec<&str> = re.split(input_file).collect();
+            if let Some(_) = tokens.pop() {
+                tokens.push("dst");
+            }
+            let check_file = join(&tokens, ".");
+            if let Ok(fp) = File::open(&check_file) {
+                let reader = BufReader::new(fp);
+                let mut check_dst: Vec<f64> = vec![];
+                for (index, line) in reader.lines().enumerate() {
+                    let d = line
+                        .expect("can't read check file")
+                        .parse::<f64>()
+                        .expect("can't read check file");
+                    if self.my_rank() == self.offset_rank(index+1).1 { 
+                        check_dst.push(d);
+                    }
+                }
+                let mut l_diff: f64 = 0.0;
+                let mut l_csum: f64 = 0.0;
+                for v in 0..self.numrows_this_rank {
+                    if check_dst[v+1].is_finite() || info.distance[v].is_finite() {
+                        l_diff += (check_dst[v+1] - info.distance[v]).powi(2); 
+                    }
+                    if check_dst[v+1].is_finite() {
+                        l_csum += check_dst[v+1].powi(2); 
+                    }
+                }
+                let diff = self.reduce_sum(l_diff);
+                let csum = self.reduce_sum(l_csum);
+                if diff <= f64::EPSILON.sqrt() * csum  {
+                    if !quiet {
+                        println!("\nCORRECT! relative diff = {}", diff/csum);
+                    }
+                } else {
+                    if !quiet {
+                        println!("\nDISAGREE! relative diff = {}", diff/csum);
+                    }
+                    return false;
+                }
+            } else {
+                println!("No ground truth file '{}' to check against", check_file);
+            }
+        }
+    true
     }
 }

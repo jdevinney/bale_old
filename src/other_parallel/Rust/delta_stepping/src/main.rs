@@ -2,12 +2,7 @@ use chrono::{DateTime, Local};
 use clap::{App, Arg};
 use convey_hpc::Convey;
 use delta_stepping::DeltaStepping;
-use itertools::join;
-use regex::Regex;
 use spmat::SparseMat;
-use std::fs::File;
-use std::io::{BufRead};
-use std::io::{BufReader};
 
 /*
  * Application that finds shortest path lengths from a single source in 
@@ -49,8 +44,8 @@ fn main() {
 
     // figure out parallel environment
     let convey = Convey::new().expect("Conveyor system initialization failed");
-    let num_ranks = convey.num_ranks;
     let my_rank   = convey.my_rank;
+    let num_ranks = convey.num_ranks;
 
     // parse the command line arguments
     let matches = App::new("DeltaStepping")
@@ -139,10 +134,7 @@ fn main() {
 
     let mut mat: SparseMat; 
     if matches.is_present("input_file") {
-        // only rank 0 does anything in read_mm_file() or write_mm_file()
-        let local_mat = SparseMat::read_mm_file(input_file).expect("can't read MatrixMarket file");
-        // should probably barrier in to_distributed instead convey.barrier();
-        mat = local_mat.to_distributed();
+        mat = SparseMat::read_mm_file(input_file).expect("can't read MatrixMarket file");
     } else {
         let mode = 3; // mode 3 means nonsymmetric matrix, directed graph (not acyclic)
         mat = SparseMat::gen_erdos_renyi_graph(numrows, erdos_renyi_prob, false, mode, seed);
@@ -150,82 +142,36 @@ fn main() {
     };
 
     if !quiet {
-        println!("input matrix stats:");
-        mat.stats();
-    }
-    if dump_files {
-        let local_mat = mat.to_local(); 
-        local_mat.write_mm_file("sssp.mm").expect("could not write sssp.mm"); // only rank 0 does anything
-    }
-    if !quiet {
         let now: DateTime<Local> = Local::now();
         println!(
-            "Running delta_stepping on {} from source_vtx {} at {} ...", 
+            "Running delta_stepping on {} from source_vtx {} using {} PEs at {}", 
             if matches.is_present("input_file") {input_file} else {"random matrix"},
             source_vtx, 
+            num_ranks,
             now
         );
+        println!("\nInput matrix stats:");
+        mat.stats();
+        println!("");
+    }
+    if dump_files {
+        mat.write_mm_file("sssp.mm").expect("could not write sssp.mm"); 
     }
 
-    let matret = mat.delta_stepping(source_vtx, if forced_delta == 0.0 {None} else {Some(forced_delta)});
+    let trace = true;
+    let matret = mat.delta_stepping(source_vtx, 
+        if forced_delta == 0.0 {None} else {Some(forced_delta)},
+        quiet,
+        trace,
+    );
 
     if dump_files {
         matret.write_dst("sssp.dst").expect("results write error");
     }
+    let checks = mat.check_result(&matret, input_file, quiet);
 
-    // hack to check against Phil's output file if it's there
-    // this would have been like 6 lines in Python ... just sayin' ...
-    if matches.is_present("input_file") {
-        let re = Regex::new(r"\.").unwrap();
-        let mut tokens: Vec<&str> = re.split(input_file).collect();
-        if let Some(_) = tokens.pop() {
-            tokens.push("dst");
-        }
-        let check_file = join(&tokens, ".");
-        if let Ok(fp) = File::open(&check_file) {
-            let reader = BufReader::new(fp);
-            let mut check_dst: Vec<f64> = vec![];
-            for line in reader.lines() {
-                let d = line
-                    .expect("can't read check file")
-                    .parse::<f64>()
-                    .expect("can't read check file");
-                check_dst.push(d);
-            }
-            let check_nv = check_dst[0] as usize;
-            if (check_nv != mat.numrows) || (check_nv != check_dst.len()-1) {
-                println!(
-                    "check file problem: mat.numrows = {}, check says nv = {}, check has {} distances",
-                    mat.numrows, check_nv, check_dst.len()-1
-                );
-            } else {
-                let mut diff: f64 = 0.0;
-                let mut csum: f64 = 0.0;
-                for v in 0..check_nv {
-                    if check_dst[v+1].is_finite() || matret.distance[v].is_finite() {
-                        diff += (check_dst[v+1] - matret.distance[v]).powi(2); 
-                    }
-                    if check_dst[v+1].is_finite() {
-                        csum += check_dst[v+1].powi(2); 
-                    }
-                }
-                if diff <= f64::EPSILON.sqrt() * csum  {
-                    println!("\nCORRECT! relative diff = {}", diff/csum);
-                } else {
-                    println!("\nDISAGREE! relative diff = {}", diff/csum);
-                }
-            }
-        } else {
-            println!("No ground truth file '{}' to check against", check_file);
-        }
-    } else {
-        println!("No ground truth file to check against");
-    }
-
-    if !mat.check_result(&matret, dump_files) {
-        println!("ERROR: check_result failed");
-    }
     if !quiet {
-        println!(" {} seconds", matret.laptime)
+        println!("\nResult of check_result is {}", checks);
     }
+
 }
