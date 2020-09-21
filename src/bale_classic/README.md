@@ -10,6 +10,7 @@
 * [Build Instructions](#Build-Instructions)
 * [Run Instructions](#Running)
 * [Testing](#Testing)
+* [Version History](#Version-History)
 
 ### What is bale?
 
@@ -106,3 +107,18 @@ the apps directory and run
 
     pytest -s -P=<path/to/bale/binaries> --node_range=0,10,2 -M 15
 
+### Version History
+
+* May 2018: Initial Release v 1.0.0 
+* Dec. 2018: bale 2.0.0 
+  * New apps: transpose, randperm, permute_matrix, write_sparse_matrix
+
+* Aug. 2018: bale 2.1.0 
+  * update conveyors to version 0.5.0
+* bale 3.0.0
+  * Added cousins: Rust, Serial C, and Chapel to bale
+  * New graph model: Geometric graphs
+  * New app: SSSP
+  * arg_parse replaced getopt
+  * unit tests with pytest
+  * docker files
