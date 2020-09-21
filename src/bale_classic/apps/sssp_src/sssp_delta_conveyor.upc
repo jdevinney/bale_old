@@ -93,9 +93,10 @@ double sssp_delta_convey(d_array_t *dist, sparsemat_t * mat, int64_t r0)
         if(0&&DPRT){printf("%02d: v=%ld has degree %ld\n", MYTHREAD, v*THREADS + MYTHREAD, mat->loffset[v+1]-mat->loffset[v]);}
         for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
           if(mat->lvalue[k] <= delta){	  
-            J = mat->lnonzero[k];
-            pe  = J % THREADS;
-            pkg.lj = J / THREADS;
+            //J = mat->lnonzero[k];
+            //pe  = J % THREADS;
+            //pkg.lj = J / THREADS;
+            global_index_to_pe_and_offset(&pe, &(pkg.lj), mat->lnonzero[k], mat->numrows, CYCLIC);
             pkg.tw = ds->tent[v] + mat->lvalue[k];
             if( convey_push(conv, &pkg, pe) != convey_OK ) {
               delta_convey_relax_process(ds, conv, 0);
@@ -122,11 +123,12 @@ double sssp_delta_convey(d_array_t *dist, sparsemat_t * mat, int64_t r0)
       v = ds->R[start];
       for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
         if(mat->lvalue[k] > delta){	  
-          J = mat->lnonzero[k];
-          pe  = J % THREADS;
-          pkg.lj = J / THREADS;
+          //J = mat->lnonzero[k];
+          //pe  = J % THREADS;
+          //pkg.lj = J / THREADS;
+          global_index_to_pe_and_offset(&pe, &(pkg.lj), mat->lnonzero[k], mat->numrows, CYCLIC);
           pkg.tw = ds->tent[v] + mat->lvalue[k];
-          if( convey_push(conv, &pkg, pe) == 0 ) {
+          if( convey_push(conv, &pkg, pe) != convey_OK ) {
             delta_convey_relax_process(ds, conv, 0);
             k--;
           }

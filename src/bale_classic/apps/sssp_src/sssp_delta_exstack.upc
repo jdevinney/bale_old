@@ -20,6 +20,15 @@ static int64_t delta_exstack_relax_process(ds_t *ds, exstack_t *ex, int64_t done
   return( exstack_proceed(ex, done) );
 }
 
+int64_t delta_exstack_push(exstack_t *ex, sparsemat_t *mat, int64_t gidx, double tent_wt)
+{
+  struct sssp_pkg_t pkg;
+  int64_t pe; 
+
+  global_index_to_pe_and_offset(&pe, &(pkg.lj), gidx, mat->numrows, CYCLIC);
+  pkg.tw = tent_wt;
+  return(exstack_push(ex, &pkg, pe));
+}
 
 // This is the delta stepping algorithm as it appears in
 // the paper "Delta-stepping: a parallelizable shortest path algorithm" by
@@ -97,11 +106,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
         if(0&&DPRT){printf("%02d: v=%ld has degree %ld\n", MYTHREAD, v*THREADS + MYTHREAD, mat->loffset[v+1]-mat->loffset[v]);}
         for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
           if(mat->lvalue[k] <= delta){	  
-            J = mat->lnonzero[k];
-            pe  = J % THREADS;
-            pkg.lj = J / THREADS;
-            pkg.tw = ds->tent[v] + mat->lvalue[k];
-            if( exstack_push(ex, &pkg, pe) == 0 ) {
+            if( delta_exstack_push(ex, mat, mat->lnonzero[k],  ds->tent[v] + mat->lvalue[k]) == 0 ) {
               delta_exstack_relax_process(ds, ex, 0);
               k--;
             }
@@ -123,11 +128,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
       v = ds->R[start];
       for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
         if(mat->lvalue[k] > delta){	  
-          J = mat->lnonzero[k];
-          pe  = J % THREADS;
-          pkg.lj = J / THREADS;
-          pkg.tw = ds->tent[v] + mat->lvalue[k];
-          if( exstack_push(ex, &pkg, pe) == 0 ) {
+          if( delta_exstack_push(ex, mat, mat->lnonzero[k],  ds->tent[v] + mat->lvalue[k]) == 0 ) {
             delta_exstack_relax_process(ds, ex, 0);
             k--;
           }
