@@ -26,6 +26,11 @@ void dump_bucket(ds_t *ds, int64_t i_m)
   return;
 }
 
+
+
+
+
+
 // Prepend node v into a bucket i
 void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m)
 {
@@ -106,5 +111,39 @@ void local_relax(ds_t *ds, int64_t w, double cand_dist)
   }
 }
 
+void allocate_and_initialize_delta_stepping_struct(ds_t *ds, int64_t lnumrows, int64_t num_buckets, double delta)
+{
+  int64_t i;
+  ds->next = (int64_t *)malloc(lnumrows * sizeof(int64_t)); assert(ds->next != NULL);
+  ds->prev = (int64_t *)malloc(lnumrows * sizeof(int64_t)); assert(ds->prev != NULL);
+  ds->in_bucket = (int64_t *)malloc(lnumrows * sizeof(int64_t)); assert(ds->in_bucket != NULL);
+  ds->deleted = (int64_t *)malloc(lnumrows * sizeof(int64_t)); assert(ds->deleted != NULL);
+  ds->R = (int64_t *)malloc(lnumrows * sizeof(int64_t)); assert(ds->R != NULL);
+  ds->tent = (double *)malloc(lnumrows * sizeof(double)); assert(ds->tent != NULL);
+  for(i = 0; i < lnumrows; i++){
+    ds->next[i]      = i;
+    ds->prev[i]      = i;
+    ds->in_bucket[i] = -1;
+    ds->deleted[i]   =  0;
+    ds->tent[i]      = INFINITY;
+  }
+  if(D0PRT){printf("Allocate buckets\n");}
+  ds->num_buckets = num_buckets;
+  ds->B = (int64_t *)calloc(num_buckets, sizeof(int64_t)); assert(ds->B != NULL);
 
+  for(i = 0; i < num_buckets; i++){
+    ds->B[i] = -1;
+  }
+  ds->delta = delta;
+}
+
+void clear_ds_struct(ds_t *ds)
+{
+  free(ds->next);
+  free(ds->prev);
+  free(ds->in_bucket);
+  free(ds->deleted);
+  free(ds->R);
+  free(ds->tent);
+}
 

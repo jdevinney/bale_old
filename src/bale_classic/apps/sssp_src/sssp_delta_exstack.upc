@@ -42,7 +42,6 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
 
   assert((r0 >= 0) && (r0<mat->numrows));
   
-  int64_t * R = calloc(mat->lnumrows, sizeof(int64_t));
   
   /* calculate delta and set tentative distances to infinity */  
   double delta = 0.0;
@@ -72,26 +71,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   // from the local index and the pe if needed.
 
   ds_t * ds = (ds_t *)calloc(1,sizeof(ds_t)); assert(ds != NULL);
-  ds->next = (int64_t *)malloc(mat->lnumrows * sizeof(int64_t)); assert(ds->next != NULL);
-  ds->prev = (int64_t *)malloc(mat->lnumrows * sizeof(int64_t)); assert(ds->prev != NULL);
-  ds->in_bucket = (int64_t *)malloc(mat->lnumrows * sizeof(int64_t)); assert(ds->in_bucket != NULL);
-  ds->deleted = (int64_t *)malloc(mat->lnumrows * sizeof(int64_t)); assert(ds->deleted != NULL);
-  ds->tent = (double *)malloc(mat->lnumrows * sizeof(double)); assert(ds->tent != NULL);
-  for(i = 0; i < mat->lnumrows; i++){
-    ds->next[i]      = i;
-    ds->prev[i]      = i;
-    ds->in_bucket[i] = -1;
-    ds->deleted[i]   =  0;
-    ds->tent[i]      = INFINITY;
-  }
-  if(D0PRT){printf("Allocate buckets\n");}
-  ds->num_buckets = num_buckets;
-  ds->B = (int64_t *)calloc(num_buckets, sizeof(int64_t)); assert(ds->B != NULL);
-  // bucket indices are mod num_buckets.
-  for(i_m = 0; i_m < num_buckets; i_m++){
-    ds->B[i_m] = -1;
-  }
-  ds->delta = delta;
+  allocate_and_initialize_delta_stepping_struct(ds, mat->lnumrows, num_buckets, delta);
 
   // set the distance to r0 (as a global index) equal to 0.0
   if( (r0 % THREADS) == MYTHREAD) {
@@ -153,7 +133,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
         } 
         if(ds->deleted[v] == 0){  // insert v into R if it is not already there
           ds->deleted[v] = 1;
-          R[end++] = v;
+          ds->R[end++] = v;
           //if(DPRT){printf("%02d: deleted %"PRId64"\n", MYTHREAD, v);}
         }
       }
@@ -164,7 +144,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
 
     /* relax heavy requests edges for everything in R */
     for(start=0; start<end; start++){
-      v = R[start];
+      v = ds->R[start];
       for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
         if(mat->lvalue[k] > delta){	  
           J = mat->lnonzero[k];
@@ -191,13 +171,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   }
   //dump_tent("Delta Exstack Done:", dist);
 
-  free(ds->next);
-  free(ds->prev);
-  free(ds->in_bucket);
-  free(ds->deleted);
-  free(ds->tent);
-  free(ds);
-  free(R);
-  
+  clear_ds_struct(ds); free(ds);
+
   return(wall_seconds() - tm);
 }
