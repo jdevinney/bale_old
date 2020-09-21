@@ -2,12 +2,12 @@
 
 ### Table of contents
 
-* [What is bale?](#What is bale?)
-* [From the Book (formerly known as AGI)](#From the Book)
-* [What is in bale?](#What is in bale?)
-* [System Requirements](#System Requirements)
+* [What is bale?](#What-is-bale?)
+* [From the Book (formerly known as AGI)](#From-the-Book)
+* [What is in bale?](#What-is-in-bale?)
+* [System Requirements](#System-Requirements)
 * [Documentation](#Documentation)
-* [Build Instructions](#Build Instructions)
+* [Build Instructions](#Build-Instructions)
 * [Run Instructions](#Running)
 * [Testing](#Testing)
 
