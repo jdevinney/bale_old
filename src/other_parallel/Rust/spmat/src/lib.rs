@@ -7,11 +7,11 @@ use regex::Regex;
 use serde::de::DeserializeOwned;
 use serde::ser::Serialize;
 use std::fs::File;
-use std::io::BufReader;
 use std::io::BufRead;
+use std::io::BufReader;
 use std::io::BufWriter;
-use std::io::{Error, ErrorKind};
 use std::io::Write;
+use std::io::{Error, ErrorKind};
 
 use std::path::Path;
 
@@ -37,7 +37,8 @@ pub struct SparseMat {
     pub convey: Option<Convey>,  // a conveyor for our use
 }
 
-impl std::fmt::Debug for SparseMat { // 0-0 should add values
+impl std::fmt::Debug for SparseMat {
+    // 0-0 should add values
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let debug_rows = self.numrows_this_rank.min(10);
         let mut rows: Vec<(usize, Vec<usize>)> = Vec::new();
@@ -178,7 +179,7 @@ impl SparseMat {
     }
 
     /// global row index to local row index on its home rank, and home rank
-    pub fn offset_rank(&self, n: usize) -> (usize, usize) { 
+    pub fn offset_rank(&self, n: usize) -> (usize, usize) {
         if let Some(convey) = &self.convey {
             convey.offset_rank(n)
         } else {
@@ -187,7 +188,7 @@ impl SparseMat {
     }
 
     /// global row index to local row index on this rank
-    pub fn local_index(&self, n: usize) -> usize { 
+    pub fn local_index(&self, n: usize) -> usize {
         let (offset, rank) = self.offset_rank(n);
         if rank != self.my_rank() {
             panic!("attempt to get local index for row not on this rank");
@@ -289,7 +290,10 @@ impl SparseMat {
 
         let avgdeg = sumdeg as f64 / self.numrows as f64;
 
-        println!("    min, avg, max degree (rank 0) = {}, {}, {}", mindeg, avgdeg, maxdeg);
+        println!(
+            "    min, avg, max degree (rank 0) = {}, {}, {}",
+            mindeg, avgdeg, maxdeg
+        );
     }
 
     /// dumps a sparse matrix to a file in a ASCII format
@@ -318,7 +322,7 @@ impl SparseMat {
         };
 
         writeln!(file, "\n--------- offsets:")?;
-        for off in &self.offset[0..stop_row+1] {
+        for off in &self.offset[0..stop_row + 1] {
             write!(file, "{} ", off)?;
         }
         if use_maxrow {
@@ -332,25 +336,24 @@ impl SparseMat {
             file,
             "{}",
             match &self.value {
-                None    => "\n--------- row col:",
+                None => "\n--------- row col:",
                 Some(_) => "\n--------- row col val:",
             },
         )?;
 
         for i in 0..stop_row {
-            for k in self.offset[i]..self.offset[i+1] {
+            for k in self.offset[i]..self.offset[i + 1] {
                 if let Some(value) = &self.value {
                     writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
                 } else {
                     writeln!(file, "{} {}", i, self.nonzero[k])?;
                 }
-
             }
         }
         if use_maxrow {
             write!(file, ".\n.\n.\n")?;
             for i in start_row..self.numrows {
-                for k in self.offset[i]..self.offset[i+1] {
+                for k in self.offset[i]..self.offset[i + 1] {
                     if let Some(value) = &self.value {
                         writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
                     } else {
@@ -372,15 +375,18 @@ impl SparseMat {
         SparseMat::read_mm(&mut reader)
     }
 
-    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat, Error> 
+    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat, Error>
     where
         R: BufRead,
     {
         let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
         let re1 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *pattern*").expect("bad regex");
         let re2 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *real*").expect("bad regex");
-        if !re1.is_match(&line) && !re2.is_match(&line){
-            return Err(Error::new(ErrorKind::Other, format!("invalid MatrixMarket header {}", line)));
+        if !re1.is_match(&line) && !re2.is_match(&line) {
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("invalid MatrixMarket header {}", line),
+            ));
         }
         let has_values = re2.is_match(&line);
 
@@ -408,9 +414,13 @@ impl SparseMat {
             let inputs: Vec<&str> = line.split_whitespace().collect();
             let row: usize = inputs[0].parse().expect("bad row number");
             let col: usize = inputs[1].parse().expect("bad column number");
-            let val: f64 = if has_values {inputs[2].parse().expect("bad element value")} else {1.0};
+            let val: f64 = if has_values {
+                inputs[2].parse().expect("bad element value")
+            } else {
+                1.0
+            };
             if row == 0 || row > nr || col == 0 || col > nc {
-                    panic!(format!("bad matrix nonzero coordinates {} {}", row, col));
+                panic!(format!("bad matrix nonzero coordinates {} {}", row, col));
             }
             elts.push(Elt {
                 row: row - 1,
@@ -419,7 +429,11 @@ impl SparseMat {
             }); // MatrixMarket format is 1-up, not 0-up
         }
         if elts.len() != nnz {
-            panic!(format!("incorrect number of nonzeros {} != {}", elts.len(), nnz));
+            panic!(format!(
+                "incorrect number of nonzeros {} != {}",
+                elts.len(),
+                nnz
+            ));
         }
 
         elts.sort_by(|a, b| {
@@ -552,7 +566,9 @@ impl SparseMat {
     }
 
     pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> Self {
-        if let Some(_) = &self.value {todo!()}
+        if let Some(_) = &self.value {
+            todo!()
+        }
         let mut rowcounts = vec![0_usize; self.numrows_this_rank];
         assert_eq!(rperminv.perm.len(), self.numrows_this_rank);
         assert_eq!(cperminv.perm.len(), self.numrows_this_rank);
@@ -622,7 +638,9 @@ impl SparseMat {
     }
 
     pub fn transpose(&self) -> Self {
-        if let Some(_) = &self.value {todo!()}
+        if let Some(_) = &self.value {
+            todo!()
+        }
         let mut colcnt = vec![0_usize; self.per_my_rank(self.numrows)];
         let mut nnz = 0_usize;
 
@@ -687,10 +705,10 @@ impl SparseMat {
             println!("offsets differ {:?} {:?}", self, other);
             return false;
         }
-        // need to sort nonzeros before compare 0-0 jg: why? 
+        // need to sort nonzeros before compare 0-0 jg: why?
         for row in 0..self.numrows_this_rank {
             // we already know self & other offsets are the same
-            let range = self.offset[row]..self.offset[row + 1]; 
+            let range = self.offset[row]..self.offset[row + 1];
             if let Some(sval) = &self.value {
                 if let Some(oval) = &other.value {
                     let mut self_sorted: Vec<_> = self.nonzero[range.clone()]
@@ -701,33 +719,31 @@ impl SparseMat {
                         .iter()
                         .zip(&oval[range.clone()])
                         .collect();
-                    self_sorted.sort_by( |a,b| b.0.cmp(&a.0));
-                    other_sorted.sort_by(|a,b| b.0.cmp(&a.0));
+                    self_sorted.sort_by(|a, b| b.0.cmp(&a.0));
+                    other_sorted.sort_by(|a, b| b.0.cmp(&a.0));
                     if self_sorted != other_sorted {
                         println!("nonzeros differ {:?} {:?}", self, other);
                         return false;
                     }
                 }
             } else {
-                let mut self_sorted: Vec<_>  = self.nonzero[range.clone()]
-                    .iter()
-                    .collect();
-                let mut other_sorted: Vec<_> = other.nonzero[range.clone()]
-                    .iter()
-                    .collect();
+                let mut self_sorted: Vec<_> = self.nonzero[range.clone()].iter().collect();
+                let mut other_sorted: Vec<_> = other.nonzero[range.clone()].iter().collect();
                 self_sorted.sort();
                 other_sorted.sort();
                 if self_sorted != other_sorted {
                     println!("nonzeros differ {:?} {:?}", self, other);
                     return false;
-            }
+                }
             }
         }
         true
     }
 
     pub fn add(&self, other: &SparseMat) -> Self {
-        if let Some(_) = &self.value {todo!()}
+        if let Some(_) = &self.value {
+            todo!()
+        }
         // need to check for errors
         let mut sum = SparseMat::new(
             self.numrows,
@@ -756,15 +772,19 @@ impl SparseMat {
         mode: u8,
         seed: i64,
     ) -> Self {
-        if mode == 0 {          // symmetric matrix, undirected graph
+        if mode == 0 {
+            // symmetric matrix, undirected graph
             let upper = SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, false, seed);
             let lower = upper.transpose();
             upper.add(&lower)
-        } else if mode == 1 {   // lower triangular matrix
+        } else if mode == 1 {
+            // lower triangular matrix
             SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, true, seed)
-        } else if mode == 2 {   // upper triangular matrix
+        } else if mode == 2 {
+            // upper triangular matrix
             SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, false, seed)
-        } else {                // nonsymmetric matrix, directed graph 
+        } else {
+            // nonsymmetric matrix, directed graph
             let upper = SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, false, seed);
             let lower = SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, true, seed + 1);
             upper.add(&lower)
