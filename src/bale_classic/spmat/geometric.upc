@@ -49,51 +49,6 @@ double dist(point_t a, point_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
-#if 0 //TODO
-// 
-// Input: an item's global index and the total number of points and the layout.
-// The layout is either BLOCK or CYLIC.
-//
-// Output: A local offset and PE number.
-int64_t global_index_to_pe_and_offset(int64_t pindex, int64_t n, int64_t * pe, layout layout){
-
-  if(layout == CYCLIC){
-    *pe = pindex % THREADS;
-    return(pindex/THREADS);
-  }
-  int64_t idx;
-  int64_t upper_points_per_pe = n / THREADS + ((n % THREADS > 0) ? 1 : 0);
-  int64_t rem = n % THREADS;
-
-  if( (rem == 0) || (pindex / upper_points_per_pe < rem) ){
-    *pe = pindex / upper_points_per_pe;
-    idx = pindex % upper_points_per_pe;
-  }else{
-    *pe = (pindex - rem) / (upper_points_per_pe - 1);
-    idx= (pindex - rem) % (upper_points_per_pe - 1);
-  }
-  //printf("Input %ld %ld: rem = %ld  upper = %ld pe = %ld idx = %ld\n", pindex, n, rem, upper_points_per_pe, *pe, idx);
-  return(idx);
-}
-
-// Input: An item's local offset and the PE.
-// Output: The global index of the item, assuming BLOCK or CYCLIC ordering.
-// If BLOCK, we assume items are distributed evenly.
-int64_t pe_and_offset_to_global_index(int64_t pe, int64_t offset, int64_t n, layout layout){
-
-  if(layout == CYCLIC)
-    return(offset*THREADS + pe);
-  else{
-    int64_t i, index = 0;
-    for(i = 0; i < pe; i++)
-      index += (n + THREADS - i - 1)/THREADS;
-    index += offset;
-    return(index);
-  }
-  
-}
-#endif
-
 
 // This function computes all edges between two sectors and added them to the edge list
 void append_edges_between_sectors(uint64_t this_sec_idx,
@@ -423,11 +378,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     // Calling global_index_to_pe_and_offset gives us the PE and offset of a point if distribute the points
     // to PEs evenly and in BLOCK fashion.
     // We then convert that pe and offset into a new global index based on CYCLIC row layout.
-    //int64_t roffset = global_index_to_pe_and_offset(el->edges[i].row, n, &pe, BLOCK);         //TODO
     int64_t roffset;
     global_index_to_pe_and_offset(&pe, &roffset, el->edges[i].row, n, BLOCK);
     int64_t row_index = pe_and_offset_to_global_index(pe, roffset, n, CYCLIC);
-    //int64_t coffset = global_index_to_pe_and_offset(el->edges[i].col, n, &pe, BLOCK);  // TODO
     int64_t coffset;
     global_index_to_pe_and_offset(&pe, &coffset, el->edges[i].col, n, BLOCK);
     int64_t col_index = pe_and_offset_to_global_index(pe, coffset, n, CYCLIC);
@@ -450,7 +403,6 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     
     for(i = 0; i < lnsectors; i++){
       for(j = 0; j < lcounts[i]; j++){
-        //int64_t off = global_index_to_pe_and_offset(point_index, n, &pe, BLOCK);  //TODO
         int64_t off;
         global_index_to_pe_and_offset(&pe, &off, point_index, n, BLOCK);
         int64_t new_index = pe_and_offset_to_global_index(pe, off, n, CYCLIC);
