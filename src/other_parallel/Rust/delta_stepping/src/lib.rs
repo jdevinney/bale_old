@@ -170,8 +170,9 @@ impl<'a> BucketSearcher<'a> {
         )?;
         write!(
             file,
-            "BucketSearcher: rank {}: {}",
+            "BucketSearcher: rank {} of {}: {}",
             self.graph.my_rank(),
+            self.graph.num_ranks(),
             title
         )?;
         for n in nums {
@@ -357,7 +358,6 @@ impl<'a> BucketSearcher<'a> {
     fn relax_requests(&mut self, requests: Vec<Request>) {
         // convey the request r=(w_g,d) to the PE that owns vtx w_g here, and have it call relax
         // maybe also barrier at beginning of relax_requests? or superfluous before creating session?
-        // is there a way to do this without opening a new conveyor session every time?
         {
             // Always put the session in a new block, as you will
             // not be able to able to local after conveyor is done
@@ -447,10 +447,12 @@ impl DeltaStepping for SparseMat {
         let mut searcher = BucketSearcher::new(&self, delta);
 
         // use relax to set tentative_dist[source] to 0, which also puts it in bucket 0
-        searcher.relax(Request {
-            w_g: source,
-            dist: 0.0,
-        });
+        if self.offset_rank(source).1 == self.my_rank() {
+            searcher.relax(Request {
+                w_g: source,
+                dist: 0.0,
+            });
+        }
 
         if trace {
             searcher
