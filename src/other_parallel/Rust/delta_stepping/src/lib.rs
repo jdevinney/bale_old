@@ -581,18 +581,18 @@ impl DeltaStepping for SparseMat {
                         .expect("can't read check file")
                         .parse::<f64>()
                         .expect("can't read check file");
-                    if self.my_rank() == self.offset_rank(index + 1).1 {
+                    if index > 0 && self.my_rank() == self.offset_rank(index - 1).1 {
                         check_dst.push(d);
                     }
                 }
                 let mut l_diff: f64 = 0.0;
                 let mut l_csum: f64 = 0.0;
                 for v in 0..self.numrows_this_rank {
-                    if check_dst[v + 1].is_finite() || info.distance[v].is_finite() {
-                        l_diff += (check_dst[v + 1] - info.distance[v]).powi(2);
+                    if check_dst[v].is_finite() || info.distance[v].is_finite() {
+                        l_diff += (check_dst[v] - info.distance[v]).powi(2);
                     }
-                    if check_dst[v + 1].is_finite() {
-                        l_csum += check_dst[v + 1].powi(2);
+                    if check_dst[v].is_finite() {
+                        l_csum += check_dst[v].powi(2);
                     }
                 }
                 let diff = self.reduce_sum(l_diff);
