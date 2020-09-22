@@ -56,9 +56,9 @@ generates a random permutation in parallel. The algorithm used is the
  J. of Computer and System Sciences, 53:417-442, Dec 1992.
 
 Interestingly, we discovered what looks to be a superior and simpler algorithm. This is implemented
-in alternates/randperm_agi_opt.upc.
+in alternates/randperm_agp_opt.upc.
 
-See files spmat_agi.upc, spmat_exstack.upc, spmat_exstack2.upc, and spmat_conveyor.upc
+See files spmat_agp.upc, spmat_exstack.upc, spmat_exstack2.upc, and spmat_conveyor.upc
 for the source for the kernels.
 
 Run with the --help, -?, or --usage flags for run details.
@@ -130,9 +130,9 @@ int main(int argc, char * argv[]) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
 
-    case AGI_Model:
-      sprintf(model_str, "AGI");
-      out = rand_permp_agi(numrows, seed);
+    case AGP_Model:
+      sprintf(model_str, "AGP");
+      out = rand_permp_agp(numrows, seed);
       break;
 
     case EXSTACK_Model:
@@ -152,8 +152,8 @@ int main(int argc, char * argv[]) {
 
     case ALTERNATE_Model:
       //T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
-      sprintf(model_str, "rand_permp_agi_opt");
-      out = rand_permp_agi_opt(numrows, seed);
+      sprintf(model_str, "rand_permp_agp_opt");
+      out = rand_permp_agp_opt(numrows, seed);
       break;
 
     case 0:

@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file histo_agi.upc
+/*! \file histo_agp.upc
  * \brief The intuitive implementation of histogram that uses global atomics.
  */
 #include "histo.h"
@@ -50,8 +50,8 @@
  *
  */
 
-//double histo_agi(int64_t *index, int64_t l_num_ups,  SHARED int64_t *counts) {
-double histo_agi(histo_t * data){
+//double histo_agp(int64_t *index, int64_t l_num_ups,  SHARED int64_t *counts) {
+double histo_agp(histo_t * data){
   double tm;
   int64_t i;
   minavgmaxD_t stat[1];

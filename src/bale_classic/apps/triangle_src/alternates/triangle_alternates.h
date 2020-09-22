@@ -40,6 +40,6 @@
  * \brief header file for the alternate models for triangle counting
  */
 
-double   triangle_agi_opt1(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
-double   triangle_agi_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
-double   triangle_agi_oo(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
+double   triangle_agp_opt1(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
+double   triangle_agp_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
+double   triangle_agp_oo(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);

@@ -191,14 +191,14 @@ int main(int argc, char * argv[])
     for( use_model=1L; use_model < 32; use_model *=2 ) {
 
       switch( (use_model & models_mask) | use_alg ) {
-      case (AGI_Model | USE_BELLMAN):
-        T0_fprintf(stderr,"    Bellman-Ford  AGI: ");
+      case (AGP_Model | USE_BELLMAN):
+        T0_fprintf(stderr,"    Bellman-Ford  AGP: ");
         //dump_tent("AGI          :",tent);
         set_d_array(tent, INFINITY);
         laptime = sssp_bellman_agi(tent, mat, 0); 
         //dump_tent("AGI:",tent);
         comp_tent = copy_d_array(tent);
-        T0_fprintf(stderr,"Bellman AGI nothing to compare\n");
+        T0_fprintf(stderr,"Bellman AGP nothing to compare\n");
         break;
 
       case (EXSTACK_Model | USE_BELLMAN):

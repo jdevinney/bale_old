@@ -35,10 +35,10 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file triangle_agi_opt2.upc
+/*! \file triangle_agp_opt2.upc
  * \brief Another intuitive implementation of triangle counting 
  * that uses generic global references. This implementation differs from
- * triangle_agi_opt1 only in that we do some buffering when reading remote rows.
+ * triangle_agp_opt1 only in that we do some buffering when reading remote rows.
  */
 
 #include "triangle.h"
@@ -58,7 +58,7 @@
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \return average run time
  */
-double triangle_agi_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg) {
+double triangle_agp_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg) {
   int64_t cnt=0;
   int64_t numpulled=0;
   int64_t l_i, ii, k, kk, kt, num2pull, L_i, L_j;

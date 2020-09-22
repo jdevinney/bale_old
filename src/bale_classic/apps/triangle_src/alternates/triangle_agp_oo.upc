@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file triangle_agi_oo.upc
+/*! \file triangle_agp_oo.upc
  * \brief The intuitive implementation of triangle counting 
  * that uses generic global references
  */
@@ -50,7 +50,7 @@
  *        NB: This must be the tidy lower triangular matrix from the adjacency matrix
  * \return average run time
  */
-double triangle_agi_oo(int64_t *count, int64_t *sr, sparsemat_t * mat) {
+double triangle_agp_oo(int64_t *count, int64_t *sr, sparsemat_t * mat) {
   int64_t cnt=0;
   int64_t numpulled=0;
   int64_t l_i, L_i, L_k, L_j;

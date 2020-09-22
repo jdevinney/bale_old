@@ -55,7 +55,7 @@
  * a random square matrix according to the Erdos-Renyi model, two random permutations and then
  * permutes the rows and columns of the matrix according to the two random permutations.
  *
- * See files spmat_agi.upc, spmat_exstack.upc, spmat_exstack2.upc, and spmat_conveyor.upc
+ * See files spmat_agp.upc, spmat_exstack.upc, spmat_exstack2.upc, and spmat_conveyor.upc
  * for the source for the kernels.
  * 
  * Run with the --help, -?, or --usage flags for run details.
@@ -133,9 +133,9 @@ int main(int argc, char * argv[]) {
     double t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
 
-    case AGI_Model:
-      outmat = permute_matrix_agi(inmat, rp, cp);
-      sprintf(model_str, "AGI");
+    case AGP_Model:
+      outmat = permute_matrix_agp(inmat, rp, cp);
+      sprintf(model_str, "AGP");
       break;
 
     case EXSTACK_Model:

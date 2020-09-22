@@ -76,7 +76,7 @@ static struct argp_option std_options[] =
     {"cores_per_node",'c', "CPN", 0, "Specify cores per node for network injection rate statistics"},
     {"dump_files",    'D', 0,     0, "Dump files for debugging"},
     {"json_output",   'j', "FILE",0, "Output results to a json file, rather than to stderr"},
-    {"models_mask",   'M', "MASK",0, "Which implementations to run. 1: AGI, 2: Exstack, 4: Exstack2, 8: Conveyor, 16: alternatives. You can add these together. For example, -M 7 means AGI, Exstack, and Exstack2."},
+    {"models_mask",   'M', "MASK",0, "Which implementations to run. 1: AGP, 2: Exstack, 4: Exstack2, 8: Conveyor, 16: alternatives. You can add these together. For example, -M 7 means AGP, Exstack, and Exstack2."},
     {"seed",          's', "SEED",0, "Seed for RNG"},
     {0}
   };

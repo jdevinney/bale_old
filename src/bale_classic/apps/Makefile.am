@@ -45,7 +45,7 @@ BDEBUG =
 noinst_HEADERS = histo_src/histo.h 
 
 histo_sources = histo_src/histo.upc 
-histo_sources += histo_src/histo_agi.upc 
+histo_sources += histo_src/histo_agp.upc 
 histo_sources += histo_src/histo_exstack.upc 
 histo_sources += histo_src/histo_conveyor.upc 
 histo_sources += histo_src/histo_exstack2.upc
@@ -73,7 +73,7 @@ endif
 ###################################################################
 ig_sources = ig_src/ig.h 
 ig_sources += ig_src/ig.upc 
-ig_sources += ig_src/ig_agi.upc 
+ig_sources += ig_src/ig_agp.upc 
 ig_sources += ig_src/ig_exstack.upc 
 ig_sources += ig_src/ig_exstack2.upc 
 ig_sources += ig_src/ig_conveyor.upc
@@ -98,11 +98,11 @@ endif
 ###################################################################
 topo_sources = topo_src/toposort.h
 topo_sources += topo_src/toposort.upc
-topo_sources += topo_src/toposort_agi.upc
+topo_sources += topo_src/toposort_agp.upc
 topo_sources += topo_src/toposort_exstack.upc
 topo_sources += topo_src/toposort_exstack2.upc
 topo_sources += topo_src/toposort_conveyor.upc
-topo_sources += topo_src/alternates/toposort_agi_oo.upc
+topo_sources += topo_src/alternates/toposort_agp_oo.upc
 topo_sources += topo_src/alternates/toposort_cooler.upc
 topo_sources += topo_src/alternates/toposort_exstack_orig.upc
 
@@ -123,7 +123,7 @@ endif
 ###################################################################
 noinst_HEADERS += randperm_src/randperm_alternates.h
 randperm_sources = randperm_src/randperm.upc
-randperm_sources += randperm_src/alternates/randperm_agi_opt.upc
+randperm_sources += randperm_src/alternates/randperm_agp_opt.upc
 
 randperm_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/randperm_src
 randperm_LDADD = @libdeps_LIBS@ -lm
@@ -171,14 +171,14 @@ endif
 ###################################################################
 noinst_HEADERS += triangle_src/triangle.h
 triangles_sources = triangle_src/triangle.upc
-triangles_sources += triangle_src/triangle_agi.upc
+triangles_sources += triangle_src/triangle_agp.upc
 triangles_sources += triangle_src/triangle_exstack.upc
 triangles_sources += triangle_src/triangle_exstack2.upc
 triangles_sources += triangle_src/triangle_conveyor.upc
-triangles_sources += triangle_src/alternates/triangle_agi_opt1.upc
-triangles_sources += triangle_src/alternates/triangle_agi_opt2.upc
-triangles_sources += triangle_src/alternates/triangle_agi_iter.upc
-#triangles_sources += triangle_src/alternates/triangle_agi_oo.upc
+triangles_sources += triangle_src/alternates/triangle_agp_opt1.upc
+triangles_sources += triangle_src/alternates/triangle_agp_opt2.upc
+triangles_sources += triangle_src/alternates/triangle_agp_iter.upc
+#triangles_sources += triangle_src/alternates/triangle_agp_oo.upc
 
 triangles_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/triangle_src
 triangles_LDADD = @libdeps_LIBS@ -lm
