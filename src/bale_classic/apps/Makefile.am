@@ -213,7 +213,7 @@ endif
 ###################################################################
 noinst_HEADERS += sssp_src/sssp.h sssp_src/sssp_delta_common.h
 sssp_sources = sssp_src/sssp.upc
-sssp_sources += sssp_src/sssp_bellman_agi.upc
+sssp_sources += sssp_src/sssp_bellman_agp.upc
 sssp_sources += sssp_src/sssp_bellman_exstack.upc
 sssp_sources += sssp_src/sssp_bellman_exstack2.upc
 sssp_sources += sssp_src/sssp_bellman_conveyor.upc

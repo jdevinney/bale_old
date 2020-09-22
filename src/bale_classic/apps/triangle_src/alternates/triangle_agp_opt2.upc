@@ -50,7 +50,7 @@
 // I think one thing that helps this model over conveyors/exstack is that it is more cache friendly
 // since it is crawling over the l_i row many times all in one go, before moving on to row l_i + 1.
 /*!
- * \brief This routine implements the agi variant of triangle counting
+ * \brief This routine implements another AGP variant of triangle counting
  * \param *count a place to return the counts from this thread
  * \param *sr a place to return the number of shared references
  * \param *L the lower triangle of the input sparse matrix 

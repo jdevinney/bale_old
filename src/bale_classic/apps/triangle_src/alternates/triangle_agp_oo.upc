@@ -43,7 +43,7 @@
 #include "triangle.h"
 
 /*!
- * \brief This routine implements the agi variant of triangle counting
+ * \brief This routine implements another AGP variant of triangle counting
  * \param *count a place to return the counts from this thread
  * \param *sr a place to return the number of shared references
  * \param *mat the input sparse matrix 
