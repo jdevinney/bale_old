@@ -54,22 +54,6 @@ to all other vertices in the graph.
 
  */
 
-static void usage(void) {
-  T0_fprintf(stderr,"\
-Usage:\n\
-sssp [-h][-a 0,1][-e prob][-K str][-f filename]\n\
-- -e = p: specify the Edge probability p\n\
-- -h print this message\n\
-- -M mask is the or of 1,2,4,8,16 for the models: \n\
-- -N = n: Specify the number of rows_per_thread in the matrix (if using the random_graph generator)\n\
-- -f filename : Specify a filename containing a matrix in MatrixMarket format to read as input\n\
-- -b = count: Specify the number of packages in an exstack(2) stack\n\
-\n\
-\n");
-  lgp_finalize();
-  lgp_global_exit(0);
-}
-
 void dump_tent(char *str, d_array_t *tent)
 {
   int64_t i;
@@ -99,211 +83,175 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B)
 }
 
 
+
+typedef struct args_t{
+  double deltaStep; 
+  int64_t V0;
+  int64_t alg;
+  std_args_t std;
+  std_graph_args_t gstd;
+}args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state){
+  args_t * args = (args_t *)state->input;
+  switch(key)
+    {
+    case 'a': args->alg = atoi(arg); break;
+    case 'S': args->deltaStep = atof(arg); break;     
+    case 'V': args->V0 = atoi(arg); break;
+    case ARGP_KEY_INIT:
+      args->deltaStep = 0.0;
+      args->V0 = 0;
+      args->alg = 3;
+      state->child_inputs[0] = &args->std;
+      state->child_inputs[1] = &args->gstd;
+      break;
+    }
+  return(0);
+}
+
+static struct argp_option options[] =
+  {
+    {"alg", 'a', "flag", 0, "alg: 1==bellman | 2==delta"},
+    {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
+    {"V0", 'V', "NUM", 0, "initial vertex"},  
+    {0}
+  };
+
+static struct argp_child children_parsers[] =
+  {    
+    {&std_options_argp, 0, "Standard Options", -2},
+    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+    {0}
+  };
+
+
 int main(int argc, char * argv[])
 {
-
-  lgp_init(argc, argv);
-
-  int64_t buf_cnt = 1024;
-  int64_t models_mask = 31;  // default is running all models
-  int64_t l_numrows = 1000;         // number of a rows per thread
-  int64_t read_graph = 0L;           // read graph from a file
-  char filename[64];
-  int64_t cores_per_node = 0;
-  
   double t1;
   int64_t i, j;
-  int64_t alg = 0;
-  double erdos_renyi_prob = 0.3;
-  int64_t nz_per_row = -1;
-  graph_model model = FLAT;
-  int64_t seed = 1231;
-  int printhelp = 0;
-  int opt; 
-  while( (opt = getopt(argc, argv, "hb:c:M:n:f:FGa:e:K:s:Z:")) != -1 ) {
-    switch(opt) {
-    case 'h': printhelp = 1; break;
-    case 'a': sscanf(optarg,"%"PRId64"", &alg); break;
-    case 'b': sscanf(optarg,"%"PRId64"", &buf_cnt);  break;
-    case 'c': sscanf(optarg,"%"PRId64"" ,&cores_per_node); break;
-    case 'e': sscanf(optarg,"%lg", &erdos_renyi_prob); break;
-    case 'f': read_graph = 1; sscanf(optarg,"%s", filename); break;      
-    case 'F': model = FLAT; break;
-    case 'G': model = GEOMETRIC; break;  
-    case 'M': sscanf(optarg,"%"PRId64"", &models_mask);  break;
-    case 'n': sscanf(optarg,"%"PRId64"", &l_numrows); break;
-    case 's': sscanf(optarg,"%"PRId64"", &seed); break;
-    default:
-      T0_fprintf(stderr, "ERROR: Illegal usage\n");
-      return(1);
-    }
-  }
-  if( printhelp ) usage(); 
 
-  int64_t numrows = l_numrows * THREADS;
-  nz_per_row = erdos_renyi_prob * numrows;
-  
-  T0_fprintf(stderr,"Running triangle on %d threads\n", THREADS);
-  if(!read_graph){
-    T0_fprintf(stderr,"Number of rows per thread   (-N)  %"PRId64"\n", l_numrows);
-    T0_fprintf(stderr,"Edge prob                   (-e)  %g\n", erdos_renyi_prob);
-    T0_fprintf(stderr,"Graph Model           (-F or -G)  %s\n", (model == FLAT ? "FLAT" : "GEOMETRIC"));
-    T0_fprintf(stderr,"Seed                        (-s)  %"PRId64"\n", seed); 
+  /* process command line */
+  args_t args = {0};  // initialize args struct to all zero
+  struct argp argp = {options, parse_opt, 0,
+                      "Parallel Single Source Shortest Path (SSSP).", children_parsers};  
+  args.gstd.l_numrows = 50;
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if(ret < 0) return(ret);
+  else if(ret) return(0);
+  //override command line 
+  // SSSP only applies to weighted directed graphs 
+  //args.gstd.l_numrows = 100;
+  if(args.gstd.loops == 1 || args.gstd.directed == 0 || args.gstd.weighted == 0){
+    T0_fprintf(stderr,"WARNING: assume the input graph is directed, weighted [0,1) graph with no loops.\n");
+    T0_fprintf(stderr,"Overwriting the options.\n");
+    args.gstd.loops = 0;
+    args.gstd.directed = 1;
+    args.gstd.weighted = 1;
   }
-  T0_fprintf(stderr,"Model mask (M) = %"PRId64" (should be 1,2,4, TODO: \n", models_mask);  
-  
-  lgp_barrier();
-  
-  if( printhelp )
-    return(0);
 
-  double correct_answer = -1;
- 
-  // TODO: Don't know what we want to require for the input. 
-  sparsemat_t *mat;
-  if(read_graph){
-    mat = read_matrix_mm_to_dist(filename);
-    if(!mat)
-      lgp_global_exit(1);
-    T0_fprintf(stderr,"Reading file %s...\n", filename);
-    T0_fprintf(stderr, "A has %"PRId64" rows/cols and %"PRId64" nonzeros.\n", mat->numrows, mat->nnz);
-  }else{
-    mat = random_graph(numrows, model, DIRECTED_WEIGHTED, 0, erdos_renyi_prob, seed);
+
+  if(!MYTHREAD){
+    write_std_graph_options(&args.std, &args.gstd);
+    write_std_options(&args.std);
   }
+  
+  // read in a matrix or generate a random graph
+  sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);
+  if(!mat){T0_fprintf(stderr, "ERROR: sssp: mat is NULL!\n");return(-1);}
+
+  if(args.V0 < 0 || args.V0 >= mat->numrows){
+    T0_fprintf(stderr,"Setting V0 to 0\n");
+    args.V0 = 0;
+  }
+  if(args.alg < 1 || args.alg > 3){
+    T0_fprintf(stderr,"Setting alg to 3\n");
+    args.alg = 3;
+  }
+  
+  if(args.std.dump_files) write_matrix_mm(mat, "sssp_inmat");
 
   lgp_barrier();
   
-  T0_fprintf(stderr,"mat has %"PRId64" rows/cols and %"PRId64" nonzeros.\n", mat->numrows, mat->nnz);
-  
-  T0_fprintf(stderr,"Run sssp ...\n");
-
-  d_array_t * tent        = init_d_array(numrows);
+  d_array_t * tent = init_d_array(mat->numrows);
   d_array_t * comp_tent = NULL;
 
-  uint64_t use_model, use_alg;
+  uint64_t use_model, use_alg, alg;
   double laptime = 0.0;
+  char model_str[32];
 
+  T0_printf("delta step = %lf\n", args.deltaStep);
 
 #define USE_BELLMAN (1L<<16)
 #define USE_DELTA   (1L<<17)
   
-  for( use_alg=(1L<<16); use_alg<(1L<<18); use_alg *=2 ){
+  for( alg = 1; alg < 3; alg *=2 ){
+    use_alg = (args.alg & alg)<<16;
     for( use_model=1L; use_model < 32; use_model *=2 ) {
-
-      switch( (use_model & models_mask) | use_alg ) {
-      case (AGP_Model | USE_BELLMAN):
-        T0_fprintf(stderr,"    Bellman-Ford  AGP: ");
-        //dump_tent("AGI          :",tent);
+      model_str[0] = '\0';
+      switch( (use_model & args.std.models_mask) | use_alg ) {
+      case (AGI_Model | USE_BELLMAN):
+        sprintf(model_str, "Bellman-Ford AGP");
         set_d_array(tent, INFINITY);
         laptime = sssp_bellman_agi(tent, mat, 0); 
-        //dump_tent("AGI:",tent);
-        comp_tent = copy_d_array(tent);
-        T0_fprintf(stderr,"Bellman AGP nothing to compare\n");
         break;
 
       case (EXSTACK_Model | USE_BELLMAN):
-        T0_fprintf(stderr,"  Bellman-Ford Exstack: ");
+        sprintf(model_str, "Bellman-Ford Exstack");
         set_d_array(tent, INFINITY);
-        //dump_tent("Ex Bell      :",tent);
-        laptime = sssp_bellman_exstack(tent, mat, 0);
-        //dump_tent("Ex Bell      :",tent);
-        if(comp_tent == NULL){
-          comp_tent = copy_d_array(tent);
-          T0_fprintf(stderr,"Bellman Exstack nothing to compare\n");
-        }else{
-          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            T0_fprintf(stderr, "Exstack compares success!\n");
-        }
+        laptime = sssp_bellman_exstack(tent, mat, args.V0);
         break;
 
       case (EXSTACK_Model | USE_DELTA):
-        T0_fprintf(stderr,"  Delta Exstack: ");
+        sprintf(model_str, "Delta Exstack");
         set_d_array(tent, INFINITY);
-        //dump_tent("Ex Delta     :",tent);
-        laptime = sssp_delta_exstack(tent, mat, 0);
-        //dump_tent("Ex Delta     :",tent);
-        if(comp_tent == NULL){
-          comp_tent = copy_d_array(tent);
-          T0_fprintf(stderr,"Delta Exstack nothing to compare\n");
-        }else{
-          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            T0_fprintf(stderr, "Delta Exstack compares success!\n");
-        }
+        laptime = sssp_delta_exstack(tent, mat, args.V0, args.deltaStep);
         break;
 
       case (EXSTACK2_Model | USE_BELLMAN):
-        T0_fprintf(stderr,"  Bellman-Ford: Exstack2: ");
+        sprintf(model_str, "Bellman-Ford Exstack2");
         set_d_array(tent, INFINITY);
-        //dump_tent("Ex2 Bell     :",tent);
         laptime = sssp_bellman_exstack2(tent, mat, 0);
-        //dump_tent("Ex2 Bell     :",tent);
-        if(comp_tent == NULL){
-          comp_tent = copy_d_array(tent);
-          T0_fprintf(stderr,"Bellman Exstack2 nothing to compare\n");
-        }else{
-          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            T0_fprintf(stderr, "Bellman Exstack2 compares success!\n");
-        }
         break;
 
       case (EXSTACK2_Model | USE_DELTA):
-        T0_fprintf(stderr,"  Delta Exstack2: ");
+        sprintf(model_str, "Delta Exstack");
         set_d_array(tent, INFINITY);
-        //dump_tent("Ex2 Delta     :",tent);
-        laptime = sssp_delta_exstack2(tent, mat, 0);
-        //dump_tent("Ex2 Delta     :",tent);
-        if(comp_tent == NULL){
-          comp_tent = copy_d_array(tent);
-          T0_fprintf(stderr,"Delta Exstack2 nothing to compare\n");
-        }else{
-          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            T0_fprintf(stderr, "Delta Exstack2 compares success!\n");
-        }
+        laptime = sssp_delta_exstack2(tent, mat, args.V0, args.deltaStep);
         break;
 
       case (CONVEYOR_Model | USE_BELLMAN):
-      T0_fprintf(stderr,"  Bellman-Ford Convey: ");
+        sprintf(model_str, "Bellman-Ford Conveyor");
         set_d_array(tent, INFINITY);
-        //dump_tent("C  Bell      :",tent);
-        laptime = sssp_bellman_convey(tent, mat, 0);
-        //dump_tent("C  Bell      :",tent);
-        if(comp_tent == NULL){
-          comp_tent = copy_d_array(tent);
-          T0_fprintf(stderr,"Bellman Conveyor nothing to compare\n");
-        }else{
-          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            T0_fprintf(stderr, "Bellman Conveyor compares success!\n");
-        }
+        laptime = sssp_bellman_convey(tent, mat, args.V0);
         break;
 
       case (CONVEYOR_Model | USE_DELTA):
-      T0_fprintf(stderr,"  Delta Convey: ");
+        sprintf(model_str, "Delta Conveyor");
         set_d_array(tent, INFINITY);
-        //dump_tent("C  Delta     :",tent);
-        laptime = sssp_delta_convey(tent, mat, 0);
-        //dump_tent("C  Delta     :",tent);
-        if(comp_tent == NULL){
-          comp_tent = copy_d_array(tent);
-          T0_fprintf(stderr,"Delta Conveyor nothing to compare\n");
-        }else{
-          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            T0_fprintf(stderr, "Delta Conveyor compares success!\n");
-        }
+        laptime = sssp_delta_convey(tent, mat, args.V0, args.deltaStep);
         break;
       }
-      
-      lgp_barrier();
-      T0_fprintf(stderr,"  %8.3lf seconds.\n", laptime);
-      // TODO: Check result
+      if(model_str[0]) {
+        if(comp_tent == NULL){
+          comp_tent = copy_d_array(tent);
+          sprintf(model_str, "%s ()", model_str);
+        }else{
+          if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
+            sprintf(model_str, "%s (compares)", model_str);
+        }
+        lgp_barrier();
+        bale_app_write_time(&args.std, model_str, laptime);
+      }
     }
   }
   
   lgp_barrier();
 
-  clear_d_array(tent);
-  clear_d_array(comp_tent);
-  free(tent);
-  free(comp_tent);
-  lgp_finalize();
+  clear_d_array(tent); free(tent);
+  clear_d_array(comp_tent); free(comp_tent);
+
+  bale_app_finish(&args.std);
+
   return(0);
 }
