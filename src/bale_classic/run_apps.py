@@ -5,15 +5,15 @@ import argparse
 from shutil import which
 
 def determine_launcher():
-    ret = subprocess.run('srun --help',capture_output=True,shell=True)
-    if ret.returncode == 0: return('srun -n {1} {0}')
-    ret = subprocess.run('aprun --help', capture_output=True,shell=True)
-    if ret.returncode == 0: return('aprun -n {1} {0}')
-    ret = subprocess.run('oshrun --help', capture_output=True,shell=True)
-    if ret.returncode == 0: return('oshrun -n {1} {0}')
-    ret = subprocess.run('upcrun --help', capture_output=True,shell=True)
-    if ret.returncode == 0: return('upcrun -n {1} {0}')
-    return("{0} -n {1} --")
+  ret = subprocess.run('srun --help',capture_output=True,shell=True)
+  if ret.returncode == 0: return('srun -n {0} {1} {2}')
+  ret = subprocess.run('aprun --help', capture_output=True,shell=True)
+  if ret.returncode == 0: return('aprun -n {0} {1} {2}')
+  ret = subprocess.run('oshrun --help', capture_output=True,shell=True)
+  if ret.returncode == 0: return('oshrun -n {0} {1} {2}')
+  ret = subprocess.run('upcrun --help', capture_output=True,shell=True)
+  if ret.returncode == 0: return('upcrun -n {0} {1} {2}')
+  return("{2} -n {0} {1} --")
 
 all_apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles", "write_sparse_matrix"]
 
@@ -28,7 +28,7 @@ def append_to_file(master_file, file_to_add, first):
     fout.write(newdata)
     fout.close()        
         
-def run_apps(app_dict, node_range, option_str, impl_mask, json_file):
+def run_apps(app_dict, node_range, launcher_opts, option_str, impl_mask, json_file):
   
   if json_file is not None:
     # write initial [ to master json file
@@ -52,11 +52,11 @@ def run_apps(app_dict, node_range, option_str, impl_mask, json_file):
     if json_file is not None:
       for i,run in enumerate(runs):
         runs[i] = "{0} -j {1}".format(run, tmp_json_file)
-
+    
     
     for pes in node_range:
       for run in runs:
-        cmd = launcher.format(app_dict[app],2**pes) +" "+run
+        cmd = launcher.format(2**pes, launcher_opts, app_dict[app]) +" "+run
         print(cmd)
         ret = subprocess.run(cmd, capture_output=True, shell=True)
         assert(ret.returncode == 0)
@@ -85,6 +85,8 @@ if __name__ == '__main__':
                       " Adding multiple -a options will create a list of apps to run. "
                       " Apps must be in {0}".format(all_apps), default=[])
   parser.add_argument('-j','--json_file', action="store", dest='json_file', help="Pass -j <file> to all apps", default=None)
+  parser.add_argument('-l','--launcher_opts', action="store", dest='launcher_opts', help="Pass these options onto the launcher, these could be srun options for example"
+                      "Note that this script takes care of the -n option to launchers.", default="")
   parser.add_argument('-M','--impl_mask', action="store", dest='impl_mask', help="Pass -M <mask> to all apps", default=None)
   parser.add_argument(    '--node_range', action="store", dest='node_range', help="Specify the node range to run on as a range <start>:<end>:<stride>. "
                         "The job will run each app with 2^x PEs where x is in range(node_range) PEs", default="1,4,1")
@@ -146,4 +148,4 @@ if __name__ == '__main__':
     print("Error: illegal node_range")
     exit(1)
   
-  run_apps(app_dict, node_range, args.option_str, args.impl_mask, args.json_file)
+  run_apps(app_dict, node_range, args.launcher_opts, args.option_str, args.impl_mask, args.json_file)
