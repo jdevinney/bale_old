@@ -19,7 +19,7 @@ A collection of buffered communication libraries and some mini-applications.
 
 #### The elevator pitch
 
-The bale effort is, first and foremost, *a vehicle for discussion for parallel programming productivity*.  
+The bale effort is, first and foremost, *a vehicle for discussion* for parallel programming productivity.  
 
 The bale effort attempts to:
 
