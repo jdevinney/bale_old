@@ -104,8 +104,7 @@ double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t v0)
   if(pe_v0 == MYTHREAD){
     tent0->lentry[li_v0] = 0.0;
   }
-  //dump_tent("\nExstack: 0", tent0);
-
+  lgp_barrier();
   tent1 = copy_d_array(tent0);
   if(pe_v0 == MYTHREAD ){
     for(k = mat->loffset[li_v0]; k < mat->loffset[li_v0+1]; k++){
@@ -115,9 +114,6 @@ double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 
   lgp_barrier();
 
-  //dump_tent("Exstack: 1", tent1);
-
-  lgp_barrier();
   tent2 = init_d_array(tent1->num);
 
   tent_old = tent0;

@@ -142,12 +142,13 @@ int main(int argc, char * argv[])
   args_t args = {0};  // initialize args struct to all zero
   struct argp argp = {options, parse_opt, 0,
                       "Parallel Single Source Shortest Path (SSSP).", children_parsers};  
-  args.gstd.l_numrows = 100;
+  args.gstd.l_numrows = 50;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
   //override command line 
   // SSSP only applies to weighted directed graphs 
+  //args.gstd.l_numrows = 100;
   if(args.gstd.loops == 1 || args.gstd.directed == 0 || args.gstd.weighted == 0){
     T0_fprintf(stderr,"WARNING: assume the input graph is directed, weighted [0,1) graph with no loops.\n");
     T0_fprintf(stderr,"Overwriting the options.\n");
