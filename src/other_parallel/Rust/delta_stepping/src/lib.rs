@@ -1,4 +1,5 @@
 use chrono::{DateTime, Local};
+use convey_hpc::Convey;
 use convey_hpc::collect::ValueCollect;
 use itertools::join;
 use regex::Regex;
@@ -29,9 +30,9 @@ pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
 /// Output structure for single-source shortest path
 #[derive(Debug, Clone)]
 pub struct SsspInfo {
-    pub distance: Vec<f64>,
     pub source: usize,
     pub laptime: f64,
+    pub distance: Vec<f64>,
 }
 
 impl SsspInfo {
@@ -55,14 +56,39 @@ impl SsspInfo {
         Ok(())
     }
 
-    /// Write output distances to a file in Phil's format
-    /// needs parallel version 0-0
+    /// Write output distances to a file in Phil's format, collecting them all on rank 0
     pub fn write_dst(&self, filename: &str) -> Result<(), Error> {
-        let path = Path::new(&filename);
-        let mut file = OpenOptions::new().write(true).create(true).open(path)?;
-        writeln!(file, "{}", self.distance.len())?;
-        for v in &self.distance {
-            writeln!(file, "{}", v)?;
+        let convey = Convey::new().expect("conveyor initialization failed");
+        let my_rank = convey.my_rank;
+        let num_ranks = convey.num_ranks;
+        let num_vtxs = convey.reduce_sum(self.distance.len());
+        let mut all_distances: Vec<f64> = vec!(0.0; if my_rank == 0 {num_vtxs} else {0});
+        #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+        struct Item {
+            vtx: usize,
+            dst: f64,
+        }
+        {
+            let mut session = convey.begin(|item: Item, _from_rank| {
+                all_distances[item.vtx] = item.dst;
+            });
+            for (i, d) in self.distance.iter().enumerate() {
+                session.push( Item{
+                        vtx: num_ranks * i + my_rank, // should be session.global_index(i)
+                        dst: *d,
+                    }, 
+                    0
+                );
+            }
+            session.finish();
+        }
+        if my_rank == 0 {
+            let path = Path::new(&filename);
+            let mut file = OpenOptions::new().write(true).create(true).open(path)?;
+            writeln!(file, "{}", num_vtxs)?;
+            for v in all_distances {
+                writeln!(file, "{}", v)?;
+            }
         }
         Ok(())
     }
@@ -356,7 +382,7 @@ impl<'a> BucketSearcher<'a> {
 
     /// relax all the requests from this phase, in parallel
     fn relax_requests(&mut self, requests: Vec<Request>) {
-        // convey the request r=(w_g,d) to the PE that owns vtx w_g here, and have it call relax
+        // convey the request r=(w_g,d) to the PE that owns vtx w_g, and have it call relax()
         let mut session = self.graph.begin(|item: Request, _from_rank| {
             self.relax(item);
         });

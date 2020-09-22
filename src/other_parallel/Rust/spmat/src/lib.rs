@@ -472,7 +472,6 @@ impl SparseMat {
     }
 
     /// writes a sparse matrix to a file in a MatrixMarket ASCII formats
-    /// Does this work for non-local matrices? It won't get the row numbers right.
     /// # Arguments
     /// * filename the filename to written to
     pub fn write_mm_file(&self, filename: &str) -> Result<(), Error> {
@@ -491,9 +490,10 @@ impl SparseMat {
             writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
             for rank in 0..self.num_ranks() {
                 if rank == self.my_rank() {
-                    for i in 0..self.numrows {
+                    for i in 0..self.numrows_this_rank {
                         for k in self.offset[i]..self.offset[i + 1] {
-                            writeln!(writer, "{} {} {}", i + 1, self.nonzero[k] + 1, value[k])?;
+                            let i_g = self.global_index(i);
+                            writeln!(writer, "{} {} {}", i_g + 1, self.nonzero[k] + 1, value[k])?;
                         }
                     }
                 }
@@ -504,7 +504,7 @@ impl SparseMat {
             writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
             for rank in 0..self.num_ranks() {
                 if rank == self.my_rank() {
-                    for i in 0..self.numrows {
+                    for i in 0..self.numrows_this_rank {
                         for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
                             writeln!(writer, "{} {}", i + 1, nz + 1)?;
                         }
