@@ -109,31 +109,31 @@ SHARED int64_t * rand_permp_agi(int64_t N, int seed) {
 
 /*! \brief apply row and column permutations to a sparse matrix using straight UPC
  * \param A pointer to the original matrix
- * \param rperminv pointer to the global array holding the inverse of the row permutation
- * \param cperminv pointer to the global array holding the inverse of the column permutation
- * rperminv[i] = j means that row i of A goes to row j in matrix Ap
- * cperminv[i] = j means that col i of A goes to col j in matrix Ap
+ * \param rperm pointer to the global array holding the row permutation
+ * \param cperm pointer to the global array holding the column permutation
+ * rperm[i] = j means that row i of A goes to row j in matrix Ap
+ * cperm[i] = j means that col i of A goes to col j in matrix Ap
  * \return a pointer to the matrix that has been produced or NULL if the model can't be used
  * \ingroup spmatgrp
  */
-sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {
+sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperm, SHARED int64_t *cperm) {
   //T0_printf("Permuting matrix with single puts\n");
   int64_t i, j, col, row, pos;
-  int64_t * lrperminv = lgp_local_part(int64_t, rperminv);
-  SHARED int64_t * rperm = lgp_all_alloc(A->numrows, sizeof(int64_t));
-  if( rperm == NULL ) return(NULL);
-  int64_t *lrperm = lgp_local_part(int64_t, rperm);
+  int64_t * lrperm = lgp_local_part(int64_t, rperm);
+  SHARED int64_t * rperminv = lgp_all_alloc(A->numrows, sizeof(int64_t));
+  if( rperminv == NULL ) return(NULL);
+  int64_t *lrperminv = lgp_local_part(int64_t, rperminv);
 
-  //compute rperm from rperminv 
+  //compute rperminv from rperm 
   for(i=0; i < A->lnumrows; i++){
-    lgp_put_int64(rperm, lrperminv[i], i*THREADS + MYTHREAD);
+    lgp_put_int64(rperminv, lrperm[i], i*THREADS + MYTHREAD);
   }
 
   lgp_barrier();
   
   int64_t cnt = 0, off, nxtoff;
   for(i = 0; i < A->lnumrows; i++){
-    row = lrperm[i];
+    row = lrperminv[i];
     off    = lgp_get_int64(A->offset, row);
     nxtoff = lgp_get_int64(A->offset, row + THREADS);
     cnt += nxtoff - off;
@@ -145,7 +145,7 @@ sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperminv, SHARE
   // fill in permuted rows
   Ap->loffset[0] = pos = 0;
   for(i = 0; i < Ap->lnumrows; i++){
-    row = lrperm[i];
+    row = lrperminv[i];
     off    = lgp_get_int64(A->offset, row);
     nxtoff = lgp_get_int64(A->offset, row + THREADS);
     for(j = off; j < nxtoff; j++){
@@ -161,12 +161,12 @@ sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperminv, SHARE
   // finally permute column indices
   for(i = 0; i < Ap->lnumrows; i++){
     for(j = Ap->loffset[i]; j < Ap->loffset[i+1]; j++){
-      Ap->lnonzero[j] = lgp_get_int64(cperminv, Ap->lnonzero[j]);      
+      Ap->lnonzero[j] = lgp_get_int64(cperm, Ap->lnonzero[j]);      
     }
   }
   lgp_barrier();
 
-  lgp_all_free(rperm);
+  lgp_all_free(rperminv);
   sort_nonzeros(Ap);
 
   return(Ap);

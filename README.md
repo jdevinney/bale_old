@@ -1,12 +1,12 @@
 # bale
 
-Bale is a collection of code meant as a vehicle for discussion for parallel programming models.
+bale is a collection of code meant as a vehicle for discussion for parallel programming models.
 
 The bale effort attempts to:
 
-* paint a picture of the challenges of implementing a scalable distributed parallel application.
-* demonstrate an approach to achieving high performance for the inter-node-communication in such applications
-* explore concepts that make it easier to write, maintain, and get top performance from these applications
+- demonstrate some challenges of implementing interesting (i.e. irregular) scalable distributed parallel applications.
+- demonstrate an approach to achieving high performance for the internode communication in such applications
+- explore concepts that make it easier to write, maintain, and get top performance from such applications
 
 In addition to [bale_classic](src/bale_classic/README.md), there are now several other instances of bale in other languages. These "cousins" of bale imitate the original in one way or another (usually they implement the "apps"
 directory in bale_classic). Each of these cousin directories is a separate project and comes with its own build and run instructions. All source code is found in the src directory.

@@ -88,7 +88,7 @@ if __name__ == '__main__':
   parser.add_argument('-l','--launcher_opts', action="store", dest='launcher_opts', help="Pass these options onto the launcher, these could be srun options for example"
                       "Note that this script takes care of the -n option to launchers.", default="")
   parser.add_argument('-M','--impl_mask', action="store", dest='impl_mask', help="Pass -M <mask> to all apps", default=None)
-  parser.add_argument(    '--node_range', action="store", dest='node_range', help="Specify the node range to run on as a range <start>:<end>:<stride>. "
+  parser.add_argument(    '--node_range', action="store", dest='node_range', help="Specify the node range to run on as a range <start>,<end>,<stride>. "
                         "The job will run each app with 2^x PEs where x is in range(node_range) PEs", default="1,4,1")
   parser.add_argument('-o',"--option_str", action="store", dest='option_str', help="Specify a string to pass to all apps (must be valid for all apps!", default=None)
   parser.add_argument('-P','--path',      action="store", dest='path',      help="Specify path to binaries. If no path is specified "
