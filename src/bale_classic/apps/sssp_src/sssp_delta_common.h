@@ -1,5 +1,5 @@
-/*! \file sssp_delta_convey.upc
- * \brief Implementation of delta stepping using convey
+/*! \file sssp_delta_common.h
+ * \brief Header for the data structure and common functions common to all the delta stepping implementations.
  */
 
 #ifndef sssp_delta_common_INCLUDED
@@ -26,7 +26,7 @@ void remove_node_from_bucket(ds_t *ds, int64_t v);
 void local_relax(ds_t *ds, int64_t w, double cand_dist);
 
 
-void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat);
+void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat, double opt_delta);
 void allocate_and_initialize_delta_stepping_struct(ds_t *ds, int64_t lnumrows, int64_t num_buckets, double delta);
 void clear_ds_struct(ds_t *ds);
 

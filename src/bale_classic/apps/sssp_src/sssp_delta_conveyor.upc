@@ -21,7 +21,7 @@ static int64_t delta_convey_relax_process(ds_t *ds, convey_t *conv, int64_t done
 // the paper "Delta-stepping: a parallelizable shortest path algorithm" by
 // U. Meyer and P. Sanders.
 
-double sssp_delta_convey(d_array_t *dist, sparsemat_t * mat, int64_t r0)
+double sssp_delta_convey(d_array_t *dist, sparsemat_t * mat, int64_t r0, double opt_delta)
 {
   int64_t i, i_m, k;
   int64_t v;
@@ -39,7 +39,7 @@ double sssp_delta_convey(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   
   double delta;
   int64_t num_buckets;
-  calculate_delta_and_num_buckets(&delta, &num_buckets, mat);
+  calculate_delta_and_num_buckets(&delta, &num_buckets, mat, opt_delta);
 
   ds_t * ds = (ds_t *)calloc(1,sizeof(ds_t)); assert(ds != NULL);
   allocate_and_initialize_delta_stepping_struct(ds, mat->lnumrows, num_buckets, delta);

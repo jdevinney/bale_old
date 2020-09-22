@@ -34,7 +34,7 @@ int64_t delta_exstack_push(exstack_t *ex, sparsemat_t *mat, int64_t gidx, double
 // the paper "Delta-stepping: a parallelizable shortest path algorithm" by
 // U. Meyer and P. Sanders.
 
-double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
+double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0, double opt_delta)
 {
   int64_t i, i_m, k;
   int64_t v;
@@ -53,7 +53,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0)
   
   double delta;
   int64_t num_buckets;
-  calculate_delta_and_num_buckets(&delta, &num_buckets, mat);
+  calculate_delta_and_num_buckets(&delta, &num_buckets, mat, opt_delta);
   
   ds_t * ds = (ds_t *)calloc(1,sizeof(ds_t)); assert(ds != NULL);
   allocate_and_initialize_delta_stepping_struct(ds, mat->lnumrows, num_buckets, delta);

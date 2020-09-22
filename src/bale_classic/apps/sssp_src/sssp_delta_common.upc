@@ -1,5 +1,5 @@
-/*! \file sssp_delta_exstack.upc
- * \brief Implementation of delta stepping using exstack
+/*! \file sssp_delta_common.upc
+ * \brief Routines common to all the delta stepping implementations.
  */
 
 #include "sssp.h"
@@ -148,20 +148,24 @@ void clear_ds_struct(ds_t *ds)
 }
 
 // calculate delta and num_buckets
-void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat)
+void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat, double opt_delta)
 { 
   double del;
   int64_t nb;
   int64_t i;
 
-  int64_t max_degree = 0;
-  for(i = 0; i < mat->lnumrows; i++){
-    if(max_degree < (mat->loffset[i+1] - mat->loffset[i]))
-      max_degree = (mat->loffset[i+1] - mat->loffset[i]);
+  if( opt_delta > 0.0 && opt_delta <= 1.0) {
+    del = opt_delta;
+  } else {
+    int64_t max_degree = 0;
+    for(i = 0; i < mat->lnumrows; i++){
+      if(max_degree < (mat->loffset[i+1] - mat->loffset[i]))
+        max_degree = (mat->loffset[i+1] - mat->loffset[i]);
+    }
+    max_degree = lgp_reduce_max_l(max_degree);
+    assert(max_degree > 0);
+    del = 1.0/max_degree;
   }
-  max_degree = lgp_reduce_max_l(max_degree);
-  assert(max_degree > 0);
-  del = 1.0/max_degree;
   if(D0PRT){printf("%02d:del = %lf\n", MYTHREAD, del);}
   
   double max_edge_weight = 0.0;
@@ -176,4 +180,5 @@ void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparse
   *delta = del;
   *num_buckets = nb;
 }
+
 

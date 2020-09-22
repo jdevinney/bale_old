@@ -54,22 +54,6 @@ to all other vertices in the graph.
 
  */
 
-static void usage(void) {
-  T0_fprintf(stderr,"\
-Usage:\n\
-sssp [-h][-a 0,1][-e prob][-K str][-f filename]\n\
-- -e = p: specify the Edge probability p\n\
-- -h print this message\n\
-- -M mask is the or of 1,2,4,8,16 for the models: \n\
-- -N = n: Specify the number of rows_per_thread in the matrix (if using the random_graph generator)\n\
-- -f filename : Specify a filename containing a matrix in MatrixMarket format to read as input\n\
-- -b = count: Specify the number of packages in an exstack(2) stack\n\
-\n\
-\n");
-  lgp_finalize();
-  lgp_global_exit(0);
-}
-
 void dump_tent(char *str, d_array_t *tent)
 {
   int64_t i;
@@ -101,7 +85,8 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B)
 
 
 typedef struct args_t{
-  int alg;
+  double deltaStep; 
+  int64_t V0;
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
@@ -110,8 +95,11 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
-    case 'a': args->alg = atoi(arg); break;     
+    case 'S': args->deltaStep = atof(arg); break;     
+    case 'V': args->V0 = atoi(arg); break;
     case ARGP_KEY_INIT:
+      args->deltaStep = 0.0;
+      args->V0 = 0;
       state->child_inputs[0] = &args->std;
       state->child_inputs[1] = &args->gstd;
       break;
@@ -121,7 +109,8 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
-    {"triangle_alg", 'a', "ALG", 0, "Algorithm: 0 means L&L*U, 1 means L&U*L"},  
+    {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
+    {"V0", 'V', "NUM", 0, "initial vertex"},  
     {0}
   };
 
@@ -156,6 +145,8 @@ int main(int argc, char * argv[])
     args.gstd.directed = 1;
     args.gstd.weighted = 1;
   }
+
+
   if(!MYTHREAD){
     write_std_graph_options(&args.std, &args.gstd);
     write_std_options(&args.std);
@@ -164,6 +155,11 @@ int main(int argc, char * argv[])
   // read in a matrix or generate a random graph
   sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);
   if(!mat){T0_fprintf(stderr, "ERROR: sssp: mat is NULL!\n");return(-1);}
+
+  if(args.V0 < 0 || args.V0 >= mat->numrows){
+    T0_fprintf(stderr,"Setting V0 to 0\n");
+    args.V0 = 0;
+  }
   
   if(args.std.dump_files) write_matrix_mm(mat, "sssp_inmat");
 
@@ -176,6 +172,7 @@ int main(int argc, char * argv[])
   double laptime = 0.0;
   char model_str[32];
 
+  T0_printf("delta step = %lf\n", args.deltaStep);
 
 #define USE_BELLMAN (1L<<16)
 #define USE_DELTA   (1L<<17)
@@ -193,13 +190,13 @@ int main(int argc, char * argv[])
       case (EXSTACK_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford Exstack");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_exstack(tent, mat, 0);
+        laptime = sssp_bellman_exstack(tent, mat, args.V0);
         break;
 
       case (EXSTACK_Model | USE_DELTA):
         sprintf(model_str, "Delta Exstack");
         set_d_array(tent, INFINITY);
-        laptime = sssp_delta_exstack(tent, mat, 0);
+        laptime = sssp_delta_exstack(tent, mat, args.V0, args.deltaStep);
         break;
 
       case (EXSTACK2_Model | USE_BELLMAN):
@@ -211,19 +208,19 @@ int main(int argc, char * argv[])
       case (EXSTACK2_Model | USE_DELTA):
         sprintf(model_str, "Delta Exstack");
         set_d_array(tent, INFINITY);
-        laptime = sssp_delta_exstack2(tent, mat, 0);
+        laptime = sssp_delta_exstack2(tent, mat, args.V0, args.deltaStep);
         break;
 
       case (CONVEYOR_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford Conveyor");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_convey(tent, mat, 0);
+        laptime = sssp_bellman_convey(tent, mat, args.V0);
         break;
 
       case (CONVEYOR_Model | USE_DELTA):
         sprintf(model_str, "Delta Conveyor");
         set_d_array(tent, INFINITY);
-        laptime = sssp_delta_convey(tent, mat, 0);
+        laptime = sssp_delta_convey(tent, mat, args.V0, args.deltaStep);
         break;
       }
       if(model_str[0]) {
