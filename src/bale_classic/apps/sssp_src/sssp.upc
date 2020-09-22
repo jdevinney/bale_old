@@ -87,6 +87,7 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B)
 typedef struct args_t{
   double deltaStep; 
   int64_t V0;
+  int64_t alg;
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
@@ -95,11 +96,13 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
+    case 'a': args->alg = atoi(arg); break;
     case 'S': args->deltaStep = atof(arg); break;     
     case 'V': args->V0 = atoi(arg); break;
     case ARGP_KEY_INIT:
       args->deltaStep = 0.0;
       args->V0 = 0;
+      args->alg = 3;
       state->child_inputs[0] = &args->std;
       state->child_inputs[1] = &args->gstd;
       break;
@@ -109,6 +112,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
+    {"alg", 'a', "flag", 0, "alg: 1==bellman | 2==delta"},
     {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
     {"V0", 'V', "NUM", 0, "initial vertex"},  
     {0}
@@ -160,6 +164,10 @@ int main(int argc, char * argv[])
     T0_fprintf(stderr,"Setting V0 to 0\n");
     args.V0 = 0;
   }
+  if(args.alg < 1 || args.alg > 3){
+    T0_fprintf(stderr,"Setting alg to 3\n");
+    args.alg = 3;
+  }
   
   if(args.std.dump_files) write_matrix_mm(mat, "sssp_inmat");
 
@@ -168,7 +176,7 @@ int main(int argc, char * argv[])
   d_array_t * tent = init_d_array(mat->numrows);
   d_array_t * comp_tent = NULL;
 
-  uint64_t use_model, use_alg;
+  uint64_t use_model, use_alg, alg;
   double laptime = 0.0;
   char model_str[32];
 
@@ -177,7 +185,8 @@ int main(int argc, char * argv[])
 #define USE_BELLMAN (1L<<16)
 #define USE_DELTA   (1L<<17)
   
-  for( use_alg=(1L<<16); use_alg<(1L<<18); use_alg *=2 ){
+  for( alg = 1; alg < 3; alg *=2 ){
+    use_alg = (args.alg & alg)<<16;
     for( use_model=1L; use_model < 32; use_model *=2 ) {
       model_str[0] = '\0';
       switch( (use_model & args.std.models_mask) | use_alg ) {
