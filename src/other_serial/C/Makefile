@@ -71,7 +71,7 @@ transpose_matrix: transpose_matrix.c std_options.o spmat_utils.o
 	${CC} -g transpose_matrix.c spmat_utils.o std_options.o ${LFLAGS} ${LDFLAGS} -o transpose_matrix
 
 sssp: sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o
-	${CC} sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o ${LFLAGS} -o sssp
+	${CC} sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o sssp
 
 doc:
 	doxygen
