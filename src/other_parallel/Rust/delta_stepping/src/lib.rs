@@ -357,21 +357,14 @@ impl<'a> BucketSearcher<'a> {
     /// relax all the requests from this phase, in parallel
     fn relax_requests(&mut self, requests: Vec<Request>) {
         // convey the request r=(w_g,d) to the PE that owns vtx w_g here, and have it call relax
-        // maybe also barrier at beginning of relax_requests? or superfluous before creating session?
-        {
-            // Always put the session in a new block, as you will
-            // not be able to able to local after conveyor is done
-            // (jg: is this superfluous since the scope is the function anyway?)
-            let mut session = self.graph.begin(|item: Request, _from_rank| {
-                self.relax(item);
-            });
-            for r in requests {
-                let rank = session.offset_rank(r.w_g).1;
-                session.push(r, rank);
-            }
-            session.finish();
+        let mut session = self.graph.begin(|item: Request, _from_rank| {
+            self.relax(item);
+        });
+        for r in requests {
+            let rank = session.offset_rank(r.w_g).1;
+            session.push(r, rank);
         }
-        self.graph.barrier(); // maybe this is superfluous after session.finish?
+        session.finish();
     }
 
     /// relax an incoming edge to vtx r.w_g with new source distance r.dist,
@@ -478,8 +471,8 @@ impl DeltaStepping for SparseMat {
             while searcher.global_bucket_size(active_bucket) > 0 {
                 if !quiet {
                     println!(
-                        "middle loop iteration {}: active_bucket has {} vtxs",
-                        phase, searcher.bucket_size[active_bucket]
+                        "middle loop iteration {}: active_bucket {} has {} vtxs on rank 0",
+                        phase, active_bucket, searcher.bucket_size[active_bucket]
                     );
                 }
 
