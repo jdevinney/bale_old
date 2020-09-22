@@ -54,7 +54,7 @@ double sssp_bellmanford_simple(d_array_t * tent, sparsemat_t *mat, int64_t r0);
 double sssp_bellmanford_dynprog(d_array_t * tent, sparsemat_t *mat, int64_t r0);
 double sssp_bellmanford(d_array_t * tent, sparsemat_t *mat, int64_t r0);
 double sssp_delta_stepping_ptr(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);
-double sssp_delta_stepping_arr(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);
+double sssp_delta_stepping(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);
 double sssp_answer_diff(d_array_t *A, d_array_t *B);
 
 
@@ -120,7 +120,7 @@ int main(int argc, char * argv[])
   self_loops loops = LOOPS;
   int quiet = args.std.quiet;
 
-  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING_PTR=4, DELTA_STEPPING_ARR=8, BELLMAN_SIMPLE=16, BELLMAN=32, ALL_Models=64};
+  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING_PTR=4, DELTA_STEPPING=8, BELLMAN_SIMPLE=16, BELLMAN=32, ALL_Models=64};
   graph_model model = args.gstd.model;
   int64_t models_mask = args.std.models_mask;
   models_mask=ALL_Models - 1;
@@ -199,6 +199,7 @@ int main(int argc, char * argv[])
       }
       break;
 
+/*
     case DELTA_STEPPING_PTR:
       if( !quiet ) printf("Delta Stepping ptr   : ");
       laptime = sssp_delta_stepping_ptr(tent, mat, 0, 0.0);
@@ -212,10 +213,10 @@ int main(int argc, char * argv[])
       }
       
       break;
-
-    case DELTA_STEPPING_ARR:
+*/
+    case DELTA_STEPPING:
       if( !quiet ) printf("Delta Stepping arr   : ");
-      laptime = sssp_delta_stepping_arr(tent, mat, 0, 0.0);
+      laptime = sssp_delta_stepping(tent, mat, 0, 0.0);
       if(comp_tent == NULL){
         comp_tent = init_d_array(numrows);
         copy_d_array( comp_tent, tent);
