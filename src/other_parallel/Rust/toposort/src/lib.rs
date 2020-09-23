@@ -1,5 +1,5 @@
 use convey_hpc::collect::ValueCollect;
-use convey_hpc::RcVec;
+use convey_hpc::{Convey, RcVec};
 use serde::{Deserialize, Serialize};
 use spmat::perm::Perm;
 use spmat::wall_seconds;
@@ -142,7 +142,7 @@ impl TopoSort for SparseMat {
 
         let mut r_and_c_done = 0;
         {
-            let mut session = self.begin(|item: TopoSend, _from_rank| {
+            let mut session = Convey::begin(|item: TopoSend, _from_rank| {
                 match item {
                     TopoSend::ToColq { offset, lev } => {
                         // we have revieved a transposed row, push it on the
@@ -265,7 +265,7 @@ impl TopoSort for SparseMat {
         }
         //println!("tsq2");
 
-        self.session()
+        Convey::session()
             .pull_fn(|item: (usize, usize), _from_rank| {
                 ret.cperm.perm[item.0] = item.1;
             })
@@ -321,7 +321,7 @@ impl TopoSort for SparseMat {
 
         let mut r_and_c_done = 0;
         {
-            let mut to_colq = self.begin(|item: (usize, usize), _from_rank| {
+            let mut to_colq = Convey::begin(|item: (usize, usize), _from_rank| {
                 // we have revieved a transposed row, push it on the
                 // column queue with the associated level
                 //println!("off {} lev {}", offset, lev);
@@ -331,7 +331,7 @@ impl TopoSort for SparseMat {
             to_colq.always_send = true;
 
             {
-                let mut mark_row = self.begin(|item: (usize, usize, usize), _from_rank| {
+                let mut mark_row = Convey::begin(|item: (usize, usize, usize), _from_rank| {
                     let row = item.0;
                     let global_col = item.1;
                     let lev = item.2;
@@ -427,7 +427,7 @@ impl TopoSort for SparseMat {
             level_start[lev] += 1;
         }
 
-        self.session()
+        Convey::session()
             .pull_fn(|item: (usize, usize), _from_rank| {
                 ret.cperm.perm[item.0] = item.1;
             })

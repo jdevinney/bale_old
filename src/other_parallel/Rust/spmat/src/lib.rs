@@ -1,9 +1,6 @@
 use crate::perm::Perm;
 use convey_hpc::collect::{IVal, PType, ValueCollect};
-use convey_hpc::session::ConveySession;
 use convey_hpc::Convey;
-use serde::de::DeserializeOwned;
-use serde::ser::Serialize;
 use std::fs::File;
 use std::io::BufWriter;
 use std::io::Write;
@@ -124,57 +121,6 @@ impl SparseMat {
         }
     }
 
-    /// create a session without a pull_fn
-    pub fn begin<'a, T: Copy + Serialize + DeserializeOwned>(
-        &'a self,
-        pull_fn: impl FnMut(T, usize) + 'a,
-    ) -> ConveySession<'a, T> {
-        if let Some(convey) = &self.convey {
-            convey.begin(pull_fn)
-        } else {
-            unimplemented!("Conveyors not implemented for local SparseMat");
-        }
-    }
-
-    pub fn session<'a, T: Copy + Serialize + DeserializeOwned>(&'a self) -> ConveySession<'a, T> {
-        if let Some(convey) = &self.convey {
-            convey.session()
-        } else {
-            unimplemented!("Conveyors not implemented for local SparseMat");
-        }
-    }
-
-    /// execute a simple function
-    pub fn simple<T, I>(&self, map: I, pull_fn: impl FnMut(T, usize)) -> ()
-    where
-        T: Copy + Serialize + DeserializeOwned,
-        I: Iterator<Item = (T, usize)>,
-    {
-        if let Some(convey) = &self.convey {
-            convey.simple(map, pull_fn)
-        } else {
-            unimplemented!("Conveyors not implemented for local SparseMat");
-        }
-    }
-
-    /// execute a simple function with return
-    pub fn simple_return<T1, T2, I>(
-        &self,
-        map: I,
-        pull_fn: impl FnMut(T1) -> T2,
-        ret_fn: impl FnMut(usize, T2),
-    ) -> ()
-    where
-        T1: Copy + Serialize + DeserializeOwned,
-        T2: Copy + Serialize + DeserializeOwned,
-        I: Iterator<Item = ((usize, T1), usize)>,
-    {
-        if let Some(convey) = &self.convey {
-            convey.simple_return(map, pull_fn, ret_fn)
-        } else {
-            unimplemented!("Conveyors not implemented for local SparseMat");
-        }
-    }
     /// dumps a sparse matrix to a file in a ASCII format
     /// # Arguments
     /// * maxrows the number of rows that are written, 0 means everything,
@@ -316,7 +262,7 @@ impl SparseMat {
         assert!(rperminv.is_perm());
         assert!(cperminv.is_perm());
         let mut nnz = 0_usize;
-        self.simple(
+        Convey::simple(
             (0..rperminv.perm.len()).map(|idx| {
                 let (offset, rank) = self.offset_rank(rperminv.perm[idx]);
                 let cnt = self.offset[idx + 1] - self.offset[idx];
@@ -344,7 +290,7 @@ impl SparseMat {
         // step 3: distrbute nonzeros
         let mut wrkoff = vec![0_usize; self.numrows_this_rank];
         {
-            let mut session = self.begin(|item: (usize, usize), _from_rank| {
+            let mut session = Convey::begin(|item: (usize, usize), _from_rank| {
                 let index = permuted.offset[item.0] + wrkoff[item.0];
                 permuted.nonzero[index] = item.1;
                 wrkoff[item.0] += 1;
@@ -364,7 +310,7 @@ impl SparseMat {
         {
             let my_nnz = permuted.nnz_this_rank;
             let cloned_nonzero = permuted.nonzero.clone();
-            self.simple_return(
+            Convey::simple_return(
                 (0..my_nnz).map(|i| {
                     let (offset, rank) = self.offset_rank(cloned_nonzero[i]);
                     ((i, offset), rank)
@@ -383,7 +329,7 @@ impl SparseMat {
         let mut nnz = 0_usize;
 
         // distributed calculation of column counts, with resulting local nonzeros
-        self.simple(
+        Convey::simple(
             self.nonzero.iter().map(|nz| self.offset_rank(*nz)),
             |item: usize, _from_rank| {
                 colcnt[item] += 1;
@@ -404,7 +350,7 @@ impl SparseMat {
 
         let mut wrkoff = vec![0_usize; trans.numrows];
         {
-            let mut session = self.begin(|item: (usize, usize), _from_rank| {
+            let mut session = Convey::begin(|item: (usize, usize), _from_rank| {
                 let index = trans.offset[item.0] + wrkoff[item.0];
                 trans.nonzero[index] = item.1;
                 wrkoff[item.0] += 1;

@@ -92,7 +92,7 @@ fn do_histo_convey(
     {
         // Always put the session in a new block, as you will
         // not be able to able to local after conveyor is done
-        let mut session = convey.begin(|item: usize, _from_rank| {
+        let mut session = Convey::begin(|item: usize, _from_rank| {
             //if from_rank != me {
             //   println!("to {} from {} received item {}", me, from_rank, item);
             //}
@@ -146,7 +146,7 @@ fn do_histo_convey_simple(
     let mut total_updates: u64 = 0;
 
     let now = Instant::now();
-    convey.simple(
+    Convey::simple(
         (0..updates).map(|_x| convey.offset_rank(die.sample(&mut rng))),
         |item: usize, _from_rank| {
             local[item] += 1;

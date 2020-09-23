@@ -45,7 +45,7 @@ impl Perm {
     pub fn is_perm(&self) -> bool {
         let mut flags: Vec<bool> = vec![false; self.perm.len()];
         //println!("is_perm{:?}", self.perm);
-        self.convey.simple(
+        Convey::simple(
             self.perm.iter().map(|val| self.convey.offset_rank(*val)),
             |offset: usize, _from_rank: usize| {
                 flags[offset] = true;
@@ -72,7 +72,7 @@ impl Perm {
         let mut pos = 0;
         let mut rank = offset % convey.num_ranks;
         {
-            let mut session = convey.begin(|item: i64, _from_rank| {
+            let mut session = Convey::begin(|item: i64, _from_rank| {
                 perm[pos] = item as usize;
                 pos += 1;
             });
@@ -132,7 +132,7 @@ impl Perm {
         let die = Uniform::from(0..m as usize);
 
         {
-            let mut session = convey.begin(|item: (usize, usize), _from_rank| {
+            let mut session = Convey::begin(|item: (usize, usize), _from_rank| {
                 let idx = item.0;
                 if target[idx] == -1_i64 {
                     target[idx] = item.1 as i64;
@@ -168,13 +168,13 @@ impl Perm {
         let die = Uniform::from(0..m as usize);
         {
             // In a separate block so session2 life ends before target use needed
-            let session2 = Rc::new(RefCell::new(convey.begin(|item: usize, _from_rank| {
+            let session2 = Rc::new(RefCell::new(Convey::begin(|item: usize, _from_rank| {
                 queue.borrow_mut().push(item);
             })));
             session2.borrow_mut().simple_done = false;
             {
                 // In a separate block so session1 life ends before target use needed
-                let mut session1 = convey.begin(|item: (usize, usize), from_rank| {
+                let mut session1 = Convey::begin(|item: (usize, usize), from_rank| {
                     if target[item.0] == -1_i64 {
                         target[item.0] = item.1 as i64;
                     } else {

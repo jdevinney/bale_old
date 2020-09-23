@@ -74,7 +74,7 @@ impl Triangle for SparseMat {
         let mut success_count = 0;
         let mut num_pushed = 0;
         {
-            let mut session = self.begin(|item: (usize, usize), _from_rank| {
+            let mut session = Convey::begin(|item: (usize, usize), _from_rank| {
                 let w = item.0;
                 let vj = item.1;
                 let mat = match upper {
