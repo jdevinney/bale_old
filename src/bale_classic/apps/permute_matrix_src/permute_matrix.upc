@@ -187,6 +187,7 @@ int main(int argc, char * argv[]) {
   lgp_all_free(cp);
   lgp_barrier();
 
+  bale_app_finish(&args.std);
   
   return(0);
 }
