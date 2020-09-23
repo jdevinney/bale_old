@@ -1628,23 +1628,25 @@ void set_d_array(d_array_t * A, double v)
   }
 }
 
-/*! \brief sets all the entries of d_array_t to a value
- * \param A the array
- * \param v the value
+/*! \brief produces a copy of a source array
+ * \param src the sourcearray
  * \ingroup spmatgrp
  */
-void copy_d_array(d_array_t * dest, d_array_t * src) 
+d_array_t *copy_d_array(d_array_t * src) 
 {
   int64_t i;
+  d_array_t * ret = init_d_array(src->num);
  
-  for(i=0; i<dest->num; i++)
-    dest->entry[i] = src->entry[i];
+  for(i=0; i<src->num; i++)
+    ret->entry[i] = src->entry[i];
+  return(ret);
 }
 
 
 /*! \brief read a double array from a file.
  * \param name the filename to be read
  * \return a pointer to the double array or NULL on failure
+ * TODO: add comment lines
  * Note: file format is: first line is the num of entries in the array,
  * then one entry per line after that.
  */
@@ -1674,6 +1676,7 @@ d_array_t * read_d_array(char *name)
  * \param A pointer to the double array
  * \param name the filename to be written to
  * \return 0 on success, non-0 on error.
+ * TODO: add comment lines
  */
 int64_t write_d_array(d_array_t *A, char * name)
 {

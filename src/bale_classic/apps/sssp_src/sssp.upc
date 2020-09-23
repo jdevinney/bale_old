@@ -139,16 +139,13 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
-  //override command line 
+
+  //override default for other apps
   // SSSP only applies to weighted directed graphs 
+  args.gstd.loops = 0;
+  args.gstd.directed = 1;
+  args.gstd.weighted = 1;
   //args.gstd.l_numrows = 100;
-  if(args.gstd.loops == 1 || args.gstd.directed == 0 || args.gstd.weighted == 0){
-    T0_fprintf(stderr,"WARNING: assume the input graph is directed, weighted [0,1) graph with no loops.\n");
-    T0_fprintf(stderr,"Overwriting the options.\n");
-    args.gstd.loops = 0;
-    args.gstd.directed = 1;
-    args.gstd.weighted = 1;
-  }
 
 
   if(!MYTHREAD){

@@ -168,6 +168,38 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
   }
   ds->delta = delta;
 
+  int64_t light_nnz=0;
+  int64_t heavy_nnz=0;
+  for(i = 0; i < mat->nnz; i++){
+    if(mat->value[i] <= delta)
+      light_nnz++;
+  }
+  heavy_nnz = mat->nnz - light_nnz;
+  sparsemat_t *light = init_matrix(mat->numrows, mat->numcols, light_nnz, 1);
+  sparsemat_t *heavy = init_matrix(mat->numrows, mat->numcols, heavy_nnz, 1);
+  light->offset[0] = 0;
+  heavy->offset[0] = 0;
+  int64_t lpos=0, hpos=0;
+  light->nnz = light_nnz;
+  heavy->nnz = heavy_nnz;
+  Dprintf("nnz %ld =  %ld + %ld (light + heavy)\n",mat->nnz, light->nnz, heavy->nnz);
+  for(i=0; i<mat->numrows; i++){
+    for(k=mat->offset[i]; k<mat->offset[i+1]; k++){
+      if(mat->value[k] <= delta){
+        light->nonzero[lpos] = mat->nonzero[k];
+        light->value[lpos] = mat->value[k];
+        lpos++;
+      } else {
+        heavy->nonzero[hpos] = mat->nonzero[k];
+        heavy->value[hpos] = mat->value[k];
+        hpos++;
+      }
+    }
+    light->offset[i+1] = lpos;
+    heavy->offset[i+1] = hpos;
+  }
+  printf("nnz %ld =  %ld + %ld (light + heavy)\n", k, lpos, hpos);
+
   // set the distance to r0 equal to 0.0
   Dprintf("Set source node %ld\n", r0);
   ds->tent[r0] = 0.0;
@@ -201,10 +233,15 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
       Dprintf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v, i_m);
       remove_node_from_bucket(ds, v);
       
+#if 0
       for(k = mat->offset[v]; k < mat->offset[v + 1]; k++){   // relax light edges from v 
         if(mat->value[k] <= delta){	  
           relax_edge(ds, mat->nonzero[k], ds->tent[v] + mat->value[k]);
         }
+      } 
+#endif
+      for(k = light->offset[v]; k < light->offset[v + 1]; k++){   // relax light edges from v 
+          relax_edge(ds, light->nonzero[k], ds->tent[v] + light->value[k]);
       } 
       
       if(ds->deleted[v] == 0){   // insert v into R if it is not already there/
@@ -216,11 +253,16 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
 
     for(start=0; start<end; start++){ // relax heavy requests edges for everything in R
       v = ds->R[start];
+#if 0
       for(k = mat->offset[v]; k < mat->offset[v + 1]; k++){
         if(mat->value[k] > delta){
           relax_edge(ds, mat->nonzero[k], ds->tent[v] + mat->value[k]);
         }
       }      
+#endif
+      for(k = heavy->offset[v]; k < heavy->offset[v + 1]; k++){
+          relax_edge(ds, heavy->nonzero[k], ds->tent[v] + heavy->value[k]);
+      }
     }
   }
 
