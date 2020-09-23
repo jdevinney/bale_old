@@ -23,6 +23,13 @@ pub fn wall_seconds() -> f64 {
     (n.as_secs() as f64) + (n.as_micros() as f64) * 1.0e-6
 }
 
+/// An element of a sparse matrix as a triple
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Entry {
+    row: usize,
+    col: usize,
+    val: f64,
+
 pub struct SparseMat {
     pub numrows: usize, // the total number of rows in the matrix
     pub numrows_this_rank: usize,
@@ -401,15 +408,7 @@ impl SparseMat {
             panic!(format!("bad matrix sizes {} {} {}", nr, nc, nnz));
         }
         let mut matrix = SparseMat::new(nr, nc, 0); // we don't know nnz_this_rank yet
-
-        #[derive(Debug)]
-        struct Elt {
-            row: usize,
-            col: usize,
-            val: f64,
-        }
-
-        let mut elts: Vec<Elt> = vec![];
+        let mut elts: Vec<Entry> = vec![];
         for line in reader.lines() {
             let line = line.expect("read error");
             let inputs: Vec<&str> = line.split_whitespace().collect();
@@ -424,7 +423,7 @@ impl SparseMat {
                 panic!(format!("bad matrix nonzero coordinates {} {}", row, col));
             }
             if matrix.offset_rank(row).1 == matrix.my_rank() {
-                elts.push(Elt {
+                elts.push(Entry {
                     row: matrix.local_index(row),
                     col: col,
                     val: val,
@@ -471,20 +470,43 @@ impl SparseMat {
         Ok(matrix)
     }
 
-    /// writes a sparse matrix to a file in a MatrixMarket ASCII formats
+    /// write a sparse matrix to a file in a MatrixMarket ASCII format
     /// # Arguments
     /// * filename the filename to written to
-    pub fn write_mm_file(&self, filename: &str) -> Result<(), Error> {
-        let path = Path::new(&filename);
-        let file = File::create(path)?;
-        let mut writer = BufWriter::new(file);
-        self.write_mm(&mut writer)
-    }
+    pub fn write_mm(&self, filename: &str) -> Result<(), Error> {
+        let has_values = (self.value != None);
+        let mut file = (dev null or something);
+        if self.my_rank == 0 {
+            let path = Path::new(&filename);
+            file = OpenOptions::new().write(true).create(true).open(path)?;
+            if has_values {
+                writeln!(file, "%%MatrixMarket matrix coordinate real general")?;
+            } else {
+                writeln!(file, "%%MatrixMarket matrix pattern real general")?;
+            }
+            writeln!(file, "{} {}", self.numrows, self.numcols, self.nnz)?;
+        }
+        {
+            let mut session = convey.begin(|entry: Entry, _from_rank| {
+                if has_values {
+                    writeln!(file, "{} {} {}", entry.row, entry.col, entry.val)?;
+                } else {
+                    writeln!(file, "{} {}", entry.row, entry.col)?;
+                }
+            });
+            for (i, d) in self.distance.iter().enumerate() {
+                session.push(
+                    Item {
+                        vtx: num_ranks * i + my_rank, // should be session.global_index(i)
+                        dst: *d,
+                    },
+                    0,
+                );
+            }
+            session.finish();
+        }
 
-    pub fn write_mm<W>(&self, writer: &mut W) -> Result<(), Error>
-    where
-        W: Write,
-    {
+
         if let Some(value) = &self.value {
             writeln!(writer, "%%MatrixMarket matrix coordinate real general")?;
             writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
