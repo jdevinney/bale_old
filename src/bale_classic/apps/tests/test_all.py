@@ -5,21 +5,23 @@ def run_command(cmd):
   ret = subprocess.run(cmd,shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
   return(ret.returncode)
 
-def determine_launcher():
+def determine_launcher(launcher):
+  if launcher is not "":
+    return(""+launcher+" -n {0} {1} {2}")
   ret = run_command('srun --help')
-  if ret == 0: return('srun -n {1} {0}')
+  if ret == 0: return('srun -n {0} {1} {2}')
   ret = run_command('aprun --help')
-  if ret == 0: return('aprun -n {1} {0}')
+  if ret == 0: return('aprun -n {0} {1} {2}')
   ret = run_command('oshrun --help')
-  if ret == 0: return('oshrun -n {1} {0}')
+  if ret == 0: return('oshrun -n {0} {1} {2}')
   ret = run_command('upcrun --help')
-  if ret == 0: return('upcrun -n {1} {0}')
-  return("{0} -n {1}")
+  if ret == 0: return('upcrun -n {0} {1} {2}')
+  return("{2} -n {0} {1} --")
 
 # parameters to this script are handled in conftest.py
 # --path : specify a path to executables
-def test_all(path, node_range, implementation_mask):
-
+def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask):
+  print(path)
   apps = []
   apps.append("histo")
   apps.append("ig")
@@ -31,9 +33,10 @@ def test_all(path, node_range, implementation_mask):
   #apps.append("sssp")
   apps.append("write_sparse_matrix")
 
-  launcher = determine_launcher()
+  launcher = determine_launcher(launcher_cmd)
 
-  if node_range is not None:
+    
+  if node_range is not "":
     l = [int(i) for i in node_range.split(',')]
     if len(l) == 2:
       node_range = range(l[0],l[1])
@@ -93,8 +96,8 @@ def test_all(path, node_range, implementation_mask):
     for pes in node_range:
       if pes == 0: continue
       for run in runs:
-        cmd = launcher.format(os.path.join(path,app),pes) +" "+run+" -M "+implementation_mask
-        print(launcher.format(app, pes)+" "+run+" -M "+implementation_mask)
+        cmd = launcher.format(pes, launcher_opts, os.path.join(path,app)) +" "+run+" -M "+implementation_mask
+        print(launcher.format(pes, launcher_opts, app)+" "+run+" -M "+implementation_mask)
         ret = run_command(cmd)
         assert(ret == 0)
 

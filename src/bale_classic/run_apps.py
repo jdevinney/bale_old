@@ -10,7 +10,9 @@ def run_command(cmd):
   return(ret)
 
 
-def determine_launcher():
+def determine_launcher(launcher):
+  if launcher is not None:
+    return(""+launcher+" -n {0} {1} {2}")
   ret = run_command('srun --help')
   if ret.returncode == 0: return('srun -n {0} {1} {2}')
   ret = run_command('aprun --help')
@@ -67,7 +69,7 @@ def run_apps(app_dict, node_range, launcher_opts, option_str, impl_mask, json_fi
   for app in app_dict:
     first = True
     for pes in node_range:
-      cmd = launcher.format(2**pes, launcher_opts, app_dict[app]) +" "+base_cmd
+      cmd = launcher.format(pes, launcher_opts, app_dict[app]) +" "+base_cmd
       print(cmd)
       ret = run_command(cmd)
       assert(ret.returncode == 0)
@@ -103,7 +105,12 @@ if __name__ == '__main__':
                       help="Pass -j option to all apps. The final json file will have a record"
                       " for each run and will be written to filename which is the argument of this option",
                       default=None)
-  parser.add_argument('-l','--launcher_opts', action="store", dest='launcher_opts',
+  parser.add_argument('-l','--launcher', action="store", dest="launcher",
+                      help="Specify the launcher to use (for example: srun). "
+                      "We do our best to automatically detect the launcher, but "
+                      "there are cases where we will fail (for instance if you "
+                      "have a UPC build but you have oshrun in your PATH).",default=None)
+  parser.add_argument(   '--launcher_opts', action="store", dest='launcher_opts',
                       help="Pass these options onto the launcher, these could be srun options for example."
                       " The -n (num_tasks) option to launchers is handled separately"
                       " (using the --node_range option)."
@@ -112,17 +119,18 @@ if __name__ == '__main__':
                       help="Pass \"-M IMPL_MASK\" to all apps", default=None)
   parser.add_argument(     '--node_range', action="store", dest='node_range',
                            help="Specify the node range to run on as a range <start>,<end>,<stride>. "
-                           "The job will run each app with 2^x PEs where x is in range(node_range) PEs",
+                           "The job will run each app with x PEs where x is in range(node_range) PEs",
                            default="1,4,1")
   parser.add_argument('-o',"--option_str", action="store", dest='option_str',
                       help="Specify a string to pass to all apps. Must be valid for all apps!", default="")
   parser.add_argument('-P','--path',      action="store", dest='path',
                       help="Specify path to binaries. If no path is specified "
                       " this script checks ./ and also the PATH environment variable.", default="")
+
   
   args = parser.parse_args()
 
-  launcher = determine_launcher()
+  launcher = determine_launcher(args.launcher)
   
   app_dict = {}
   if len(args.app_list) == 0:

@@ -62,6 +62,7 @@ extern struct argp std_options_argp;
 
 typedef struct std_graph_args_t{
   int64_t l_numrows;
+  int64_t numrows;
   int readfile;  
   char filename[128];
   graph_model model;
