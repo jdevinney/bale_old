@@ -1,6 +1,6 @@
 use chrono::{DateTime, Local};
-use convey_hpc::Convey;
 use convey_hpc::collect::ValueCollect;
+use convey_hpc::Convey;
 use itertools::join;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -62,7 +62,7 @@ impl SsspInfo {
         let my_rank = convey.my_rank;
         let num_ranks = convey.num_ranks;
         let num_vtxs = convey.reduce_sum(self.distance.len());
-        let mut all_distances: Vec<f64> = vec!(0.0; if my_rank == 0 {num_vtxs} else {0});
+        let mut all_distances: Vec<f64> = vec![0.0; if my_rank == 0 { num_vtxs } else { 0 }];
         #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
         struct Item {
             vtx: usize,
@@ -73,11 +73,12 @@ impl SsspInfo {
                 all_distances[item.vtx] = item.dst;
             });
             for (i, d) in self.distance.iter().enumerate() {
-                session.push( Item{
+                session.push(
+                    Item {
                         vtx: num_ranks * i + my_rank, // should be session.global_index(i)
                         dst: *d,
-                    }, 
-                    0
+                    },
+                    0,
                 );
             }
             session.finish();
