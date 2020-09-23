@@ -1,26 +1,30 @@
 # spmat (Sparse Matrix library)
 
-Besides their uses in physical sciences, sparse matrices are also useful in representing the adjacency matrix of a graph. This library is mostly a collection of functions that act on sparse matrices or graphs. There are also a few functions that act on or create permutations of the numbers {0,..., n-1}.
+Besides their uses in physical sciences, sparse matrices are also useful in representing the adjacency matrix of a graph. The spmat library in bale is mostly a collection of functions that act on sparse matrices or graphs. There are also a few functions that act on or create permutations of the numbers {0,..., n-1}.
 
-The main data structure in this library is a distributed sparse matrix (implemented as Compressed Sparse Row (CSR)). The rows are distributed to PEs in a round-robin (CYCLIC) fashion and all nonzeros of any given row have affinity to a single PE. The sparse matrix data structure also has a
+The main data structure in this library is a distributed sparse matrix (implemented as Compressed Sparse Row (CSR)). **The rows are distributed to PEs in a round-robin (CYCLIC) fashion and all nonzeros of any given row have affinity to a single PE**. The sparse matrix data structure also has a
 pointer to the local slice of the matrix for each PE. So to look at the nonzeros on your own PE the code looks like this:
 
-    sparsemat_t * A;
-    ...
-    for(i = 0; i < A->lnumrows; i++)
-      for(j = A->loffset[i]; j < A->loffset[i+1]; j++)
-        column_index = A->lnonzero[j];
+```c
+sparsemat_t * A;
+...
+for(i = 0; i < A->lnumrows; i++)
+  for(j = A->loffset[i]; j < A->loffset[i+1]; j++)
+    column_index = A->lnonzero[j];
+```
 
 To look at the nonzeros in a row that is not necessarily local to your PE, the code looks like this...
 
-    sparsemat_t * A;
-    int64_t row;
-    ...
-    int64_t pe = row % THREADS;
-    int64_t rowstart = lgp_get_int64(A->offset, row);
-    int64_t rowstart_next = lgp_get_int64(A->offset, row + THREADS);
-    for(j = rowstart; j < rowstart_next; j++)
-      column_index = lgp_get_int64(A->nonzero, j*THREADS + pe);
+```c
+sparsemat_t * A;
+int64_t row;
+...
+int64_t pe = row % THREADS;
+int64_t rowstart = lgp_get_int64(A->offset, row);
+int64_t rowstart_next = lgp_get_int64(A->offset, row + THREADS);
+for(j = rowstart; j < rowstart_next; j++)
+  column_index = lgp_get_int64(A->nonzero, j*THREADS + pe);
+```
 
 Note that we use the convention that local slices of distributed
 arrays are named the same as the parent array, just prefixed with an
@@ -54,13 +58,13 @@ pseudo-code :
     for i = 0...n
       for j = 0...i
         if(random() < p)
-       A[i][j] = 1
-    else
-       A[i][j] = 0
+          A[i][j] = 1
+        else
+          A[i][j] = 0
 
 Generating a large graph according to this psuedo-code is inefficient
 as it requires O(n^2) random numbers to be generated. A better way is
-found in the paper, "Efficient Generation of Large Random Networks" by
+found in the paper, "*Efficient Generation of Large Random Networks*" by
 Bategeli and Brandes. This uses the fact that the geometric
 distribution models the number of tails between two heads. We have
 implemented both the naive and the more efficient algorithms in
@@ -108,13 +112,11 @@ people write as they evolve their algorithms.
 ### Kronecker Product Graphs
 
 We chose to implement Kronecker product graphs in bale to test out our Triangle counting implementations.
-For more details see "Design, Generation, and Validation of Extreme Scale Power-Law Graphs"
+For more details see "*Design, Generation, and Validation of Extreme Scale Power-Law Graphs*"
 by Kepner et. al. for more details. The parallel generation of these graphs is not particularly challenging or interesting.
 
 ### Matrix Market I/O
 
-The spmat library has the ability to read
-matrices in Matrix Market format. This function reads the matrices in serial
-using one PE and then distributes the resulting matrix to all PEs. For
+The spmat library has the ability to read matrices in Matrix Market format. This function reads the matrices in serial using one PE and then distributes the resulting matrix to all PEs. For
 this reason it is not meant to scale to large matrices, but it is
 useful for debugging or sanity checking on known examples.

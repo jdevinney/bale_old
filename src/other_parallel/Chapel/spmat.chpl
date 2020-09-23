@@ -312,9 +312,6 @@ class Sparsemat{
 // we can just start each row from scratch rather than doing it
 // the way the paper does it (this may lead to more random
 // draws, but it makes it easier to parallelize!).
-// type = 0: upper triangular
-// type = 1; lower triangular
-// type = 2; symmetric
 // This routine generates the lower half of the adjacency matrix
 
 proc generate_erdos_renyi_half(const n: int, const p:real, const seed=1208, const unit_diagonal=true){

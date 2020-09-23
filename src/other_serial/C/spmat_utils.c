@@ -1141,6 +1141,8 @@ void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, i
       *edge_prob = 1.0;
   } else {    // use erdos_renyi_prob to get nz_per_row
     *nz_per_row = *edge_prob * ((numrows - 1)/2.0);
+    if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+      *nz_per_row = *nz_per_row * 2;
   }
   assert(*edge_prob <= 1.0);
 }

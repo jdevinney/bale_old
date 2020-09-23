@@ -213,6 +213,10 @@ double  lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index,
 /////////////////////////////////////////////////////////////////
 
 
+/////////////////////////////////////////////////////////////////
+///////      PARALLEL PROGRAMMING SUPPORT FUNCTIONS     /////////
+/////////////////////////////////////////////////////////////////
+
 #define T0_printf if(MYTHREAD==0) printf /*!< only execute the printf from thread 0 */
 #define T0_fprintf if(MYTHREAD==0) fprintf /*!< only execute the fprintf from thread 0 */
 
@@ -256,6 +260,17 @@ double lgp_rand_double();
 int64_t lgp_rand_int64(int64_t N);
 void lgp_rand_seed(int64_t seed);
 
+
+/////////////////////////
+// global-to-local, local-to-global index conversion
+/////////////////////////
+typedef enum layout {BLOCK, CYCLIC} layout;
+void global_index_to_pe_and_offset(int64_t *pe, int64_t *lidx, int64_t gidx, int64_t n, layout layout);
+int64_t pe_and_offset_to_global_index(int64_t pe, int64_t lidx, int64_t n, layout layout);
+
+/////////////////////////////////////////////////////////////////
+///////  END OF PARALLEL PROGRAMMING SUPPORT FUNCTIONS  /////////
+/////////////////////////////////////////////////////////////////
 
 #endif
 

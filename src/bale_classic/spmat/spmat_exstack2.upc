@@ -215,15 +215,15 @@ SHARED int64_t * rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt) {
 
 /*! \brief apply row and column permutations to a sparse matrix using exstack2 
  * \param A pointer to the original matrix
- * \param rperminv pointer to the global array holding the inverse of the row permutation
- * \param cperminv pointer to the global array holding the inverse of the column permutation
- * rperminv[i] = j means that row i of A goes to row j in matrix Ap
- * cperminv[i] = j means that col i of A goes to col j in matrix Ap
+ * \param rperm pointer to the global array holding the row permutation
+ * \param cperm pointer to the global array holding the column permutation
+ * rperm[i] = j means that row i of A goes to row j in matrix Ap
+ * cperm[i] = j means that col i of A goes to col j in matrix Ap
  * \param buf_cnt the number of packets in an exstack2 buffer
  * \return a pointer to the matrix that has been produced or NULL if the model can't be used
  * \ingroup spmatgrp
  */
-sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt) {
+sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperm, SHARED int64_t * cperm, int64_t buf_cnt) {
 
   typedef struct pkg_rowcnt_t{
     int64_t row;
@@ -238,14 +238,14 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
   
   int64_t i, fromth, fromth2, pe, row, lnnz;
   pkg_rowcnt_t pkg_rc;
-  int64_t * lrperminv = lgp_local_part(int64_t, rperminv);
-  int64_t * lcperminv = lgp_local_part(int64_t, cperminv);
+  int64_t * lrperm = lgp_local_part(int64_t, rperm);
+  int64_t * lcperm = lgp_local_part(int64_t, cperm);
   
   //T0_printf("Permuting matrix with exstack2\n");
   
   /****************************************************************/
   // distribute row counts to the permuted matrix and count the number of nonzeros per thread
-  // in the permuted matrix. tmprowcnts holds the post-rperminv rowcounts 
+  // in the permuted matrix. tmprowcnts holds the post-rperm rowcounts 
   /****************************************************************/
   int64_t * tmprowcnts = calloc(A->lnumrows + 1, sizeof(int64_t));
 
@@ -254,8 +254,8 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
   lnnz = row = 0;
   while(exstack2_proceed(ex2, (row == A->lnumrows))) {
     while(row < A->lnumrows){
-      pe = lrperminv[row] % THREADS;
-      pkg_rc.row = lrperminv[row] / THREADS;
+      pe = lrperm[row] % THREADS;
+      pkg_rc.row = lrperm[row] / THREADS;
       pkg_rc.cnt = A->loffset[row+1] - A->loffset[row];
       if( !exstack2_push(ex2, &pkg_rc, pe) )
         break;
@@ -305,16 +305,16 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
     while(i < A->lnnz){
       while( i == A->loffset[row+1] ) // skip empty rows 
         row++;
-      pe = lrperminv[row] % THREADS;
+      pe = lrperm[row] % THREADS;
       if(weighted){
-        wedge.row = lrperminv[row] / THREADS;
+        wedge.row = lrperm[row] / THREADS;
         wedge.col = A->lnonzero[i];
         wedge.val = A->lvalue[i];
         if( !exstack2_push(exr, &wedge, pe ) )
           break;
         i++;
       }else{
-        edge.row = lrperminv[row] / THREADS;
+        edge.row = lrperm[row] / THREADS;
         edge.col = A->lnonzero[i];
         if( !exstack2_push(exr, &edge, pe ) )
           break;
@@ -367,7 +367,7 @@ sparsemat_t * permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv
     }
     while(exstack2_pop(ex2_r, &pkg_e, &fromth2)){ 
       pkg_r.i = pkg_e.i;
-      pkg_r.nonz = lcperminv[pkg_e.nonz];
+      pkg_r.nonz = lcperm[pkg_e.nonz];
       if( !exstack2_push(ex2_e, &pkg_r, fromth2)){
         exstack2_unpop(ex2_r);
         break;
