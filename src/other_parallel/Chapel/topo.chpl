@@ -28,6 +28,13 @@ const numTasks = numLocales * numTasksPerLocale;
 
 
 
+
+//proc generate_erdos_renyi_random_adj_matrix(n: int, p:real, seed=1208, type=0, unit_diagonal=true){
+
+//}
+
+
+
 proc toposort(A: Sparsemat) {
   var th_per_locale = numTasksPerLocale;
   var rp = newCyclicArr(0..#A.nr, int);

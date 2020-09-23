@@ -1,7 +1,7 @@
 # std_options
 
 This library handles option parsing for the bale
-[apps](../apps/README.md). This library is built on top of the arg_parse library in glibc. There are two main classes of options:
+[apps](../apps/README.md). There are two main classes of options:
 standard options, and standard graph options. Standard options are
 included in all bale apps and give the user control of things like,
 buffer size (for aggregation libraries), RNG seeds, and implementation

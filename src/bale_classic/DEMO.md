@@ -1,16 +1,4 @@
-# Table of Contents
-
-* [Building on some common platforms](#Building-on-some-common-platforms)
-  * Linux SMP OpenMPI/OSHMEM
-  * Linux SMP Sandia OpenSHMEM
-  * Linux SMP with GNU or CLANG UPC
-  * Cray XC30
-  * Mac OSX
-* [Running Examples](#Running-Examples)
-
-
-
-## Building on some common platforms
+# Building and Running bale on some common platforms
 
 Assuming you have cloned bale in a directory called $BALEDIR.
 
@@ -69,55 +57,9 @@ export PLATFORM=xc30
 ./install.sh
 ```
 
-## ... on Mac OS X
 
-This is a bit tricky :)
 
-1. install osx compiling environment, bring up the mac app store and install xcode
-   After installation you need to accept the license:
-
-   ```bash
-   sudo xcodebuild -license
-   ```
-
-2. to get autotools, best to use brew (https://brew.sh):
-
-   ```bash
-   brew install autoconf
-   brew install automake
-   brew install libtool
-   ```
-
-3. to get clang-upc, which seems to run well, go to:
-   https://clangupc.github.io/clang-upc/install.html
-   and follow the directions. You will need to do
-
-   ```bash
-   brew install cmake
-   ```
-
-to get this to work.  On recent OS X versions (10.15, maybe 10.14) you need
-    to pass another argument to cmake:
-
-     `-DDEFAULT_SYSROOT:STRING="$(xcrun --show-sdk-path)"`
-
-4. to use shmem, SOS openShmem seems best for now.  Go to:
-   https://github.com/Sandia-OpenSHMEM/SOS/wiki/OFI-Build-Instructions
-   and follow the directions.  For recent versions OS X (10.15, maybe 10.14) you
-   need to set an environment variable before runnig anything will work.
-   `export SHMEM_OFI_DOMAIN=lo0`
-   performance is horrid because it only has a socket based implementation
-
-5. when using the runit.sh script with clang, you need to say
-
-   ```bash
-   ./runit.sh -l $PWD/clang_upc_run.sh -c 2
-   ```
-
-   Note that -c should be small but not less than 2, otherwise some things hang
-
-## Running Examples
-
+# Run a test
 Try running a simple test (remember to use -M 3 with OpenMPI/oshmem or SOS)
 ### with oshrun
 ```bash

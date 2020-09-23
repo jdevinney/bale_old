@@ -422,7 +422,7 @@ int64_t lgp_min_avg_max_d(minavgmaxD_t * s, double myval, int64_t dem){
 }
 
 
-#if 0  // TODO
+#if 0
 /* utility to print some basic stats about a run */
 void dump_header(int argc, char *argv[]) {
   int i;
@@ -479,62 +479,3 @@ int64_t lgp_rand_int64(int64_t N){
 double lgp_rand_double(){
   return(drand48());
 }
-
-
-
-/*!
- * \brief This routine finds the pe and local index on that pe for given global index.
- * We support a BLOCK and a CYCLIC distribution of indices to pe's.
- * 
- * \param pe address into which we write the pe
- * \param lidx address into which we write the local index
- * \param gidx the global index
- * \param n the global number of indices (needed for the block distribution calculation)
- * \param layout the enum for BLOCK or CYCLIC
- * \ingroup libgetputgrp
- */
-void global_index_to_pe_and_offset(int64_t *pe, int64_t *lidx, int64_t gidx, int64_t n, layout layout)
-{
-  if(layout == CYCLIC){
-    *pe = gidx % THREADS;
-    *lidx = gidx / THREADS;
-    return;
-  }
-  int64_t idx;
-  int64_t upper_points_per_pe = n / THREADS + ((n % THREADS > 0) ? 1 : 0);
-  int64_t rem = n % THREADS;
-
-  if( (rem == 0) || (gidx / upper_points_per_pe < rem) ){
-    *pe = gidx / upper_points_per_pe;
-    *lidx = gidx % upper_points_per_pe;
-  }else{
-    *pe = (gidx - rem) / (upper_points_per_pe - 1);
-    *lidx= (gidx - rem) % (upper_points_per_pe - 1);
-  }
-  return;
-}
-
-/*!
- * \brief This routine finds the global index for a given pe and local index.
- * We support a BLOCK and a CYCLIC distribution of indices to pe's.
- * 
- * \param pe the given pe
- * \param lidx the local index on that pe
- * \param n the global number of indices (needed for the block distribution calculation)
- * \param layout the enum for BLOCK or CYCLIC
- * \return the global index
- * \ingroup libgetputgrp
- */
-int64_t pe_and_offset_to_global_index(int64_t pe, int64_t lidx, int64_t n, layout layout)
-{
-  if(layout == CYCLIC)
-    return(lidx*THREADS + pe);
-  else{
-    int64_t i, gidx = 0;
-    for(i = 0; i < pe; i++)
-      gidx += (n + THREADS - i - 1)/THREADS;
-    gidx += lidx;
-    return(gidx);
-  }
-}
-

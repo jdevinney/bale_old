@@ -35,26 +35,62 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-
-/*! \file sssp.h
- * \brief Demo application that implements Single Source Shortest Path algorithms.
- * 
+/*! \file triangle_agi.upc
+ * \brief The intuitive implementation of triangle counting 
+ * that uses generic global references
  */
 
-#include <libgetput.h>
-#include <exstack.h>
-#include <convey.h>
-#include <spmat.h>
-#include <math.h>
-#include <locale.h>
+#include "sssp.h"
 
-double        sssp_bellman_agi(d_array_t *tent, sparsemat_t * mat, int64_t v0);
-double    sssp_bellman_exstack(d_array_t *tent, sparsemat_t * mat, int64_t v0);
-double   sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0);
-double     sssp_bellman_convey(d_array_t *tent, sparsemat_t * mat, int64_t v0);
-double      sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t v0);
-double       sssp_delta_convey(d_array_t *tent, sparsemat_t * mat, int64_t v0);
 
-void dump_tent(char *str, d_array_t *tent);
+// C version at this point.
+// If we had an atomic min this would be easy and slow
 
-// alternates go here
+
+static void relax_edge( double *tw, double *tv, double weight )
+ {
+   if( *tw > *tv + weight ){
+     *tw = *tv + weight;
+   }
+ }
+
+
+/*!
+ * \brief This routine implements the Bellman-Ford algorithm
+ *
+ * \param *dist a place to return the distance to the source
+ * \param *dmat the input matrix
+ * \return average run time
+ */
+
+double sssp_bellman_agi(double *tent, sparsemat_t * dmat, int64_t v0)
+{
+   
+  double t1 = wall_seconds();
+
+  if(!dmat){ T0_printf("ERROR: sssp_bellman_agi: NULL L!\n"); return(-1); }
+  
+  int64_t i, k, loop;
+  int64_t lnumrows = dmat->lnumrows;
+
+  for(i=0; i<lnumrows; i++)
+    tent[i] = INFINITY;
+
+  tent[v0] = 0.0;
+
+  for(loop=0; loop<numrows; loop++){
+    for(i=0; i<numrows; i++){ 
+      for(k = mat->offset[i]; k < mat->offset[i+1]; k++){
+        relax_edge( &(tent[ mat->nonzero[k] ]), &(tent[i]), mat->value[k]);
+      }
+    }
+  }
+
+  lgp_barrier();
+  minavgmaxD_t stat[1];
+  t1 = wall_seconds() - t1;
+  lgp_min_avg_max_d( stat, t1, THREADS );
+
+  return(stat->avg);
+}
+

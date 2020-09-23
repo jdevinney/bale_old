@@ -117,20 +117,20 @@ Run with the --help, -?, or --usage flags for run details.
  * check that the permutations are in fact permutations and the check that applying
  * them to the original matrix yields an upper triangular matrix
  * \param mat the original matrix
- * \param rperm the row permutation
- * \param cperm the column permutation
+ * \param rperminv the row permutation
+ * \param cperminv the column permutation
  * \return 0 on success, 1 otherwise
  */
-int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperm, SHARED int64_t * cperm) {
+int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperminv, SHARED int64_t * cperminv) {
   int ret = 0;
 
-  int rf = is_perm(rperm, mat->numrows);
-  int cf = is_perm(cperm, mat->numrows);
+  int rf = is_perm(rperminv, mat->numrows);
+  int cf = is_perm(cperminv, mat->numrows);
   if(!rf || !cf){
-    T0_fprintf(stderr,"ERROR: check_is_triangle is_perm(rperm) = %d is_perm(cperm) = %d\n",rf,cf);
+    T0_fprintf(stderr,"ERROR: check_is_triangle is_perm(rperminv2) = %d is_perm(cperminv2) = %d\n",rf,cf);
     return(1);
   }
-  sparsemat_t * mat2 = permute_matrix(mat, rperm, cperm);
+  sparsemat_t * mat2 = permute_matrix(mat, rperminv, cperminv);
   if(!mat2){
     T0_fprintf(stderr,"ERROR: check_is_triangle mat2 is NULL\n");
     return(1);
@@ -168,20 +168,20 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
 
   // get row and column permutations
   t = wall_seconds();
-  SHARED int64_t * rperm = rand_permp(mat->numrows, rand_seed);
-  SHARED int64_t * cperm = rand_permp(mat->numrows, rand_seed + 12345);
+  SHARED int64_t * rperminv = rand_permp(mat->numrows, rand_seed);
+  SHARED int64_t * cperminv = rand_permp(mat->numrows, rand_seed + 12345);
   //T0_printf("generate perms time %lf\n", wall_seconds() - t);
   lgp_barrier();
 
   
-  if(!rperm || !cperm){
+  if(!rperminv || !cperminv){
     T0_printf("ERROR: topo_rand_permp returns NULL!\n");fflush(0);
     return(NULL);
   }
   
   lgp_barrier();
   t = wall_seconds();
-  sparsemat_t * pmat = permute_matrix(mat, rperm, cperm);
+  sparsemat_t * pmat = permute_matrix(mat, rperminv, cperminv);
   if(!pmat) {
     T0_printf("ERROR: permute_matrix returned NULL");fflush(0);
     return(NULL);
@@ -193,8 +193,8 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
     clear_matrix( mat );free(mat);
   }
   
-  lgp_all_free(rperm);
-  lgp_all_free(cperm);
+  lgp_all_free(rperminv);
+  lgp_all_free(cperminv);
   
   return( pmat );
 }
@@ -271,8 +271,8 @@ int main(int argc, char * argv[]) {
 
 
   // arrays to hold the row and col permutations
-  SHARED int64_t *rperm2 = lgp_all_alloc(mat->numrows, sizeof(int64_t));
-  SHARED int64_t *cperm2 = lgp_all_alloc(mat->numrows, sizeof(int64_t));
+  SHARED int64_t *rperminv2 = lgp_all_alloc(mat->numrows, sizeof(int64_t));
+  SHARED int64_t *cperminv2 = lgp_all_alloc(mat->numrows, sizeof(int64_t));
 
   int64_t use_model;
   double laptime = 0.0;
@@ -282,28 +282,28 @@ int main(int argc, char * argv[]) {
     switch( use_model & args.std.models_mask ) {
     case AGI_Model:
       sprintf(model_str, "AGI");
-      laptime = toposort_matrix_agi(rperm2, cperm2, mat, tmat);
+      laptime = toposort_matrix_agi(rperminv2, cperminv2, mat, tmat);
       break;
 
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      laptime = toposort_matrix_exstack(rperm2, cperm2, mat, tmat, args.std.buffer_size);
+      laptime = toposort_matrix_exstack(rperminv2, cperminv2, mat, tmat, args.std.buffer_size);
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      laptime = toposort_matrix_exstack2(rperm2, cperm2, mat, tmat, args.std.buffer_size);
+      laptime = toposort_matrix_exstack2(rperminv2, cperminv2, mat, tmat, args.std.buffer_size);
       break;
 
     case CONVEYOR_Model:
       sprintf(model_str, "Conveyor");
-      laptime = toposort_matrix_convey(rperm2, cperm2, mat, tmat);
+      laptime = toposort_matrix_convey(rperminv2, cperminv2, mat, tmat);
       break;
 
     case ALTERNATE_Model:
       //T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
       sprintf(model_str, "Alternate");
-      laptime = toposort_matrix_cooler(rperm2, cperm2, mat, tmat);
+      laptime = toposort_matrix_cooler(rperminv2, cperminv2, mat, tmat);
       break;
     
     default:
@@ -314,7 +314,7 @@ int main(int argc, char * argv[]) {
 
     bale_app_write_time(&args.std, model_str, laptime);
 
-    if( check_is_triangle(mat, rperm2, cperm2) ) {
+    if( check_is_triangle(mat, rperminv2, cperminv2) ) {
       T0_fprintf(stderr,"\nERROR: After toposort_matrix_upc: mat2 is not upper-triangular!\n");
     }
   }
