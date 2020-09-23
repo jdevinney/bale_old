@@ -9,9 +9,6 @@
 ///
 /// Copyright (c) 2020, Institute for Defense Analyses
 /// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
-/// This material may be reproduced by or for the U.S. Government
-/// pursuant to the copyright license under the clauses at DFARS
-/// 252.227-7013 and 252.227-7014.
 ///
 /// All rights reserved.
 ///
