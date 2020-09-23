@@ -5,11 +5,11 @@ use convey_hpc::Convey;
 use rand::Rng;
 use regex::Regex;
 use serde::de::DeserializeOwned;
-use serde::ser::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
+use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::io::BufWriter;
 use std::io::Write;
 use std::io::{Error, ErrorKind};
 
@@ -29,6 +29,7 @@ struct Entry {
     row: usize,
     col: usize,
     val: f64,
+}
 
 pub struct SparseMat {
     pub numrows: usize, // the total number of rows in the matrix
@@ -473,67 +474,53 @@ impl SparseMat {
     /// write a sparse matrix to a file in a MatrixMarket ASCII format
     /// # Arguments
     /// * filename the filename to written to
-    pub fn write_mm(&self, filename: &str) -> Result<(), Error> {
-        let has_values = (self.value != None);
-        let mut file = (dev null or something);
-        if self.my_rank == 0 {
+    pub fn write_mm_file(&self, filename: &str) -> Result<(), Error> {
+        let path = Path::new("/dev/null");
+        let mut file = OpenOptions::new().write(true).open(path)?;
+        // use a new conveyor, not the one in the SparseMat, to avoid borrow issues
+        let convey = Convey::new().expect("conveyor initialization failed");
+        let my_rank = convey.my_rank;
+        if my_rank == 0 {
             let path = Path::new(&filename);
             file = OpenOptions::new().write(true).create(true).open(path)?;
-            if has_values {
-                writeln!(file, "%%MatrixMarket matrix coordinate real general")?;
+            if let Some(_) = &self.value {
+                writeln!(file, "%%MatrixMarket matrix coordinate real general")
+                    .expect("can't write .mm file");
             } else {
-                writeln!(file, "%%MatrixMarket matrix pattern real general")?;
+                writeln!(file, "%%MatrixMarket matrix pattern real general")
+                    .expect("can't write .mm file");
             }
-            writeln!(file, "{} {}", self.numrows, self.numcols, self.nnz)?;
+            writeln!(file, "{} {} {}", self.numrows, self.numcols, self.nnz)
+                .expect("can't write .mm file");
         }
         {
             let mut session = convey.begin(|entry: Entry, _from_rank| {
-                if has_values {
-                    writeln!(file, "{} {} {}", entry.row, entry.col, entry.val)?;
+                // only rank 0 will ever get asked to do this
+                if let Some(_) = &self.value {
+                    writeln!(file, "{} {} {}", entry.row, entry.col, entry.val)
+                        .expect("can't write .mm file");
                 } else {
-                    writeln!(file, "{} {}", entry.row, entry.col)?;
+                    writeln!(file, "{} {}", entry.row, entry.col).expect("can't write .mm file");
                 }
             });
-            for (i, d) in self.distance.iter().enumerate() {
-                session.push(
-                    Item {
-                        vtx: num_ranks * i + my_rank, // should be session.global_index(i)
-                        dst: *d,
-                    },
-                    0,
-                );
+            for i in 0..self.numrows_this_rank {
+                let i_g = self.global_index(i);
+                for k in self.offset[i]..self.offset[i + 1] {
+                    session.push(
+                        Entry {
+                            row: i_g + 1,
+                            col: self.nonzero[k] + 1,
+                            val: if let Some(value) = &self.value {
+                                value[k]
+                            } else {
+                                0.0
+                            },
+                        },
+                        0, // always push to rank 0, which writes the file
+                    );
+                }
             }
             session.finish();
-        }
-
-
-        if let Some(value) = &self.value {
-            writeln!(writer, "%%MatrixMarket matrix coordinate real general")?;
-            writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
-            for rank in 0..self.num_ranks() {
-                if rank == self.my_rank() {
-                    for i in 0..self.numrows_this_rank {
-                        for k in self.offset[i]..self.offset[i + 1] {
-                            let i_g = self.global_index(i);
-                            writeln!(writer, "{} {} {}", i_g + 1, self.nonzero[k] + 1, value[k])?;
-                        }
-                    }
-                }
-                self.barrier();
-            }
-        } else {
-            writeln!(writer, "%%MatrixMarket matrix coordinate pattern general")?;
-            writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
-            for rank in 0..self.num_ranks() {
-                if rank == self.my_rank() {
-                    for i in 0..self.numrows_this_rank {
-                        for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
-                            writeln!(writer, "{} {}", i + 1, nz + 1)?;
-                        }
-                    }
-                }
-                self.barrier();
-            }
         }
         Ok(())
     }
