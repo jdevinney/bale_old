@@ -46,18 +46,18 @@
  * \brief This routine "relaxes" an edge in the Bellman-Ford algorithm
  * \param *tent shared tentative distance array
  * \param J the index of the head of the edge to be relaxed
- * \param new_tent the new tentative distance 
+ * \param tw the new tentative distance 
  *        (the weight of the tentative distance to the tail plus the weight of the edge).
  * This is effectively an atomic min operation of the new and old tentative distances.
  */
-static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tent)
+static void relax_bellman_agi(d_array_t *tent, int64_t J, double tw)
 {
   // Allows us to use the bits of new and old, either as doubles for the
   // determining the min, or just as bits for the compare_and_swap.
   union{double x; uint64_t u;} old;
   union{double x; uint64_t u;} new;
 
-  new.x = new_tent;
+  new.x = tw;
   while(1){
     old.x = lgp_get_double(tent->entry, J);
     if(new.x > old.x) 
@@ -74,7 +74,7 @@ static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tent)
  * \param *mat the input matrix
  * \return average run time
  */
-double sssp_bellman_agi(d_array_t *tent, sparsemat_t * mat, int64_t v0)
+double sssp_bellman_agi(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 {
   T0_printf(" Running AGI SSSP Bellman-Ford\n");
 
@@ -82,35 +82,74 @@ double sssp_bellman_agi(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 
   if(!mat){ T0_printf("ERROR: sssp_bellman_agi: NULL L!\n"); return(-1); }
   
-  double tent_tail, new_tent;
+  //double tent_tail, new_tent;
   int64_t i, li, k, loop;
-  int64_t lnumrows = mat->lnumrows;
+  int64_t pe_v0, li_v0;
+  int64_t changed;
+  d_array_t *tent0, *tent1, *tent2;
+  d_array_t *tent_old, *tent_cur, *tent_new, *tent_temp;
+  double tw;
 
+  pe_v0 = v0 % THREADS;
+  li_v0 = v0 / THREADS;
+  tent0 = init_d_array(dist->num);
+  set_d_array(tent0, INFINITY);
   lgp_barrier();
-  if( MYTHREAD == 0 ){
-    lgp_put_double(tent->entry, v0, 0.0);
+  if(pe_v0 == MYTHREAD){
+    tent0->lentry[li_v0] = 0.0;
+  }
+  lgp_barrier();
+  tent1 = copy_d_array(tent0);
+  if(pe_v0 == MYTHREAD ){
+    for(k = mat->loffset[li_v0]; k < mat->loffset[li_v0+1]; k++){
+      lgp_put_double(tent1->entry, mat->lnonzero[k], mat->lvalue[k]);
+    }
   }
   lgp_barrier();
 
-  //dump_tent("AGI: ", tent);
+  tent2 = init_d_array(tent1->num);
 
-  for(loop=0; loop<mat->numrows; loop++){
-    for(li=0; li<lnumrows; li++){ 
-      tent_tail = tent->lentry[li];
+  tent_old = tent0;
+  tent_cur = tent1;
+  tent_new = tent2;
+
+  for(loop=2; loop<mat->numrows; loop++){
+    changed = 0; 
+    for(li=0; li<mat->lnumrows; li++) 
+      tent_new->lentry[li] = tent_cur->lentry[li];
+
+    for(li=0; li<mat->lnumrows; li++){
+      if(tent_old->lentry[li] == tent_cur->lentry[li])
+        continue;
+      changed = 1; 
+
       for(k = mat->loffset[li]; k < mat->loffset[li+1]; k++){
-        new_tent = tent_tail + mat->lvalue[k];
-        relax_bellman_agi(tent, mat->lnonzero[k], new_tent);
+        tw = tent_cur->lentry[li] + mat->lvalue[k];
+        relax_bellman_agi(tent_new, mat->lnonzero[k], tw);
       }
     }
     lgp_barrier();
-
+    if( lgp_reduce_add_l(changed) == 0 ){
+      replace_d_array(dist, tent_new);
+      lgp_barrier();
+      break;
+    }
     //dump_tent("AGI: ", tent);
+    tent_temp = tent_old;
+    tent_old = tent_cur;
+    tent_cur = tent_new;
+    tent_new = tent_temp;
+    lgp_barrier();
   }
 
   lgp_barrier();
   minavgmaxD_t stat[1];
   t1 = wall_seconds() - t1;
   lgp_min_avg_max_d( stat, t1, THREADS );
+
+  clear_d_array(tent0);
+  clear_d_array(tent1);
+  clear_d_array(tent2);
 
   return(stat->avg);
 }

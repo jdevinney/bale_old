@@ -88,7 +88,7 @@ double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsem
   lgp_barrier();
 
   // we a pick a row with a single nonzero = col.
-  // setting rperm[pos] = row and cprem[pos] = col
+  // setting rperm[row] = nr-1-pos and cprem[col] = nr-1-pos
   // moves that nonzero to the diagonal.
   // Now, cross out that row and col by decrementing 
   //  the rowcnt for any row that contains that column
