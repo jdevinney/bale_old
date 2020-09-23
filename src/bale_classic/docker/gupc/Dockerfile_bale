@@ -26,6 +26,7 @@ RUN echo "---- done with install ----"
 #    echo NUM_CORES is $NUM_CORES && \
 #    su bale_user - -c "oshrun -n $NUM_CORES build_${PLATFORM}/bin/histo -M 1 -c 1"
 
+
 # here we actaully run it as root
 #RUN echo "--- run as root ---"
 #ENV OMPI_ALLOW_RUN_AS_ROOT 1
@@ -35,4 +36,3 @@ RUN echo "---- done with install ----"
 #    oshrun -n 2 build_${PLATFORM}/bin/histo -M 1 -c 2
 
 #RUN echo "---- to run be sure to type: bash runall.sh -c 2 ----"
-
