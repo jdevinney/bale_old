@@ -37,12 +37,8 @@
 *****************************************************************/ 
 
 /*! \file sssp.c
- * \brief Demo application that calls different 
+ * \brief Driver program that calls different 
  * Single Source Shortest Path alogrithms.
- *
- * versions of
- * Dijsktra's Algorithm
- * the Delta-stepping algorithm for 
  */
 
 #include "spmat_utils.h"
@@ -54,9 +50,6 @@ double sssp_bellmanford_simple(d_array_t * tent, sparsemat_t *mat, int64_t r0);
 double sssp_bellmanford_dynprog(d_array_t * tent, sparsemat_t *mat, int64_t r0);
 double sssp_bellmanford(d_array_t * tent, sparsemat_t *mat, int64_t r0);
 double sssp_delta_stepping(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);
-double sssp_answer_diff(d_array_t *A, d_array_t *B);
-
-
 
 /*!
  * \brief Compare two arrays
@@ -64,7 +57,7 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B);
  * \param *B the other
  * \return the l_2 norm of the given arrays
  */
-double sssp_answer_diff(d_array_t *A, d_array_t *B)
+static double sssp_answer_diff(d_array_t *A, d_array_t *B)
 {
   int64_t i;
   double diff = 0.0;
@@ -222,9 +215,6 @@ int main(int argc, char * argv[])
       set_d_array(tent, INFINITY);
       laptime = sssp_bellmanford(tent, mat, 0);
       break;
-
-    default:
-      continue;
     }
     if(model_str[0]) {
       if(comp_tent == NULL){
