@@ -196,7 +196,7 @@ int main(int argc, char * argv[])
       case (AGP_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford AGP");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_agi(tent, mat, V0); 
+        laptime = sssp_bellman_agp(tent, mat, V0); 
         break;
 
       case (EXSTACK_Model | USE_BELLMAN):

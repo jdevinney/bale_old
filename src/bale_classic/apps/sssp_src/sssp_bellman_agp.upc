@@ -51,7 +51,7 @@
  * This is effectively an atomic min operation of the new and old tentative distances.
  */
 #if 0
-static void relax_bellman_agi(d_array_t *tent, int64_t J, double tw)
+static void relax_bellman_agp(d_array_t *tent, int64_t J, double tw)
 {
   // Allows us to use the bits of new and old, either as doubles for the
   // determining the min, or just as bits for the compare_and_swap.
@@ -76,7 +76,7 @@ static void relax_bellman_agi(d_array_t *tent, int64_t J, double tw)
 #endif
 
 #if 0
-static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tw)
+static void relax_bellman_agp(d_array_t *tent, int64_t J, double new_tw)
 {
   int64_t i_old_tw, i_new_tw;
   double old_tw;
@@ -92,7 +92,7 @@ static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tw)
   }
 }
 
-static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tw)
+static void relax_bellman_agp(d_array_t *tent, int64_t J, double new_tw)
 {
   double old_tw;
 
@@ -107,7 +107,7 @@ static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tw)
 #endif
 
 #if 1
-static void relax_bellman_agi(d_array_t *tent, int64_t J, double new_tw)
+static void relax_bellman_agp(d_array_t *tent, int64_t J, double new_tw)
 {
   double old_tw = lgp_get_double(tent->entry, J);
   if(new_tw > old_tw) 
