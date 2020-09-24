@@ -190,14 +190,13 @@ typedef struct minavgmaxD_t{
 #define lgp_memget(dst,src,n,index) \
   lgp_memget_bytes_by_pe( (dst), (src), (n),  sizeof(*(src))*(((size_t)(index))/THREADS), (index)%THREADS )
 
+void    lgp_shmem_write_upc_array_double(SHARED double *addr, size_t index, size_t blocksize, double val);
 void    lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t blocksize, int64_t val); /*!< macro magic */
-int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index, size_t blocksize); /*!< macro magic */
 void    lgp_shmem_write_upc_array_double(SHARED double *addr, size_t index, size_t blocksize, double val); /*!< macro magic */
+int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index, size_t blocksize); /*!< macro magic */
 double  lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, size_t blocksize); /*!< macro magic */
 #define shmem_int64_p(addr,val,pe) shmem_longlong_p( (long long*)(addr), (val), (pe) ) /*!< macro magic */
 #define shmem_int64_g(addr,pe) shmem_longlong_g( (const long long*)(addr), (pe) ) /*!< macro magic */
-#define shmem_double_p(addr,val,pe) shmem_longdouble_p( (long double*)(addr), (val), (pe) ) /*!< macro magic */
-#define shmem_double_g(addr,pe) shmem_longdouble_g( (const long double*)(addr), (pe) ) /*!< macro magic */
 
 #define lgp_put_int64(array,index,val) (lgp_shmem_write_upc_array_int64((array),(index),sizeof(int64_t),(val))) /*!< user callable global single word put */
 #define lgp_put_double(array,index,val) (lgp_shmem_write_upc_array_double((array),(index),sizeof(double),(val))) /*!< user callable global single word put */
