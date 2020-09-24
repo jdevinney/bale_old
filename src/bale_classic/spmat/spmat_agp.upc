@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file spmat_agi.upc
+/*! \file spmat_agp.upc
  * \brief Sparse matrix support functions implemented with global addresses and atomics
  */
 #include <spmat.h>
@@ -53,7 +53,7 @@
  * This gives a random permutation with spaces in it, then you squeeze out the spaces.
  * \ingroup spmatgrp
  */
-SHARED int64_t * rand_permp_agi(int64_t N, int seed) {  
+SHARED int64_t * rand_permp_agp(int64_t N, int seed) {  
   int64_t * ltarget, *lperm;
   int64_t r, i, j;
   int64_t pos, numdarts, numtargets, lnumtargets;
@@ -116,7 +116,7 @@ SHARED int64_t * rand_permp_agi(int64_t N, int seed) {
  * \return a pointer to the matrix that has been produced or NULL if the model can't be used
  * \ingroup spmatgrp
  */
-sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperm, SHARED int64_t *cperm) {
+sparsemat_t * permute_matrix_agp(sparsemat_t *A, SHARED int64_t *rperm, SHARED int64_t *cperm) {
   //T0_printf("Permuting matrix with single puts\n");
   int64_t i, j, col, row, pos;
   int64_t * lrperm = lgp_local_part(int64_t, rperm);
@@ -177,7 +177,7 @@ sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperm, SHARED i
  * \return a pointer to the matrix that has been produced or NULL if the model can't be used
  * \ingroup spmatgrp
  */
-sparsemat_t * transpose_matrix_agi(sparsemat_t *A) {
+sparsemat_t * transpose_matrix_agp(sparsemat_t *A) {
   int64_t counted_nnz_At;
   int64_t lnnz, i, j, col, row, fromth, idx;
   int64_t pos;
@@ -282,11 +282,11 @@ int64_t write_rowcounts(char * dirname, sparsemat_t * A){
  * \return 0 on success, -1 on error
  * \ingroup spmatgrp
  */
-int64_t write_sparse_matrix_agi(char * dirname, sparsemat_t * A){
+int64_t write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
   int64_t i;
 
   if(A->value){
-    T0_fprintf(stderr,"WARNING: write_sparse_matrix_agi: writing a matrix with values not supported.\n");
+    T0_fprintf(stderr,"WARNING: write_sparse_matrix_agp: writing a matrix with values not supported.\n");
     T0_fprintf(stderr,"Only, nonzero positions will be written.\n");
   }
   
@@ -341,7 +341,7 @@ int64_t write_sparse_matrix_agi(char * dirname, sparsemat_t * A){
 }
 
 #if 0
-sparsemat_t * read_sparse_matrix_agi(char * dirname){
+sparsemat_t * read_sparse_matrix_agp(char * dirname){
   int64_t i;
   int64_t nr, nc, nnz, nwriters;
   int64_t lnr;

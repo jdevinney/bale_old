@@ -91,7 +91,7 @@ to the $BALEDIR directory and type:
 Then navigate your browser to $BALEDIR/html/index.html.
 
 ### Build Instructions
-There is an install script (called install.sh) to make building easier for most people. Follow the directions in [INSTALL.md](INSTALL.md). 
+There is an build script (called make_bale) to make building easier for most people. Follow the directions in [INSTALL.md](INSTALL.md). 
 
 ### Running
 

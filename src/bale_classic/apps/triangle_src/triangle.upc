@@ -250,9 +250,9 @@ int main(int argc, char * argv[]) {
     total_sh_refs = 0;
 
     switch( use_model & args.std.models_mask ) {
-    case AGI_Model:
-      sprintf(model_str, "AGI");
-      laptime = triangle_agi(&tri_cnt, &sh_refs, L, U, args.alg); 
+    case AGP_Model:
+      sprintf(model_str, "AGP");
+      laptime = triangle_agp(&tri_cnt, &sh_refs, L, U, args.alg); 
       break;
     
     case EXSTACK_Model:
@@ -272,7 +272,7 @@ int main(int argc, char * argv[]) {
 
     case ALTERNATE_Model:
       sprintf(model_str, "Alternate");
-      laptime = triangle_agi_iter(&tri_cnt, &sh_refs, L, U, args.alg);
+      laptime = triangle_agp_iter(&tri_cnt, &sh_refs, L, U, args.alg);
       break;
     case 0:
       continue;

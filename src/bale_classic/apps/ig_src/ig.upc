@@ -165,7 +165,7 @@ int main(int argc, char * argv[]) {
   for(i=0; i<args.l_tbl_size; i++)
     ltable[i] = (-1)*(i*THREADS + MYTHREAD + 1);
   
-  // As in the histo example, index is used by the _agi version.
+  // As in the histo example, index is used by the _agp version.
   // pckindx is used my the buffered versions
   int64_t *index   = calloc(args.l_num_req, sizeof(int64_t)); assert(index != NULL);
   int64_t *pckindx = calloc(args.l_num_req, sizeof(int64_t)); assert(pckindx != NULL);
@@ -191,9 +191,9 @@ int main(int argc, char * argv[]) {
   
   for( use_model=1L; use_model < 32; use_model *=2 ){
      switch( use_model & args.std.models_mask ){
-     case AGI_Model:
-       sprintf(model_str, "AGI");
-       laptime = ig_agi(tgt, index, args.l_num_req, table);
+     case AGP_Model:
+       sprintf(model_str, "AGP");
+       laptime = ig_agp(tgt, index, args.l_num_req, table);
      break;
      
      case EXSTACK_Model:

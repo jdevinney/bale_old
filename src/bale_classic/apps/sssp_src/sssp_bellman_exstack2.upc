@@ -78,7 +78,7 @@ double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 {
   double t1 = wall_seconds();
 
-  if(!mat){ T0_printf("ERROR: sssp_bellman_agi: NULL L!\n"); return(-1); }
+  if(!mat){ T0_printf("ERROR: sssp_bellman_exstack2: NULL L!\n"); return(-1); }
   
   int64_t k, li, J, pe;
   int64_t pe_v0, li_v0;

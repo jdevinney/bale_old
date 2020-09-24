@@ -57,7 +57,7 @@ typedef struct histo_t{
   int64_t l_num_ups;
 } histo_t;
 
-double histo_agi(histo_t * data);
+double histo_agp(histo_t * data);
 double histo_exstack(histo_t * data, int64_t buf_cnt);
 double histo_exstack2(histo_t * data, int64_t buf_cnt);
 double histo_conveyor(histo_t * data);
