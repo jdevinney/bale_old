@@ -49,7 +49,7 @@
 #include <spmat.h>
 #include <locale.h>
 
-double   triangle_agi(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
+double   triangle_agp(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
 double   triangle_exstack_push(int64_t *count, int64_t *sr, sparsemat_t *L, sparsemat_t * U, int64_t alg, int64_t bufsiz);
 //double   triangle_exstack_pull(int64_t *count, int64_t *sr, sparsemat_t *L, int64_t alg, int64_t bufsiz);
 double   triangle_exstack2_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg, int64_t bufsiz);
@@ -57,9 +57,9 @@ double   triangle_convey_push(int64_t *count, int64_t *sr, sparsemat_t * L, spar
 //double   triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat);
 
 // alternates go here
-double   triangle_agi_opt1(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
-double   triangle_agi_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
-double   triangle_agi_oo(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
-double   triangle_agi_iter(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
+double   triangle_agp_opt1(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
+double   triangle_agp_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
+double   triangle_agp_oo(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
+double   triangle_agp_iter(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
 
 #endif

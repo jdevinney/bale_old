@@ -206,7 +206,7 @@ sparsemat_t *       permute_matrix(sparsemat_t * A, SHARED int64_t *rperminv, SH
 sparsemat_t *       permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
 sparsemat_t *       permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
 sparsemat_t *       permute_matrix_exstack(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
-sparsemat_t *       permute_matrix_agi(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
+sparsemat_t *       permute_matrix_agp(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
 
 void                print_matrix(sparsemat_t * A);
 
@@ -214,7 +214,7 @@ SHARED int64_t *    rand_permp(int64_t N, int seed);
 SHARED int64_t *    rand_permp_conveyor(int64_t N, int seed);
 SHARED int64_t *    rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
-SHARED int64_t *    rand_permp_agi(int64_t N, int seed);
+SHARED int64_t *    rand_permp_agp(int64_t N, int seed);
 sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                                  double edge_density, int64_t seed);
 void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops);
@@ -225,10 +225,10 @@ sparsemat_t *       transpose_matrix(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);
 sparsemat_t *       transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt);
-sparsemat_t *       transpose_matrix_agi(sparsemat_t * A);
+sparsemat_t *       transpose_matrix_agp(sparsemat_t * A);
 sparsemat_t *       triples_to_sparsemat(triples_t * T);
 
-int64_t             write_sparse_matrix_agi( char * datadir, sparsemat_t * mat);
+int64_t             write_sparse_matrix_agp( char * datadir, sparsemat_t * mat);
 int64_t             write_sparse_matrix_exstack( char * datadir, sparsemat_t * mat, int64_t buf_cnt);
 
 /* misc utility functions */
@@ -237,7 +237,7 @@ int                 write_matrix_mm(sparsemat_t * A, char * name);
 sparsemat_t *       read_matrix_mm_to_dist(char * name);
 int64_t             write_sparse_matrix_metadata(char * dirname, sparsemat_t * A);
 int64_t             read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t *nwriters);
-sparsemat_t *       read_sparse_matrix_agi(char * datadir);
+sparsemat_t *       read_sparse_matrix_agp(char * datadir);
 
 
 int64_t tril(sparsemat_t * A, int64_t k);

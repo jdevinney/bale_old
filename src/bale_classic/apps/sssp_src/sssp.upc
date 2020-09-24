@@ -139,6 +139,7 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
+  
   //override command line 
   // SSSP only applies to weighted directed graphs 
   //args.gstd.l_numrows = 100;
@@ -190,10 +191,10 @@ int main(int argc, char * argv[])
     for( use_model=1L; use_model < 32; use_model *=2 ) {
       model_str[0] = '\0';
       switch( (use_model & args.std.models_mask) | use_alg ) {
-      case (AGI_Model | USE_BELLMAN):
+      case (AGP_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford AGP");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_agi(tent, mat, 0); 
+        laptime = sssp_bellman_agp(tent, mat, 0); 
         break;
 
       case (EXSTACK_Model | USE_BELLMAN):
@@ -219,7 +220,7 @@ int main(int argc, char * argv[])
         set_d_array(tent, INFINITY);
         laptime = sssp_delta_exstack2(tent, mat, args.V0, args.deltaStep);
         break;
-
+        
       case (CONVEYOR_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford Conveyor");
         set_d_array(tent, INFINITY);
