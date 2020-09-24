@@ -18,12 +18,12 @@ static int64_t delta_exstack_relax_process(ds_t *ds, exstack_t *ex, int64_t done
   return( exstack_proceed(ex, done) );
 }
 
-int64_t delta_exstack_push(exstack_t *ex, sparsemat_t *mat, int64_t gidx, double tent_wt)
+int64_t delta_exstack_push(exstack_t *ex, int64_t gidx, double tent_wt)
 {
   struct sssp_pkg_t pkg;
   int64_t pe; 
-
-  global_index_to_pe_and_offset(&pe, &(pkg.lj), gidx, mat->numrows, CYCLIC);
+  pe = gidx % THREADS;
+  pkg.lj  = gidx / THREADS;
   pkg.tw = tent_wt;
   return(exstack_push(ex, &pkg, pe));
 }
@@ -40,7 +40,6 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0, double
   struct sssp_pkg_t pkg;
 
 
-
   //TODO: Fix the buffer size 
   exstack_t * ex = exstack_init(32, sizeof(sssp_pkg_t));
   if( ex == NULL) return(-1.0);
@@ -54,6 +53,13 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0, double
   
   ds_t * ds = (ds_t *)calloc(1,sizeof(ds_t)); assert(ds != NULL);
   allocate_and_initialize_delta_stepping_struct(ds, mat->lnumrows, num_buckets, delta);
+
+  sparsemat_t *light = get_light_edges(mat, delta);
+  sparsemat_t *heavy = get_heavy_edges(mat, delta);
+  write_matrix_mm(mat, "mat_mat");
+  write_matrix_mm(light, "mat_light");
+  write_matrix_mm(heavy, "mat_heavy");
+  lgp_barrier();
 
   if( (r0 % THREADS) == MYTHREAD) {    // set the distance to r0 (as a global index) equal to 0.0
     r0 = r0/THREADS;
@@ -89,14 +95,23 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0, double
         v = ds->B[i_m]; 
         remove_node_from_bucket(ds, v);
 
+#if 0
         for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){        // relax light edges from v 
           if(mat->lvalue[k] <= delta){	  
-            if( delta_exstack_push(ex, mat, mat->lnonzero[k],  ds->tent[v] + mat->lvalue[k]) == 0 ) {
+            if( delta_exstack_push(ex, mat->lnonzero[k],  ds->tent[v] + mat->lvalue[k]) == 0 ) {
               delta_exstack_relax_process(ds, ex, 0);
               k--;
             }
           }
         } 
+#else 
+        for(k = light->loffset[v]; k < light->loffset[v + 1]; k++){        // relax light edges from v 
+          if( delta_exstack_push(ex, light->lnonzero[k],  ds->tent[v] + light->lvalue[k]) == 0 ) {
+            delta_exstack_relax_process(ds, ex, 0);
+            k--;
+          }
+        } 
+#endif
         if(ds->deleted[v] == 0){  // insert v into R if it is not already there
           ds->deleted[v] = 1;
           ds->R[end++] = v;
@@ -111,14 +126,23 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0, double
 
     for(start=0; start<end; start++){           // relax heavy requests edges for everything in R 
       v = ds->R[start];
+#if 0
       for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
         if(mat->lvalue[k] > delta){	  
-          if( delta_exstack_push(ex, mat, mat->lnonzero[k],  ds->tent[v] + mat->lvalue[k]) == 0 ) {
+          if( delta_exstack_push(ex, mat->lnonzero[k],  ds->tent[v] + mat->lvalue[k]) == 0 ) {
             delta_exstack_relax_process(ds, ex, 0);
             k--;
           }
         }
       }
+#else
+      for(k = heavy->loffset[v]; k < heavy->loffset[v + 1]; k++){
+        if( delta_exstack_push(ex, heavy->lnonzero[k],  ds->tent[v] + heavy->lvalue[k]) == 0 ) {
+          delta_exstack_relax_process(ds, ex, 0);
+          k--;
+        }
+      }
+#endif
     }
     while( delta_exstack_relax_process(ds, ex, 1) )
       ;

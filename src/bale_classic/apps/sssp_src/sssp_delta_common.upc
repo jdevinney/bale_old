@@ -182,3 +182,58 @@ void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparse
 }
 
 
+sparsemat_t * get_light_edges(sparsemat_t *mat, double delta)
+{
+  int64_t i, k;
+  int64_t light_lnnz=0;
+
+  for(i = 0; i < mat->lnnz; i++){
+    if(mat->lvalue[i] <= delta)
+      light_lnnz++;
+  }
+
+  sparsemat_t *retmat = init_matrix(mat->numrows, mat->numcols, light_lnnz, 1);
+  retmat->loffset[0] = 0;
+  int64_t lpos=0;
+  for(i=0; i<mat->lnumrows; i++){
+    for(k=mat->loffset[i]; k<mat->loffset[i+1]; k++){
+      if(mat->lvalue[k] <= delta){
+        retmat->lnonzero[lpos] = mat->lnonzero[k];
+        retmat->lvalue[lpos] = mat->lvalue[k];
+        lpos++;
+      }
+    }
+    retmat->loffset[i+1] = lpos;
+  }
+  printf("%02d: nnz %ld =  light  %ld\n", MYTHREAD, k, lpos);
+  return(retmat);
+}
+
+sparsemat_t * get_heavy_edges(sparsemat_t *mat, double delta)
+{
+  int64_t i, k;
+  int64_t heavy_lnnz=0;
+
+  for(i = 0; i < mat->lnnz; i++){
+    if(mat->lvalue[i] > delta)
+      heavy_lnnz++;
+  }
+
+  sparsemat_t *retmat = init_matrix(mat->numrows, mat->numcols, heavy_lnnz, 1);
+  retmat->loffset[0] = 0;
+  int64_t hpos=0;
+  for(i=0; i<mat->lnumrows; i++){
+    for(k=mat->loffset[i]; k<mat->loffset[i+1]; k++){
+      if(mat->lvalue[k] > delta){
+        retmat->lnonzero[hpos] = mat->lnonzero[k];
+        retmat->lvalue[hpos] = mat->lvalue[k];
+        hpos++;
+      }
+    }
+    retmat->loffset[i+1] = hpos;
+  }
+  printf("%02d: nnz %ld = heavy %ld\n", MYTHREAD, k, hpos);
+  return(retmat);
+}
+
+
