@@ -205,7 +205,7 @@ sparsemat_t * get_light_edges(sparsemat_t *mat, double delta)
     }
     retmat->loffset[i+1] = lpos;
   }
-  printf("%02d: nnz %ld =  light  %ld\n", MYTHREAD, k, lpos);
+  if(D0PRT){printf("%02d: nnz %ld =  light  %ld\n", MYTHREAD, k, lpos);}
   return(retmat);
 }
 
@@ -232,7 +232,7 @@ sparsemat_t * get_heavy_edges(sparsemat_t *mat, double delta)
     }
     retmat->loffset[i+1] = hpos;
   }
-  printf("%02d: nnz %ld = heavy %ld\n", MYTHREAD, k, hpos);
+  if(D0PRT){printf("%02d: nnz %ld = heavy %ld\n", MYTHREAD, k, hpos);}
   return(retmat);
 }
 

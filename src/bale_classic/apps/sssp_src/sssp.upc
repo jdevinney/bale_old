@@ -179,54 +179,60 @@ int main(int argc, char * argv[])
 
   T0_printf("delta step = %lf\n", args.deltaStep);
 
-#define USE_BELLMAN (1L<<16)
-#define USE_DELTA   (1L<<17)
+  // To our understanding, the AGP model requires an atomic min of a double.
+  // Until we get it, we haven't taken the AGP model out of the models_mask.
+  args.std.models_mask &=0xFE;
+  int64_t bz = args.std.buffer_size;
+  int64_t V0 = args.V0;
+  double delta = args.deltaStep;
+#define USE_BELLMAN (1L<<8)
+#define USE_DELTA   (1L<<9)
   
   for( alg = 1; alg < 3; alg *=2 ){
-    use_alg = (args.alg & alg)<<16;
+    use_alg = (args.alg & alg)<<8;
     for( use_model=1L; use_model < 32; use_model *=2 ) {
       model_str[0] = '\0';
       switch( (use_model & args.std.models_mask) | use_alg ) {
       case (AGI_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford AGP");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_agi(tent, mat, 0); 
+        laptime = sssp_bellman_agi(tent, mat, V0); 
         break;
 
       case (EXSTACK_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford Exstack");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_exstack(tent, mat, args.V0);
+        laptime = sssp_bellman_exstack(tent, mat, bz, V0);
         break;
 
       case (EXSTACK_Model | USE_DELTA):
         sprintf(model_str, "Delta Exstack");
         set_d_array(tent, INFINITY);
-        laptime = sssp_delta_exstack(tent, mat, args.V0, args.deltaStep);
+        laptime = sssp_delta_exstack(tent, mat, bz, V0, delta);
         break;
 
       case (EXSTACK2_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford Exstack2");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_exstack2(tent, mat, 0);
+        laptime = sssp_bellman_exstack2(tent, mat, bz, V0);
         break;
 
       case (EXSTACK2_Model | USE_DELTA):
-        sprintf(model_str, "Delta Exstack");
+        sprintf(model_str, "Delta Exstack2");
         set_d_array(tent, INFINITY);
-        laptime = sssp_delta_exstack2(tent, mat, args.V0, args.deltaStep);
+        laptime = sssp_delta_exstack2(tent, mat, bz, V0, delta);
         break;
 
       case (CONVEYOR_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford Conveyor");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_convey(tent, mat, args.V0);
+        laptime = sssp_bellman_convey(tent, mat, V0);
         break;
 
       case (CONVEYOR_Model | USE_DELTA):
         sprintf(model_str, "Delta Conveyor");
         set_d_array(tent, INFINITY);
-        laptime = sssp_delta_convey(tent, mat, args.V0, args.deltaStep);
+        laptime = sssp_delta_convey(tent, mat, V0, delta);
         break;
       }
       if(model_str[0]) {

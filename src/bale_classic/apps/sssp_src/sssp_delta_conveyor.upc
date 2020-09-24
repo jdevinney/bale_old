@@ -28,7 +28,6 @@ double sssp_delta_convey(d_array_t *dist, sparsemat_t * mat, int64_t r0, double 
   sssp_pkg_t pkg;
 
 
-  //TODO: Fix the buffer size 
   convey_t * conv = convey_new(SIZE_MAX, 0, NULL, 0);
   if(conv == NULL){return(-1.0);}
   double tm = wall_seconds();

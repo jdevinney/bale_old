@@ -21,7 +21,7 @@ static int64_t delta_exstack2_relax_process(ds_t *ds, exstack2_t *ex2, int64_t d
 // the paper "Delta-stepping: a parallelizable shortest path algorithm" by
 // U. Meyer and P. Sanders.
 
-double sssp_delta_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t r0, double opt_delta)
+double sssp_delta_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t r0, double opt_delta)
 {
   int64_t i, i_m, k;
   int64_t v;
@@ -30,8 +30,7 @@ double sssp_delta_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
 
 
 
-  //TODO: Fix the buffer size 
-  exstack2_t * ex2 = exstack2_init(64, sizeof(sssp_pkg_t));
+  exstack2_t * ex2 = exstack2_init(buf_cnt, sizeof(sssp_pkg_t));
   if( ex2 == NULL) return(-1.0);
 
   double tm = wall_seconds();

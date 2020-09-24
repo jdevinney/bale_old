@@ -32,7 +32,7 @@ int64_t delta_exstack_push(exstack_t *ex, int64_t gidx, double tent_wt)
 // the paper "Delta-stepping: a parallelizable shortest path algorithm" by
 // U. Meyer and P. Sanders.
 
-double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0, double opt_delta)
+double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t r0, double opt_delta)
 {
   int64_t i, i_m, k;
   int64_t v;
@@ -40,8 +40,7 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0, double
   struct sssp_pkg_t pkg;
 
 
-  //TODO: Fix the buffer size 
-  exstack_t * ex = exstack_init(32, sizeof(sssp_pkg_t));
+  exstack_t * ex = exstack_init(buf_cnt, sizeof(sssp_pkg_t));
   if( ex == NULL) return(-1.0);
   double tm = wall_seconds();
 
@@ -56,9 +55,9 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t r0, double
 
   sparsemat_t *light = get_light_edges(mat, delta);
   sparsemat_t *heavy = get_heavy_edges(mat, delta);
-  write_matrix_mm(mat, "mat_mat");
-  write_matrix_mm(light, "mat_light");
-  write_matrix_mm(heavy, "mat_heavy");
+  //write_matrix_mm(mat, "mat_mat");
+  //write_matrix_mm(light, "mat_light");
+  //write_matrix_mm(heavy, "mat_heavy");
   lgp_barrier();
 
   if( (r0 % THREADS) == MYTHREAD) {    // set the distance to r0 (as a global index) equal to 0.0

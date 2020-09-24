@@ -76,7 +76,7 @@ static int64_t bellman_exstack_relax_process(d_array_t *tent, exstack_t *ex, int
  * \param v0 is the the staring row (vertex)
  * \return average run time
  */
-double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t v0)
+double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t v0)
 {
   double t1 = wall_seconds();
 
@@ -90,8 +90,7 @@ double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t v0)
   d_array_t *tent0, *tent1, *tent2;
   d_array_t *tent_old, *tent_cur, *tent_new, *tent_temp;
 
-  //TODO: Fix the buffer size 
-  exstack_t * ex = exstack_init(64, sizeof(sssp_pkg_t));
+  exstack_t * ex = exstack_init(buf_cnt, sizeof(sssp_pkg_t));
   if( ex == NULL) return(-1.0);
 
 
