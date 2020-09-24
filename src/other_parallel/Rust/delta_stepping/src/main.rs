@@ -99,6 +99,13 @@ fn main() {
                 .takes_value(false)
                 .help("produce less chatty output"),
         )
+        .arg(
+            Arg::with_name("trace")
+                .short("t")
+                .long("trace")
+                .takes_value(false)
+                .help("write data structure trace file from each thread"),
+        )
         .get_matches();
 
     // input args
@@ -125,6 +132,7 @@ fn main() {
         .expect("forced_delta: not a float");
     let seed = 12346; // the random-number seed is actually never used
     let quiet = matches.is_present("quiet") || my_rank > 0;
+    let trace = matches.is_present("trace");
     let dump_files = matches.is_present("dump_files");
 
     // done with options, now do it
@@ -160,7 +168,6 @@ fn main() {
             .expect("could not write sssp.mm");
     }
 
-    let trace = true;
     let matret = mat.delta_stepping(
         source_vtx,
         if forced_delta == 0.0 {
