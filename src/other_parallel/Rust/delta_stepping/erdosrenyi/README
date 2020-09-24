@@ -1,8 +1,0 @@
-The files are:
-
-Matrices:
-er_nn_prob.mm  reasonably dense ER graphs
-sparsennn.mm   sparser ER graphs
-
-er_nn_prob.dst distances with source_vtx 0
-sparsennn.dst  distances with source_vtx 2

@@ -109,7 +109,7 @@ fn main() {
         .expect("numrows: not an integer");
     let source_vtx: usize = matches
         .value_of("source_vtx")
-        .unwrap_or("2")
+        .unwrap_or("0")
         .parse()
         .expect("source_vtx: not an integer");
     let erdos_renyi_prob: f64 = matches
