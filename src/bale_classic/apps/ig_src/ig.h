@@ -48,7 +48,7 @@
 #include <exstack.h>
 #include <convey.h>
 
-double ig_agi(int64_t *tgt, int64_t *index, int64_t l_num_req,  SHARED int64_t *table);
+double ig_agp(int64_t *tgt, int64_t *index, int64_t l_num_req,  SHARED int64_t *table);
 double ig_exstack(int64_t *tgt, int64_t *pckindx, int64_t l_num_req,  int64_t *ltable, int64_t buf_cnt); 
 double ig_exstack2(int64_t *tgt, int64_t *pckindx, int64_t l_num_req,  int64_t *ltable, int64_t buf_cnt); 
 double ig_conveyor(int64_t *tgt, int64_t *pckindx, int64_t l_num_req,  int64_t *ltable);

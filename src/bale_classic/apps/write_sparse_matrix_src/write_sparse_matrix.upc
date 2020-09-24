@@ -69,13 +69,13 @@ require 2x the storage space of the matrix. We don't want the
 write_sparse_matrix routine to have this requirement. That is where
 things get interesting. We have a fixed buffer for writing on each PE
 and each PE collects or is sent nonzero data to write in their current
-buffer. In AGI (where the PEs just get the data) or synchronous
+buffer. In AGP (where the PEs just get the data) or synchronous
 exstack, this is easy. We don't have a nice way of doing this with
 exstack2 or asynchronous conveyors yet. The reason this is a challenge
 for asynchronous methods is that PEs can get into a deadlock waiting
 for the records they need to complete a write buffer.
 
-See files spmat_agi.upc, spmat_exstack.upc
+See files spmat_agp.upc, spmat_exstack.upc
 for the source for the kernels.
 
 * Run with the --help, -?, or --usage flags for run details.
@@ -137,15 +137,15 @@ int main(int argc, char * argv[])
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
-    case AGI_Model:
-      sprintf(datadir,"%s","write_matrix_test_agi");
-      write_sparse_matrix_agi(datadir, inmat);
-      sprintf(model_str, "AGI");
+    case AGP_Model:
+      sprintf(datadir,"%s","write_matrix_test_agp");
+      write_sparse_matrix_agp(datadir, inmat);
+      sprintf(model_str, "AGP");
       break;
     case EXSTACK_Model:
       sprintf(datadir,"%s","write_matrix_test_exstack");
       write_sparse_matrix_exstack(datadir, inmat, args.std.buffer_size);
-      //read_sparse_matrix_agi(datadir);
+      //read_sparse_matrix_agp(datadir);
       sprintf(model_str, "Exstack");
       break;
     case EXSTACK2_Model:

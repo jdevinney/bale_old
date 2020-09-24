@@ -35,62 +35,42 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file triangle_agi_oo.upc
- * \brief The intuitive implementation of triangle counting 
- * that uses generic global references
+/*! \file histo_agp.upc
+ * \brief The intuitive implementation of histogram that uses global atomics.
  */
-
-#include "triangle.h"
+#include "histo.h"
 
 /*!
- * \brief This routine implements the agi variant of triangle counting
- * \param *count a place to return the counts from this thread
- * \param *sr a place to return the number of shared references
- * \param *mat the input sparse matrix 
- *        NB: This must be the tidy lower triangular matrix from the adjacency matrix
+ * \brief This routine implements straight forward, 
+ *         single word atomic updates to implement histogram.
+ * \param *index array of indices into the shared array of counts.
+ * \param l_num_ups the local length of the index array
+ * \param *counts SHARED pointer to the count array.
  * \return average run time
+ *
  */
-double triangle_agi_oo(int64_t *count, int64_t *sr, sparsemat_t * mat) {
-  int64_t cnt=0;
-  int64_t numpulled=0;
-  int64_t l_i, L_i, L_k, L_j;
-  nxnz_t *nxnz_I = init_nxnz(mat); 
-  nxnz_t *nxnz_J = init_nxnz(mat); 
-  nxnz_t *nxnz_K = init_nxnz(mat); 
 
-  double t1 = wall_seconds();
-  for(l_i = 0; l_i < mat->lnumrows; l_i++){ 
-    L_i = l_i*THREADS + MYTHREAD;
-    for(first_l_nxnz(nxnz_I, l_i); has_l_nxnz(nxnz_I, l_i); incr_l_nxnz(nxnz_I, l_i) ){
-      L_j = nxnz_I->col;
-
-      numpulled += 2;
-      for(first_S_nxnz(nxnz_J, L_j); has_S_nxnz(nxnz_J, L_j); incr_S_nxnz(nxnz_J, L_j) ){
-        L_k = nxnz_J->col;
-        numpulled++;
-
-        for(first_l_nxnz(nxnz_K, l_i); has_l_nxnz(nxnz_K, l_i); incr_l_nxnz(nxnz_K, l_i) ){
-          if( L_k == nxnz_K->col ){ 
-            cnt++;
-            break;
-          }
-          if( L_k < nxnz_K->col ){ // the rest are all bigger too, cause mat is tidy 
-            break;
-          }
-        }
-      }
-    }
-  }
+//double histo_agp(int64_t *index, int64_t l_num_ups,  SHARED int64_t *counts) {
+double histo_agp(histo_t * data){
+  double tm;
+  int64_t i;
+  minavgmaxD_t stat[1];
 
   lgp_barrier();
-  minavgmaxD_t stat[1];
-  t1 = wall_seconds() - t1;
-  lgp_min_avg_max_d( stat, t1, THREADS );
+  tm = wall_seconds();
 
-  *sr = numpulled; 
-  *count = cnt;
-  free(nxnz_I);
-  free(nxnz_J);
-  free(nxnz_K);
-  return(stat->avg);
+  for(i = 0; i < data->l_num_ups; i++) {
+#pragma pgas defer_sync
+    //_amo_aadd(&counts[index[i]], 1);
+    //counts[index[i]] += 1;
+    assert(data->index[i] < data->num_counts);
+    lgp_atomic_add(data->counts, data->index[i], 1L);
+  }
+  
+  lgp_barrier();
+  tm = wall_seconds() - tm;
+  lgp_min_avg_max_d( stat, tm, THREADS);
+  
+  return( stat->avg );
 }
+

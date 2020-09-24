@@ -280,9 +280,9 @@ int main(int argc, char * argv[]) {
   for( use_model=1L; use_model < 32; use_model *=2 ) {
 
     switch( use_model & args.std.models_mask ) {
-    case AGI_Model:
-      sprintf(model_str, "AGI");
-      laptime = toposort_matrix_agi(rperm2, cperm2, mat, tmat);
+    case AGP_Model:
+      sprintf(model_str, "AGP");
+      laptime = toposort_matrix_agp(rperm2, cperm2, mat, tmat);
       break;
 
     case EXSTACK_Model:

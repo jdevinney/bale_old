@@ -62,6 +62,7 @@ extern struct argp std_options_argp;
 
 typedef struct std_graph_args_t{
   int64_t l_numrows;
+  int64_t numrows;
   int readfile;  
   char filename[128];
   graph_model model;
@@ -79,7 +80,7 @@ typedef struct std_graph_args_t{
 extern struct argp std_graph_options_argp;
 
 /* defines to support the different models of global and buffered references */
-#define AGI_Model        1L /*!< the Atomic or Generic Interface (straight UPC/SHMEM) */
+#define AGP_Model        1L /*!< the Atomic or Generic Interface (straight UPC/SHMEM) */
 #define EXSTACK_Model    2L /*!< the exstack bulk synchronous buffering model */
 #define EXSTACK2_Model   4L /*!< the exstack2 asynchronous buffering model */
 #define CONVEYOR_Model   8L /*!< the conveyor buffering model */

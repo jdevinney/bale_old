@@ -1,0 +1,133 @@
+#!/usr/bin/env python
+#-*- mode: python -*-
+import subprocess
+import os
+import argparse
+import sys
+
+
+PACKAGES = ["libgetput", "exstack", "convey", "spmat", "std_options", "apps"]
+
+SRCDIR = os.path.abspath(os.getcwd())
+PLATFORM = os.environ.get("PLATFORM", "unknown")
+default_build_dir = os.path.join(SRCDIR, "build_{0}".format(PLATFORM))
+
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser(description="""Convenience build script for bale.""")
+  
+  parser.add_argument('-b', '--build_dir', action="store", dest="build_dir",
+                      help="Specify a build directory", default=default_build_dir)
+  parser.add_argument('-c', '--config_opts', action="store", dest="config_opts",
+                      help="Specify some options to pass on to configure.", default="")
+  parser.add_argument('-i', '--install_dir', action="store", dest="install_dir",
+                      help="Specify the install directory.",
+                      default=None)
+  parser.add_argument('-j', '--jobs', action="store", dest="jobs",
+                      help="Pass this option onto make for parallel make.", default=4)
+  parser.add_argument('-m', '--make_only', action="store_true", dest="make_only",
+                      help="Do not re-run configure on each package, just run make "
+                      "and install on any directory that needs rebuilt", default=False)
+  parser.add_argument('-s', '--shmem', action="store_true", dest="shmem",
+                      help="Specify that this is a shmem build.", default=False)
+  parser.add_argument('-u', '--upc', action="store_true", dest="upc",
+                      help="Specify that this is a UPC build.", default=False)
+  
+  args = parser.parse_args()
+
+  if(args.shmem == False and args.upc == False):
+    print("You must specify the -u (UPC) or -s (SHMEM) option")
+    exit(1)
+  
+  build_dir = args.build_dir
+  if args.install_dir == None:
+    install_dir = build_dir
+  else:
+    install_dir = args.install_dir
+
+  print("*******************************************************")
+  print("build_dir   = {0}".format(build_dir))
+  print("install_dir = {0}".format(install_dir))
+  if(args.shmem):
+    print("Shmem build")
+  else:
+    print("UPC build")
+  print("********************************************************")
+  if not os.path.isdir(build_dir):
+    os.mkdir(build_dir)
+
+  if not os.path.isdir(install_dir):
+    os.mkdir(install_dir)
+
+  if args.shmem:
+    lang="--with-shmem"
+  else:
+    lang="--with-upc"
+  sys_pkg_config_path = os.environ.get("PKG_CONFIG_PATH")
+  pkp = "{0}/lib/pkgconfig".format(install_dir)
+  if sys_pkg_config_path is not None:
+    os.environ["PKG_CONFIG_PATH"] = "{0}:{1}".format(pkp, sys_pkg_config_path)
+  else:
+    os.environ["PKG_CONFIG_PATH"] =  "{0}".format(pkp)
+  #print("PKG_CONFIG_PATH = ",os.environ.get("PKG_CONFIG_PATH"))
+    
+  for pkg in PACKAGES:
+    print("********************************")
+    print(pkg)
+    print("********************************")
+    os.chdir(SRCDIR)
+    pkg_build_dir = os.path.join(build_dir, pkg)
+    if not os.path.isdir(pkg_build_dir):
+      os.mkdir(pkg_build_dir)
+    os.chdir(pkg_build_dir)
+
+    if not args.make_only:
+      cmd = "{0}/{1}/configure --prefix={2} {3} {4}".format(SRCDIR, pkg, install_dir, lang, args.config_opts)
+      print(cmd)
+      ret = subprocess.run(cmd, shell=True)
+      if ret.returncode:
+        sys.stderr.write("Configure of {0} failed.\n".format(pkg))
+        exit(1)
+
+      # make clean
+      cmd = 'make clean'
+      subprocess.run(cmd, shell=True)
+
+
+    # we will be fancy here to try to determine if anything actually got made
+    # for libraries, I do this in a dumb way because I think there is something
+    # wrong with autotools... make -q always returns 1, even if make does nothing
+    do_install = False
+    if pkg is not "apps":
+      if os.path.exists("lib{0}.a".format(pkg)):
+        orig_time = os.path.getmtime("lib{0}.a".format(pkg))
+      else:
+        orig_time = ""
+
+      cmd = "make -j {0}".format(args.jobs)
+      ret = subprocess.run(cmd, shell=True)    
+      if ret.returncode:
+        sys.stderr.write("build of {0} failed.\n".format(pkg))
+
+      new_time = os.path.getmtime("lib{0}.a".format(pkg))
+      if orig_time != new_time:
+        do_install = True
+    else:
+      cmd = 'make -q'
+      ret = subprocess.run(cmd, shell=True)    
+      if ret.returncode:
+        cmd = "make -j {0}".format(args.jobs)
+        ret = subprocess.run(cmd,  shell=True)    
+        if ret.returncode:
+          sys.stderr.write("build of {0} failed.\n".format(pkg))
+        do_install = True
+
+    if do_install:
+      print("Looks like we need to remake {0}".format(pkg))
+      cmd = "make install"
+      ret = subprocess.run(cmd, shell=True)
+      if ret.returncode:
+        sys.stderr.write("build of {0} failed.\n".format(pkg))
+        
+    else:
+      print("Nothing to do.")  
+      
