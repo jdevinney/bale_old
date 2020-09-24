@@ -104,13 +104,6 @@ do
         make clean
     fi
 
-    if [ make -q
-    make -j $PES
-    if [ $? -ne 0 ]; then
-        echo "build of $i failed!"
-        exit 1
-    fi
-
     make install
     if [ $? -ne 0 ]; then
         echo "install of $i failed!"
