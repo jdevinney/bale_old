@@ -1,6 +1,11 @@
+# script to run a suite of bale apps for experimentation or testing
+import sys
+if sys.version_info[0] < 3 or sys.version_info[1] < 7:
+  print("This script requires at least Python version 3.7")
+  sys.exit(1)
+
 import subprocess
 import os
-import sys
 import argparse
 from shutil import which
 
@@ -90,10 +95,6 @@ def run_apps(app_dict, node_range, launcher_opts, option_str, impl_mask, json_fi
 
 ############################################################
 if __name__ == '__main__':
-
-  if sys.version_info[0] < 3 or sys.version_info[1] < 7:
-    print("This script requires at least Python version 3.7")
-    sys.exit(1)
   
     
   parser = argparse.ArgumentParser(description="""Script to run any or all of bale apps.""")
@@ -105,7 +106,7 @@ if __name__ == '__main__':
                       help="Pass -j option to all apps. The final json file will have a record"
                       " for each run and will be written to filename which is the argument of this option",
                       default=None)
-  parser.add_argument('-l','--launcher', action="store", dest="launcher",
+  parser.add_argument('-L','--launcher', action="store", dest="launcher",
                       help="Specify the launcher to use (for example: srun). "
                       "We do our best to automatically detect the launcher, but "
                       "there are cases where we will fail (for instance if you "

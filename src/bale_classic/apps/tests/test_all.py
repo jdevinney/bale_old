@@ -1,3 +1,7 @@
+# Script for unit testing bale.
+# The unit tests are run in some of our Docker containers and one of those containers only has python3.5.
+# Let's keep this file at python 3.5!
+
 import subprocess
 import os
 
@@ -6,7 +10,7 @@ def run_command(cmd):
   return(ret.returncode)
 
 def determine_launcher(launcher):
-  if launcher is not "":
+  if launcher != "":
     return(""+launcher+" -n {0} {1} {2}")
   ret = run_command('srun --help')
   if ret == 0: return('srun -n {0} {1} {2}')
@@ -34,9 +38,8 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
   apps.append("write_sparse_matrix")
 
   launcher = determine_launcher(launcher_cmd)
-
     
-  if node_range is not "":
+  if node_range != "":
     l = [int(i) for i in node_range.split(',')]
     if len(l) == 2:
       node_range = range(l[0],l[1])
@@ -63,7 +66,7 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
     if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles' or app == 'sssp':
       runs.append("-b 120 -n 1000 -F -z 2 ")
       runs.append("-b 120 -n 1042 -G -z 4 ")
-      runs.append("-b 31 -n 3042 -F -z 4 ")
+      runs.append("-b 31 -n 3079 -F -z 4 ")
       runs.append("-b 31 -n 3042 -F -z 6 ")
       runs.append("-b 140 -n 4442 -F -z 20 ")
       runs.append("-b 64 -n 834 -F -d ")
@@ -76,7 +79,7 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
     if app == 'topo':
       if os.path.exists("../../../example_matrices/toposort_input.mm"):
         runs.append("-f ../../../example_matrices/toposort_input.mm")
-      #runs.append("-b 512 -n 1340 -G -e .01 ") # this fails for SOS on SMP
+
     if app == 'triangles' or app == 'transpose_matrix' or app == 'permute_matrix':
       runs.append("-b 244 -K 0:3x4x5 ")
       runs.append("-b 244 -K 1:3x4x5 ")
