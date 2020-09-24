@@ -27,18 +27,18 @@ oshrun -n 4 target/release/delta_stepping
 
 ### Command line options
 
-By default, the app generates the graph as problem the graph as a flat random 
+By default, the app generates its input as a flat random 
 (Erdos-Renyi) directed graph with edge lengths uniformly random in (0,1).
-It can also take as input a sparse matrix, whose values are edge lengths,
+It can also take as input a square sparse matrix, whose values are edge lengths,
 in MatrixMarket format.
 
 * -d : dump files "sssp.mm" (the input matrix) and "sssp.dst" (the output vertex distances)
-* -e <real number> : edge probability for Erdos-Renyi random graph, if no input file
-* -f <real number> : value for Delta, overriding the algorithm's choice
-* -i <filename> : input file, MatrixMarket format
-* -n <integer> : number of vertices in test graph, if no input file
+* -e real-number : edge probability for Erdos-Renyi random graph, if no input file
+* -f real-number : value for Delta, overriding the algorithm's choice
+* -i filename : input file, MatrixMarket format
+* -n integer : number of vertices in test graph, if no input file
 * -q : quietly run without printing progress to stdout
-* -s <integer> : source vertex, default 0
+* -s integer : source vertex, default 0
 * -t : trace execution, appending to a file trace.#.out from each thread
 
 ### Sample data
@@ -59,7 +59,7 @@ finds shortest paths from a single source in a directed graph with
 non-negative edge lengths c(v,w).
 
 Each vertex has a "tentative distance" during the algorithm. The source has tentative
-distance 0, and all other vertices initially have have tentative distance inf. We
+distance 0, and all other vertices initially have tentative distance inf. We
 proceed by "relaxing" edges (in a clever order): relaxing edge (v,w) changes the
 tentative distance of w to min(tent(w), tent(v) + c(v,w)). Eventually each vertex's
 tent() distance becomes final, or "settled"; initially only the source is settled.
