@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file toposort_agi_oo.upc
+/*! \file toposort_agp_oo.upc
  * \brief The intuitive implementation of toposort that does uses 
  * atomics and generic global references
  */
@@ -149,7 +149,7 @@ bool de_swlrQ(swlrQ_t * sq, int64_t *ret_item ) {
 }
 
 /*!
- * \brief This routine implements an agi variant of toposort with code to encapsulate working 
+ * \brief This routine implements an AGP variant of toposort with code to encapsulate working 
  *   with the queue of degree one rows and moving across the rows a transpose matrix.
  * \param *rperm returns the row permutation that is found
  * \param *cperm returns the column permutation that is found

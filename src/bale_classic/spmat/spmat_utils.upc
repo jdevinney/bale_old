@@ -63,7 +63,7 @@
  */
 SHARED int64_t * rand_permp(int64_t N, int seed) {
   SHARED int64_t * p;
-  //p = rand_permp_agi(N, seed);
+  //p = rand_permp_agp(N, seed);
   p = rand_permp_exstack(N, seed, 128);
   //p = rand_permp_exstack2(N, seed, 1024);
   
@@ -92,7 +92,7 @@ SHARED int64_t * rand_permp(int64_t N, int seed) {
  * \ingroup spmatgrp
  */
 sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {
-  //return( permute_matrix_agi(omat, rperminv, cperminv) );
+  //return( permute_matrix_agp(omat, rperminv, cperminv) );
     return( permute_matrix_exstack(omat, rperminv, cperminv, 128) );
   //return( permute_matrix_exstack2(omat, rperminv, cperminv, 1024) );
   //return( permute_matrix_conveyor(omat, rperminv, cperminv) );
@@ -111,7 +111,7 @@ sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED
  */
 sparsemat_t * transpose_matrix(sparsemat_t *omat) {
   sparsemat_t * A;
-  //A = transpose_matrix_agi(omat);
+  //A = transpose_matrix_agp(omat);
   A = transpose_matrix_exstack(omat, 128);
   //A = transpose_matrix_exstack2(omat, 1024);
   //A = transpose_matrix_conveyor(omat);

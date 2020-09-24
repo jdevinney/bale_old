@@ -35,17 +35,17 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file triangle_agi_opt1.upc
+/*! \file triangle_agp_opt1.upc
  * \brief Another intuitive implementation of triangle counting 
  * that uses generic global references. This implementation differs from
- * triangle_agi only in that the shared references to the row_start and row_end
+ * triangle_agp only in that the shared references to the row_start and row_end
  * are pulled out of the for loop.
  */
 
 #include "triangle.h"
 
 /*!
- * \brief This routine implements the agi variant of triangle counting
+ * \brief This routine implements another AGP variant of triangle counting
  * \param *count a place to return the counts from this thread
  * \param *sr a place to return the number of shared references
  * \param *L the lower triangle of the input sparse matrix 
@@ -53,7 +53,7 @@
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \return average run time
  */
-double triangle_agi_opt1(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg) {
+double triangle_agp_opt1(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg) {
   int64_t cnt=0;
   int64_t numpulled=0;
   int64_t l_i, ii, k, kk, w, L_i, L_j;

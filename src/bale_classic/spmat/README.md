@@ -36,7 +36,7 @@ structure does have the ability to store explicit values as floating
 point however for applications that require values. 
 
 Several functions in this library are instructive enough that they are
-implemented in a variety of ways (AGI, exstack, exstack2, and
+implemented in a variety of ways (AGP, exstack, exstack2, and
 conveyors). Those functions are transpose_matrix, permute_matrix, and
 randpermp (create a random permutation of {0,...,n-1} in parallel).
 

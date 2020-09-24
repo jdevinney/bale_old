@@ -36,7 +36,7 @@
 // 
  *****************************************************************/ 
 
-/*! \file ig_agi.upc
+/*! \file ig_agp.upc
  * \brief The intuitive implementation of indexgather that uses single word gets to shared addresses.
  */
 #include "ig.h"
@@ -50,7 +50,7 @@
  * \return average run time
  *
  */
-double ig_agi(int64_t *tgt, int64_t *index, int64_t l_num_req,  SHARED int64_t *table) {
+double ig_agp(int64_t *tgt, int64_t *index, int64_t l_num_req,  SHARED int64_t *table) {
   int64_t i;
   double tm;
   minavgmaxD_t stat[1];

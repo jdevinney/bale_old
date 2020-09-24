@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file toposort_agi.upc
+/*! \file toposort_cooler.upc
  * \brief The intuitive implementation of toposort that does uses 
  * atomics and generic global references
  */
@@ -43,7 +43,7 @@
 #include "toposort.h"
 
 /*!
- * \brief This routine implements a cool variant version of the agi version of toposort
+ * \brief This routine implements a cool variant version of the AGP version of toposort
  * \param *rperm returns the row permutation that is found
  * \param *cperm returns the column permutation that is found
  * \param *mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
