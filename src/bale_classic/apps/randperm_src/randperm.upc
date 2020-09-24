@@ -175,6 +175,6 @@ int main(int argc, char * argv[]) {
   if( error ) {
     T0_fprintf(stderr,"BALE FAIL!!!!\n"); 
   }
-  lgp_finalize();
+  bale_app_finish(&args.std);
   return(error);
 }
