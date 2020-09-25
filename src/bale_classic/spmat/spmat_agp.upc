@@ -141,7 +141,7 @@ sparsemat_t * permute_matrix_agp(sparsemat_t *A, SHARED int64_t *rperm, SHARED i
   }
   lgp_barrier();
 
-  sparsemat_t * Ap = init_matrix(A->numrows, A->numcols, cnt, (A->value != NULL));
+  sparsemat_t * Ap = init_matrix(A->numrows, A->numcols, cnt, weighted);
   
   // fill in permuted rows
   Ap->loffset[0] = pos = 0;
