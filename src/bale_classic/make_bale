@@ -16,27 +16,28 @@ if __name__ == '__main__':
   parser = argparse.ArgumentParser(description="""Convenience build script for bale.""")
   
   parser.add_argument('-b', '--build_dir', action="store", dest="build_dir",
-                      help="Specify a build directory", default=default_build_dir)
+                      help="Specify a build directory. You must run configure for this change to take effect. "
+                      " Use the -f option to force configure to run.", default=default_build_dir)
   parser.add_argument('-c', '--config_opts', action="store", dest="config_opts",
-                      help="Specify some options to pass on to configure.", default="")
+                      help="Specify some options to pass on to configure. If you have already built bale, "
+                      "you might need to run with the -f option to force configure to run again.", default="")
+  parser.add_argument('-f','--fromscratch', action="store_true", dest="fromscratch",
+                      help="Force configure to be run in each directory.")
   parser.add_argument('-i', '--install_dir', action="store", dest="install_dir",
-                      help="Specify the install directory.",
+                      help="Specify the install directory. You must run configure for this change to take effect. "
+                      " Use the -f option to force configure to run.",
                       default=None)
   parser.add_argument('-j', '--jobs', action="store", dest="jobs",
                       help="Pass this option onto make for parallel make.", default=4)
-  parser.add_argument('-m', '--make_only', action="store_true", dest="make_only",
-                      help="Do not re-run configure on each package, just run make "
-                      "and install on any directory that needs rebuilt", default=False)
+  #parser.add_argument('-m', '--make_only', action="store_true", dest="make_only",
+  #                    help="Do not re-run configure on each package, just run make "
+  #                    "and install on any directory that needs rebuilt", default=False)
   parser.add_argument('-s', '--shmem', action="store_true", dest="shmem",
                       help="Specify that this is a shmem build.", default=False)
   parser.add_argument('-u', '--upc', action="store_true", dest="upc",
                       help="Specify that this is a UPC build.", default=False)
   
   args = parser.parse_args()
-
-  if(args.shmem == False and args.upc == False):
-    print("You must specify the -u (UPC) or -s (SHMEM) option")
-    exit(1)
   
   build_dir = args.build_dir
   if args.install_dir == None:
@@ -58,10 +59,6 @@ if __name__ == '__main__':
   if not os.path.isdir(install_dir):
     os.mkdir(install_dir)
 
-  if args.shmem:
-    lang="--with-shmem"
-  else:
-    lang="--with-upc"
   sys_pkg_config_path = os.environ.get("PKG_CONFIG_PATH")
   pkp = "{0}/lib/pkgconfig".format(install_dir)
   if sys_pkg_config_path is not None:
@@ -69,18 +66,30 @@ if __name__ == '__main__':
   else:
     os.environ["PKG_CONFIG_PATH"] =  "{0}".format(pkp)
   #print("PKG_CONFIG_PATH = ",os.environ.get("PKG_CONFIG_PATH"))
-    
+
+  pkg_status = {}
+  
   for pkg in PACKAGES:
-    print("********************************")
+    pkg_status[pkg] = ""
+    print("********************")
     print(pkg)
-    print("********************************")
+    print("********************")
     os.chdir(SRCDIR)
     pkg_build_dir = os.path.join(build_dir, pkg)
     if not os.path.isdir(pkg_build_dir):
       os.mkdir(pkg_build_dir)
     os.chdir(pkg_build_dir)
 
-    if not args.make_only:
+    if args.fromscratch or (not os.path.exists('Makefile')):
+      # if you are running configure, the user must specify which build this is
+      if(args.shmem == False and args.upc == False):
+        print("You must specify the -u (UPC) or -s (SHMEM) option")
+        exit(1)
+      if args.shmem:
+        lang="--with-shmem"
+      else:
+        lang="--with-upc"
+
       cmd = "{0}/{1}/configure --prefix={2} {3} {4}".format(SRCDIR, pkg, install_dir, lang, args.config_opts)
       print(cmd)
       ret = subprocess.run(cmd, shell=True)
@@ -92,10 +101,11 @@ if __name__ == '__main__':
       cmd = 'make clean'
       subprocess.run(cmd, shell=True)
 
-
     # we will be fancy here to try to determine if anything actually got made
     # for libraries, I do this in a dumb way because I think there is something
     # wrong with autotools... make -q always returns 1, even if make does nothing
+    # set do_install to True if we will run make install in the directory because 
+    # we think something has changed.
     do_install = False
     if pkg is not "apps":
       if os.path.exists("lib{0}.a".format(pkg)):
@@ -128,7 +138,22 @@ if __name__ == '__main__':
       ret = subprocess.run(cmd, shell=True)
       if ret.returncode:
         sys.stderr.write("build of {0} failed.\n".format(pkg))
+      pkg_status[pkg] += "built"
         
     else:
-      print("Nothing to do.")  
+      pkg_status[pkg] += "no need to build"
       
+  print()
+  print("****************************************************************")
+  print("****************************************************************")
+  print("                             Report                             ")
+  print("****************************************************************")
+  print("****************************************************************")
+  for pkg in PACKAGES:    
+    print("{0:12} : {1}".format(pkg, pkg_status[pkg]))
+  print()
+  print("build directory   : {0}".format(build_dir))
+  print("install directory : {0}".format(install_dir))  
+  print("All bale apps installed in {0}/bin".format(install_dir))
+  print("Run any app with --help option for usage.")
+  print()
