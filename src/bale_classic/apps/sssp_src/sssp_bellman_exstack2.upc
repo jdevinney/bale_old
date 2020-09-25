@@ -67,6 +67,16 @@ static int64_t bellman_exstack2_relax_process(d_array_t *tent, exstack2_t *ex2, 
   return( exstack2_proceed(ex2, done) );
 }
 
+static int64_t bellman_exstack2_push(exstack2_t *ex2, int64_t J, double tw)
+{
+  int64_t pe;
+  sssp_pkg_t pkg;
+  pe     = J % THREADS;
+  pkg.lj = J / THREADS;
+  pkg.tw = tw;
+  return(exstack2_push(ex2, &pkg, pe));
+}
+
 /*!
  * \brief This routine implements the Bellman-Ford algorithm using exstack
  * \param *tent the SHARED array that holds the tentative distances
@@ -114,7 +124,6 @@ double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt
 
   //dump_tent("Exstack2: 1", tent1);
 
-  lgp_barrier();
   tent2 = init_d_array(tent1->num);
 
   tent_old = tent0;
@@ -135,8 +144,10 @@ double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt
         pe  = J % THREADS;
         pkg.lj = J / THREADS;
         pkg.tw = tent_cur->lentry[li] + mat->lvalue[k];
+
         if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, li * THREADS + MYTHREAD, J, tent_cur->lentry[li],  pkg.tw);}
         if( exstack2_push(ex2, &pkg, pe) == 0 ) {
+        //if( bellman_exstack2_push(ex2, mat->lnonzero[k],  tent_cur->lentry[li] + mat->lvalue[k]) == 0){
             bellman_exstack2_relax_process(tent_new, ex2, 0);
             k--;
         }
