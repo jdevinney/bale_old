@@ -2,6 +2,7 @@
 
 Besides their uses in physical sciences, sparse matrices are also useful in representing the adjacency matrix of a graph. The spmat library in bale is mostly a collection of functions that act on sparse matrices or graphs. There are also a few functions that act on or create permutations of the numbers {0,..., n-1}.
 
+#### Data Structure
 The main data structure in this library is a distributed sparse matrix (implemented as Compressed Sparse Row (CSR)). **The rows are distributed to PEs in a round-robin (CYCLIC) fashion and all nonzeros of any given row have affinity to a single PE**. The sparse matrix data structure also has a
 pointer to the local slice of the matrix for each PE. So to look at the nonzeros on your own PE the code looks like this:
 
@@ -30,11 +31,23 @@ Note that we use the convention that local slices of distributed
 arrays are named the same as the parent array, just prefixed with an
 'l'.
 
+#### Values in matrices
 Sparse matrices in bale usually do not have explicit stored values. In
 that case, we assume every nonzero is a 1. The sparsemat_t data
 structure does have the ability to store explicit values as floating
-point however for applications that require values. 
+point however for applications that require values.
 
+#### A Graph is a Matrix (and a Matrix can be a graph)
+The adjacency matrix of an undirected graph with N vertices is an N by N matrix
+where the (i,j) element is nonzero if there is an edge between vertex
+i and vertex j. For a directed graph, there element (i,j) is nonzero
+if there is an edge **from** vertex i to vertex j. In bale, all
+undirected graphs are represented by a square lower triangular
+matrix. This is the lower half of the symmetric adjacency matrix. A
+directed graph is represented by a square matrix (no necessarily
+special form).
+
+#### App-like functions
 Several functions in this library are instructive enough that they are
 implemented in a variety of ways (AGP, exstack, exstack2, and
 conveyors). Those functions are transpose_matrix, permute_matrix, and
@@ -46,7 +59,7 @@ randpermp (create a random permutation of {0,...,n-1} in parallel).
 * Kronecker Product Graphs
 * I/O using Matrix Market format
 
-### Erdos-Renyi
+#### Erdos-Renyi
 The Erdos-Renyi random graph model with parameter p for
 n vertices flips a weighted coin (heads with probability p) for every
 potential edge in the graph. The edge is inserted into the graph if
@@ -72,7 +85,7 @@ bale. Also note that one can create a directed graph with this model
 but flipping a coin for each potential directed edge between two
 vertices.
 
-### Geometric Random Graphs
+#### Geometric Random Graphs
 
 <img src="../../../images/GeometricGraph2.png" alt="Example of a geometric random graph" align=left style="height: 200px; width:200px;"/>
 
@@ -109,13 +122,13 @@ think of on his/her first attempt. We want to see how different
 parallel programming models behave under the kinds of algorithms that
 people write as they evolve their algorithms.
 
-### Kronecker Product Graphs
+#### Kronecker Product Graphs
 
 We chose to implement Kronecker product graphs in bale to test out our Triangle counting implementations.
 For more details see "*Design, Generation, and Validation of Extreme Scale Power-Law Graphs*"
 by Kepner et. al. for more details. The parallel generation of these graphs is not particularly challenging or interesting.
 
-### Matrix Market I/O
+#### Matrix Market I/O
 
 The spmat library has the ability to read matrices in Matrix Market format. This function reads the matrices in serial using one PE and then distributes the resulting matrix to all PEs. For
 this reason it is not meant to scale to large matrices, but it is
