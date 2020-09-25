@@ -3,7 +3,6 @@ use convey_hpc::collect::{IVal, PType, ValueCollect};
 use convey_hpc::Convey;
 use rand::Rng;
 use regex::Regex;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
 use std::fs::OpenOptions;
@@ -440,7 +439,7 @@ impl SparseMat {
                 .expect("can't write .mm file");
         }
         {
-            let mut session = convey.begin(|entry: Entry, _from_rank| {
+            let mut session = Convey::begin(|entry: Entry, _from_rank| {
                 // only rank 0 will ever get asked to do this
                 if let Some(_) = &self.value {
                     writeln!(file, "{} {} {}", entry.row, entry.col, entry.val)

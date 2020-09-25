@@ -69,7 +69,7 @@ impl SsspInfo {
             dst: f64,
         }
         {
-            let mut session = convey.begin(|item: Item, _from_rank| {
+            let mut session = Convey::begin(|item: Item, _from_rank| {
                 all_distances[item.vtx] = item.dst;
             });
             for (i, d) in self.distance.iter().enumerate() {
@@ -384,7 +384,7 @@ impl<'a> BucketSearcher<'a> {
     /// relax all the requests from this phase, in parallel
     fn relax_requests(&mut self, requests: Vec<Request>) {
         // convey the request r=(w_g,d) to the PE that owns vtx w_g, and have it call relax()
-        let mut session = self.graph.begin(|item: Request, _from_rank| {
+        let mut session = Convey::begin(|item: Request, _from_rank| {
             self.relax(item);
         });
         for r in requests {
