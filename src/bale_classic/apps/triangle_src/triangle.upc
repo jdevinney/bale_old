@@ -241,7 +241,7 @@ int main(int argc, char * argv[]) {
   int64_t use_model;
   double laptime = 0.0;
   char model_str[32];
-  
+  int error = 0;
   for( use_model=1L; use_model < 32; use_model *=2 ) {
 
     tri_cnt = 0;
@@ -292,6 +292,7 @@ int main(int argc, char * argv[]) {
    
     if((correct_answer >= 0) && (total_tri_cnt != (int64_t)correct_answer)){
       T0_fprintf(stderr, "ERROR: Wrong answer!\n");
+      error = 1;
     }
     
     if(correct_answer == -1)
@@ -302,5 +303,5 @@ int main(int argc, char * argv[]) {
   lgp_barrier();
   
   bale_app_finish(&args.std);
-  return(0);
+  return(error);
 }

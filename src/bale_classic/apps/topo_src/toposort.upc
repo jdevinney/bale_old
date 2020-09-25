@@ -277,6 +277,7 @@ int main(int argc, char * argv[]) {
   int64_t use_model;
   double laptime = 0.0;
   char model_str[32];
+  int error = 0;
   for( use_model=1L; use_model < 32; use_model *=2 ) {
 
     switch( use_model & args.std.models_mask ) {
@@ -316,6 +317,7 @@ int main(int argc, char * argv[]) {
 
     if( check_is_triangle(mat, rperm2, cperm2) ) {
       T0_fprintf(stderr,"\nERROR: After toposort_matrix_upc: mat2 is not upper-triangular!\n");
+      error = 1;
     }
   }
 
@@ -323,6 +325,6 @@ int main(int argc, char * argv[]) {
 
   bale_app_finish(&args.std);
   
-  return(0);  
+  return(error);  
 }
 
