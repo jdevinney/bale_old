@@ -167,7 +167,11 @@ fn main() {
     let mat = generate_toposort_input(numrows, erdos_renyi_prob, seed, dump_files);
 
     if !quiet {
-        println!("input matrix: {} rows, {} nonzeros", mat.numrows, mat.nnz);
+        println!(
+            "input matrix: {} rows, {} nonzeros",
+            mat.numrows(),
+            mat.nnz()
+        );
     }
 
     if dump_files {

@@ -138,7 +138,7 @@ struct BucketSearcher<'a> {
 impl<'a> BucketSearcher<'a> {
     /// Create a bucket structure for a weighted graph
     fn new(graph: &SparseMat, delta: f64) -> BucketSearcher {
-        let nvtxs_this_rank = graph.numrows_this_rank;
+        let nvtxs_this_rank = graph.numrows_this_rank();
 
         let mut my_max_edge_len: f64 = 0.0;
         if let Some(edge_len) = &graph.value {
@@ -189,7 +189,7 @@ impl<'a> BucketSearcher<'a> {
         let filename = format!("trace.{}.out", self.graph.my_rank());
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().append(true).create(true).open(path)?;
-        let nvtxs_this_rank = self.graph.numrows_this_rank;
+        let nvtxs_this_rank = self.graph.numrows_this_rank();
         let now: DateTime<Local> = Local::now();
         writeln!(
             file,
@@ -439,8 +439,8 @@ impl DeltaStepping for SparseMat {
         quiet: bool,
         trace: bool,
     ) -> SsspInfo {
-        assert!(self.numrows == self.numcols);
-        assert!(source < self.numrows);
+        assert!(self.numrows() == self.numcols());
+        assert!(source < self.numrows());
 
         let t1 = wall_seconds();
 
@@ -450,7 +450,7 @@ impl DeltaStepping for SparseMat {
             delta = d;
         } else {
             let (_my_mindeg, my_maxdeg, _my_sumdeg) =
-                self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
+                self.rowcounts().fold((self.numcols(), 0, 0), |acc, x| {
                     (acc.0.min(x), acc.1.max(x), acc.2 + x)
                 });
             let maxdeg = self.reduce_max(my_maxdeg);
@@ -459,7 +459,9 @@ impl DeltaStepping for SparseMat {
         if !quiet {
             println!(
                 "delta_stepping: nvtxs = {}, nedges = {}, delta = {}",
-                self.numrows, self.nnz, delta
+                self.numrows(),
+                self.nnz(),
+                delta
             );
         }
 
@@ -562,7 +564,7 @@ impl DeltaStepping for SparseMat {
         let mut l_unreachable = 0;
         let mut l_max_dist: f64 = 0.0;
         let mut l_sum_dist: f64 = 0.0;
-        for v in 0..self.numrows_this_rank {
+        for v in 0..self.numrows_this_rank() {
             if info.distance[v].is_finite() {
                 l_max_dist = f64::max(l_max_dist, info.distance[v]);
                 l_sum_dist += info.distance[v];
@@ -578,7 +580,7 @@ impl DeltaStepping for SparseMat {
                 "unreachable vertices: {}; max finite distance: {}; avg finite distance: {}",
                 unreachable,
                 max_dist,
-                sum_dist / (self.numrows as f64 - unreachable as f64)
+                sum_dist / (self.numrows() as f64 - unreachable as f64)
             );
         }
         // check against ground truth file if it's there
@@ -607,7 +609,7 @@ impl DeltaStepping for SparseMat {
                 }
                 let mut l_diff: f64 = 0.0;
                 let mut l_csum: f64 = 0.0;
-                for v in 0..self.numrows_this_rank {
+                for v in 0..self.numrows_this_rank() {
                     if check_dst[v].is_finite() || info.distance[v].is_finite() {
                         l_diff += (check_dst[v] - info.distance[v]).powi(2);
                     }

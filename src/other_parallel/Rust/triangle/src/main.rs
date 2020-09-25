@@ -245,7 +245,9 @@ fn main() {
     if !quiet {
         println!(
             "input matrix: {} rows, {} nonzeros, expected count: {}",
-            mat.numrows, mat.nnz, correct_answer
+            mat.numrows(),
+            mat.nnz(),
+            correct_answer
         );
     }
 

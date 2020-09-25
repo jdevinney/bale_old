@@ -103,9 +103,9 @@ impl TopoSort for SparseMat {
     /// # Arguments
     /// * tmat the transpose of mat
     fn toposort_queue(&self, tmat: &SparseMat) -> TopoInfo {
-        let nr = self.per_my_rank(self.numrows);
-        let nc = self.per_my_rank(self.numcols);
-        let mut ret = TopoInfo::new(self.numrows);
+        let nr = self.per_my_rank(self.numrows());
+        let nc = self.per_my_rank(self.numcols());
+        let mut ret = TopoInfo::new(self.numrows());
 
         // row queue just has row
         let row_queue: RcVec<usize> = RcVec::new();
@@ -256,21 +256,21 @@ impl TopoSort for SparseMat {
         }
 
         // we need a copy of rp to avoid borrow problems in conveyor that follows
-        let mut rp = Perm::identity(self.numrows);
+        let mut rp = Perm::identity(self.numrows());
         for i in 0..nr {
             let lev = level.get_at(i);
             assert!(lev <= num_levels);
-            rp.perm[i] = (self.numrows - 1) - level_start[lev];
+            rp.perm()[i] = (self.numrows() - 1) - level_start[lev];
             level_start[lev] += 1;
         }
         //println!("tsq2");
 
         self.session()
             .pull_fn(|item: (usize, usize), _from_rank| {
-                ret.cperm.perm[item.0] = item.1;
+                ret.cperm.perm()[item.0] = item.1;
             })
             .push_iter((0..nr).map(|i| {
-                let pos = rp.perm[i];
+                let pos = rp.entry(i);
                 let (col, rank) = self.offset_rank(matched_col[i]);
                 ((col, pos), rank)
             }))
@@ -285,9 +285,9 @@ impl TopoSort for SparseMat {
     /// # Arguments
     /// * tmat the transpose of mat
     fn toposort_queue2(&self, tmat: &SparseMat) -> TopoInfo {
-        let nr = self.per_my_rank(self.numrows);
-        let nc = self.per_my_rank(self.numcols);
-        let mut ret = TopoInfo::new(self.numrows);
+        let nr = self.per_my_rank(self.numrows());
+        let nc = self.per_my_rank(self.numcols());
+        let mut ret = TopoInfo::new(self.numrows());
 
         // row queue just has row
         let row_queue: RcVec<usize> = RcVec::new();
@@ -419,20 +419,20 @@ impl TopoSort for SparseMat {
         }
 
         // we need a copy of rp to avoid borrow problems in conveyor that follows
-        let mut rp = Perm::identity(self.numrows);
+        let mut rp = Perm::identity(self.numrows());
         for i in 0..nr {
             let lev = level.get_at(i);
             assert!(lev <= num_levels);
-            rp.perm[i] = (self.numrows - 1) - level_start[lev];
+            rp.perm()[i] = (self.numrows() - 1) - level_start[lev];
             level_start[lev] += 1;
         }
 
         self.session()
             .pull_fn(|item: (usize, usize), _from_rank| {
-                ret.cperm.perm[item.0] = item.1;
+                ret.cperm.perm()[item.0] = item.1;
             })
             .push_iter((0..nr).map(|i| {
-                let pos = rp.perm[i];
+                let pos = rp.entry(i);
                 let (col, rank) = self.offset_rank(matched_col[i]);
                 ((col, pos), rank)
             }))

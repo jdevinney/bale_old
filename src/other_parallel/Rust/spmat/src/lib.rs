@@ -40,7 +40,6 @@ pub fn wall_seconds() -> f64 {
     (n.as_secs() as f64) + (n.as_micros() as f64) * 1.0e-6
 }
 
-
 /// An element of a sparse matrix as a triple
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 struct Entry {
@@ -60,10 +59,12 @@ pub struct SparseMat {
     nnz_this_rank: usize,
     /// the row offsets into the array of nonzeros, size is nrows+1,
     /// offsets[nrows] is nnz
-    offset: Vec<usize>,
-    nonzero: Vec<usize>,    // the global array of nonzeros
+    pub offset: Vec<usize>,
+    /// nonzero list
+    pub nonzero: Vec<usize>, // the global array of nonzeros
+    /// nonzero values, if present
+    pub value: Option<Vec<f64>>, // the global array of nonzero values, optional
     convey: Option<Convey>, // a conveyor for our use
-    value: Option<Vec<f64>>, // the global array of nonzero values, optional
 }
 
 impl std::fmt::Debug for SparseMat {
@@ -113,6 +114,7 @@ impl SparseMat {
         }
     }
 
+    /// new_with_values creates a distributed sparse matrix intialized with zero values
     pub fn new_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         let convey = Convey::new().expect("fixme");
         let total_nnz = convey.reduce_sum(nnz_this_rank);
@@ -146,6 +148,9 @@ impl SparseMat {
         }
     }
 
+    /// new_local creates a local sparse matrix, with values on each rank using
+    /// number of rows, number of columns, and number of rows on
+    /// current rank
     pub fn new_local_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         SparseMat {
             numrows: numrows,
@@ -160,18 +165,21 @@ impl SparseMat {
         }
     }
 
-    /// collect all of a distributed sparse matrix to a local matrix on rank 0.
-    /// must be called collectively by all ranks, returns empty matrix of same dims on all ranks but 0.
+    /// collect all of a distributed sparse matrix to a local matrix
+    /// on rank 0.  must be called collectively by all ranks, returns
+    /// empty matrix of same dims on all ranks but 0.
     pub fn to_local(&self) -> SparseMat {
         todo!();
     }
 
-    /// distribute a local sparse matrix on rank 0 to a distributed sparse matrix.
-    /// must be called collectively by all ranks, though only rank 0 supplies the input matrix.
+    /// distribute a local sparse matrix on rank 0 to a distributed
+    /// sparse matrix.  must be called collectively by all ranks,
+    /// though only rank 0 supplies the input matrix.
     pub fn to_distributed(&self) -> SparseMat {
         todo!();
     }
 
+    /// randomize the values of a sparse matrix
     pub fn randomize_values(&mut self) {
         let mut value = Vec::new();
         let mut rng = rand::thread_rng();
@@ -189,6 +197,7 @@ impl SparseMat {
             .map(|(a, b)| b - a)
     }
 
+    /// convenience function to return my rank
     pub fn my_rank(&self) -> usize {
         if let Some(convey) = &self.convey {
             convey.my_rank
@@ -238,6 +247,26 @@ impl SparseMat {
     /// local row index on this rank to global row index
     pub fn global_index(&self, n: usize) -> usize {
         self.num_ranks() * n + self.my_rank()
+    }
+
+    /// inspector: num_rows()
+    pub fn numrows(&self) -> usize {
+        self.numrows
+    }
+
+    /// inspector: num_rows_this_rank()
+    pub fn numrows_this_rank(&self) -> usize {
+        self.numrows_this_rank
+    }
+
+    /// inspector: num_cols()
+    pub fn numcols(&self) -> usize {
+        self.numcols
+    }
+
+    /// inspector: nnz()
+    pub fn nnz(&self) -> usize {
+        self.nnz
     }
 
     /// barrier that works for local SparseMat too
@@ -414,6 +443,7 @@ impl SparseMat {
         SparseMat::read_mm(&mut reader)
     }
 
+    /// read a sparse matrix from an arbitrary reader
     pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat, Error>
     where
         R: BufRead,
@@ -813,6 +843,13 @@ impl SparseMat {
             sum.offset[row + 1] = nnz;
         }
         sum
+    }
+
+    /// truncate the nonzero array and update as appropraite
+    pub fn truncate_nonzeros(&mut self, last: usize) {
+        self.nonzero.truncate(last);
+        self.nnz_this_rank = last;
+        self.nnz = self.reduce_sum(last);
     }
 
     /// Generate an erdos_renyi random sparse matrix

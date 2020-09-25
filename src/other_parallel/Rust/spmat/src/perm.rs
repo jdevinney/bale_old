@@ -63,6 +63,11 @@ impl Perm {
         self.perm[index]
     }
 
+    /// get a reference to the permutation itself
+    pub fn perm(&mut self) -> &mut Vec<usize> {
+        &mut self.perm
+    }
+
     /// predicate: is this a real permutation
     pub fn is_perm(&self) -> bool {
         let mut flags: Vec<bool> = vec![false; self.perm.len()];
