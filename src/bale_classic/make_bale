@@ -107,6 +107,7 @@ if __name__ == '__main__':
       ret = subprocess.run(cmd, shell=True)    
       if ret.returncode:
         sys.stderr.write("build of {0} failed.\n".format(pkg))
+        exit(1)
 
       new_time = os.path.getmtime("lib{0}.a".format(pkg))
       if orig_time != new_time:
