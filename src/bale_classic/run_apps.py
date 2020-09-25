@@ -1,21 +1,43 @@
+# script to run a suite of bale apps for experimentation or testing
+import sys
+if sys.version_info[0] < 3 or sys.version_info[1] < 7:
+  print("This script requires at least Python version 3.7")
+  sys.exit(1)
+
 import subprocess
 import os
-import sys
 import argparse
 from shutil import which
 
-def determine_launcher():
-  ret = subprocess.run('srun --help',capture_output=True,shell=True)
+def run_command(cmd):
+  #ret = subprocess.run(cmd,shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+  ret = subprocess.run(cmd,shell=True, capture_output=True)
+  return(ret)
+
+
+def determine_launcher(launcher):
+  if launcher is not None:
+    return(""+launcher+" -n {0} {1} {2}")
+  ret = run_command('srun --help')
   if ret.returncode == 0: return('srun -n {0} {1} {2}')
-  ret = subprocess.run('aprun --help', capture_output=True,shell=True)
-  if ret.returncode == 0: return('aprun -n {0} {1} {2}')
-  ret = subprocess.run('oshrun --help', capture_output=True,shell=True)
-  if ret.returncode == 0: return('oshrun -n {0} {1} {2}')
-  ret = subprocess.run('upcrun --help', capture_output=True,shell=True)
-  if ret.returncode == 0: return('upcrun -n {0} {1} {2}')
+  ret = run_command('aprun --help')
+  if ret.returncode== 0: return('aprun -n {0} {1} {2}')
+  ret = run_command('oshrun --help')
+  if ret.returncode== 0: return('oshrun -n {0} {1} {2}')
+  ret = run_command('upcrun --help')
+  if ret.returncode== 0: return('upcrun -n {0} {1} {2}')
   return("{2} -n {0} {1} --")
 
-all_apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles", "write_sparse_matrix"]
+all_apps = []
+all_apps.append("histo")
+all_apps.append("ig")
+all_apps.append("randperm")
+all_apps.append("transpose_matrix")
+all_apps.append("permute_matrix")
+all_apps.append("topo")
+all_apps.append("triangles")
+#all_apps.append("sssp")
+all_apps.append("write_sparse_matrix")
 
 
 def append_to_file(master_file, file_to_add, first):
@@ -27,56 +49,52 @@ def append_to_file(master_file, file_to_add, first):
         fout.write(",")
     fout.write(newdata)
     fout.close()        
-        
+
+
 def run_apps(app_dict, node_range, launcher_opts, option_str, impl_mask, json_file):
   
+  # add user options
+  base_cmd = "{0} ".format(option_str)
+  
+  # add implementation mask to the base_cmd
+  if impl_mask is not None:
+    base_cmd = "{0} -M {1}".format(base_cmd, impl_mask)
+
+  # if the user wants the output to go to json, add that option
+  # and write the initial opening brace in the json file
   if json_file is not None:
     # write initial [ to master json file
     fout = open(json_file,'w')
     fout.write("[\n")
     fout.close()
     tmp_json_file = "tmp_{0}".format(json_file)
-
+    # add -j option to base_cmd
+    base_cmd = "{0} -j {1}".format(base_cmd, tmp_json_file)
+    
   for app in app_dict:
-    runs = []
-    if option_str == None:
-      runs.append(" ")
-    else:
-      runs.append("{0} ".format(option_str))
-    
-    if impl_mask is not None:
-      for i,run in enumerate(runs):
-        runs[i] = "{0} -M {1}".format(run, impl_mask)
     first = True
-    
-    if json_file is not None:
-      for i,run in enumerate(runs):
-        runs[i] = "{0} -j {1}".format(run, tmp_json_file)
-    
-    
     for pes in node_range:
-      for run in runs:
-        cmd = launcher.format(2**pes, launcher_opts, app_dict[app]) +" "+run
-        print(cmd)
-        ret = subprocess.run(cmd, capture_output=True, shell=True)
-        assert(ret.returncode == 0)
-        lines = ret.stderr.decode('utf-8')
-        with open('run_all.log','a') as wp:
-          wp.write(lines)
-        if json_file is not None:
-          append_to_file(json_file, tmp_json_file, first)
-          first=False
-            
+      cmd = launcher.format(pes, launcher_opts, app_dict[app]) +" "+base_cmd
+      print(cmd)
+      ret = run_command(cmd)
+      assert(ret.returncode == 0)
+      lines = ret.stderr.decode('utf-8')
+      with open('run_all.log','a') as wp:
+        wp.write(lines)
+      if json_file is not None:
+        append_to_file(json_file, tmp_json_file, first)
+        first=False
+
   if json_file is not None:
+    # write closing brace and close json file
     fout = open(json_file,"a")
     fout.write("]")
     fout.close()
 
-if __name__ == '__main__':
 
-  if sys.version_info[0] < 3 or sys.version_info[1] < 7:
-    print("This script requires at least Python version 3.7")
-    sys.exit(1)
+
+############################################################
+if __name__ == '__main__':
   
     
   parser = argparse.ArgumentParser(description="""Script to run any or all of bale apps.""")
@@ -84,19 +102,36 @@ if __name__ == '__main__':
   parser.add_argument('-a','--app',  action="append", dest='app_list',  help="Specify an app to run. "
                       " Adding multiple -a options will create a list of apps to run. "
                       " Apps must be in {0}".format(all_apps), default=[])
-  parser.add_argument('-j','--json_file', action="store", dest='json_file', help="Pass -j <file> to all apps", default=None)
-  parser.add_argument('-l','--launcher_opts', action="store", dest='launcher_opts', help="Pass these options onto the launcher, these could be srun options for example"
-                      "Note that this script takes care of the -n option to launchers.", default="")
-  parser.add_argument('-M','--impl_mask', action="store", dest='impl_mask', help="Pass -M <mask> to all apps", default=None)
-  parser.add_argument(    '--node_range', action="store", dest='node_range', help="Specify the node range to run on as a range <start>,<end>,<stride>. "
-                        "The job will run each app with 2^x PEs where x is in range(node_range) PEs", default="1,4,1")
-  parser.add_argument('-o',"--option_str", action="store", dest='option_str', help="Specify a string to pass to all apps (must be valid for all apps!", default=None)
-  parser.add_argument('-P','--path',      action="store", dest='path',      help="Specify path to binaries. If no path is specified "
+  parser.add_argument('-j','--json_file', action="store", dest='json_file',
+                      help="Pass -j option to all apps. The final json file will have a record"
+                      " for each run and will be written to filename which is the argument of this option",
+                      default=None)
+  parser.add_argument('-L','--launcher', action="store", dest="launcher",
+                      help="Specify the launcher to use (for example: srun). "
+                      "We do our best to automatically detect the launcher, but "
+                      "there are cases where we will fail (for instance if you "
+                      "have a UPC build but you have oshrun in your PATH).",default=None)
+  parser.add_argument(   '--launcher_opts', action="store", dest='launcher_opts',
+                      help="Pass these options onto the launcher, these could be srun options for example."
+                      " The -n (num_tasks) option to launchers is handled separately"
+                      " (using the --node_range option)."
+                      " Do not specify the -n option for the launcher here.", default="")
+  parser.add_argument('-M','--impl_mask', action="store", dest='impl_mask',
+                      help="Pass \"-M IMPL_MASK\" to all apps", default=None)
+  parser.add_argument(     '--node_range', action="store", dest='node_range',
+                           help="Specify the node range to run on as a range <start>,<end>,<stride>. "
+                           "The job will run each app with x PEs where x is in range(node_range) PEs",
+                           default="1,4,1")
+  parser.add_argument('-o',"--option_str", action="store", dest='option_str',
+                      help="Specify a string to pass to all apps. Must be valid for all apps!", default="")
+  parser.add_argument('-P','--path',      action="store", dest='path',
+                      help="Specify path to binaries. If no path is specified "
                       " this script checks ./ and also the PATH environment variable.", default="")
+
   
   args = parser.parse_args()
 
-  launcher = determine_launcher()
+  launcher = determine_launcher(args.launcher)
   
   app_dict = {}
   if len(args.app_list) == 0:

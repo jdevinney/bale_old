@@ -38,7 +38,7 @@
 
 common_sources = libgetput.upc
 pkconfigdir=@libdir@/pkgconfig
-
+noinst_HEADERS=knuth_rng_double_2019.h
 include_HEADERS=libgetput.h
 #lib_LIBRARIES = 
 lib_LIBRARIES = liblibgetput.a

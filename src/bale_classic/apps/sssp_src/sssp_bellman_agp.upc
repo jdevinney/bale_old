@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file triangle_agi.upc
+/*! \file triangle_agp.upc
  * \brief The intuitive implementation of triangle counting 
  * that uses generic global references
  */
@@ -50,7 +50,7 @@
  *        (the weight of the tentative distance to the tail plus the weight of the edge).
  * This is effectively an atomic min operation of the new and old tentative distances.
  */
-static void relax_bellman_agi(d_array_t *tent, int64_t J, double tw)
+static void relax_bellman_agp(d_array_t *tent, int64_t J, double tw)
 {
   // Allows us to use the bits of new and old, either as doubles for the
   // determining the min, or just as bits for the compare_and_swap.
@@ -62,25 +62,31 @@ static void relax_bellman_agi(d_array_t *tent, int64_t J, double tw)
     old.x = lgp_get_double(tent->entry, J);
     if(new.x > old.x) 
       break;
-    if( old.u == lgp_cmp_and_swap(tent->entry, J, old.u, new.u) )
+
+    //uint64_t ret =lgp_cmp_and_swap(tent->entry, J, old.u, new.u);
+    //printf("newx %lf oldx %lf, J = %ld ret = %lu oldu = %lu\n", new.x, old.x, J, ret, old.u);    
+    //if(ret == old.u)
+    //break;
+    if( old.u == lgp_cmp_and_swap(tent->entry, J, old.u, new.u) )     
       break;
+
   }
 }
 
 /*!
- * \brief This routine implements the Bellman-Ford algorithm with the agi model
+ * \brief This routine implements the Bellman-Ford algorithm with the AGP model
  *
  * \param *dist a place to return the distance to the source
  * \param *mat the input matrix
  * \return average run time
  */
-double sssp_bellman_agi(d_array_t *dist, sparsemat_t * mat, int64_t v0)
+double sssp_bellman_agp(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 {
-  T0_printf(" Running AGI SSSP Bellman-Ford\n");
+  T0_printf(" Running AGP SSSP Bellman-Ford\n");
 
   double t1 = wall_seconds();
 
-  if(!mat){ T0_printf("ERROR: sssp_bellman_agi: NULL L!\n"); return(-1); }
+  if(!mat){ T0_printf("ERROR: sssp_bellman_agp: NULL L!\n"); return(-1); }
   
   //double tent_tail, new_tent;
   int64_t i, li, k, loop;
@@ -115,7 +121,7 @@ double sssp_bellman_agi(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 
   for(loop=2; loop<mat->numrows; loop++){
     changed = 0; 
-    for(li=0; li<mat->lnumrows; li++) 
+    for(li=0; li<mat->lnumrows; li++)
       tent_new->lentry[li] = tent_cur->lentry[li];
 
     for(li=0; li<mat->lnumrows; li++){
@@ -125,7 +131,7 @@ double sssp_bellman_agi(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 
       for(k = mat->loffset[li]; k < mat->loffset[li+1]; k++){
         tw = tent_cur->lentry[li] + mat->lvalue[k];
-        relax_bellman_agi(tent_new, mat->lnonzero[k], tw);
+        relax_bellman_agp(tent_new, mat->lnonzero[k], tw);
       }
     }
     lgp_barrier();
@@ -134,7 +140,7 @@ double sssp_bellman_agi(d_array_t *dist, sparsemat_t * mat, int64_t v0)
       lgp_barrier();
       break;
     }
-    //dump_tent("AGI: ", tent);
+    //dump_tent("AGP: ", tent);
     tent_temp = tent_old;
     tent_old = tent_cur;
     tent_cur = tent_new;

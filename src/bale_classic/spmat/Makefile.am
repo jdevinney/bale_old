@@ -36,7 +36,7 @@
 # 
 # *****************************************************************/ 
 
-common_sources  = spmat_agi.upc 
+common_sources  = spmat_agp.upc 
 common_sources += spmat_exstack.upc
 common_sources += spmat_exstack2.upc 
 common_sources += spmat_conveyor.upc

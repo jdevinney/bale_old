@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file triangle_agi.upc
+/*! \file triangle_agp.upc
  * \brief The intuitive implementation of triangle counting 
  * that uses generic global references
  */
@@ -43,7 +43,7 @@
 #include "triangle.h"
 
 /*!
- * \brief This routine implements the agi variant of triangle counting. We are performing
+ * \brief This routine implements the AGP variant of triangle counting. We are performing
  *                             L & L * L^T (if alg == 0)
  *                             L & U * U^T (if alg == 1)
  * These two computations are very similar and could have been merged into one
@@ -57,14 +57,14 @@
  * \return average run time
  */
 
-double triangle_agi(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg) {
+double triangle_agp(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg) {
   int64_t cnt=0;
   int64_t numpulled=0;
   int64_t l_i, ii, k, kk, w, L_i, L_j;
    
   double t1 = wall_seconds();
 
-  if(!L){ T0_printf("ERROR: triangle_agi: NULL L!\n"); return(-1); }
+  if(!L){ T0_printf("ERROR: triangle_agp: NULL L!\n"); return(-1); }
   
   if(alg == 0){    
     //foreach nonzero (i, j) in L
@@ -98,7 +98,7 @@ double triangle_agi(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * 
       }
     }
   }else{
-    if(!U){ T0_printf("ERROR: triangle_agi: NULL U!\n"); return(-1); }
+    if(!U){ T0_printf("ERROR: triangle_agp: NULL U!\n"); return(-1); }
     
     //foreach nonzero (i, j) in L
     for(l_i = 0; l_i < L->lnumrows; l_i++){ 

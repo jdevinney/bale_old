@@ -23,7 +23,7 @@ cd $BALEDIR
 export PLATFORM=linux_oshmem
 export CC=oshcc
 ./bootstrap.sh
-./install.sh -s
+./make_bale -s
 ```
 
 This builds everything in $BALEDIR/build_linux_oshmem. Binaries appear in $BALEDIR/build_linux_oshmem/bin.
@@ -49,7 +49,7 @@ export UPC=gupc (for GUPC)
 export UPC=upc (for CUPC)
 unset CC
 ./bootstrap.sh
-./install.sh
+./make_bale -u
 ```
 
 This builds everything in $BALEDIR/build_linux_oshmem. Binaries appear in $BALEDIR/build_linux_oshmem/bin.
@@ -66,7 +66,7 @@ This builds everything in $BALEDIR/build_linux_oshmem. Binaries appear in $BALED
 cd $BALEDIR
 export PLATFORM=xc30
 ./bootstrap.sh
-./install.sh
+./make_bale -u
 ```
 
 ## ... on Mac OS X

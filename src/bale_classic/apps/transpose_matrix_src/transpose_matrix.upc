@@ -53,7 +53,7 @@
  * generates a random square asymmetrix (via the Erdos-Renyi model) and then transposes
  * it in parallel.
  *
- * See files spmat_agi.upc, spmat_exstack.upc, spmat_exstack2.upc, and spmat_conveyor.upc
+ * See files spmat_agp.upc, spmat_exstack.upc, spmat_exstack2.upc, and spmat_conveyor.upc
  * for the source for the kernels.
  * 
  * Run with the --help, -?, or --usage flags for run details.
@@ -118,9 +118,9 @@ int main(int argc, char * argv[])
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
-    case AGI_Model:
-      outmat = transpose_matrix_agi(inmat);
-      sprintf(model_str, "AGI");
+    case AGP_Model:
+      outmat = transpose_matrix_agp(inmat);
+      sprintf(model_str, "AGP");
       break;
     case EXSTACK_Model:
       outmat = transpose_matrix_exstack(inmat, args.std.buffer_size);

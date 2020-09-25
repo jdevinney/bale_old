@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file triangle_agi_iter.upc
+/*! \file triangle_agp_iter.upc
  * \brief The intuitive implementation of triangle counting 
  * that uses global references hidden behind "iterators"
  */
@@ -152,14 +152,14 @@ int64_t col_iter_next( col_iter_t *citer)
 
 
 /*!
- * \brief This routine implements the agi variant of triangle counting
+ * \brief This routine implements another AGP variant of triangle counting
  * \param *count a place to return the counts from this thread
  * \param *sr a place to return the number of shared references
  * \param *mat the input sparse matrix 
  *        NB: This must be the tidy lower triangular matrix from the adjacency matrix
  * \return average run time
  */
-double triangle_agi_iter(int64_t *count, int64_t *sr, sparsemat_t * Lmat, sparsemat_t * Umat, int64_t alg){
+double triangle_agp_iter(int64_t *count, int64_t *sr, sparsemat_t * Lmat, sparsemat_t * Umat, int64_t alg){
   int64_t cnt=0;
   int64_t numpulled=0;
   int64_t U,W,V,H;
