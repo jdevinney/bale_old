@@ -2,11 +2,17 @@ use crate::perm::Perm;
 use convey_hpc::collect::{IVal, PType, ValueCollect};
 use convey_hpc::session::ConveySession;
 use convey_hpc::Convey;
+use rand::Rng;
+use regex::Regex;
 use serde::de::DeserializeOwned;
-use serde::ser::Serialize;
+use serde::{Deserialize, Serialize};
 use std::fs::File;
-use std::io::BufWriter;
+use std::fs::OpenOptions;
+use std::io::BufRead;
+use std::io::BufReader;
 use std::io::Write;
+use std::io::{Error, ErrorKind};
+
 use std::path::Path;
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -15,6 +21,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 pub fn wall_seconds() -> f64 {
     let n = SystemTime::now().duration_since(UNIX_EPOCH).unwrap();
     (n.as_secs() as f64) + (n.as_micros() as f64) * 1.0e-6
+}
+
+/// An element of a sparse matrix as a triple
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Entry {
+    row: usize,
+    col: usize,
+    val: f64,
 }
 
 pub struct SparseMat {
@@ -26,11 +40,13 @@ pub struct SparseMat {
     /// the row offsets into the array of nonzeros, size is nrows+1,
     /// offsets[nrows] is nnz
     pub offset: Vec<usize>,
-    pub nonzero: Vec<usize>,    // the global array of nonzeros
-    pub convey: Option<Convey>, // a conveyor for our use
+    pub nonzero: Vec<usize>,     // the global array of nonzero columns
+    pub value: Option<Vec<f64>>, // the global array of nonzero values, optional
+    pub convey: Option<Convey>,  // a conveyor for our use
 }
 
 impl std::fmt::Debug for SparseMat {
+    // 0-0 should add values
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let debug_rows = self.numrows_this_rank.min(10);
         let mut rows: Vec<(usize, Vec<usize>)> = Vec::new();
@@ -68,6 +84,23 @@ impl SparseMat {
             nnz_this_rank: nnz_this_rank,
             offset: vec![0; convey.per_my_rank(numrows) + 1],
             nonzero: vec![0; nnz_this_rank],
+            value: None,
+            convey: Some(convey),
+        }
+    }
+
+    pub fn new_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
+        let convey = Convey::new().expect("fixme");
+        let total_nnz = convey.reduce_sum(nnz_this_rank);
+        SparseMat {
+            numrows: numrows,
+            numrows_this_rank: convey.per_my_rank(numrows),
+            numcols: numcols,
+            nnz: total_nnz,
+            nnz_this_rank: nnz_this_rank,
+            offset: vec![0; convey.per_my_rank(numrows) + 1],
+            nonzero: vec![0; nnz_this_rank],
+            value: Some(vec![0.0_f64; nnz_this_rank]),
             convey: Some(convey),
         }
     }
@@ -81,8 +114,52 @@ impl SparseMat {
             nnz_this_rank: nnz_this_rank,
             offset: vec![0; numrows + 1],
             nonzero: vec![0; nnz_this_rank],
+            value: None,
             convey: None,
         }
+    }
+
+    pub fn new_local_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
+        SparseMat {
+            numrows: numrows,
+            numrows_this_rank: numrows,
+            numcols: numcols,
+            nnz: nnz_this_rank,
+            nnz_this_rank: nnz_this_rank,
+            offset: vec![0; numrows + 1],
+            nonzero: vec![0; nnz_this_rank],
+            value: Some(vec![0.0_f64; nnz_this_rank]),
+            convey: None,
+        }
+    }
+
+    /// collect all of a distributed sparse matrix to a local matrix on rank 0.
+    /// must be called collectively by all ranks, returns empty matrix of same dims on all ranks but 0.
+    pub fn to_local(&self) -> SparseMat {
+        todo!();
+    }
+
+    /// distribute a local sparse matrix on rank 0 to a distributed sparse matrix.
+    /// must be called collectively by all ranks, though only rank 0 supplies the input matrix.
+    pub fn to_distributed(&self) -> SparseMat {
+        todo!();
+    }
+
+    pub fn randomize_values(&mut self) {
+        let mut value = Vec::new();
+        let mut rng = rand::thread_rng();
+        for _ in 0..self.nnz_this_rank {
+            value.push(rng.gen::<f64>());
+        }
+        self.value = Some(value);
+    }
+
+    /// an iterator over row counts
+    pub fn rowcounts<'a>(&'a self) -> impl Iterator<Item = usize> + 'a {
+        self.offset[0..self.numrows_this_rank]
+            .iter()
+            .zip(&self.offset[1..self.numrows_this_rank + 1])
+            .map(|(a, b)| b - a)
     }
 
     pub fn my_rank(&self) -> usize {
@@ -97,7 +174,7 @@ impl SparseMat {
         if let Some(convey) = &self.convey {
             convey.num_ranks
         } else {
-            0
+            1
         }
     }
 
@@ -109,6 +186,7 @@ impl SparseMat {
         }
     }
 
+    /// global row index to local row index on its home rank, and home rank
     pub fn offset_rank(&self, n: usize) -> (usize, usize) {
         if let Some(convey) = &self.convey {
             convey.offset_rank(n)
@@ -117,14 +195,28 @@ impl SparseMat {
         }
     }
 
-    /// create a session without a pull_fn
+    /// global row index to local row index on this rank
+    pub fn local_index(&self, n: usize) -> usize {
+        let (offset, rank) = self.offset_rank(n);
+        if rank != self.my_rank() {
+            panic!("attempt to get local index for row not on this rank");
+        }
+        offset
+    }
+
+    /// local row index on this rank to global row index
+    pub fn global_index(&self, n: usize) -> usize {
+        self.num_ranks() * n + self.my_rank()
+    }
+
+    /// barrier that works for local SparseMat too
     pub fn barrier(&self) {
         if let Some(convey) = &self.convey {
             convey.barrier()
         }
     }
 
-    /// create a session without a pull_fn
+    /// create a session with a pull_fn
     pub fn begin<'a, T: Copy + Serialize + DeserializeOwned>(
         &'a self,
         pull_fn: impl FnMut(T, usize) + 'a,
@@ -136,6 +228,7 @@ impl SparseMat {
         }
     }
 
+    /// create a session without a pull_fn
     pub fn session<'a, T: Copy + Serialize + DeserializeOwned>(&'a self) -> ConveySession<'a, T> {
         if let Some(convey) = &self.convey {
             convey.session()
@@ -175,12 +268,48 @@ impl SparseMat {
             unimplemented!("Conveyors not implemented for local SparseMat");
         }
     }
+
+    /// prints some stats of a sparse matrix
+    pub fn stats(&self) -> () {
+        let val_str = if let Some(_) = self.value {
+            "(with values)"
+        } else {
+            "(pattern only)"
+        };
+        if let Some(_) = self.convey {
+            if self.my_rank() != 0 {
+                return ();
+            }
+            println!("    distributed matrix {}", val_str);
+            println!("    num_ranks = {}", self.num_ranks());
+            println!("    numrows.0 = {}", self.numrows_this_rank);
+            println!("    nnz.0     = {}", self.nnz_this_rank);
+        } else {
+            println!("    local matrix {} on rank {}", val_str, self.my_rank());
+        }
+        println!("    numrows   = {}", self.numrows);
+        println!("    numcols   = {}", self.numcols);
+        println!("    nnz       = {}", self.nnz);
+
+        // compute min, max, sum all at once for efficiency, only once thru itereator
+        let (mindeg, maxdeg, sumdeg) = self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
+            (acc.0.min(x), acc.1.max(x), acc.2 + x)
+        });
+
+        let avgdeg = sumdeg as f64 / self.numrows as f64;
+
+        println!(
+            "    min, avg, max degree (rank 0) = {}, {}, {}",
+            mindeg, avgdeg, maxdeg
+        );
+    }
+
     /// dumps a sparse matrix to a file in a ASCII format
     /// # Arguments
     /// * maxrows the number of rows that are written, 0 means everything,
     ///           otherwise write the first and last maxrows/2 rows
     /// * filename the filename to written to
-    pub fn dump(&self, maxrows: usize, filename: &str) -> Result<(), std::io::Error> {
+    pub fn dump(&self, maxrows: usize, filename: &str) -> Result<(), Error> {
         let path = Path::new(&filename);
         let mut file = File::create(path)?;
 
@@ -201,59 +330,197 @@ impl SparseMat {
         };
 
         writeln!(file, "\n--------- offsets:")?;
-        for off in &self.offset[0..stop_row] {
+        for off in &self.offset[0..stop_row + 1] {
             write!(file, "{} ", off)?;
         }
         if use_maxrow {
-            write!(file, " ... ")?;
+            write!(file, "... ")?;
             for off in &self.offset[start_row..self.numrows] {
                 write!(file, "{}", off)?;
             }
         }
 
-        writeln!(file, "\n--------- nonzeros:")?;
+        writeln!(
+            file,
+            "{}",
+            match &self.value {
+                None => "\n--------- row col:",
+                Some(_) => "\n--------- row col val:",
+            },
+        )?;
+
         for i in 0..stop_row {
-            for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
-                writeln!(file, "{} {}", i, nz)?;
+            for k in self.offset[i]..self.offset[i + 1] {
+                if let Some(value) = &self.value {
+                    writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
+                } else {
+                    writeln!(file, "{} {}", i, self.nonzero[k])?;
+                }
             }
         }
         if use_maxrow {
             write!(file, ".\n.\n.\n")?;
             for i in start_row..self.numrows {
-                for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
-                    writeln!(file, "{} {}", i, nz)?;
+                for k in self.offset[i]..self.offset[i + 1] {
+                    if let Some(value) = &self.value {
+                        writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
+                    } else {
+                        writeln!(file, "{} {}", i, self.nonzero[k])?;
+                    }
                 }
             }
         }
         Ok(())
     }
 
-    /// writes a sparse matrix to a file in a MatrixMarket ASCII formats
+    /// read a sparse matrix from a file in a MatrixMarket ASCII format
     /// # Arguments
-    /// * filename the filename to written to
-    pub fn write_mm_file(&self, filename: &str) -> Result<(), std::io::Error> {
+    /// * filename the file to be read
+    pub fn read_mm_file(filename: &str) -> Result<SparseMat, Error> {
         let path = Path::new(&filename);
-        let file = File::create(path)?;
-        let mut writer = BufWriter::new(file);
-        self.write_mm(&mut writer)
+        let fp = File::open(path)?;
+        let mut reader = BufReader::new(fp);
+        SparseMat::read_mm(&mut reader)
     }
 
-    pub fn write_mm<W>(&self, writer: &mut W) -> Result<(), std::io::Error>
+    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat, Error>
     where
-        W: Write,
+        R: BufRead,
     {
-        writeln!(writer, "%%MasterMarket matrix coordinate position")?;
-        writeln!(writer, "{} {} {}", self.numrows, self.numcols, self.nnz)?;
+        let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
+        let re1 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *pattern*").expect("bad regex");
+        let re2 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *real*").expect("bad regex");
+        if !re1.is_match(&line) && !re2.is_match(&line) {
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("invalid MatrixMarket header {}", line),
+            ));
+        }
+        let has_values = re2.is_match(&line);
 
-        for rank in 0..self.num_ranks() {
-            if rank == self.my_rank() {
-                for i in 0..self.numrows {
-                    for nz in &self.nonzero[self.offset[i]..self.offset[i + 1]] {
-                        writeln!(writer, "{} {}", i + 1, nz + 1)?;
-                    }
+        let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
+        let re = Regex::new(r"^(\d*)\s*(\d*)\s*(\d*)\s*").expect("bad regex");
+        let cleaned = re.replace_all(&line, "$1 $2 $3");
+        let inputs: Vec<String> = cleaned.split(" ").map(|x| x.to_string()).collect();
+        let nr: usize = inputs[0].parse().expect("bad row dimension");
+        let nc: usize = inputs[1].parse().expect("bad column dimension");
+        let nnz: usize = inputs[2].parse().expect("bad nnz");
+        if nr == 0 || nc == 0 {
+            panic!(format!("bad matrix sizes {} {} {}", nr, nc, nnz));
+        }
+        let mut matrix = SparseMat::new(nr, nc, 0); // we don't know nnz_this_rank yet
+        let mut elts: Vec<Entry> = vec![];
+        for line in reader.lines() {
+            let line = line.expect("read error");
+            let inputs: Vec<&str> = line.split_whitespace().collect();
+            let row: usize = inputs[0].parse::<usize>().expect("bad row number") - 1;
+            let col: usize = inputs[1].parse::<usize>().expect("bad column number") - 1;
+            let val: f64 = if has_values {
+                inputs[2].parse().expect("bad element value")
+            } else {
+                1.0
+            };
+            if row >= nr || col >= nc {
+                panic!(format!("bad matrix nonzero coordinates {} {}", row, col));
+            }
+            if matrix.offset_rank(row).1 == matrix.my_rank() {
+                elts.push(Entry {
+                    row: matrix.local_index(row),
+                    col: col,
+                    val: val,
+                });
+            }
+        }
+        matrix.nnz_this_rank = elts.len();
+        matrix.nnz = matrix.reduce_sum(matrix.nnz_this_rank);
+        if matrix.nnz != nnz {
+            panic!(format!(
+                "incorrect number of nonzeros {} != {}",
+                matrix.nnz, nnz
+            ));
+        }
+
+        elts.sort_by(|a, b| {
+            if a.row == b.row {
+                a.col.cmp(&b.col)
+            } else {
+                a.row.cmp(&b.row)
+            }
+        });
+
+        let mut values: Vec<f64> = vec![];
+        let mut row: usize = 0;
+        for (i, elt) in elts.iter().enumerate() {
+            // first adjust so we are on correct row
+            while row < elt.row {
+                row += 1;
+                matrix.offset[row] = i;
+            }
+            assert!(elt.row == row);
+            matrix.nonzero.push(elt.col);
+            if has_values {
+                values.push(elt.val);
+            }
+        }
+        for i in row + 1..matrix.numrows_this_rank + 1 {
+            matrix.offset[i] = matrix.nnz_this_rank;
+        }
+        if has_values {
+            matrix.value = Some(values);
+        }
+        Ok(matrix)
+    }
+
+    /// write a sparse matrix to a file in a MatrixMarket ASCII format
+    /// # Arguments
+    /// * filename the filename to written to
+    pub fn write_mm_file(&self, filename: &str) -> Result<(), Error> {
+        let path = Path::new("/dev/null");
+        let mut file = OpenOptions::new().write(true).open(path)?;
+        // use a new conveyor, not the one in the SparseMat, to avoid borrow issues
+        let convey = Convey::new().expect("conveyor initialization failed");
+        let my_rank = convey.my_rank;
+        if my_rank == 0 {
+            let path = Path::new(&filename);
+            file = OpenOptions::new().write(true).create(true).open(path)?;
+            if let Some(_) = &self.value {
+                writeln!(file, "%%MatrixMarket matrix coordinate real general")
+                    .expect("can't write .mm file");
+            } else {
+                writeln!(file, "%%MatrixMarket matrix pattern real general")
+                    .expect("can't write .mm file");
+            }
+            writeln!(file, "{} {} {}", self.numrows, self.numcols, self.nnz)
+                .expect("can't write .mm file");
+        }
+        {
+            let mut session = convey.begin(|entry: Entry, _from_rank| {
+                // only rank 0 will ever get asked to do this
+                if let Some(_) = &self.value {
+                    writeln!(file, "{} {} {}", entry.row, entry.col, entry.val)
+                        .expect("can't write .mm file");
+                } else {
+                    writeln!(file, "{} {}", entry.row, entry.col).expect("can't write .mm file");
+                }
+            });
+            for i in 0..self.numrows_this_rank {
+                let i_g = self.global_index(i);
+                for k in self.offset[i]..self.offset[i + 1] {
+                    session.push(
+                        Entry {
+                            row: i_g + 1,
+                            col: self.nonzero[k] + 1,
+                            val: if let Some(value) = &self.value {
+                                value[k]
+                            } else {
+                                0.0
+                            },
+                        },
+                        0, // always push to rank 0, which writes the file
+                    );
                 }
             }
-            self.barrier();
+            session.finish();
         }
         Ok(())
     }
@@ -309,7 +576,11 @@ impl SparseMat {
         };
         total_lower != 0 || total_diag_missing != 0
     }
+
     pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> Self {
+        if let Some(_) = &self.value {
+            todo!()
+        }
         let mut rowcounts = vec![0_usize; self.numrows_this_rank];
         assert_eq!(rperminv.perm.len(), self.numrows_this_rank);
         assert_eq!(cperminv.perm.len(), self.numrows_this_rank);
@@ -379,6 +650,9 @@ impl SparseMat {
     }
 
     pub fn transpose(&self) -> Self {
+        if let Some(_) = &self.value {
+            todo!()
+        }
         let mut colcnt = vec![0_usize; self.per_my_rank(self.numrows)];
         let mut nnz = 0_usize;
 
@@ -424,6 +698,12 @@ impl SparseMat {
     }
 
     pub fn compare(&self, other: &SparseMat) -> bool {
+        if (self.value == None && other.value != None)
+            || (self.value != None && other.value == None)
+        {
+            println!("presence of values differ {:?} {:?}", self, other);
+            return false;
+        }
         if (self.numcols != other.numcols)
             || (self.numrows != other.numrows)
             || (self.numrows_this_rank != other.numrows_this_rank)
@@ -437,19 +717,45 @@ impl SparseMat {
             println!("offsets differ {:?} {:?}", self, other);
             return false;
         }
-        // need to sort nonzeros before compare
-        let mut self_sorted = self.nonzero.clone();
-        let mut other_sorted = other.nonzero.clone();
-        self_sorted.sort();
-        other_sorted.sort();
-        if self_sorted != other_sorted {
-            println!("nonzero differ {:?} {:?}", self, other);
-            return false;
+        // need to sort nonzeros before compare 0-0 jg: why?
+        for row in 0..self.numrows_this_rank {
+            // we already know self & other offsets are the same
+            let range = self.offset[row]..self.offset[row + 1];
+            if let Some(sval) = &self.value {
+                if let Some(oval) = &other.value {
+                    let mut self_sorted: Vec<_> = self.nonzero[range.clone()]
+                        .iter()
+                        .zip(&sval[range.clone()])
+                        .collect();
+                    let mut other_sorted: Vec<_> = other.nonzero[range.clone()]
+                        .iter()
+                        .zip(&oval[range.clone()])
+                        .collect();
+                    self_sorted.sort_by(|a, b| b.0.cmp(&a.0));
+                    other_sorted.sort_by(|a, b| b.0.cmp(&a.0));
+                    if self_sorted != other_sorted {
+                        println!("nonzeros differ {:?} {:?}", self, other);
+                        return false;
+                    }
+                }
+            } else {
+                let mut self_sorted: Vec<_> = self.nonzero[range.clone()].iter().collect();
+                let mut other_sorted: Vec<_> = other.nonzero[range.clone()].iter().collect();
+                self_sorted.sort();
+                other_sorted.sort();
+                if self_sorted != other_sorted {
+                    println!("nonzeros differ {:?} {:?}", self, other);
+                    return false;
+                }
+            }
         }
         true
     }
 
     pub fn add(&self, other: &SparseMat) -> Self {
+        if let Some(_) = &self.value {
+            todo!()
+        }
         // need to check for errors
         let mut sum = SparseMat::new(
             self.numrows,
@@ -479,14 +785,18 @@ impl SparseMat {
         seed: i64,
     ) -> Self {
         if mode == 0 {
+            // symmetric matrix, undirected graph
             let upper = SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, false, seed);
             let lower = upper.transpose();
             upper.add(&lower)
         } else if mode == 1 {
+            // lower triangular matrix
             SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, true, seed)
         } else if mode == 2 {
+            // upper triangular matrix
             SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, false, seed)
         } else {
+            // nonsymmetric matrix, directed graph
             let upper = SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, false, seed);
             let lower = SparseMat::erdos_renyi_tri(num_vert, prob, unit_diag, true, seed + 1);
             upper.add(&lower)
@@ -501,6 +811,7 @@ impl SparseMat {
         _seed: i64,
     ) -> Self {
         let mut tri = SparseMat::new(num_vert, num_vert, 0);
+        // let mut tri = SparseMat::new_local(num_vert, num_vert, 0); // jg: make local mtx for test
         let l_max = (std::u32::MAX as f64).ln();
         let d = (1.0 - prob).ln();
         let numrows = num_vert;
