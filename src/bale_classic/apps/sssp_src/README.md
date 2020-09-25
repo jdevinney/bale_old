@@ -1,45 +1,87 @@
 # Single Source Shortest Path  (sssp)
 
 ## Definition
-Given a directed, weighted graph and an given vertex, *v_0*,
-find the lightest weighted path from *v_0* to all other vertices,
-where the weight of a path is the sum of the weights of the 
-edges in the path.
+We are given a directed graph with non-negative edge weights *c(v,w)*
+and an given source vertex, *v_0*.
+We wish to find the lightest weighted path from *v_0* to all other vertices,
+where the weight of a path is the sum of the weights of the edges in the path.
 
 ## Discussion
 This is well studied problem.
 It is used in classes on algorithms, data structures, and graph theory.
 It is also used as a benchmark in Graph500 benchmark suite.
-Good references for these uses are easily found.
-
-This is not an academic exercise nor are we interested in benchmarking.
 We are using this problem to evaluate what we have learned about our programming models.
-Are approach is that of someone given the assignment to get a SSSP application
+Are approach is that of someone given the assignment to get an SSSP application
 running reasonable well, at scale, using our programming models.
 
 We consider three algorithms: Dijsktra's, Delta-Stepping, and Bellman-Ford.
+Good references for these uses are easily found online.
+We are using the Meyer/Sanders 
+[delta-stepping algorithm](https://www.sciencedirect.com/science/article/pii/S0196677403000762).
+
 These algorithm work by assign a tentative weight, *tent(v)*, to each vertex. 
 Initially the weight of the given vertex is zero and all other weights are set to infinity.
-The algorithms proceed by changing the state of the vertices from *unreached* (with infinite weight)
-to *unsettled* to *settled* (the weight to that vertex is then known). 
+The algorithms proceed by changing the state of the vertices 
+from *unreached* (with infinite weight)
+to *unsettled* 
+to *settled* (meaning that the lightest weight path to that vertex is known). 
 The vertices change state via the process of *relaxing edges*.
-One relaxes and edge by setting the tentative weight of the head of the edge to the 
-minimum of itself and the tentative weight of the tail plus the weight of the edge.
-The algorithms vary in how much parallelism they enjoy and how and when vertices are *settled*.
+Relaxing an edge *(v,w)* replaces *tent(w)* with the *min(tent(w), tent(v)+c(v,w))*.
 
-We have implementations of all three algorithms in the other_serial/C "cousin" directory 
-and have implementation of Delta-Stepping and Bellman-Ford in this directory.
+There is subtle relationship between the length of a path
+(the number of edge in the path) and the weight of the path.
+Clearly, it is possible to have a longer path that is lighter than a shorter.
+If a path from *v0* to *w* contains the vertice *v*, then the weight of the path
+from *v0* to *v* is less than the path from *v0* thru *v* to *w*.
+If *v* is an intermediate vertex on a lightest path from *v0* to *w*,
+then the path from $v0$ to $v$ is also a lightest path.
+
+Dijsktra's algorithm works by considering the weight *tent(v)* of the "unsettled" vertices.
+One proves that lightest such vertex does, in fact, have the correct weight.
+So, that vertex can be "settled" and we need only relax edges from that vertex.
+This gives the most efficent algorithm in the sense that edges are relaxed exactly once.
+
+Bellman-Ford relaxes edges based on the length of paths 
+to the "unsettled" and "unreached" vertices.
+Basically the algorithm is to relax all of the edges in the graph until none of the
+tentative weights *tent(v)* change. 
+
+The Meyer/Sanders delta-stepping algorithm uses ideas from both of the previous algorithms.
+Unsettled vertices are kept in "buckets" based on their by *tent(v)* value; bucket *i*
+contains vertices with *tent(v)* at least _i\*delta_ and less than _(i+1)\*delta_, 
+where *delta* is a parameter.  The active bucket is the *i*th bucket (with the smallest *i*)
+that has unsettled vertices.  Edges in the graph are considered light if their weight 
+is less than or equal to *delta* and heavy otherwise.
+
+The algorithm "settles" the vertices in that active bucket with a Bellman-Ford approach
+using only the light edges. Then the algorithm relaxes the vertices that were in the active
+bucket using the heavy. This uses an extension of Dijsktra's approach because the 
+heavy edges cannot put vertices into the active bucket.  The efficiency of the algorithm
+comes at the price of a more complicate flow control and data-structure manipulations
+to maintain the buckets.
+
+We have implementations of Delta-Stepping and Bellman-Ford in this directory.
+We also have implementations of all three algorithms in the other_serial/C "cousin" 
+directory and the delta-stepping algorithm in the other_serial/Rust and other_parallel/Rust directories.
 
 #### Parallel Considerations
-Dijsktra's algorithm is a serial algorithm. It moves vertices from be *unsettled* to *settled* 
-one at a time and relaxes each edge exactly once.  It does the minimal amount of work, but
-there is no opportunity for parallelism.
-Bellman-Ford has a lot of parallelism, but it does a lot of redundant work.
-In fact, if one had a processor for each edge, Bellman-Ford could be described 
-simply as repeatedly relaxing all the edges until none of the tentative weights improve.
-The Delta-Stepping algorithm is in between the two.
-It is like Dijsktra's in that most of the edges are relaxed only once, but remaining edges
-can be relaxed in parallel.
+Dijsktra's algorithm is a serial algorithm, 
+with no opportunity for our static thread based parallelism. 
+One must find *the* single lightest *tent(v)* and then relax the edges from that v.
+Depending on the average degree of a vertex, one could imagine relaxing the edges
+in parallel with a fork-join threading model.
+
+Bellman-Ford does a lot of redundant relaxations. We attempt to limit the amount of 
+redundant work with a dynamic programming approach, but it still seems to be over-whelming.
+In it favor, it has trivial flow control, no data structure manipulations 
+and massive amounts of parallelism. 
+
+The delta-stepping algorithm has a tunable amount of parallelism that depends on *delta*.
+The more vertices that are in the active bucket the more relaxations,
+possibly redundant relaxations, that can be done in a parallel.
+Note that the heavy edges are relaxed only once, but they are done in a batch.
+All the heavy edges from any vertex that was in the active bucket can be relax at the same time.
+
 
 
 ```c
