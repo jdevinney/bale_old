@@ -6,6 +6,13 @@
 #include "sssp_delta_common.h"
 
 
+/*!
+ * \brief Forwards the relax requests from the exstack buffers to the local relax routine
+ * \param ds the delta-stepping struct 
+ * \param ex the exstack
+ * \param done the signal to convey_advance that this thread is done
+ * \return the return value from convey_advance
+ */
 static int64_t delta_exstack_relax_process(ds_t *ds, exstack_t *ex, int64_t done) 
 {
   int64_t fromth;
@@ -18,19 +25,27 @@ static int64_t delta_exstack_relax_process(ds_t *ds, exstack_t *ex, int64_t done
   return( exstack_proceed(ex, done) );
 }
 
-int64_t delta_exstack_push(exstack_t *ex, int64_t gidx, double tent_wt)
+/*!
+ * \brief Push the potentially improved weight to the thread handling the head of the edge
+ * \param ex the extack buffers
+ * \param ds pointer to the delta-stepping struct to be passed thru to delta_convey_relax_process
+ * \param J the head of the edge, given by it global name
+ * \param tw the new weight
+ * \return the value from the push
+ */
+int64_t delta_exstack_push(exstack_t *ex, ds_t *ds, int64_t gidx, double tent_wt)
 {
+  int64_t ret, pe; 
   struct sssp_pkg_t pkg;
-  int64_t pe; 
   pe = gidx % THREADS;
   pkg.lj  = gidx / THREADS;
   pkg.tw = tent_wt;
-  return(exstack_push(ex, &pkg, pe));
+  if((ret = exstack_push(ex, &pkg, pe)) == 0){
+    delta_exstack_relax_process(ds, ex, 0);
+  }
+  return(ret);
 }
 
-// This is the delta stepping algorithm as it appears in
-// the paper "Delta-stepping: a parallelizable shortest path algorithm" by
-// U. Meyer and P. Sanders.
 
 double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t r0, double opt_delta)
 {
@@ -94,23 +109,11 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, i
         v = ds->B[i_m]; 
         remove_node_from_bucket(ds, v);
 
-#if 0
-        for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){        // relax light edges from v 
-          if(mat->lvalue[k] <= delta){	  
-            if( delta_exstack_push(ex, mat->lnonzero[k],  ds->tent[v] + mat->lvalue[k]) == 0 ) {
-              delta_exstack_relax_process(ds, ex, 0);
-              k--;
-            }
-          }
-        } 
-#else 
         for(k = light->loffset[v]; k < light->loffset[v + 1]; k++){        // relax light edges from v 
-          if( delta_exstack_push(ex, light->lnonzero[k],  ds->tent[v] + light->lvalue[k]) == 0 ) {
-            delta_exstack_relax_process(ds, ex, 0);
+          if(delta_exstack_push(ex, ds, light->lnonzero[k],  ds->tent[v] + light->lvalue[k]) == 0)
             k--;
-          }
-        } 
-#endif
+        }
+
         if(ds->deleted[v] == 0){  // insert v into R if it is not already there
           ds->deleted[v] = 1;
           ds->R[end++] = v;
@@ -125,23 +128,10 @@ double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, i
 
     for(start=0; start<end; start++){           // relax heavy requests edges for everything in R 
       v = ds->R[start];
-#if 0
-      for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){
-        if(mat->lvalue[k] > delta){	  
-          if( delta_exstack_push(ex, mat->lnonzero[k],  ds->tent[v] + mat->lvalue[k]) == 0 ) {
-            delta_exstack_relax_process(ds, ex, 0);
-            k--;
-          }
-        }
-      }
-#else
       for(k = heavy->loffset[v]; k < heavy->loffset[v + 1]; k++){
-        if( delta_exstack_push(ex, heavy->lnonzero[k],  ds->tent[v] + heavy->lvalue[k]) == 0 ) {
-          delta_exstack_relax_process(ds, ex, 0);
+        if(delta_exstack_push(ex, ds, heavy->lnonzero[k],  ds->tent[v] + heavy->lvalue[k]) == 0)
           k--;
-        }
       }
-#endif
     }
     while( delta_exstack_relax_process(ds, ex, 1) )
       ;
