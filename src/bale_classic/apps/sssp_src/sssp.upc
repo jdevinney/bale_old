@@ -193,11 +193,10 @@ int main(int argc, char * argv[])
     for( use_model=1L; use_model < 32; use_model *=2 ) {
       model_str[0] = '\0';
       switch( (use_model & args.std.models_mask) | use_alg ) {
-      case (AGP_Model | USE_BELLMAN):
-        sprintf(model_str, "Bellman-Ford AGP");
-        set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_agp(tent, mat, V0); 
-        break;
+      //case (AGP_Model | USE_BELLMAN):
+      //  sprintf(model_str, "No AGP versions");
+      //  laptime = 0.0;
+      //  break;
 
       case (EXSTACK_Model | USE_BELLMAN):
         sprintf(model_str, "Bellman-Ford Exstack");
@@ -233,6 +232,12 @@ int main(int argc, char * argv[])
         sprintf(model_str, "Delta Conveyor");
         set_d_array(tent, INFINITY);
         laptime = sssp_delta_convey(tent, mat, V0, delta);
+        break;
+
+      case ALTERNATE_Model:
+        sprintf(model_str, "Bellman-Ford AGP");
+        set_d_array(tent, INFINITY);
+        laptime = sssp_bellman_agp(tent, mat, V0); 
         break;
       }
       if(model_str[0]) {
