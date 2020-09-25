@@ -23,10 +23,12 @@ To make building and installing easier, we have included a few scripts. The main
    There is one required and several important options for the make_bale script...
 
 	- -u OR -s : You **must** specify UPC or SHMEM.
-	- -p : specify an alternate install dir
+        - -b : specify an alternate build directory
+	- -i : specify an alternate install directory    
 	- -c : specify options to configure step
-	- -m : just make, don't configure
-
+	- -f : force configure to run in all packages again (once you run configure once, the script assumes you don't need to run it again)
+        - -j : specify a parallel build
+        
 The configure process creates architecture dependent files (e.g. Makefile) and creates symbolic links back to the source. This allows us to rename files to satisfy various compilers (e.g. 
 some compilers require that UPC programs end in .upc)
 
