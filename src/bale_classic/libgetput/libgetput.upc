@@ -266,6 +266,7 @@ Define_Reducer(lgp_reduce_min_d, double, double, shmem_double_min_to_all)
 Define_Reducer(lgp_reduce_max_d, double, double, shmem_double_max_to_all)
 
 Define_Reducer(lgp_reduce_or_int, int, int, shmem_int_or_to_all)
+
 /*!
 * \ingroup libgetputgrp
 */
@@ -274,7 +275,6 @@ void lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t 
   size_t local_index;
   int64_t *local_ptr;
 
-  /* asupc_init tests that (long long) == (int64_t) */
 
   pe = index % shmem_n_pes();
   local_index = (index / shmem_n_pes())*blocksize;
@@ -282,6 +282,20 @@ void lgp_shmem_write_upc_array_int64(SHARED int64_t *addr, size_t index, size_t 
   local_ptr =(int64_t*)(( (char*)addr ) + local_index);
 
   shmem_int64_p ( local_ptr, val, pe );
+}
+
+void lgp_shmem_write_upc_array_double(SHARED double *addr, size_t index, size_t blocksize, double val) {
+  int pe;
+  size_t local_index;
+  double *local_ptr;
+
+
+  pe = index % shmem_n_pes();
+  local_index = (index / shmem_n_pes())*blocksize;
+
+  local_ptr =(double*)(( (char*)addr ) + local_index);
+
+  shmem_double_p ( local_ptr, val, pe );
 }
 
 /*!
@@ -292,12 +306,29 @@ int64_t lgp_shmem_read_upc_array_int64(const SHARED int64_t *addr, size_t index,
   size_t local_index;
   int64_t *local_ptr;
 
-  /* asupc_init tests that (long long) == (int64_t) */
 
   pe = index % shmem_n_pes();
   local_index = (index / shmem_n_pes())*blocksize;
 
   local_ptr =(int64_t*)(( (char*)addr ) + local_index);
+
+  return shmem_int64_g ( local_ptr, pe );
+}
+
+/*!
+* \ingroup libgetputgrp
+*/
+double lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, size_t blocksize) {
+  int pe;
+  size_t local_index;
+  double *local_ptr;
+
+  /* asupc_init tests that (long long) == (int64_t) */
+
+  pe = index % shmem_n_pes();
+  local_index = (index / shmem_n_pes())*blocksize;
+
+  local_ptr =(double*)(( (char*)addr ) + local_index);
 
   return shmem_int64_g ( local_ptr, pe );
 }
@@ -391,7 +422,7 @@ int64_t lgp_min_avg_max_d(minavgmaxD_t * s, double myval, int64_t dem){
 }
 
 
-#if 0
+#if 0  // TODO
 /* utility to print some basic stats about a run */
 void dump_header(int argc, char *argv[]) {
   int i;
@@ -427,5 +458,102 @@ double wall_seconds() {
   int retVal = gettimeofday(&tp,NULL);
   if (retVal == -1) { perror("gettimeofday:"); fflush(stderr); }
   return ( (double) tp.tv_sec + (double) tp.tv_usec * 1.e-6 );
+}
+
+
+
+#define USE_KNUTH
+#ifdef USE_KNUTH
+#define LGP_RAND_MAX 2251799813685248
+#include "knuth_rng_double_2019.h"
+#else
+#define LGP_RAND_MAX 281474976710656
+#endif
+
+// all PEs should call this with the same seed.
+void lgp_rand_seed(int64_t seed){
+#ifdef USE_KNUTH
+  ranf_start(seed + 1 + MYTHREAD);
+#else
+  srand48(seed + 1 + MYTHREAD);
+#endif
+}
+
+/*! \brief return a random integer mod N.
+ */
+int64_t lgp_rand_int64(int64_t N){
+  assert(N < LGP_RAND_MAX);
+#ifdef USE_KNUTH
+  return((int64_t)(ranf_arr_next()*N));
+#else
+  return((int64_t)(drand48()*N));
+#endif
+}
+
+
+double lgp_rand_double(){
+#ifdef USE_KNUTH
+  return(ranf_arr_next());
+#else
+  return(drand48());
+#endif
+}
+
+
+
+/*!
+ * \brief This routine finds the pe and local index on that pe for given global index.
+ * We support a BLOCK and a CYCLIC distribution of indices to pe's.
+ * 
+ * \param pe address into which we write the pe
+ * \param lidx address into which we write the local index
+ * \param gidx the global index
+ * \param n the global number of indices (needed for the block distribution calculation)
+ * \param layout the enum for BLOCK or CYCLIC
+ * \ingroup libgetputgrp
+ */
+void global_index_to_pe_and_offset(int64_t *pe, int64_t *lidx, int64_t gidx, int64_t n, layout layout)
+{
+  if(layout == CYCLIC){
+    *pe = gidx % THREADS;
+    *lidx = gidx / THREADS;
+    return;
+  }
+  int64_t idx;
+  int64_t upper_points_per_pe = n / THREADS + ((n % THREADS > 0) ? 1 : 0);
+  int64_t rem = n % THREADS;
+
+  if( (rem == 0) || (gidx / upper_points_per_pe < rem) ){
+    *pe = gidx / upper_points_per_pe;
+    *lidx = gidx % upper_points_per_pe;
+  }else{
+    *pe = (gidx - rem) / (upper_points_per_pe - 1);
+    *lidx= (gidx - rem) % (upper_points_per_pe - 1);
+  }
+  return;
+}
+
+/*!
+ * \brief This routine finds the global index for a given pe and local index.
+ * We support a BLOCK and a CYCLIC distribution of indices to pe's.
+ * 
+ * \param pe the given pe
+ * \param lidx the local index on that pe
+ * \param n the global number of indices (needed for the block distribution calculation)
+ * \param layout the enum for BLOCK or CYCLIC
+ * \return the global index
+ * \ingroup libgetputgrp
+ */
+int64_t pe_and_offset_to_global_index(int64_t pe, int64_t lidx, int64_t n, layout layout)
+{
+  if(layout == CYCLIC)
+    return(lidx*THREADS + pe);
+  else{
+    int64_t i, gidx = 0;
+    for(i = 0; i < pe; i++)
+      gidx += (n + THREADS - i - 1)/THREADS;
+    gidx += lidx;
+    return(gidx);
+  }
 }
 

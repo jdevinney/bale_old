@@ -53,19 +53,20 @@
 /*! \struct sparsemat_t spmat.h
  * \brief A structure to hold a sparse matrix.
  *
- * We use a distributed version of the standard Compressed Sparse Row
- * (CSR) format.  Since the applications in bale (so far) only need to
- * know whether a matrix entry is zero or nonzero, we don't keep track
- * of the values themselves for the nonzeros in the matrix only the
- * position of the nonzeros.  This reduces the amount of memory needed
- * to store the matrices.  This also saves a lot local sorting and
- * combining that would be required to actually handle values (other
- * than one).
- 
+ * We use a distributed version of the standard Compressed Sparse Row (CSR) format.  
+ * In most cases we don't have values in the sparse matrix.
+ * For example, in toposort we only track the positions of the nonzeros,
+ * in permute matrix or transpose matrix having values would only double the size
+ * of messages. In some apps we store simple graphs in the matrix.
+ * In these cases, the value pointer will be NULL.
+ * For sssp, we store weighted directed graph in the matrix, so we do need values.
+ * We only support values that are doubles.
+ *
  * We store the nonzeros with affinity by rows.  That is, if row i has
- * affinity to PE t, then all the nonzeros in row i have affinity to
- * PE t. The affinity rule for a row is as follows. Row i is
- * assigned to PE (i % NPES).
+ * affinity to PE t, then all the nonzeros in row i also have affinity 
+ * to PE t. 
+ * We used a striped layout for affinity.  
+ * That is, row i has affinity to PE (i % NPES).
  *
  * We call a matrix "tidy" if the column indices of nonzeros in every
  * row are sorted in ascending order.
@@ -89,7 +90,15 @@ typedef struct sparsemat_t {
   double * lvalue;              //!< local array of values (values for rows on this PE)
 }sparsemat_t;
 
-typedef struct triples_t{
+
+typedef struct d_array_t {
+  int64_t num;                  //!< the total number of entries in the array
+  int64_t lnum;                 //!< the number of entries on this PE. lnum = (num / NPES) + {0 or 1}
+  SHARED double * entry;        //!< the shared array, striped across PE's
+  double * lentry;              //!< the localized part of the shared array
+} d_array_t;
+
+typedef struct triples_t {
   int64_t * row;
   int64_t * col;
   double * val;
@@ -115,6 +124,7 @@ typedef struct edge_t{
 
 typedef struct edge_list_t{
   edge_t * edges;
+  w_edge_t * wedges;
   int64_t nalloc;
   int64_t num;
 }edge_list_t;
@@ -160,6 +170,7 @@ int64_t rowcount_l( sparsemat_t *mat, int64_t l_row );
 int64_t rowcount_S( sparsemat_t *mat, int64_t S_row );
 
 int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
+int64_t             append_weighted_edge(edge_list_t * el, int64_t row, int64_t col, double val);
 int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
 
 int64_t             calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num);
@@ -178,7 +189,7 @@ sparsemat_t *       generate_kronecker_graph_from_spec(int mode, int * spec, int
 sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
 
 
-edge_list_t *       init_edge_list(int64_t nalloc);
+edge_list_t *       init_edge_list(int64_t nalloc, int weighted);
 sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted);
 triples_t *         init_triples(int64_t numrows, int64_t numcols, int64_t lnnz, int weighted);
 sparsemat_t *       init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz);
@@ -195,7 +206,7 @@ sparsemat_t *       permute_matrix(sparsemat_t * A, SHARED int64_t *rperminv, SH
 sparsemat_t *       permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
 sparsemat_t *       permute_matrix_exstack2(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
 sparsemat_t *       permute_matrix_exstack(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv, int64_t buf_cnt);
-sparsemat_t *       permute_matrix_agi(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
+sparsemat_t *       permute_matrix_agp(sparsemat_t * A, SHARED int64_t * rperminv, SHARED int64_t * cperminv);
 
 void                print_matrix(sparsemat_t * A);
 
@@ -203,18 +214,21 @@ SHARED int64_t *    rand_permp(int64_t N, int seed);
 SHARED int64_t *    rand_permp_conveyor(int64_t N, int seed);
 SHARED int64_t *    rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
-SHARED int64_t *    rand_permp_agi(int64_t N, int seed);
+SHARED int64_t *    rand_permp_agp(int64_t N, int seed);
 sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                                  double edge_density, int64_t seed);
 void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops);
+
+int                 spmat_compare_doubles(double a, double b);
+  
 sparsemat_t *       transpose_matrix(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);
 sparsemat_t *       transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt);
-sparsemat_t *       transpose_matrix_agi(sparsemat_t * A);
+sparsemat_t *       transpose_matrix_agp(sparsemat_t * A);
 sparsemat_t *       triples_to_sparsemat(triples_t * T);
 
-int64_t             write_sparse_matrix_agi( char * datadir, sparsemat_t * mat);
+int64_t             write_sparse_matrix_agp( char * datadir, sparsemat_t * mat);
 int64_t             write_sparse_matrix_exstack( char * datadir, sparsemat_t * mat, int64_t buf_cnt);
 
 /* misc utility functions */
@@ -223,7 +237,7 @@ int                 write_matrix_mm(sparsemat_t * A, char * name);
 sparsemat_t *       read_matrix_mm_to_dist(char * name);
 int64_t             write_sparse_matrix_metadata(char * dirname, sparsemat_t * A);
 int64_t             read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t *nwriters);
-sparsemat_t *       read_sparse_matrix_agi(char * datadir);
+sparsemat_t *       read_sparse_matrix_agp(char * datadir);
 
 
 int64_t tril(sparsemat_t * A, int64_t k);
@@ -243,6 +257,11 @@ int col_val_comp(const void *a, const void *b);
 int edge_comp(const void *a, const void *b);
 int w_edge_comp(const void *a, const void *b);
 
+d_array_t * init_d_array(int64_t num); 
+d_array_t * copy_d_array(d_array_t *S);
+void        set_d_array(d_array_t * A, double v);
+int64_t     replace_d_array(d_array_t * D, d_array_t *S);
+void        clear_d_array(d_array_t *A);
 
 #endif
 

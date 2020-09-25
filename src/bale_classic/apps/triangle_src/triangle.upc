@@ -126,23 +126,27 @@ int main(int argc, char * argv[]) {
   int64_t i, j;
 
   /* process command line */
-  int ret = 0;
-  args_t args;
+  args_t args = {0};  // initialize args struct to all zero
   struct argp argp = {options, parse_opt, 0,
                       "Parallel sparse matrix transpose.", children_parsers};  
-  args.alg = 0;
 
-  ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  args.gstd.l_numrows = 500000;
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
   
-  //override command line
-  if(args.gstd.loops)
+  //override command line (these will lead to matrices with not quite the right number of nonzeros
+  // if the user also used the -z flag.
+  if(args.gstd.loops == 1){
     T0_fprintf(stderr,"WARNING: triangles requires no-loops, overriding command line.\n");
-  if(args.gstd.directed)
+    T0_fprintf(stderr,"Suggest running without this option.\n");
+    args.gstd.loops = 0;
+  }
+  if(args.gstd.directed == 1){
     T0_fprintf(stderr,"WARNING: triangles requires undirected graph, overriding command line.\n");
-  args.gstd.loops = 0;
-  args.gstd.directed = 0; 
+    T0_fprintf(stderr,"Suggest running without this option.\n");
+    args.gstd.directed = 0;
+  }
 
   if(!MYTHREAD){
     write_std_graph_options(&args.std, &args.gstd);
@@ -163,9 +167,8 @@ int main(int argc, char * argv[]) {
     lgp_global_exit(1);  
   }  
 
-  if(args.std.dump_files){
-    write_matrix_mm(L, "triangle_inmat");
-  }
+  if(args.std.dump_files) write_matrix_mm(L, "triangle_inmat");
+  
   
   lgp_barrier();
   
@@ -247,9 +250,9 @@ int main(int argc, char * argv[]) {
     total_sh_refs = 0;
 
     switch( use_model & args.std.models_mask ) {
-    case AGI_Model:
-      sprintf(model_str, "AGI");
-      laptime = triangle_agi(&tri_cnt, &sh_refs, L, U, args.alg); 
+    case AGP_Model:
+      sprintf(model_str, "AGP");
+      laptime = triangle_agp(&tri_cnt, &sh_refs, L, U, args.alg); 
       break;
     
     case EXSTACK_Model:
@@ -269,7 +272,7 @@ int main(int argc, char * argv[]) {
 
     case ALTERNATE_Model:
       sprintf(model_str, "Alternate");
-      laptime = triangle_agi_iter(&tri_cnt, &sh_refs, L, U, args.alg);
+      laptime = triangle_agp_iter(&tri_cnt, &sh_refs, L, U, args.alg);
       break;
     case 0:
       continue;

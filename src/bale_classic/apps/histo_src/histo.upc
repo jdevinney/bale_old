@@ -110,8 +110,8 @@ int main(int argc, char * argv[]) {
 
   /* process command line */
   args_t args;
-  args.l_tbl_size = 1000;
-  args.l_num_ups = 100000;
+  args.l_tbl_size = 10000;
+  args.l_num_ups = 5000000;
   struct argp argp = {options, parse_opt, 0,
                       "Accumulate updates into a table.", children_parsers};
 
@@ -138,7 +138,7 @@ int main(int argc, char * argv[]) {
     data.lcounts[i] = 0L;
   
   // index is a local array of indices into the shared counts array.
-  // This is used by the _agi version. 
+  // This is used by the _agp version. 
   // To avoid paying for computing index[i]/THREADS and index[i]%THREADS
   // when using the exstack and conveyor models
   // we also store a packed version that holds the
@@ -147,10 +147,12 @@ int main(int argc, char * argv[]) {
   data.pckindx = calloc(data.l_num_ups, sizeof(int64_t)); assert(data.pckindx != NULL);
 
   int64_t indx, lindx, pe;
-  srand(MYTHREAD + args.std.seed);
+
+  lgp_rand_seed(args.std.seed);
+  
   for(i = 0; i < data.l_num_ups; i++) {
     //indx = i % data.num_counts;          //might want to do this for debugging
-    indx = rand() % data.num_counts;
+    indx = lgp_rand_int64(data.num_counts);
     data.index[i] = indx;                 
     lindx = indx / THREADS;
     pe  = indx % THREADS;
@@ -173,9 +175,9 @@ int main(int argc, char * argv[]) {
   for( use_model=1L; use_model < 32; use_model *=2 ) {
 
     switch( use_model & args.std.models_mask ) {
-    case AGI_Model:
-      sprintf(model_str, "AGI");
-      laptime = histo_agi(&data);
+    case AGP_Model:
+      sprintf(model_str, "AGP");
+      laptime = histo_agp(&data);
       num_models++;
       lgp_barrier();
       break;

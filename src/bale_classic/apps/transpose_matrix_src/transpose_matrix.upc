@@ -53,7 +53,7 @@
  * generates a random square asymmetrix (via the Erdos-Renyi model) and then transposes
  * it in parallel.
  *
- * See files spmat_agi.upc, spmat_exstack.upc, spmat_exstack2.upc, and spmat_conveyor.upc
+ * See files spmat_agp.upc, spmat_exstack.upc, spmat_exstack2.upc, and spmat_conveyor.upc
  * for the source for the kernels.
  * 
  * Run with the --help, -?, or --usage flags for run details.
@@ -89,12 +89,12 @@ int main(int argc, char * argv[])
   int64_t check = 1;
 
   /* process command line */
-  int ret = 0;
-  args_t args;
+  args_t args = {0}; // initialize args struct to all zero
   struct argp argp = {NULL, parse_opt, 0,
                       "Parallel sparse matrix transpose.", children_parsers};
-  
-  ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+
+  args.gstd.l_numrows = 1000000;  
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);  
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
@@ -107,7 +107,7 @@ int main(int argc, char * argv[])
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
   if(!inmat){T0_fprintf(stderr, "ERROR: transpose: inmat is NULL!\n");return(-1);}
 
-  if(args.std.dump_files) write_matrix_mm(inmat, "inmat");
+  if(args.std.dump_files) write_matrix_mm(inmat, "transpose_inmat");
     
   double t1;
   minavgmaxD_t stat[1];
@@ -118,9 +118,9 @@ int main(int argc, char * argv[])
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
-    case AGI_Model:
-      outmat = transpose_matrix_agi(inmat);
-      sprintf(model_str, "AGI");
+    case AGP_Model:
+      outmat = transpose_matrix_agp(inmat);
+      sprintf(model_str, "AGP");
       break;
     case EXSTACK_Model:
       outmat = transpose_matrix_exstack(inmat, args.std.buffer_size);

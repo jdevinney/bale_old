@@ -38,7 +38,7 @@
 
 common_sources = libgetput.upc
 pkconfigdir=@libdir@/pkgconfig
-
+noinst_HEADERS=knuth_rng_double_2019.h
 include_HEADERS=libgetput.h
 #lib_LIBRARIES = 
 lib_LIBRARIES = liblibgetput.a
@@ -52,7 +52,7 @@ endif
 if BUILD_SHMEM
 #liblibgetput_a_LINK = $(LINK)
 liblibgetput_a_SOURCES = $(common_sources:.upc=__c.c)
-liblibgetput_a_CFLAGS = -DUSE_SHMEM 
+liblibgetput_a_CFLAGS = -DUSE_SHMEM -D_XOPEN_SOURCE=700
 endif
 
 # Automatic linking as needed to create C copies of UPC files.               #

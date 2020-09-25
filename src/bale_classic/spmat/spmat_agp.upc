@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file spmat_agi.upc
+/*! \file spmat_agp.upc
  * \brief Sparse matrix support functions implemented with global addresses and atomics
  */
 #include <spmat.h>
@@ -53,12 +53,12 @@
  * This gives a random permutation with spaces in it, then you squeeze out the spaces.
  * \ingroup spmatgrp
  */
-SHARED int64_t * rand_permp_agi(int64_t N, int seed) {  
+SHARED int64_t * rand_permp_agp(int64_t N, int seed) {  
   int64_t * ltarget, *lperm;
   int64_t r, i, j;
   int64_t pos, numdarts, numtargets, lnumtargets;
 
-  if( seed != 0 ) srand48( seed );
+  lgp_rand_seed(seed);
 
   //T0_printf("Entering rand_permp_atomic...");fflush(0);
 
@@ -80,7 +80,7 @@ SHARED int64_t * rand_permp_agi(int64_t N, int seed) {
 
   i=0;
   while(i < l_N){                // throw the darts until you get l_N hits
-    r = lrand48() % M;
+    r = lgp_rand_int64(M);
     if( lgp_cmp_and_swap(target, r, -1L, (i*THREADS + MYTHREAD)) == (-1L) ){
       i++;
     }
@@ -109,31 +109,31 @@ SHARED int64_t * rand_permp_agi(int64_t N, int seed) {
 
 /*! \brief apply row and column permutations to a sparse matrix using straight UPC
  * \param A pointer to the original matrix
- * \param rperminv pointer to the global array holding the inverse of the row permutation
- * \param cperminv pointer to the global array holding the inverse of the column permutation
- * rperminv[i] = j means that row i of A goes to row j in matrix Ap
- * cperminv[i] = j means that col i of A goes to col j in matrix Ap
+ * \param rperm pointer to the global array holding the row permutation
+ * \param cperm pointer to the global array holding the column permutation
+ * rperm[i] = j means that row i of A goes to row j in matrix Ap
+ * cperm[i] = j means that col i of A goes to col j in matrix Ap
  * \return a pointer to the matrix that has been produced or NULL if the model can't be used
  * \ingroup spmatgrp
  */
-sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {
+sparsemat_t * permute_matrix_agp(sparsemat_t *A, SHARED int64_t *rperm, SHARED int64_t *cperm) {
   //T0_printf("Permuting matrix with single puts\n");
   int64_t i, j, col, row, pos;
-  int64_t * lrperminv = lgp_local_part(int64_t, rperminv);
-  SHARED int64_t * rperm = lgp_all_alloc(A->numrows, sizeof(int64_t));
-  if( rperm == NULL ) return(NULL);
-  int64_t *lrperm = lgp_local_part(int64_t, rperm);
+  int64_t * lrperm = lgp_local_part(int64_t, rperm);
+  SHARED int64_t * rperminv = lgp_all_alloc(A->numrows, sizeof(int64_t));
+  if( rperminv == NULL ) return(NULL);
+  int64_t *lrperminv = lgp_local_part(int64_t, rperminv);
 
-  //compute rperm from rperminv 
+  //compute rperminv from rperm 
   for(i=0; i < A->lnumrows; i++){
-    lgp_put_int64(rperm, lrperminv[i], i*THREADS + MYTHREAD);
+    lgp_put_int64(rperminv, lrperm[i], i*THREADS + MYTHREAD);
   }
 
   lgp_barrier();
   
   int64_t cnt = 0, off, nxtoff;
   for(i = 0; i < A->lnumrows; i++){
-    row = lrperm[i];
+    row = lrperminv[i];
     off    = lgp_get_int64(A->offset, row);
     nxtoff = lgp_get_int64(A->offset, row + THREADS);
     cnt += nxtoff - off;
@@ -145,7 +145,7 @@ sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperminv, SHARE
   // fill in permuted rows
   Ap->loffset[0] = pos = 0;
   for(i = 0; i < Ap->lnumrows; i++){
-    row = lrperm[i];
+    row = lrperminv[i];
     off    = lgp_get_int64(A->offset, row);
     nxtoff = lgp_get_int64(A->offset, row + THREADS);
     for(j = off; j < nxtoff; j++){
@@ -161,14 +161,14 @@ sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperminv, SHARE
   // finally permute column indices
   for(i = 0; i < Ap->lnumrows; i++){
     for(j = Ap->loffset[i]; j < Ap->loffset[i+1]; j++){
-      Ap->lnonzero[j] = lgp_get_int64(cperminv, Ap->lnonzero[j]);      
+      Ap->lnonzero[j] = lgp_get_int64(cperm, Ap->lnonzero[j]);      
     }
   }
   lgp_barrier();
 
-  lgp_all_free(rperm);
+  lgp_all_free(rperminv);
+  sort_nonzeros(Ap);
 
-  //T0_printf("done\n");
   return(Ap);
 }
 
@@ -177,7 +177,7 @@ sparsemat_t * permute_matrix_agi(sparsemat_t *A, SHARED int64_t *rperminv, SHARE
  * \return a pointer to the matrix that has been produced or NULL if the model can't be used
  * \ingroup spmatgrp
  */
-sparsemat_t * transpose_matrix_agi(sparsemat_t *A) {
+sparsemat_t * transpose_matrix_agp(sparsemat_t *A) {
   int64_t counted_nnz_At;
   int64_t lnnz, i, j, col, row, fromth, idx;
   int64_t pos;
@@ -207,8 +207,8 @@ sparsemat_t * transpose_matrix_agi(sparsemat_t *A) {
   for( i = 0; i < lnc; i++) {
     lnnz += l_shtmp[i];
   }
-  
-  At = init_matrix(A->numcols, A->numrows, lnnz, (A->value != NULL));
+  int weighted = (A->value != NULL);
+  At = init_matrix(A->numcols, A->numrows, lnnz, weighted);
   if(!At){printf("ERROR: transpose_matrix_upc: init_matrix failed!\n");return(NULL);}
 
   int64_t sum = lgp_reduce_add_l(lnnz);      // check the histogram counted everything
@@ -230,10 +230,9 @@ sparsemat_t * transpose_matrix_agi(sparsemat_t *A) {
     for(j=A->loffset[row]; j<A->loffset[row+1]; j++){
       pos = lgp_fetch_and_add(shtmp, A->lnonzero[j], (int64_t) THREADS);
       lgp_put_int64(At->nonzero, pos, row*THREADS + MYTHREAD);
+      if(weighted) lgp_put_double(At->value, pos, A->lvalue[j]);
     }
   }
-  lgp_barrier();
-
 
   lgp_barrier();
   //if(!MYTHREAD)printf("done\n");
@@ -283,8 +282,13 @@ int64_t write_rowcounts(char * dirname, sparsemat_t * A){
  * \return 0 on success, -1 on error
  * \ingroup spmatgrp
  */
-int64_t write_sparse_matrix_agi(char * dirname, sparsemat_t * A){
+int64_t write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
   int64_t i;
+
+  if(A->value){
+    T0_fprintf(stderr,"WARNING: write_sparse_matrix_agp: writing a matrix with values not supported.\n");
+    T0_fprintf(stderr,"Only, nonzero positions will be written.\n");
+  }
   
   /* create the directory  */
   mkdir(dirname, 0770);
@@ -337,7 +341,7 @@ int64_t write_sparse_matrix_agi(char * dirname, sparsemat_t * A){
 }
 
 #if 0
-sparsemat_t * read_sparse_matrix_agi(char * dirname){
+sparsemat_t * read_sparse_matrix_agp(char * dirname){
   int64_t i;
   int64_t nr, nc, nnz, nwriters;
   int64_t lnr;

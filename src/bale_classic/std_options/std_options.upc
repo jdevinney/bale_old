@@ -72,11 +72,11 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option std_options[] =
   {
-    {"buffer_size",   'b', "BUF", 0, "Aggregation buffer size"},
+    {"buffer_size",   'b', "BUF", 0, "Exstack or exstack2 buffer size."},
     {"cores_per_node",'c', "CPN", 0, "Specify cores per node for network injection rate statistics"},
     {"dump_files",    'D', 0,     0, "Dump files for debugging"},
     {"json_output",   'j', "FILE",0, "Output results to a json file, rather than to stderr"},
-    {"models_mask",   'M', "MASK",0, "Which flavors to run."},
+    {"models_mask",   'M', "MASK",0, "Which implementations to run. 1: AGP, 2: Exstack, 4: Exstack2, 8: Conveyor, 16: alternatives. You can add these together. For example, -M 7 means AGP, Exstack, and Exstack2."},
     {"seed",          's', "SEED",0, "Seed for RNG"},
     {0}
   };
@@ -135,27 +135,30 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
     break;
   case 'l': args->loops = 1; break;
   case 'n': args->l_numrows = atol(arg); break;
+  case 'N': args->numrows = atol(arg); break;
   case 'w': args->weighted = 1; break;
   case 'z': args->nz_per_row = atof(arg); break;
   case ARGP_KEY_INIT:
     args->edge_prob = 0.0;
     args->readfile = 0;
     args->model = FLAT;
-    args->l_numrows = 10000;
+    args->numrows = 0;
+    //args->l_numrows = 10000;
     args->nz_per_row = 10.0;
-    args->directed = 0;
-    args->weighted = 0;
-    args->loops = 0;
+    //args->directed = 0;
+    //args->weighted = 0;
+    //args->loops = 0;
     break;
   case ARGP_KEY_END:
+    if(args->numrows == 0) args->numrows = args->l_numrows*THREADS;
     if(args->directed)
       resolve_edge_prob_and_nz_per_row(&args->edge_prob, &args->nz_per_row,
-                                       args->l_numrows*THREADS,
+                                       args->numrows,
                                        (args->weighted ? DIRECTED_WEIGHTED : DIRECTED),
                                        (args->loops ? LOOPS : NOLOOPS));
     else{
       resolve_edge_prob_and_nz_per_row(&args->edge_prob, &args->nz_per_row,
-                                       args->l_numrows*THREADS,
+                                       args->numrows,
                                        (args->weighted ? UNDIRECTED_WEIGHTED : UNDIRECTED),
                                        (args->loops ? LOOPS : NOLOOPS));
     }
@@ -169,15 +172,16 @@ static struct argp_option graph_options[] =
     {0, 0, 0, 0, "Input (as file):", 5},
     {"readfile",   'f', "FILE",  0, "Read input from a file"},
     {0, 0, 0, 0, "Input (as random graph):", 6},
-    {"l_numrows",  'n', "NUM",   0, "Number of rows per PE in the matrix"},
+    {"l_numrows",  'n', "NUM",   0, "Number of rows per PE in the matrix."},
+    {"numrows",    'N', "NUM",   0, "Number of rows in the matrix. This option takes precedence if both -n and -N options are used."},
     {"directed",   'd', 0,       0, "Specify a directed graph"},
-    {"edge_prob",  'e', "EDGEP", 0, "Probability that an edge appears"},
+    {"edge_prob",  'e', "EDGEP", 0, "Probability that an edge appears. Use this or -z option to control the density of the graph."},
     {"flat",       'F', 0,       0, "Specify flat random graph model"},
     {"geometric",  'G', 0,       0, "Specify geometric random graph model"},
     {"kronecker",  'K', "KSTR",  0, "Specify a Kronecker product graph.\nKSTR must be a string of the form MODE:S1xS2x...Sk where MODE is 0, 1, or 2 and the Si are small integers that specify the stars whose product is the kronecker product graph. For instance -K 0:3x4x5 specifies MODE 0 and takes the product of K_{1,3}, K_{1,4}, and K_{1,5}. MODE 0 : No triangles. MODE 1: Many triangles. MODE 2: Few triangles. "},
     {"loops",      'l', 0,       0, "Specify you want to force loops into graph"},
     {"weighted",   'w', 0,       0, "Specify you want the edges to be weighted"},
-    {"nz_per_row", 'z', "NZPR",  0, "Avg. number of nonzeros per row"},
+    {"nz_per_row", 'z', "NZPR",  0, "Average number of nonzeros per row. Specify this or -e option to control the density of the graph. Default = 10.0"},
     {0}
   };
 
@@ -207,7 +211,7 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs){
     }else{
       
       // Generate a random FLAT or GEOMETRIC graph
-      int64_t numrows = gargs->l_numrows * THREADS;
+      //int64_t numrows = gargs->numrows;
       int64_t seed = MYTHREAD + sargs->seed;
       edge_type et;
       if(gargs->directed){
@@ -217,7 +221,7 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs){
       }
       self_loops loops = (gargs->loops ? LOOPS : NOLOOPS);
       
-      mat = random_graph(numrows, gargs->model, et, loops, gargs->edge_prob, seed + 2);
+      mat = random_graph(gargs->numrows, gargs->model, et, loops, gargs->edge_prob, seed + 2);
     }
   }else{
     
@@ -251,11 +255,11 @@ void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs){
   if(!gargs->readfile){
     char model[32];
     if(gargs->model == FLAT)
-      sprintf(model, "FLAT      (-F)");
+      sprintf(model, "FLAT        (-F)");
     else if(gargs->model == GEOMETRIC)
-      sprintf(model, "GEOMETRIC (-G)");
+      sprintf(model, "GEOMETRIC   (-G)");
     else if(gargs->model == KRONECKER)
-      sprintf(model, "KRONECKER (-K)");
+      sprintf(model, "KRONECKER   (-K)");
     
     if(sargs->json && !MYTHREAD){
       FILE * jp = fopen(sargs->json_output, "a");
@@ -271,7 +275,7 @@ void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs){
                  (gargs->loops ? "Loops": "No Loops"));
       
       
-      T0_fprintf(stderr,"Number of rows per PE    (-n): %"PRId64"\n", gargs->l_numrows);
+      T0_fprintf(stderr,"Number of rows           (-N): %"PRId64"\n", gargs->numrows);
       T0_fprintf(stderr,"Avg # nnz per row        (-z): %2.2lf\n", gargs->nz_per_row);
       T0_fprintf(stderr,"Edge probability         (-e): %lf\n\n", gargs->edge_prob);
     }

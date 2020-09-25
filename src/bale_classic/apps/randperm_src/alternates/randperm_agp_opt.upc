@@ -36,13 +36,13 @@
 // 
 #include <exstack.h>
 
-SHARED int64_t * rand_permp_agi_opt(int64_t N, int seed) {  
+SHARED int64_t * rand_permp_agp_opt(int64_t N, int seed) {  
   int64_t * ltarget, *lperm;
   int64_t r, i, j, t, idx, pe;
   int64_t pos, numdarts, numtargets, lnumtargets;
   int64_t buf_cnt = 1024;
   double t1 = wall_seconds();
-  if( seed != 0 ) srand( seed );  
+  lgp_rand_seed(seed);
   
   //T0_printf("Entering rand_permp_atomic...");fflush(0);
   SHARED int64_t * inbox = lgp_all_alloc(THREADS*THREADS, sizeof(int64_t));
@@ -69,7 +69,7 @@ SHARED int64_t * rand_permp_agi_opt(int64_t N, int seed) {
 
   // figure out which PE each "dart" will land on and initialize perm
   for(i = 0; i < l_N; i++){
-    r = rand() % THREADS;
+    r = lgp_rand_int64(THREADS);
     PE_hist[r]++;
     lperm[i] = r;
   }
@@ -116,9 +116,9 @@ SHARED int64_t * rand_permp_agi_opt(int64_t N, int seed) {
   
   
   if(pos != total_local_darts){
-    fprintf(stderr,"ERROR: randperm_agi_opt: pos != total_local_darts (%"PRId64" %"PRId64")\n", pos, total_local_darts);return(NULL);}
+    fprintf(stderr,"ERROR: randperm_agp_opt: pos != total_local_darts (%"PRId64" %"PRId64")\n", pos, total_local_darts);return(NULL);}
   pos = lgp_reduce_add_l(pos);
-  if(pos != N){fprintf(stderr,"ERROR: randperm_agi_opt: total_darts != N (%"PRId64" %"PRId64")\n", pos, N);return(NULL);}
+  if(pos != N){fprintf(stderr,"ERROR: randperm_agp_opt: total_darts != N (%"PRId64" %"PRId64")\n", pos, N);return(NULL);}
 
   //T0_fprintf(stderr,"time phase 2: %lf\n", wall_seconds() - t1);
   //t1 = wall_seconds();
@@ -127,7 +127,8 @@ SHARED int64_t * rand_permp_agi_opt(int64_t N, int seed) {
   
   // shuffle tmp_perm
   for(i = 0; i < total_local_darts; i++){
-    j = i + rand() % (total_local_darts - i);
+    //j = i + rand() % (total_local_darts - i);
+    j = i + lgp_rand_int64(total_local_darts - i);
     t = tmp_perm[j];
     tmp_perm[j] = tmp_perm[i];
     tmp_perm[i] = t;

@@ -47,7 +47,7 @@
 #include <spmat.h>
 #include <locale.h>
 
-double toposort_matrix_agi(SHARED int64_t *tri_rperm, SHARED int64_t *tri_cperm, sparsemat_t *mat, sparsemat_t *tmat);
+double toposort_matrix_agp(SHARED int64_t *tri_rperm, SHARED int64_t *tri_cperm, sparsemat_t *mat, sparsemat_t *tmat);
 double toposort_matrix_exstack(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat, int64_t buf_cnt);
 double toposort_matrix_exstack2(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat, int64_t buf_cnt);
 double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat);

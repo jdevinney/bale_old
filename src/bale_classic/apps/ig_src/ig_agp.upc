@@ -35,62 +35,39 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file triangle_agi.upc
- * \brief The intuitive implementation of triangle counting 
- * that uses generic global references
+
+/*! \file ig_agp.upc
+ * \brief The intuitive implementation of indexgather that uses single word gets to shared addresses.
  */
-
-#include "sssp.h"
-
-
-// C version at this point.
-// If we had an atomic min this would be easy and slow
-
-
-static void relax_edge( double *tw, double *tv, double weight )
- {
-   if( *tw > *tv + weight ){
-     *tw = *tv + weight;
-   }
- }
-
+#include "ig.h"
 
 /*!
- * \brief This routine implements the Bellman-Ford algorithm
- *
- * \param *dist a place to return the distance to the source
- * \param *dmat the input matrix
+ * \brief This routine implements the single word get version indexgather
+ * \param *tgt array of target locations for the gathered values
+ * \param *index array of indices into the global array of counts
+ * \param l_num_req the length of the index array
+ * \param *table shared pointer to the shared table array.
  * \return average run time
+ *
  */
+double ig_agp(int64_t *tgt, int64_t *index, int64_t l_num_req,  SHARED int64_t *table) {
+  int64_t i;
+  double tm;
+  minavgmaxD_t stat[1];
 
-double sssp_bellman_agi(double *tent, sparsemat_t * dmat, int64_t v0)
-{
-   
-  double t1 = wall_seconds();
+  lgp_barrier();
+  tm = wall_seconds();
 
-  if(!dmat){ T0_printf("ERROR: sssp_bellman_agi: NULL L!\n"); return(-1); }
-  
-	int64_t i, k, loop;
-	int64_t lnumrows = dmat->lnumrows;
-
-	for(i=0; i<lnumrows; i++)
-		tent[i] = INFINITY;
-
-  tent[v0] = 0.0;
-
-  for(loop=0; loop<numrows; loop++){
-    for(i=0; i<numrows; i++){ 
-      for(k = mat->offset[i]; k < mat->offset[i+1]; k++){
-        relax_edge( &(tent[ mat->nonzero[k] ]), &(tent[i]), mat->value[k]);
-      }
-    }
+  for(i = 0; i < l_num_req; i++){
+    #pragma pgas defer_sync
+    tgt[i] = lgp_get_int64(table, index[i]);
   }
 
   lgp_barrier();
-  minavgmaxD_t stat[1];
-  t1 = wall_seconds() - t1;
-  lgp_min_avg_max_d( stat, t1, THREADS );
+  tm = wall_seconds() - tm;
 
-  return(stat->avg);
+  lgp_min_avg_max_d( stat, tm, THREADS );
+
+  return( stat->avg );
 }
 

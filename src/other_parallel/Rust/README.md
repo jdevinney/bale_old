@@ -13,13 +13,14 @@ your system, via the `SHMEM_PATH` environment variable.
 
 This build is setup to run correctly if you place `convey_private`
 in the same directory where you placed bale.  Modify Cargo.toml,
-spmat/Cargo.toml, triangle/Cargo.toml, and toposort/Cargo.toml
-if you have placed it in a different location.
+delta_stepping/Cargo.toml, spmat/Cargo.toml, triangle/Cargo.toml, 
+and toposort/Cargo.toml if you have placed it in a different location.
 
 To build this and say `cargo build --release --workspace` and then you can 
 run any of the bale apps with:
 
 ```
+oshrun -n 4 target/release/delta_stepping
 oshrun -n 4 target/release/histo_convey
 oshrun -n 4 target/release/ig_convey
 oshrun -n 4 target/release/permute_convey

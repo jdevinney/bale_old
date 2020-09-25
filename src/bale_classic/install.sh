@@ -70,7 +70,6 @@ while getopts ":p:usfmj:c:" opt; do
         p ) INSTALLDIR=$(readlink -f $OPTARG);;
         u ) option="--with-upc";;
         s ) option="--with-shmem";;
-        f ) fromscratch=1;;
         m ) justmake=1;;
         c ) config_opts=$OPTARG;;
         j ) PES=$OPTARG;;
@@ -80,9 +79,6 @@ while getopts ":p:usfmj:c:" opt; do
 done
 shift $(($OPTIND - 1))
 
-if [ $justmake -eq 1 ]; then
-    $fromscratch = 0
-fi
 
 export PKG_CONFIG_PATH=$INSTALLDIR/lib/pkgconfig/:$PKG_CONFIG_PATH
 
@@ -92,16 +88,7 @@ do
     echo "*****************************************************"
     echo $i
     echo "*****************************************************"    
-    if [ $fromscratch -eq 1 ]; then
-        cd $HERE/$i
-        cmd="autoreconf -fi"
-        echo $cmd
-        eval "$cmd"
-        if [ $? -ne 0 ]; then
-            echo "autoreconf of $i failed!"
-            exit 1
-        fi
-    fi
+
 
     mkdir -p $BUILDDIR/$i
     cd $BUILDDIR/$i
@@ -113,15 +100,8 @@ do
         if [ $? -ne 0 ]; then
             echo "configure of $i failed!"
             exit 1
-        fi
-    fi
-    #if  [ $fromscratch -eq 1 ]; then
-    make clean
-    #fi
-    make -j $PES
-    if [ $? -ne 0 ]; then
-        echo "build of $i failed!"
-        exit 1
+        fi            
+        make clean
     fi
 
     make install

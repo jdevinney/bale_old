@@ -80,6 +80,7 @@ fn main() {
     do_histo_convey_simple(&convey, buckets, updates, ranks_per_node, verbose);
 }
 
+/// the main work function using flexible conveyors
 fn do_histo_convey(
     convey: &Convey,
     buckets: usize,
@@ -93,6 +94,8 @@ fn do_histo_convey(
         println!("Hello, world from rank {} of {}!", me, num);
     }
 
+    // a random number generator, uniform over the total number of
+    // buckets
     let mut rng = rand::thread_rng();
     let die = Uniform::from(0..buckets * num as usize);
 
@@ -136,6 +139,7 @@ fn do_histo_convey(
     }
 }
 
+/// the main work function using simple conveyors
 fn do_histo_convey_simple(
     convey: &Convey,
     buckets: usize,

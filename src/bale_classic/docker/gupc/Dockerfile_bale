@@ -2,34 +2,26 @@ FROM gupc:latest
 
 RUN apt-get -y update \
     && apt-get install -y --no-install-recommends \
-	pandoc vim less curl
+	pandoc vim less curl python3 python3-pip
 
+RUN ln -s /usr/bin/python3 /usr/bin/python && \
+    ln -s /usr/bin/pip3 /usr/bin/pip
+
+RUN pip install pytest
+
+# copy bale from host into container (the host should be sitting at the top level of bale_private)
 COPY . /opt/bale_private
 
-WORKDIR /opt/bale_private
+WORKDIR /opt/bale_private/src/bale_classic
 
-
-
-RUN ./run_autoreconf
+RUN ./bootstrap.sh
 ENV UPC gupc
 ENV PLATFORM gupc
 RUN ./install.sh -u
 
 RUN echo "---- done with install ----"
 
-# run as non-root user
-#RUN adduser --disabled-password --gecos "" bale_user
-#RUN export NUM_CORES=$(grep cores /proc/cpuinfo | awk '{print $4}' | head -n 1) && \
-#    echo NUM_CORES is $NUM_CORES && \
-#    su bale_user - -c "oshrun -n $NUM_CORES build_${PLATFORM}/bin/histo -M 1 -c 1"
+WORKDIR /opt/bale_private/src/bale_classic/apps
 
-# here we actaully run it as root
-#RUN echo "--- run as root ---"
-#ENV OMPI_ALLOW_RUN_AS_ROOT 1
-#ENV OMPI_ALLOW_RUN_AS_ROOT_CONFIRM 1
-#RUN NUM_CORES=$(grep cores /proc/cpuinfo | awk '{print $4}' | head -n 1) && \
-#    echo NUM_CORES is $NUM_CORES && \
-#    oshrun -n 2 build_${PLATFORM}/bin/histo -M 1 -c 2
-
-RUN echo "---- to run be sure to type: bash runall.sh -c 2 ----"
+RUN pytest -s -P=/opt/bale_private/src/bale_classic/build_gupc/bin --node_range=1,3,1 
 

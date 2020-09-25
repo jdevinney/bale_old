@@ -139,8 +139,8 @@ int main(int argc, char * argv[]) {
   /* process command line */
   int ret = 0;
   args_t args;
-  args.l_tbl_size = 1000;
-  args.l_num_req = 100000;
+  args.l_tbl_size = 10000;
+  args.l_num_req = 5000000;
   struct argp argp = {options, parse_opt, 0,
                       "Many remote reads from a distributed table.", children_parsers};
   
@@ -165,14 +165,14 @@ int main(int argc, char * argv[]) {
   for(i=0; i<args.l_tbl_size; i++)
     ltable[i] = (-1)*(i*THREADS + MYTHREAD + 1);
   
-  // As in the histo example, index is used by the _agi version.
+  // As in the histo example, index is used by the _agp version.
   // pckindx is used my the buffered versions
   int64_t *index   = calloc(args.l_num_req, sizeof(int64_t)); assert(index != NULL);
   int64_t *pckindx = calloc(args.l_num_req, sizeof(int64_t)); assert(pckindx != NULL);
   int64_t indx, lindx, pe;
-  srand(MYTHREAD+ args.std.seed);
+  lgp_rand_seed(args.std.seed);
   for(i = 0; i < args.l_num_req; i++){
-    indx = rand() % tab_siz;
+    indx = lgp_rand_int64(tab_siz);
     index[i] = indx;
     lindx = indx / THREADS;      // the distributed version of indx
     pe  = indx % THREADS;      
@@ -191,9 +191,9 @@ int main(int argc, char * argv[]) {
   
   for( use_model=1L; use_model < 32; use_model *=2 ){
      switch( use_model & args.std.models_mask ){
-     case AGI_Model:
-       sprintf(model_str, "AGI");
-       laptime = ig_agi(tgt, index, args.l_num_req, table);
+     case AGP_Model:
+       sprintf(model_str, "AGP");
+       laptime = ig_agp(tgt, index, args.l_num_req, table);
      break;
      
      case EXSTACK_Model:

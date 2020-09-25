@@ -35,7 +35,7 @@
 //  OF THE POSSIBILITY OF SUCH DAMAGE.
 // 
  *****************************************************************/ 
-/*! \file toposort_agi.upc
+/*! \file toposort_agp.upc
  * \brief The intuitive implementation of toposort that does uses 
  * atomics and generic global references
  */
@@ -43,14 +43,14 @@
 #include "toposort.h"
 
 /*!
- * \brief This routine implements the agi variant of toposort
+ * \brief This routine implements the AGP variant of toposort
  * \param *rperm returns the row permutation that is found
  * \param *cperm returns the column permutation that is found
  * \param *mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
  * \param *tmat the transpose of mat
  * \return average run time
  */
-double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) {
+double toposort_matrix_agp(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) {
   //T0_printf("Running Toposort with UPC ...");
   int64_t nr = mat->numrows;
 
@@ -88,7 +88,7 @@ double toposort_matrix_agi(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsem
   lgp_barrier();
 
   // we a pick a row with a single nonzero = col.
-  // setting rperm[pos] = row and cprem[pos] = col
+  // setting rperm[row] = nr-1-pos and cprem[col] = nr-1-pos
   // moves that nonzero to the diagonal.
   // Now, cross out that row and col by decrementing 
   //  the rowcnt for any row that contains that column

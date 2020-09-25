@@ -49,50 +49,6 @@ double dist(point_t a, point_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
-// 
-// Input: an item's global index and the total number of points and the layout.
-// The layout is either BLOCK or CYLIC.
-//
-// Output: A local offset and PE number.
-int64_t global_index_to_pe_and_offset(int64_t pindex, int64_t n, int64_t * pe, layout layout){
-
-  if(layout == CYCLIC){
-    *pe = pindex % THREADS;
-    return(pindex/THREADS);
-  }
-  int64_t idx;
-  int64_t upper_points_per_pe = n / THREADS + ((n % THREADS > 0) ? 1 : 0);
-  int64_t rem = n % THREADS;
-
-  if( (rem == 0) || (pindex / upper_points_per_pe < rem) ){
-    *pe = pindex / upper_points_per_pe;
-    idx = pindex % upper_points_per_pe;
-  }else{
-    *pe = (pindex - rem) / (upper_points_per_pe - 1);
-    idx= (pindex - rem) % (upper_points_per_pe - 1);
-  }
-  //printf("Input %ld %ld: rem = %ld  upper = %ld pe = %ld idx = %ld\n", pindex, n, rem, upper_points_per_pe, *pe, idx);
-  return(idx);
-}
-
-// Input: An item's local offset and the PE.
-// Output: The global index of the item, assuming BLOCK or CYCLIC ordering.
-// If BLOCK, we assume items are distributed evenly.
-int64_t pe_and_offset_to_global_index(int64_t pe, int64_t offset, int64_t n, layout layout){
-
-  if(layout == CYCLIC)
-    return(offset*THREADS + pe);
-  else{
-    int64_t i, index = 0;
-    for(i = 0; i < pe; i++)
-      index += (n + THREADS - i - 1)/THREADS;
-    index += offset;
-    return(index);
-  }
-  
-}
-
-
 
 // This function computes all edges between two sectors and added them to the edge list
 void append_edges_between_sectors(uint64_t this_sec_idx,
@@ -154,7 +110,9 @@ void append_edges_between_sectors(uint64_t this_sec_idx,
   }else{
     /* the other sector is not on our PE */
     int64_t other_sec_pe;
-    int64_t other_sec_local_idx = global_index_to_pe_and_offset(other_sec_idx, nsectors, &other_sec_pe, BLOCK);
+    int64_t other_sec_local_idx;
+    //int64_t other_sec_local_idx = global_index_to_pe_and_offset(other_sec_idx, nsectors, &other_sec_pe, BLOCK);
+    global_index_to_pe_and_offset(&other_sec_pe, &other_sec_local_idx, other_sec_idx, nsectors, BLOCK);
     int64_t first_point_other = lgp_get_int64(first_point_in_sector, other_sec_local_idx*THREADS + other_sec_pe);
     int64_t num_pts_other = lgp_get_int64(counts, pe_and_offset_to_global_index(other_sec_pe, other_sec_local_idx, nsectors, CYCLIC));
     if(num_pts_other == 0)
@@ -295,7 +253,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   //T0_printf("                 edge_type = %d loops = %d\n", edge_type, loops);
 
   
-  srand(seed + MYTHREAD + 1);
+  lgp_rand_seed(seed);
   // TODO: permute matrix at end to get Zmorton order (which would improve locality)
   //       or round-robin point order (which would destroy locality)
 
@@ -309,7 +267,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 
   lgp_barrier();    
   
-  for(i = 0; i < ln; i++) lgp_atomic_add(counts, rand() % nsectors, 1L);
+  for(i = 0; i < ln; i++) lgp_atomic_add(counts, lgp_rand_int64(nsectors), 1L);
     
   lgp_barrier();
 
@@ -366,8 +324,8 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     double y_off = (sector % nsectors_across) * sector_width;
     pt = i*sector_max;
     for(j = 0; j < lcounts[i]; j++){    
-      lpoints[pt].x = ((double)rand()/RAND_MAX)*sector_width + x_off;
-      lpoints[pt].y = ((double)rand()/RAND_MAX)*sector_width + y_off;
+      lpoints[pt].x = lgp_rand_double()*sector_width + x_off;
+      lpoints[pt].y = lgp_rand_double()*sector_width + y_off;
       pt++;
     }
     //Sort the points in each sector lexiographically
@@ -377,8 +335,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   
   // Step 6. Determine which edges are present
   int64_t space = ceil(1.1*my_total_points*(n*M_PI*r*r));
-  //printf("PE %d: Initial allocation: %ld\n", MYTHREAD, space);
-  edge_list_t * el = init_edge_list(space);
+  // we don't worry about values at this point (thus we are creating an edge list
+  // without values.
+  edge_list_t * el = init_edge_list(space, 0);
   if(el == NULL){
     printf("ERROR: geometric graph: el is NULL\n");
     return(NULL);
@@ -419,9 +378,11 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     // Calling global_index_to_pe_and_offset gives us the PE and offset of a point if distribute the points
     // to PEs evenly and in BLOCK fashion.
     // We then convert that pe and offset into a new global index based on CYCLIC row layout.
-    int64_t roffset = global_index_to_pe_and_offset(el->edges[i].row, n, &pe, BLOCK);
+    int64_t roffset;
+    global_index_to_pe_and_offset(&pe, &roffset, el->edges[i].row, n, BLOCK);
     int64_t row_index = pe_and_offset_to_global_index(pe, roffset, n, CYCLIC);
-    int64_t coffset = global_index_to_pe_and_offset(el->edges[i].col, n, &pe, BLOCK);
+    int64_t coffset;
+    global_index_to_pe_and_offset(&pe, &coffset, el->edges[i].col, n, BLOCK);
     int64_t col_index = pe_and_offset_to_global_index(pe, coffset, n, CYCLIC);
     if ( col_index > row_index) {
       el->edges[i].row = -1; // mark as NULL since this edge represents a 1 above the diagonal in the adjacency matrix.
@@ -442,7 +403,8 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     
     for(i = 0; i < lnsectors; i++){
       for(j = 0; j < lcounts[i]; j++){
-        int64_t off = global_index_to_pe_and_offset(point_index, n, &pe, BLOCK);
+        int64_t off;
+        global_index_to_pe_and_offset(&pe, &off, point_index, n, BLOCK);
         int64_t new_index = pe_and_offset_to_global_index(pe, off, n, CYCLIC);
         lgp_memput(op, &lpoints[i*sector_max + j], sizeof(point_t), new_index);
         point_index++;
@@ -506,7 +468,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
         int64_t row = e.row/THREADS;
         int64_t pos = A->loffset[row] + lrow_counts[row]++;
         A->lnonzero[pos] = e.col;
-        if(weighted) A->lvalue[pos] = (double)rand()/RAND_MAX;
+        if(weighted){
+          A->lvalue[pos] = lgp_rand_double();
+        }
       }else{
         //printf("Pushing %ld %ld to pe %ld\n", e.row, e.col, pe);
         if(exstack_push(ex, &e, pe) == 0L)
@@ -523,7 +487,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       assert(pos < A->lnnz);
       assert(edge.col < n);
       A->lnonzero[pos] = edge.col;
-      if(weighted) A->lvalue[pos] = (double)rand()/RAND_MAX;
+      if(weighted) {
+        A->lvalue[pos] = lgp_rand_double();
+      }
     }
   }
 
@@ -536,7 +502,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   exstack_clear(ex);
   free(el);
   lgp_all_free(row_counts);
-  
+
   sort_nonzeros(A);
   
 #if 0
