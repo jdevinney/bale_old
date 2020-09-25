@@ -7,34 +7,38 @@ We wish to find the lightest weighted path from *v_0* to all other vertices,
 where the weight of a path is the sum of the weights of the edges in the path.
 
 ## Discussion
-This is well studied problem.
-It is used in classes on algorithms, data structures, and graph theory.
-It is also used as a benchmark in Graph500 benchmark suite.
-We are using this problem to evaluate what we have learned about our programming models.
-Are approach is that of someone given the assignment to get an SSSP application
-running reasonable well, at scale, using our programming models.
+This is well studied problem.  It is used in classes on algorithms,
+data structures, and graph theory.
+It is also used as a benchmark
+in Graph500 benchmark suite.
+We are using this problem
+to evaluate what we have learned
+about our programming models.
+Our approach is that of someone given the assignment
+to get an SSSP application running reasonable well,
+at scale, using our programming models.
 
 We consider three algorithms: Dijsktra's, Delta-Stepping, and Bellman-Ford.
 Good references for these uses are easily found online.
-We are using the Meyer/Sanders 
+For the Delta-Stepping algorithm we are using the original Meyer/Sanders paper,
 [delta-stepping algorithm](https://www.sciencedirect.com/science/article/pii/S0196677403000762).
 
 These algorithm work by assign a tentative weight, *tent(v)*, to each vertex. 
 Initially the weight of the given vertex is zero and all other weights are set to infinity.
-The algorithms proceed by changing the state of the vertices 
-from *unreached* (with infinite weight)
-to *unsettled* 
-to *settled* (meaning that the lightest weight path to that vertex is known). 
-The vertices change state via the process of *relaxing edges*.
-Relaxing an edge *(v,w)* replaces *tent(w)* with the *min(tent(w), tent(v)+c(v,w))*.
+The algorithms proceed by changing the state of the vertices
+ from *unreached* (with infinite weight)
+ to *unsettled*
+ to *settled* (meaning that the lightest weight path to that vertex is known).
+The vertices change state via the process of *relaxing edges*.  Relaxing an edge *(v,w)*
+ replaces *tent(w)* with the *min(tent(w), tent(v)+c(v,w))*.
 
 There is subtle relationship between the length of a path
 (the number of edge in the path) and the weight of the path.
 Clearly, it is possible to have a longer path that is lighter than a shorter.
-If a path from *v0* to *w* contains the vertice *v*, then the weight of the path
-from *v0* to *v* is less than the path from *v0* thru *v* to *w*.
+If a path from *v0* to *w* contains the vertex *v*, then the weight of the path
+from *v0* to *v* is less than the weight of the path from *v0* thru *v* to *w*.
 If *v* is an intermediate vertex on a lightest path from *v0* to *w*,
-then the path from $v0$ to $v$ is also a lightest path.
+then that path from $v0$ to $v$ is also a lightest path.
 
 Dijsktra's algorithm works by considering the weight *tent(v)* of the "unsettled" vertices.
 One proves that lightest such vertex does, in fact, have the correct weight.
@@ -43,19 +47,19 @@ This gives the most efficent algorithm in the sense that edges are relaxed exact
 
 Bellman-Ford relaxes edges based on the length of paths 
 to the "unsettled" and "unreached" vertices.
-Basically the algorithm is to relax all of the edges in the graph until none of the
-tentative weights *tent(v)* change. 
+Basically the algorithm simply relaxes all of the edges in the graph over and over again 
+until none of the tentative weights *tent(v)* change. 
 
 The Meyer/Sanders delta-stepping algorithm uses ideas from both of the previous algorithms.
-Unsettled vertices are kept in "buckets" based on their by *tent(v)* value; bucket *i*
+Unsettled vertices are kept in "buckets" based on their by *tent(v)* weights; bucket *i*
 contains vertices with *tent(v)* at least _i\*delta_ and less than _(i+1)\*delta_, 
 where *delta* is a parameter.  The active bucket is the *i*th bucket (with the smallest *i*)
 that has unsettled vertices.  Edges in the graph are considered light if their weight 
 is less than or equal to *delta* and heavy otherwise.
 
-The algorithm "settles" the vertices in that active bucket with a Bellman-Ford approach
+The algorithm "settles" the vertices in the active bucket with a Bellman-Ford approach
 using only the light edges. Then the algorithm relaxes the vertices that were in the active
-bucket using the heavy. This uses an extension of Dijsktra's approach because the 
+bucket using the heavy egdes. This uses an extension of Dijsktra's approach because the 
 heavy edges cannot put vertices into the active bucket.  The efficiency of the algorithm
 comes at the price of a more complicate flow control and data-structure manipulations
 to maintain the buckets.
@@ -65,7 +69,7 @@ We also have implementations of all three algorithms in the other_serial/C "cous
 directory and the delta-stepping algorithm in the other_serial/Rust and other_parallel/Rust directories.
 
 #### Parallel Considerations
-Dijsktra's algorithm is a serial algorithm, 
+Dijsktra's algorithm is a serial algorithm 
 with no opportunity for our static thread based parallelism. 
 One must find *the* single lightest *tent(v)* and then relax the edges from that *v*.
 In addition, serial versions of the algorithm can use a priority queue to efficient
