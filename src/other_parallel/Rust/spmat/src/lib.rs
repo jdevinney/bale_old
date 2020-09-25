@@ -937,7 +937,7 @@ mod tests {
         assert_eq!(mat.my_rank(), mutex.convey.my_rank);
     }
     #[test]
-    fn rand_mat_perm() {
+    fn rand_mat_perm1() {
         let mutex = TestingMutex::new();
         let mat = SparseMat::erdos_renyi_tri(1000, 0.05, true, false, 0);
         let rperm = Perm::random(1000, 0);
@@ -947,6 +947,17 @@ mod tests {
         assert_eq!(mat.is_upper_triangular(true), true);
         //assert_eq!(permuted.is_lower_triangular(true), false);
         //assert_eq!(permuted.is_upper_triangular(true), false);
+        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+    }
+    #[test]
+    #[should_panic]
+    fn rand_mat_perm2() {
+        let mutex = TestingMutex::new();
+        let mut mat = SparseMat::erdos_renyi_tri(1000, 0.05, true, false, 0);
+        mat.randomize_values();
+        let rperm = Perm::random(1000, 0);
+        let cperm = Perm::random(1000, 0);
+        let _permuted = mat.permute(&rperm, &cperm);
         assert_eq!(mat.my_rank(), mutex.convey.my_rank);
     }
     #[test]
@@ -961,5 +972,42 @@ mod tests {
         assert_eq!(mat.compare(&tmat), false);
         assert_eq!(mat.compare(&ttmat), true);
         assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+    }
+    #[test]
+    #[should_panic]
+    fn transpose2() {
+        let mutex = TestingMutex::new();
+        let mut mat = SparseMat::erdos_renyi_tri(1000, 0.05, true, false, 0);
+        mat.randomize_values();
+        let _ = mat.transpose();
+        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+    }
+    #[test]
+    fn write_read_mm1() {
+        let mutex = TestingMutex::new();
+        assert!(SparseMat::read_mm_file("not_there.mm").is_err());
+        let mat = SparseMat::new(10, 10, 10);
+        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+    }
+    #[test]
+    fn write_read_mm2() {
+        let mutex = TestingMutex::new();
+        let mat_a = SparseMat::erdos_renyi_tri(100, 0.05, true, false, 0);
+        mat_a.write_mm_file ("test_write_read_mm2.mm").expect("failed write");
+        let mat_b = SparseMat::read_mm_file("test_write_read_mm2.mm").expect("failed read");
+        assert!(mat_b.value == None);
+        assert_eq!(mat_a.compare(&mat_b), true);
+        assert_eq!(mat_a.my_rank(), mutex.convey.my_rank);
+    }
+    #[test]
+    fn write_read_mm3() {
+        let mutex = TestingMutex::new();
+        let mut mat_a = SparseMat::erdos_renyi_tri(100, 0.05, true, false, 0);
+        mat_a.randomize_values();
+        mat_a.write_mm_file ("test_write_read_mm3.mm").expect("failed write");
+        let mat_b = SparseMat::read_mm_file("test_write_read_mm3.mm").expect("failed read");
+        assert!(mat_b.value != None);
+        assert_eq!(mat_a.compare(&mat_b), true);
+        assert_eq!(mat_a.my_rank(), mutex.convey.my_rank);
     }
 }
