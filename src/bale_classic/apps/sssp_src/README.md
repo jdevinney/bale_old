@@ -67,9 +67,12 @@ directory and the delta-stepping algorithm in the other_serial/Rust and other_pa
 #### Parallel Considerations
 Dijsktra's algorithm is a serial algorithm, 
 with no opportunity for our static thread based parallelism. 
-One must find *the* single lightest *tent(v)* and then relax the edges from that v.
+One must find *the* single lightest *tent(v)* and then relax the edges from that *v*.
+In addition, serial versions of the algorithm can use a priority queue to efficient
+the next unsettled vertex. In our C implementation we use a simple binary heap.
 Depending on the average degree of a vertex, one could imagine relaxing the edges
-in parallel with a fork-join threading model.
+in parallel with a fork-join threading model, but one still has to have an 
+efficient way to find the smallest weight unsettled vertex.
 
 Bellman-Ford does a lot of redundant relaxations. We attempt to limit the amount of 
 redundant work with a dynamic programming approach, but it still seems to be over-whelming.
@@ -79,30 +82,30 @@ and massive amounts of parallelism.
 The delta-stepping algorithm has a tunable amount of parallelism that depends on *delta*.
 The more vertices that are in the active bucket the more relaxations,
 possibly redundant relaxations, that can be done in a parallel.
-Note that the heavy edges are relaxed only once, but they are done in a batch.
-All the heavy edges from any vertex that was in the active bucket can be relax at the same time.
+Note that the heavy edges are relaxed only once and they are done as a batch
+of all the heavy edges from any vertex that was in the active bucket.
 
-
-
-```c
-while( convey_advance(conveyor, (i==T)) ){
-  for( ; i < T; i++){
-    col = pckindx[i] >> 16;
-    pe  = pckindx[i] & 0xffff;
-    if( !convey_push(ex, &col, pe) )
-      break;
-  }
-
-  while(convey_pull(conveyor, &col, NULL) == convey_OK )
-    lcounts[col]++;
-}
-```
+The parallelism available in the Bellman-Ford and Delta-stepping algorithms
+is a natural fit to our buffered communication.
+A thread with affinity to the tail of an edge knows the *tent(v)* 
+of a vertex and the weight of the outgoing edges from *v*. It is responsible
+for picking which edges to relax.  A thread with affinity to the head
+of an edge knows whether or not the relaxation improves *tent(w)* of the head
+and then updates data structures accordingly.
 
 #### Why it is in bale?
-It is 
+This problem and the different algorithms give a new use case to study programming models.
+The Bellman-Ford is simple algorithm, but it requires an atomic min of a double to 
+perform the relaxations in parallel.  We do not yet have a working AGP implementation
+of atomic_min_double, hence we do not have a AGP version of Bellman-Ford.
 
+Unlike the other bale apps, the Delta-stepping algorithm performs as much work
+remotely as it does locally.
+
+We haven't started analysing these implementations yet.
 
 #### From the Book?
+We don't think there's an FTB version of any of these algorithms using the AGP model.
 
 
 See apps/sssp_src/ for the all implementations.
