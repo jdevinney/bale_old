@@ -1,24 +1,31 @@
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
+
+//! Triangle library
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use convey_hpc::Convey;
 use spmat::wall_seconds;
 use spmat::SparseMat;
 
-/* Generate a distributed graph that is the product of a
- collection of star graphs. This is done * in two stages. In the first
- stage, the list of stars (parameterized by an integer m, K_{1,m}) is
- split in half and each half-list forms a local adjacency matrix for
- the Kronecker product of the stars (matrices B and C). Then the two
- local matrices are combined to form a distributed adjacency matrix
- for the Kronecker product of B and C.
- *
- * \param B_spec An array of sizes in one half of the list.
- * \param B_num The number of stars in one half of the list.
- * \param C_spec An array of sizes in the other half of the list.
- * \param C_num The number of stars in the other half of the list.
- * \param mode Mode 0 graphs have no triangles, mode 1 graphs have lots of triangles and mode 2 graphs
-have few triangles.
-* \return A distributed matrix which represents the adjacency matrix for the Kronecker product of all the stars (B and C lists).
- */
-
+/// Generate a distributed graph that is the product of a collection
+/// of star graphs. This is done in two stages. In the first stage,
+/// the list of stars (parameterized by an integer m, K_{1,m}) is
+/// split in half and each half-list forms a local adjacency matrix
+/// for the Kronecker product of the stars (matrices B and C). Then
+/// the two local matrices are combined to form a distributed
+/// adjacency matrix for the Kronecker product of B and C.
 pub fn generate_kronecker_graph(b_spec: &[u16], c_spec: &[u16], mode: u16) -> SparseMat {
     let bmat = SparseMat::gen_local_mat_from_stars(b_spec, mode);
     let cmat = SparseMat::gen_local_mat_from_stars(c_spec, mode);
@@ -35,10 +42,14 @@ pub fn generate_kronecker_graph(b_spec: &[u16], c_spec: &[u16], mode: u16) -> Sp
     bmat.kron_prod_dist(&cmat, true)
 }
 
+/// Information that comes from trangle counting
 #[derive(Debug)]
 pub struct TriInfo {
+    /// number of triangles
     pub tri_cnt: u64,
+    /// number of remote ops to find
     pub sh_refs: u64,
+    /// time to find
     pub laptime: f64,
 }
 
@@ -52,12 +63,19 @@ impl TriInfo {
     }
 }
 
+/// A trait to extend SparseMat for Triangle Counting
 pub trait Triangle {
+    /// push variant of triangle counting
     fn triangle_push(&self, upper: Option<&SparseMat>) -> TriInfo;
+    /// pull variant of triangle counting
     fn triangle_pull(&self, upper: Option<&SparseMat>) -> TriInfo;
+    /// generate a star graph
     fn gen_star(m: u16, mode: u16) -> SparseMat;
+    /// generate a local matrix from star graph
     fn gen_local_mat_from_stars(spec: &[u16], mode: u16) -> SparseMat;
+    /// generate a local kron graph
     fn kron_prod(&self, other: &SparseMat) -> SparseMat;
+    /// generate a dist kron graph
     fn kron_prod_dist(&self, other: &SparseMat, mode: bool) -> SparseMat;
 }
 

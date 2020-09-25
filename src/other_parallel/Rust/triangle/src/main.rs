@@ -1,104 +1,17 @@
-/******************************************************************
-//
-//
-//  Copyright(C) 2018, Institute for Defense Analyses
-//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-//
-//
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-*****************************************************************/
-
+//! Triangle counting application
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use clap::{App, Arg};
 use convey_hpc::collect::ValueCollect;
 use convey_hpc::Convey;
 use triangle::Triangle;
-
-/*
-  \page triangles_page Triangles
-
-This uses matrix algebra approach to counting triangles in a graph.
-
-The adjacency matrix, <b>A</b>, for the graph is a {0,1} matrix
-where the rows and cols correspond to the vertices
-and \f$a_{ij} \f$ = <b>A[i][j]</b> is 1 exactly when there is a edge between
-vertices <i>v_i</i> and <i>v_j</i>.
-
-The triangle with vertices <i>{v_i, v_j, v_k}</i> has associated
-edges <i>{v_i, v_j}</i>, <i>{v_j, v_k}</i> and <i>{v_k, v_i}</i>
-which correspond to non-zero entries
-\f$a_{ij}\f$,
-\f$a_{jk}\f$, and
-\f$a_{ki}\f$
-in the adjacency matrix.
-Hence the sum
-\f$ \sum_{i,j,k} a_{ij}a_{jk}a_{ki} \f$ counts the triangles in the graph.
-However, it counts each triangle 6 times according to the 6 symmetries of a triangle
-and the 6 symmetric ways to choose the three nonzeros in <b>A</b>.
-To count each triangle once, we compute the sum
-\f[ \sum_{i=1}^{n}\sum_{j=1}^{i-1}\sum_{k=1}^{j-1} a_{ij}a_{jk}a_{ik} =
-    \sum_{i=1}^{n}\sum_{j=1}^{i-1} a_{ij} \sum_{k=1}^{j-1} a_{jk}a_{ik}. \f]
-
-This picks out a unique labelling from the 6 possible and it means that
-all the information we need about edges is contained in the lower triangular
-part of symmetric adjacency matrix.  We call this matrix <b>L</b>.
-
-The mathematical expression:
-for each nonzero \f$ a_{ij} \f$ compute the dot product
-of row \f$ i\f$ and row \f$ j \f$ becomes
-\verbatim
-  For each non-zero L[i][j]
-     compute the size of the intersection of the nonzeros in row i and row j
-\endverbatim
-
-Usage:
-- -a = 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
-- -e = p: specify the Erdos-Renyi probability p
-- -K = str: Generate a Kronecker product graph with specified parameters. See below
-- -M mask is the or of 1,2,4,8,16 for the models: agi,exstack,exstack2,conveyor,alternate
-- -N = n: Specify the number of rows_per_thread in the matrix (if using the Erdos-Renyi generator).
-- -r "file" : Specify a filename containing a matrix in MatrixMarket format to read as input.
-- -b = count: Specify the number of packages in an exstack(2) stack
-
-Explanation of -K option. Using a special string format you must specify a mode,
-and a sequence of numbers. For example:
-"0 3 4 5 9"
-The first integer is always the mode and the valid modes are 0, 1, or 2
-Mode 0 graphs have no triangles, mode 1 graphs have lots of triangles and mode 2 graphs
-have few triangles.
-After the first number, the next numbers are the parameters for the two kronecker product graphs. We split
-the sequence of numbers in half to get two sequences.
-In our example above we would produce the product of K(3,4) and K(5,9).
-
-See "Design, Generation, and Validation of Extreme Scale Power-Law Graphs" by Kepner et. al.
- */
 
 fn main() {
     let matches = App::new("Triangle")
@@ -210,6 +123,7 @@ fn main() {
         for item in iter {
             args.push(item.parse().expect("bad kron value"));
         }
+        // Build up the kronecker mode
         let ans = match mode {
             0 => 0.0,
             1 => {
