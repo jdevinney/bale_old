@@ -129,6 +129,7 @@ int main(int argc, char * argv[]) {
   sparsemat_t * outmat;
   sparsemat_t * refmat = NULL;
   char model_str[32];
+  int error = 0;
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     double t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
@@ -170,17 +171,14 @@ int main(int argc, char * argv[]) {
     }else{
       if(compare_matrix(refmat, outmat)){
         T0_fprintf(stderr,"ERROR: permute_matrix does not match!\n");
-        if(args.std.dump_files){
-          write_matrix_mm(outmat, "outmat");
-          write_matrix_mm(refmat, "refmat");
-        }
+        error = 1;
       }
       clear_matrix(outmat);
     }
   }
 
-  write_matrix_mm(refmat, "outmat_permute_matrix");
-    
+  write_matrix_mm(refmat, "permute_matrix_outmat");
+  
   clear_matrix(inmat);
   clear_matrix(refmat);
   lgp_all_free(rp);
@@ -189,7 +187,7 @@ int main(int argc, char * argv[]) {
 
   bale_app_finish(&args.std);
   
-  return(0);
+  return(error);
 }
 
 

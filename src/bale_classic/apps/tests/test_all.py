@@ -5,20 +5,39 @@
 import subprocess
 import os
 
-def run_command(cmd):
-  ret = subprocess.run(cmd,shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-  return(ret.returncode)
+def run_command(cmd, double_check_for_error):
+  #ret = subprocess.run(cmd,shell=True)
+  cmd = cmd+" &> test.log "
+  ret = subprocess.run(cmd,shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+  if ret.returncode: return(ret.returncode)    
+  if double_check_for_error:
+    ret = grep_for_errors("test.log")
+    if ret:
+      print("Error running: {0}. See {1} for log.".format(cmd, "test.log"))
+      return(ret)
+    os.remove("test.log")
+  return(0)
+
+def grep_for_errors(logfile):
+  if not os.path.exists(logfile):
+    return(1)
+  error = 0;
+  with open(logfile, 'r') as lfp:
+    for line in lfp:      
+      if(line.count('error') or line.count('ERROR') or line.count('Error')):
+        error += 1
+  return(error)
 
 def determine_launcher(launcher):
   if launcher != "":
     return(""+launcher+" -n {0} {1} {2}")
-  ret = run_command('srun --help')
+  ret = run_command('srun --help', 0)
   if ret == 0: return('srun -n {0} {1} {2}')
-  ret = run_command('aprun --help')
+  ret = run_command('aprun --help', 0)
   if ret == 0: return('aprun -n {0} {1} {2}')
-  ret = run_command('oshrun --help')
+  ret = run_command('oshrun --help', 0)
   if ret == 0: return('oshrun -n {0} {1} {2}')
-  ret = run_command('upcrun --help')
+  ret = run_command('upcrun --help', 0)
   if ret == 0: return('upcrun -n {0} {1} {2}')
   return("{2} -n {0} {1} --")
 
@@ -65,16 +84,27 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
       runs.append("-b 120 -n 1998 -T 10000 ")
     if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles' or app == 'sssp':
       runs.append("-b 120 -n 1000 -F -z 2 ")
-      runs.append("-b 120 -n 1042 -G -z 4 ")
+      runs.append("-b 120 -n 1042 -F -z 4 ")
       runs.append("-b 31 -n 3079 -F -z 4 ")
       runs.append("-b 31 -n 3042 -F -z 6 ")
       runs.append("-b 140 -n 4442 -F -z 20 ")
+      runs.append("-b 120 -n 1000 -G -z 2 ")
+      runs.append("-b 120 -n 1042 -G -z 4 ")
+      runs.append("-b 31 -n 3079 -G -z 4 ")
+      runs.append("-b 31 -n 3042 -G -z 6 ")
+      runs.append("-b 140 -n 4442 -G -z 20 ")
       runs.append("-b 64 -n 834 -F -d ")
       runs.append("-b 64 -n 834 -F -w ")
       runs.append("-b 64 -n 834 -F -l ")
       runs.append("-b 64 -n 834 -F -d -w ")
       runs.append("-b 64 -n 834 -F -w -l ")
       runs.append("-b 64 -n 834 -F -d -l -w ")
+      runs.append("-b 64 -n 834 -G -d ")
+      runs.append("-b 64 -n 834 -G -w ")
+      runs.append("-b 64 -n 834 -G -l ")
+      runs.append("-b 64 -n 834 -G -d -w ")
+      runs.append("-b 64 -n 834 -G -w -l ")
+      runs.append("-b 64 -n 834 -G -d -l -w ")
 
     if app == 'topo':
       if os.path.exists("../../../example_matrices/toposort_input.mm"):
@@ -103,7 +133,7 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
       for run in runs:
         cmd = launcher.format(pes, launcher_opts, os.path.join(path,app)) +" "+run+" -M "+implementation_mask
         print(launcher.format(pes, launcher_opts, app)+" "+run+" -M "+implementation_mask)
-        ret = run_command(cmd)
+        ret = run_command(cmd, 1)
         assert(ret == 0)
 
 
