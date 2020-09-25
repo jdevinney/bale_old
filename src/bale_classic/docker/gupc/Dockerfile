@@ -1,5 +1,5 @@
 
-FROM ubuntu:14.04
+FROM ubuntu:16.04
 
 MAINTAINER Jason DeVinney <jgdevin@super.org>
 
@@ -44,7 +44,8 @@ RUN apt-get -y update \
         wget \
         zlib1g-dev \
     && apt-get clean
-ENV GUPC_URL=https://www.gccupc.org/gupc-5201-1/32-gupc-5-2-0-1-source-release/file
+#ENV GUPC_URL=https://www.gccupc.org/gupc-5201-1/32-gupc-5-2-0-1-source-release/file
+ENV GUPC_URL=https://github.com/Intrepid/GUPC/releases/download/upc-5.2.0.1/upc-5.2.0.1.src.tar.bz2
 ENV GUPC_ARCHIVE=${PREFIX}/src/gupc.tar.bz2
 ENV GUPC_SRC_DIR=${PREFIX}/src/gupc/
 ENV GUPC_BUILD_DIR=${PREFIX}/build/gupc/
@@ -59,11 +60,12 @@ RUN ${GUPC_SRC_DIR}/configure --prefix=${GUPC_INSTALL_DIR} --enable-languages=c 
     --with-mpfr-include=/usr/include --with-mpfr-lib=/usr/lib/x86_64-linux-gnu \
     --with-gmp-include=/usr/include --with-gmp-lib=/usr/lib/x86_64-linux-gnu \
     --with-mpc-include=/usr/include --with-mpc-lib=/usr/lib/x86_64-linux-gnu\
-    --disable-multilib --disable-bootstrap
+    --disable-multilib --disable-bootstrap --with-upc-runtime='SMP'
 RUN make -j ${NPROCS}
 RUN make install
 RUN rm -rf ${GUPC_ARCHIVE}
 
 ENV PATH=${PREFIX}/bin:$PATH
 RUN adduser --disabled-password --gecos "" bale_user
+RUN echo "hello"
 CMD ["/bin/bash"]
