@@ -689,8 +689,27 @@ mod tests {
         let matret_a = mat.delta_stepping(source, forced_delta, quiet, trace);
         for delta in vec![0.01, 0.1, 1.0, 100.0] {
             let matret_b = mat.delta_stepping(source, Some(delta), quiet, trace);
+            let diff = mat.sq_rel_diff(&matret_a.distance, &matret_b.distance);
+            assert!(diff <= f64::EPSILON.sqrt());
         }
-
+        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+    }
+    #[test]
+    fn delta_stepping_sparse() {
+        let mutex = TestingMutex::new();
+        let input_file = "erdosrenyi/sparse100.mm";
+        let mat = SparseMat::read_mm_file(input_file).expect("can't read input file");
+        let source = 2;
+        let forced_delta = None;
+        let quiet = true;
+        let trace = false;
+        let matret_a = mat.delta_stepping(source, forced_delta, quiet, trace);
+        assert!(mat.check_result(&matret_a, input_file, quiet));
+        for delta in vec![0.01, 0.1, 1.0, 100.0] {
+            let matret_b = mat.delta_stepping(source, Some(delta), quiet, trace);
+            let diff = mat.sq_rel_diff(&matret_a.distance, &matret_b.distance);
+            assert!(diff <= f64::EPSILON.sqrt());
+        }
         assert_eq!(mat.my_rank(), mutex.convey.my_rank);
     }
 }
