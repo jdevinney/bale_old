@@ -1,3 +1,20 @@
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
+
+//! Toposort library
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use convey_hpc::collect::ValueCollect;
 use convey_hpc::RcVec;
 use serde::{Deserialize, Serialize};
@@ -59,10 +76,12 @@ pub fn generate_toposort_input(
     mat
 }
 
+/// Information returned from toposort, the two permutations and time
 #[derive(Debug)]
 pub struct TopoInfo {
     rperm: Perm,
     cperm: Perm,
+    /// time to complete
     pub laptime: f64,
 }
 
@@ -78,10 +97,15 @@ impl TopoInfo {
     }
 }
 
+/// a trait for Toposort extensions to SparseMat
 pub trait TopoSort {
+    /// first version of toposort algorithm
     fn toposort_queue(&self, tmat: &SparseMat) -> TopoInfo;
+    /// second version of toposort algorithm
     fn toposort_queue2(&self, tmat: &SparseMat) -> TopoInfo;
+    /// third version of toposort algorithm
     fn toposort_loop(&self, tmat: &SparseMat) -> TopoInfo;
+    /// checker
     fn check_result(&self, info: &TopoInfo, dump_files: bool) -> bool;
 }
 
