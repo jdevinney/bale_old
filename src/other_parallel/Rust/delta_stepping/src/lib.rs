@@ -1,3 +1,20 @@
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
+
+//! Deltastepping
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use chrono::{DateTime, Local};
 use convey_hpc::collect::ValueCollect;
 use convey_hpc::Convey;
@@ -30,8 +47,11 @@ pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
 /// Output structure for single-source shortest path
 #[derive(Debug, Clone)]
 pub struct SsspInfo {
+    /// source size
     pub source: usize,
+    /// time to complete
     pub laptime: f64,
+    /// distance vector
     pub distance: Vec<f64>,
 }
 
@@ -137,7 +157,7 @@ struct BucketSearcher<'a> {
 
 impl<'a> BucketSearcher<'a> {
     /// Create a bucket structure for a weighted graph
-    fn new(graph: &SparseMat, delta: f64) -> BucketSearcher {
+    fn new(graph: &SparseMat, delta: f64) -> BucketSearcher<'_> {
         let nvtxs_this_rank = graph.numrows_this_rank();
 
         let mut my_max_edge_len: f64 = 0.0;
@@ -418,7 +438,9 @@ impl<'a> BucketSearcher<'a> {
     }
 }
 
+/// Trait to implement deltastepping extensions to SparseMat
 pub trait DeltaStepping {
+    /// Deltastepping function
     fn delta_stepping(
         &self,
         source: usize,
@@ -426,6 +448,7 @@ pub trait DeltaStepping {
         quiet: bool,
         trace: bool,
     ) -> SsspInfo;
+    /// check results
     fn check_result(&self, info: &SsspInfo, input_file: &str, quiet: bool) -> bool;
 }
 
