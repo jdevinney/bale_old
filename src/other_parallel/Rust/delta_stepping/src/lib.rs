@@ -27,30 +27,6 @@ pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
     ranges
 }
 
-/// Square of relative 2-norm difference between two distributed vectors, with inf-inf treated as 0.
-/// This should be standard somewhere, but I can't find it.
-pub fn sq_rel_diff(&self, a: Vec<f64>, b: Vec<f64>) -> f64 {
-    assert!(a.len() == b.len);
-    let mut l_diff: f64 = 0.0;
-    let mut l_csum: f64 = 0.0;
-    for v in 0..a.len() {
-        if a[v].is_finite() || b[v].is_finite() {
-            l_diff += (a[v] - b[v]).powi(2);
-        }
-        if a[v].is_finite() {
-            l_csum += a[v].powi(2);
-        }
-    }
-    let diff = self.reduce_sum(l_diff);
-    let csum = self.reduce_sum(l_csum);
-
-    if diff == 0.0 {
-        0.0
-    } else {
-        diff / csum
-    }
-}
-
 /// Output structure for single-source shortest path
 #[derive(Debug, Clone)]
 pub struct SsspInfo {
@@ -451,6 +427,7 @@ pub trait DeltaStepping {
         trace: bool,
     ) -> SsspInfo;
     fn check_result(&self, info: &SsspInfo, input_file: &str, quiet: bool) -> bool;
+    fn sq_rel_diff(&self, a: &Vec<f64>, b: &Vec<f64>) -> f64;
 }
 
 impl DeltaStepping for SparseMat {
@@ -572,8 +549,8 @@ impl DeltaStepping for SparseMat {
 
     /// Square of relative 2-norm difference between two distributed vectors, with inf-inf treated as 0.
     /// This should be standard somewhere, but I can't find it.
-    pub fn sq_rel_dist(&self, a: Vec<f64>, b: Vec<f64>) -> f64 {
-        assert!(a.len() == b.len);
+    fn sq_rel_diff(&self, a: &Vec<f64>, b: &Vec<f64>) -> f64 {
+        assert!(a.len() == b.len());
         let mut l_diff: f64 = 0.0;
         let mut l_csum: f64 = 0.0;
         for v in 0..a.len() {
@@ -670,20 +647,20 @@ impl DeltaStepping for SparseMat {
         }
         true
     }
+}
 
 #[cfg(test)]
 mod tests {
-    use super::SparseMat;
     use convey_hpc::testing_support::TestingMutex;
-
-    let data_dir = "./erdosrenyi/"
+    use crate::DeltaStepping;
+    use super::SparseMat;
 
     #[test]
     #[should_panic]
     fn delta_stepping_rand1() {
         let mutex = TestingMutex::new();
         let numrows = 100;
-        let erdos_renyi_prob = .05;
+        let erdos_renyi_prob = 0.05;
         let unit_diag = false;
         let mode = 3;
         let seed = 1;
@@ -692,14 +669,14 @@ mod tests {
         let forced_delta = None;
         let quiet = true;
         let trace = false;
-        let _matret = delta_stepping(source, forced_delta, quiet, trace);
+        let _matret = mat.delta_stepping(source, forced_delta, quiet, trace);
         assert_eq!(mat.my_rank(), mutex.convey.my_rank);
     }
     #[test]
     fn delta_stepping_rand2() {
         let mutex = TestingMutex::new();
         let numrows = 100;
-        let erdos_renyi_prob = .05;
+        let erdos_renyi_prob = 0.05;
         let unit_diag = false;
         let mode = 3;
         let seed = 1;
@@ -709,54 +686,11 @@ mod tests {
         let forced_delta = None;
         let quiet = true;
         let trace = false;
-        let matret_a = delta_stepping(source, forced_delta, quiet, trace);
-        for delta in vec![.01, .1, 1, 100] {
-            let matret_b = delta_stepping(source, Some(delta), quiet, trace);
+        let matret_a = mat.delta_stepping(source, forced_delta, quiet, trace);
+        for delta in vec![0.01, 0.1, 1.0, 100.0] {
+            let matret_b = mat.delta_stepping(source, Some(delta), quiet, trace);
         }
 
         assert_eq!(mat.my_rank(), mutex.convey.my_rank);
-    }
-
-
-
-    fn rand_mat_perm1() {
-        let mutex = TestingMutex::new();
-        let mat = SparseMat::erdos_renyi_tri(1000, 0.05, true, false, 0);
-        let rperm = Perm::random(1000, 0);
-        let cperm = Perm::random(1000, 0);
-        let _permuted = mat.permute(&rperm, &cperm);
-        assert_eq!(mat.is_lower_triangular(true), false);
-        assert_eq!(mat.is_upper_triangular(true), true);
-        //assert_eq!(permuted.is_lower_triangular(true), false);
-        //assert_eq!(permuted.is_upper_triangular(true), false);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
-    }
-    #[test]
-    #[should_panic]
-    fn rand_mat_perm2() {
-        let mutex = TestingMutex::new();
-        let mut mat = SparseMat::erdos_renyi_tri(1000, 0.05, true, false, 0);
-        mat.randomize_values();
-        let rperm = Perm::random(1000, 0);
-        let cperm = Perm::random(1000, 0);
-        let _permuted = mat.permute(&rperm, &cperm);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
-    }
-    #[test]
-    fn write_read_mm1() {
-        let mutex = TestingMutex::new();
-        assert!(SparseMat::read_mm_file("not_there.mm").is_err());
-        let mat = SparseMat::new(10, 10, 10);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
-    }
-    #[test]
-    fn write_read_mm2() {
-        let mutex = TestingMutex::new();
-        let mat_a = SparseMat::erdos_renyi_tri(100, 0.05, true, false, 0);
-        mat_a.write_mm_file ("test_write_read_mm2.mm").expect("failed write");
-        let mat_b = SparseMat::read_mm_file("test_write_read_mm2.mm").expect("failed read");
-        assert!(mat_b.value == None);
-        assert_eq!(mat_a.compare(&mat_b), true);
-        assert_eq!(mat_a.my_rank(), mutex.convey.my_rank);
     }
 }
