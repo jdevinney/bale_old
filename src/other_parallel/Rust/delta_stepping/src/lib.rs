@@ -653,14 +653,14 @@ impl DeltaStepping for SparseMat {
                         check_dst.push(d);
                     }
                 }
-                let srd = self.sq_rel_diff(&check_dst, &info.distance);
-                if src <= f64::EPSILON.sqrt() {
+                let diff = self.sq_rel_diff(&check_dst, &info.distance);
+                if diff <= f64::EPSILON.sqrt() {
                     if !quiet {
-                        println!("\nCORRECT! squared relative diff = {}", srd);
+                        println!("\nCORRECT! squared relative diff = {}", diff);
                     }
                 } else {
                     if !quiet {
-                        println!("\nDISAGREE! squared relative diff = {}", srd);
+                        println!("\nDISAGREE! squared relative diff = {}", diff);
                     }
                     return false;
                 }
