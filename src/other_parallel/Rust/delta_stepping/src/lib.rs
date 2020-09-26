@@ -655,6 +655,7 @@ mod tests {
     use crate::DeltaStepping;
     use super::SparseMat;
 
+/*
     #[test]
     #[should_panic]
     fn delta_stepping_rand1() {
@@ -672,6 +673,7 @@ mod tests {
         let _matret = mat.delta_stepping(source, forced_delta, quiet, trace);
         assert_eq!(mat.my_rank(), mutex.convey.my_rank);
     }
+*/
     #[test]
     fn delta_stepping_rand2() {
         let mutex = TestingMutex::new();
