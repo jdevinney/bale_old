@@ -23,7 +23,7 @@ We have been using gcc, but this should run in C environment.
    It contains the sparse matrix library and few helpful routines for debugging and timing.
 - demo_spmat.c - essentially a script used to test the development of spat_utils. It might be good way to familiarize onesself we our version of a compressed row format for a sparse matrix.
 - apps:
-  - histo.c            -- creates a large histogram (random stores)
+  - [histo.c](./histo.md)            -- creates a large histogram (random stores)
   - ig.c               -- a large gather (random loads)
   - randperm.c         -- creates a random permutation
   - transpose_matrix.c -- part of spmat_utils, but interesting in it own right.
