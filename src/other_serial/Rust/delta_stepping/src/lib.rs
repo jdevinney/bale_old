@@ -1,3 +1,20 @@
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
+
+//! Bale Serial deltastepping library
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use chrono::{DateTime, Local};
 use sparsemat::wall_seconds;
 use sparsemat::SparseMat;
@@ -7,8 +24,8 @@ use std::io::Write;
 use std::ops::Range;
 use std::path::Path;
 
-// A helper function for dumping only part of a big data structure.
-// This should really go somewhere else than the delta_stepper lib.
+/// A helper function for dumping only part of a big data structure.
+/// This should really go somewhere else than the delta_stepper lib.
 pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
     let mut ranges: Vec<Range<usize>> = Vec::new();
     if max_disp <= num_items && max_disp > 0 {
@@ -20,16 +37,19 @@ pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
     ranges
 }
 
-// Output structure for single-source shortest path
+/// Output structure for single-source shortest path
 #[derive(Debug, Clone)]
 pub struct SsspInfo {
+    /// the resulgint distance vector
     pub distance: Vec<f64>,
+    /// how big the source was
     pub source: usize,
+    /// time to complete
     pub laptime: f64,
 }
 
 impl SsspInfo {
-    // Dump output distances to a file
+    /// Dump output distances to a file
     pub fn dump(&self, max_disp: usize, filename: &str) -> Result<(), Error> {
         //2 outs but perm has 1??
         let path = Path::new(&filename);
@@ -51,7 +71,7 @@ impl SsspInfo {
         Ok(())
     }
 
-    // Dump output distances to a file in Phil's .wts format
+    /// Dump output distances to a file in Phil's .wts format
     pub fn dump_wts(&self, filename: &str) -> Result<(), Error> {
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().write(true).create(true).open(path)?;
@@ -142,7 +162,7 @@ impl<'a> Iterator for ActiveBucketIterator<'a> {
 
 impl<'a> BucketSearcher<'a> {
     // Create a bucket structure for a weighted graph
-    fn new(graph: &SparseMat, delta: f64) -> BucketSearcher {
+    fn new(graph: &SparseMat, delta: f64) -> BucketSearcher<'_> {
         // I guess this uses lifetime elision
         let nv = graph.numrows();
         let mut max_edge_len: f64 = 0.0;
@@ -408,8 +428,11 @@ impl<'a> BucketSearcher<'a> {
     }
 }
 
+/// Trait to extend sparsemat for delta_stepping
 pub trait DeltaStepping {
+    /// the implementation
     fn delta_stepping(&self, source: usize, forced_delta: Option<f64>) -> SsspInfo;
+    /// check function
     fn check_result(&self, info: &SsspInfo, dump_files: bool) -> bool;
 }
 
