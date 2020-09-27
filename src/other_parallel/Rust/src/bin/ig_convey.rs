@@ -1,4 +1,19 @@
-//! Program to do histogram in conveyors
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
+//! Program to do indexed gather in conveyors
+//
+// Copyright (c) 2020, Institute for Defense Analyses
+// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+//
+// All rights reserved.
+//
+// This file is part of Bale.  For licence information see the
+// LICENSE file in the top level dirctory of the distribution.
+//
 use clap::{App, Arg};
 use convey_hpc::Convey;
 use rand::distributions::{Distribution, Uniform};
