@@ -46,10 +46,7 @@ in MatrixMarket format.
 The directory erdosrenyi/ contains several small graphs as .mm files, 
 each accompanied by a .dst file that gives the correct distances.
 The source vertex varies; see the [README](erdosrenyi/README.md) for details.
-
-
-
-
+The files sparse100.mm and sparse100.dst are used by the unit tests.
 
 ### Outline of delta-stepping
 

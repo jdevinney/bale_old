@@ -651,29 +651,29 @@ impl DeltaStepping for SparseMat {
 
 #[cfg(test)]
 mod tests {
-    use convey_hpc::testing_support::TestingMutex;
-    use crate::DeltaStepping;
     use super::SparseMat;
+    use crate::DeltaStepping;
+    use convey_hpc::testing_support::TestingMutex;
 
-/*
-    #[test]
-    #[should_panic]
-    fn delta_stepping_rand1() {
-        let mutex = TestingMutex::new();
-        let numrows = 100;
-        let erdos_renyi_prob = 0.05;
-        let unit_diag = false;
-        let mode = 3;
-        let seed = 1;
-        let mat = SparseMat::gen_erdos_renyi_graph(numrows, erdos_renyi_prob, unit_diag, mode, seed);
-        let source = 0;
-        let forced_delta = None;
-        let quiet = true;
-        let trace = false;
-        let _matret = mat.delta_stepping(source, forced_delta, quiet, trace);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
-    }
-*/
+    /*
+        #[test]
+        #[should_panic]
+        fn delta_stepping_rand1() {
+            let mutex = TestingMutex::new();
+            let numrows = 100;
+            let erdos_renyi_prob = 0.05;
+            let unit_diag = false;
+            let mode = 3;
+            let seed = 1;
+            let mat = SparseMat::gen_erdos_renyi_graph(numrows, erdos_renyi_prob, unit_diag, mode, seed);
+            let source = 0;
+            let forced_delta = None;
+            let quiet = true;
+            let trace = false;
+            let _matret = mat.delta_stepping(source, forced_delta, quiet, trace);
+            assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        }
+    */
     #[test]
     fn delta_stepping_rand2() {
         let mutex = TestingMutex::new();
@@ -682,7 +682,8 @@ mod tests {
         let unit_diag = false;
         let mode = 3;
         let seed = 1;
-        let mut mat = SparseMat::gen_erdos_renyi_graph(numrows, erdos_renyi_prob, unit_diag, mode, seed);
+        let mut mat =
+            SparseMat::gen_erdos_renyi_graph(numrows, erdos_renyi_prob, unit_diag, mode, seed);
         mat.randomize_values();
         let source = 0;
         let forced_delta = None;
