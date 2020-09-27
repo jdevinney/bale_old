@@ -86,6 +86,13 @@ for more information on Kronecker product graphs.
  */
 
 
+typedef struct push_pull_ctr_t{
+  int64_t npushes;
+  int64_t npulls;
+}push_pull_ctr_t;
+
+push_pull_ctr_t calculate_num_pushes_pulls(sparsemat_t * L, args_t * args);
+
 typedef struct args_t{
   int alg;
   std_args_t std;
@@ -156,7 +163,8 @@ int main(int argc, char * argv[]) {
   // read in a matrix or generate a random graph
   sparsemat_t * L = get_input_graph(&args.std, &args.gstd);
   if(!L){T0_fprintf(stderr, "ERROR: transpose: L is NULL!\n");return(-1);}
-  
+
+  /* make sure the matrix is in legal form */
   if(args.gstd.readfile){
     ret = tril(L, -1);
     if(ret){
@@ -169,28 +177,95 @@ int main(int argc, char * argv[]) {
 
   if(args.std.dump_files) write_matrix_mm(L, "triangle_inmat");
   
-  
   lgp_barrier();
   
   /* calculate the number of triangles */
-  double correct_answer = -1;
+  int64_t correct_answer = -1;
   int wrote_num_triangles = 0;
   if(args.gstd.model == KRONECKER){
     correct_answer = calculate_num_triangles(args.gstd.kron_mode, args.gstd.kron_spec, args.gstd.kron_num);
     bale_app_write_int(&args.std, "num_triangles", correct_answer);
     wrote_num_triangles = 1;
-    //T0_fprintf(stderr, "Pre-calculated answer = %"PRId64"\n", (int64_t)correct_answer);
   }
-  
+
+  /* if we are using alg 1, we need U too */
   sparsemat_t * U;
   if(args.alg == 1) U = transpose_matrix(L);
 
   lgp_barrier();
 
-  int64_t tri_cnt;           // partial count of triangles on this thread
-  int64_t total_tri_cnt;     // the total number of triangles on all threads
-  int64_t sh_refs;         // number of shared reference or pushes
-  int64_t total_sh_refs;
+  /* calculate number of pushes and pulls required for this matrix (just for kicks) */
+  calculate_num_pushes_pulls(L, &args);
+  
+  int64_t use_model;
+  double laptime = 0.0;
+  char model_str[32];
+  int error = 0;  
+  for( use_model=1L; use_model < 32; use_model *=2 ) {
+
+    int64_t tri_cnt = 0;           // partial count of triangles on this thread
+    int64_t total_tri_cnt = 0;     // the total number of triangles on all threads
+    int64_t sh_refs = 0;           // local number of shared reference or pushes
+    int64_t total_sh_refs = 0;     
+
+    switch( use_model & args.std.models_mask ) {
+    case AGP_Model:
+      sprintf(model_str, "AGP");
+      laptime = triangle_agp(&tri_cnt, &sh_refs, L, U, args.alg); 
+      break;
+    
+    case EXSTACK_Model:
+      sprintf(model_str, "Exstack");
+      laptime = triangle_exstack_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
+      break;
+
+    case EXSTACK2_Model:
+      sprintf(model_str, "Exstack2");
+      laptime = triangle_exstack2_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
+      break;
+
+    case CONVEYOR_Model:
+      sprintf(model_str, "Conveyor");
+      laptime = triangle_convey_push(&tri_cnt, &sh_refs, L, U, args.alg);
+      break;
+
+    case ALTERNATE_Model:
+      sprintf(model_str, "Alternate");
+      laptime = triangle_agp_iter(&tri_cnt, &sh_refs, L, U, args.alg);
+      break;
+    case 0:
+      continue;
+    }
+    
+    lgp_barrier();
+    total_tri_cnt = lgp_reduce_add_l(tri_cnt);
+    total_sh_refs = lgp_reduce_add_l(sh_refs);
+
+    if(!wrote_num_triangles){
+      bale_app_write_int(&args.std, "triangles", total_tri_cnt);
+      wrote_num_triangles = 1;
+    }
+    
+    bale_app_write_time(&args.std, model_str, laptime);    
+
+    if(correct_answer == -1){
+      correct_answer = total_tri_cnt; // set the answer we just got as the reference answer
+    }else if(total_tri_cnt != correct_answer){
+      T0_fprintf(stderr, "ERROR: Triangle: total_tri_cnt (%ld) != (%ld)\n", total_tri_cnt, correct_answer);
+      error = 1;
+    }
+    
+  }
+  
+  lgp_barrier();
+  
+  bale_app_finish(&args.std);
+  return(error);
+}
+
+
+push_pull_ctr_t calculate_num_pushes_pulls(sparsemat_t * L, args_t * args){
+  int64_t i;
   SHARED int64_t * cc = lgp_all_alloc(L->numrows, sizeof(int64_t));
   int64_t * l_cc = lgp_local_part(int64_t, cc);
   for(i = 0; i < L->lnumrows; i++)
@@ -237,71 +312,9 @@ int main(int argc, char * argv[]) {
 
   if(!args.std.json)
     T0_fprintf(stderr,"Calculated: Pulls = %"PRId64"\n            Pushes = %"PRId64"\n\n",pulls_calc, pushes_calc);
-  
-  int64_t use_model;
-  double laptime = 0.0;
-  char model_str[32];
-  int error = 0;
-  for( use_model=1L; use_model < 32; use_model *=2 ) {
 
-    tri_cnt = 0;
-    total_tri_cnt = 0;
-    sh_refs = 0;
-    total_sh_refs = 0;
-
-    switch( use_model & args.std.models_mask ) {
-    case AGP_Model:
-      sprintf(model_str, "AGP");
-      laptime = triangle_agp(&tri_cnt, &sh_refs, L, U, args.alg); 
-      break;
-    
-    case EXSTACK_Model:
-      sprintf(model_str, "Exstack");
-      laptime = triangle_exstack_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
-      break;
-
-    case EXSTACK2_Model:
-      sprintf(model_str, "Exstack2");
-      laptime = triangle_exstack2_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
-      break;
-
-    case CONVEYOR_Model:
-      sprintf(model_str, "Conveyor");
-      laptime = triangle_convey_push(&tri_cnt, &sh_refs, L, U, args.alg);
-      break;
-
-    case ALTERNATE_Model:
-      sprintf(model_str, "Alternate");
-      laptime = triangle_agp_iter(&tri_cnt, &sh_refs, L, U, args.alg);
-      break;
-    case 0:
-      continue;
-    }
-    
-    lgp_barrier();
-    total_tri_cnt = lgp_reduce_add_l(tri_cnt);
-    total_sh_refs = lgp_reduce_add_l(sh_refs);
-
-    if(!wrote_num_triangles){
-      bale_app_write_int(&args.std, "triangles", total_tri_cnt);
-      wrote_num_triangles = 1;
-    }
-    
-    bale_app_write_time(&args.std, model_str, laptime);    
-    //T0_fprintf(stderr,"shared refs: %16"PRId64"\n", total_sh_refs);
-   
-    if((correct_answer >= 0) && (total_tri_cnt != (int64_t)correct_answer)){
-      T0_fprintf(stderr, "ERROR: Wrong answer!\n");
-      error = 1;
-    }
-    
-    if(correct_answer == -1)
-      correct_answer = total_tri_cnt;
-    
-  }
-  
-  lgp_barrier();
-  
-  bale_app_finish(&args.std);
-  return(error);
+  push_pull_ctr_t p;
+  p.npushes = pushes_calc;
+  p.npulls = pulls_calc;
+  return(p);
 }
