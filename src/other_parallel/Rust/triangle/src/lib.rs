@@ -195,12 +195,17 @@ impl Triangle for SparseMat {
     fn kron_prod(&self, other: &SparseMat) -> SparseMat {
         let numrows = self.numrows() * other.numrows();
         let nnz = self.nnz() * other.nnz();
-        /*
-        println!(
-            "kpl r:{} n:{} x r:{} n:{} -> r:{} n:{}",
-            self.numrows, self.nnz, other.numrows, other.nnz, numrows, nnz
-        );
-        */
+        if false {
+            println!(
+                "kpl r:{} n:{} x r:{} n:{} -> r:{} n:{}",
+                self.numrows(),
+                self.nnz(),
+                other.numrows(),
+                other.nnz(),
+                numrows,
+                nnz
+            );
+        }
         let mut ret = SparseMat::new_local(numrows, numrows, nnz);
 
         let mut offset: Vec<usize> = Vec::new();
@@ -245,17 +250,17 @@ impl Triangle for SparseMat {
             let row_c = g_row % other.numrows_this_rank();
             nnz_this_rank += (self.offset[row_b + 1] - self.offset[row_b])
                 * (other.offset[row_c + 1] - other.offset[row_c]);
-            /*
-            println!(
-                "nnz {} g {} b {} {} c {} {}",
-                nnz_this_rank,
-                g_row,
-                row_b,
-                self.offset[row_b + 1] - self.offset[row_b],
-                row_c,
-                other.offset[row_c + 1] - other.offset[row_c]
-            );
-            */
+            if false {
+                println!(
+                    "nnz {} g {} b {} {} c {} {}",
+                    nnz_this_rank,
+                    g_row,
+                    row_b,
+                    self.offset[row_b + 1] - self.offset[row_b],
+                    row_c,
+                    other.offset[row_c + 1] - other.offset[row_c]
+                );
+            }
         }
 
         let mut ret = SparseMat::new(numrows, numrows, nnz_this_rank);

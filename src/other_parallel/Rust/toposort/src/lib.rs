@@ -241,21 +241,19 @@ impl TopoSort for SparseMat {
                     }
                     r_and_c_done += 1;
                 }
-                /*
-                println!(
-                    "rank {} tsq1b rq {} cq {} {} {} {} {}",
-                    self.my_rank(),
-                    row_queue.len(),
-                    col_queue.len(),
-                    r_and_c_done,
-                    recvd.get(),
-                    sent,
-                    nr + nc
-                );
-                if wall_seconds() - t1 > 10.0 {
-                    session.convey.debug(true);
+                if false {
+                    println!(
+                        "rank {} tsq1b rq {} cq {} {} {}",
+                        self.my_rank(),
+                        row_queue.len(),
+                        col_queue.len(),
+                        r_and_c_done,
+                        nr + nc
+                    );
+                    if wall_seconds() - t1 > 10.0 {
+                        session.convey.debug(true);
+                    }
                 }
-                */
             }
         }
 
