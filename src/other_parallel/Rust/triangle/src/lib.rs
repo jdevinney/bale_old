@@ -1,25 +1,31 @@
-use convey_hpc::collect::ValueCollect;
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
+
+//! Triangle library
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use convey_hpc::Convey;
 use spmat::wall_seconds;
 use spmat::SparseMat;
 
-/* Generate a distributed graph that is the product of a
- collection of star graphs. This is done * in two stages. In the first
- stage, the list of stars (parameterized by an integer m, K_{1,m}) is
- split in half and each half-list forms a local adjacency matrix for
- the Kronecker product of the stars (matrices B and C). Then the two
- local matrices are combined to form a distributed adjacency matrix
- for the Kronecker product of B and C.
- *
- * \param B_spec An array of sizes in one half of the list.
- * \param B_num The number of stars in one half of the list.
- * \param C_spec An array of sizes in the other half of the list.
- * \param C_num The number of stars in the other half of the list.
- * \param mode Mode 0 graphs have no triangles, mode 1 graphs have lots of triangles and mode 2 graphs
-have few triangles.
-* \return A distributed matrix which represents the adjacency matrix for the Kronecker product of all the stars (B and C lists).
- */
-
+/// Generate a distributed graph that is the product of a collection
+/// of star graphs. This is done in two stages. In the first stage,
+/// the list of stars (parameterized by an integer m, K_{1,m}) is
+/// split in half and each half-list forms a local adjacency matrix
+/// for the Kronecker product of the stars (matrices B and C). Then
+/// the two local matrices are combined to form a distributed
+/// adjacency matrix for the Kronecker product of B and C.
 pub fn generate_kronecker_graph(b_spec: &[u16], c_spec: &[u16], mode: u16) -> SparseMat {
     let bmat = SparseMat::gen_local_mat_from_stars(b_spec, mode);
     let cmat = SparseMat::gen_local_mat_from_stars(c_spec, mode);
@@ -30,16 +36,20 @@ pub fn generate_kronecker_graph(b_spec: &[u16], c_spec: &[u16], mode: u16) -> Sp
             "Generating Mode {} Kronecker Product graph (A = B X C) with parameters: {:?} X {:?}",
             mode, b_spec, c_spec
         );
-        println!("B has {} rows/cols and {} nnz", bmat.numrows, bmat.nnz);
-        println!("C has {} rows/cols and {} nnz", cmat.numrows, cmat.nnz);
+        println!("B has {} rows/cols and {} nnz", bmat.numrows(), bmat.nnz());
+        println!("C has {} rows/cols and {} nnz", cmat.numrows(), cmat.nnz());
     }
     bmat.kron_prod_dist(&cmat, true)
 }
 
+/// Information that comes from trangle counting
 #[derive(Debug)]
 pub struct TriInfo {
+    /// number of triangles
     pub tri_cnt: u64,
+    /// number of remote ops to find
     pub sh_refs: u64,
+    /// time to find
     pub laptime: f64,
 }
 
@@ -53,12 +63,19 @@ impl TriInfo {
     }
 }
 
+/// A trait to extend SparseMat for Triangle Counting
 pub trait Triangle {
+    /// push variant of triangle counting
     fn triangle_push(&self, upper: Option<&SparseMat>) -> TriInfo;
+    /// pull variant of triangle counting
     fn triangle_pull(&self, upper: Option<&SparseMat>) -> TriInfo;
+    /// generate a star graph
     fn gen_star(m: u16, mode: u16) -> SparseMat;
+    /// generate a local matrix from star graph
     fn gen_local_mat_from_stars(spec: &[u16], mode: u16) -> SparseMat;
+    /// generate a local kron graph
     fn kron_prod(&self, other: &SparseMat) -> SparseMat;
+    /// generate a dist kron graph
     fn kron_prod_dist(&self, other: &SparseMat, mode: bool) -> SparseMat;
 }
 
@@ -68,7 +85,7 @@ impl Triangle for SparseMat {
     /// * tmat the transpose of mat
     fn triangle_push(&self, upper: Option<&SparseMat>) -> TriInfo {
         let mut ret = TriInfo::new();
-        let nr = self.numrows_this_rank;
+        let nr = self.numrows_this_rank();
 
         let t1 = wall_seconds();
         let mut success_count = 0;
@@ -176,22 +193,27 @@ impl Triangle for SparseMat {
     }
 
     fn kron_prod(&self, other: &SparseMat) -> SparseMat {
-        let numrows = self.numrows * other.numrows;
-        let nnz = self.nnz * other.nnz;
-        /*
-        println!(
-            "kpl r:{} n:{} x r:{} n:{} -> r:{} n:{}",
-            self.numrows, self.nnz, other.numrows, other.nnz, numrows, nnz
-        );
-        */
+        let numrows = self.numrows() * other.numrows();
+        let nnz = self.nnz() * other.nnz();
+        if false {
+            println!(
+                "kpl r:{} n:{} x r:{} n:{} -> r:{} n:{}",
+                self.numrows(),
+                self.nnz(),
+                other.numrows(),
+                other.nnz(),
+                numrows,
+                nnz
+            );
+        }
         let mut ret = SparseMat::new_local(numrows, numrows, nnz);
 
         let mut offset: Vec<usize> = Vec::new();
 
         offset.push(0);
-        for row in 0..self.numrows {
+        for row in 0..self.numrows() {
             let d1 = self.offset[row + 1] - self.offset[row];
-            for i in 0..other.numrows {
+            for i in 0..other.numrows() {
                 let d2 = other.offset[i + 1] - other.offset[i];
                 offset.push(d1 * d2);
             }
@@ -201,13 +223,13 @@ impl Triangle for SparseMat {
             ret.offset[row + 1] = offset[row + 1];
         }
 
-        for row in 0..self.numrows {
+        for row in 0..self.numrows() {
             for j in self.offset[row]..self.offset[row + 1] {
                 let col = self.nonzero[j];
-                for otherrow in 0..other.numrows {
+                for otherrow in 0..other.numrows() {
                     for k in other.offset[otherrow]..other.offset[otherrow + 1] {
-                        let index = row * other.numrows + otherrow;
-                        ret.nonzero[offset[index]] = col * other.numcols + other.nonzero[k];
+                        let index = row * other.numrows() + otherrow;
+                        ret.nonzero[offset[index]] = col * other.numcols() + other.nonzero[k];
                         offset[index] += 1;
                     }
                 }
@@ -217,28 +239,28 @@ impl Triangle for SparseMat {
     }
     /// generates a global matrix from two local or global matrices
     fn kron_prod_dist(&self, other: &SparseMat, lower: bool) -> SparseMat {
-        let numrows = self.numrows_this_rank * other.numrows_this_rank;
+        let numrows = self.numrows_this_rank() * other.numrows_this_rank();
         let convey = Convey::new().expect("fixme");
 
         let mut nnz_this_rank = 0;
 
         for l_row in 0..convey.per_my_rank(numrows) {
             let g_row = (l_row * convey.num_ranks) + convey.my_rank;
-            let row_b = g_row / other.numrows_this_rank;
-            let row_c = g_row % other.numrows_this_rank;
+            let row_b = g_row / other.numrows_this_rank();
+            let row_c = g_row % other.numrows_this_rank();
             nnz_this_rank += (self.offset[row_b + 1] - self.offset[row_b])
                 * (other.offset[row_c + 1] - other.offset[row_c]);
-            /*
-            println!(
-                "nnz {} g {} b {} {} c {} {}",
-                nnz_this_rank,
-                g_row,
-                row_b,
-                self.offset[row_b + 1] - self.offset[row_b],
-                row_c,
-                other.offset[row_c + 1] - other.offset[row_c]
-            );
-            */
+            if false {
+                println!(
+                    "nnz {} g {} b {} {} c {} {}",
+                    nnz_this_rank,
+                    g_row,
+                    row_b,
+                    self.offset[row_b + 1] - self.offset[row_b],
+                    row_c,
+                    other.offset[row_c + 1] - other.offset[row_c]
+                );
+            }
         }
 
         let mut ret = SparseMat::new(numrows, numrows, nnz_this_rank);
@@ -249,12 +271,12 @@ impl Triangle for SparseMat {
 
         for l_row in 0..convey.per_my_rank(numrows) {
             let g_row = (l_row * convey.num_ranks) + convey.my_rank;
-            let row_b = g_row / other.numrows_this_rank;
-            let row_c = g_row % other.numrows_this_rank;
+            let row_b = g_row / other.numrows_this_rank();
+            let row_c = g_row % other.numrows_this_rank();
             for j in self.offset[row_b]..self.offset[row_b + 1] {
                 let col_b = self.nonzero[j];
                 for k in other.offset[row_c]..other.offset[row_c + 1] {
-                    let col = col_b * other.numcols + other.nonzero[k];
+                    let col = col_b * other.numcols() + other.nonzero[k];
                     if !lower || col < g_row {
                         ret.nonzero[pos] = col;
                         pos += 1;
@@ -268,9 +290,7 @@ impl Triangle for SparseMat {
 
         // the initial allocation of nonzeros was an upper bound, if
         // lower was set it could be shorter, adjust here
-        ret.nonzero.truncate(pos);
-        ret.nnz_this_rank = pos;
-        ret.nnz = ret.reduce_sum(pos);
+        ret.truncate_nonzeros(pos);
         ret
     }
 }

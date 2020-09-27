@@ -1,3 +1,20 @@
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
+
+//! Sparse Matrix Library
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use crate::perm::Perm;
 use convey_hpc::collect::{IVal, PType, ValueCollect};
 use convey_hpc::session::ConveySession;
@@ -31,18 +48,23 @@ struct Entry {
     val: f64,
 }
 
+/// A sparse matrix.  Data is stored as a num_rows_this_rank size
+/// vector of offsets in the nonzero vector, which has column numbers
+/// for each row.
 pub struct SparseMat {
-    pub numrows: usize, // the total number of rows in the matrix
-    pub numrows_this_rank: usize,
-    pub numcols: usize, // the nonzeros have values between 0 and numcols
-    pub nnz: usize,     // total number of nonzeros in the matrix
-    pub nnz_this_rank: usize,
+    numrows: usize, // the total number of rows in the matrix
+    numrows_this_rank: usize,
+    numcols: usize, // the nonzeros have values between 0 and numcols
+    nnz: usize,     // total number of nonzeros in the matrix
+    nnz_this_rank: usize,
     /// the row offsets into the array of nonzeros, size is nrows+1,
     /// offsets[nrows] is nnz
     pub offset: Vec<usize>,
-    pub nonzero: Vec<usize>,     // the global array of nonzero columns
+    /// nonzero list
+    pub nonzero: Vec<usize>, // the global array of nonzeros
+    /// nonzero values, if present
     pub value: Option<Vec<f64>>, // the global array of nonzero values, optional
-    pub convey: Option<Convey>,  // a conveyor for our use
+    convey: Option<Convey>, // a conveyor for our use
 }
 
 impl std::fmt::Debug for SparseMat {
@@ -73,6 +95,9 @@ impl std::fmt::Debug for SparseMat {
 }
 
 impl SparseMat {
+    /// new creates a distributed sparse matrix across all ranks using
+    /// number of rows, number of columns, and number of rows on
+    /// current rank
     pub fn new(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         let convey = Convey::new().expect("fixme");
         let total_nnz = convey.reduce_sum(nnz_this_rank);
@@ -89,6 +114,7 @@ impl SparseMat {
         }
     }
 
+    /// new_with_values creates a distributed sparse matrix intialized with zero values
     pub fn new_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         let convey = Convey::new().expect("fixme");
         let total_nnz = convey.reduce_sum(nnz_this_rank);
@@ -105,6 +131,9 @@ impl SparseMat {
         }
     }
 
+    /// new_local creates a local sparse matrix on each rank using
+    /// number of rows, number of columns, and number of rows on
+    /// current rank
     pub fn new_local(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         SparseMat {
             numrows: numrows,
@@ -119,6 +148,9 @@ impl SparseMat {
         }
     }
 
+    /// new_local creates a local sparse matrix, with values on each rank using
+    /// number of rows, number of columns, and number of rows on
+    /// current rank
     pub fn new_local_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         SparseMat {
             numrows: numrows,
@@ -133,18 +165,21 @@ impl SparseMat {
         }
     }
 
-    /// collect all of a distributed sparse matrix to a local matrix on rank 0.
-    /// must be called collectively by all ranks, returns empty matrix of same dims on all ranks but 0.
+    /// collect all of a distributed sparse matrix to a local matrix
+    /// on rank 0.  must be called collectively by all ranks, returns
+    /// empty matrix of same dims on all ranks but 0.
     pub fn to_local(&self) -> SparseMat {
         todo!();
     }
 
-    /// distribute a local sparse matrix on rank 0 to a distributed sparse matrix.
-    /// must be called collectively by all ranks, though only rank 0 supplies the input matrix.
+    /// distribute a local sparse matrix on rank 0 to a distributed
+    /// sparse matrix.  must be called collectively by all ranks,
+    /// though only rank 0 supplies the input matrix.
     pub fn to_distributed(&self) -> SparseMat {
         todo!();
     }
 
+    /// randomize the values of a sparse matrix
     pub fn randomize_values(&mut self) {
         let mut value = Vec::new();
         let mut rng = rand::thread_rng();
@@ -162,6 +197,7 @@ impl SparseMat {
             .map(|(a, b)| b - a)
     }
 
+    /// convenience function to return my rank
     pub fn my_rank(&self) -> usize {
         if let Some(convey) = &self.convey {
             convey.my_rank
@@ -170,6 +206,7 @@ impl SparseMat {
         }
     }
 
+    /// Convenience function returning num_ranks
     pub fn num_ranks(&self) -> usize {
         if let Some(convey) = &self.convey {
             convey.num_ranks
@@ -178,6 +215,8 @@ impl SparseMat {
         }
     }
 
+    /// Convenience function returning the number of elements on
+    /// my_rank for a total number of elements
     pub fn per_my_rank(&self, n: usize) -> usize {
         if let Some(convey) = &self.convey {
             convey.per_my_rank(n)
@@ -186,7 +225,8 @@ impl SparseMat {
         }
     }
 
-    /// global row index to local row index on its home rank, and home rank
+    /// Convenience function returning the offset and rank in a
+    /// distributed sparsemat for a given index
     pub fn offset_rank(&self, n: usize) -> (usize, usize) {
         if let Some(convey) = &self.convey {
             convey.offset_rank(n)
@@ -209,6 +249,26 @@ impl SparseMat {
         self.num_ranks() * n + self.my_rank()
     }
 
+    /// inspector: num_rows()
+    pub fn numrows(&self) -> usize {
+        self.numrows
+    }
+
+    /// inspector: num_rows_this_rank()
+    pub fn numrows_this_rank(&self) -> usize {
+        self.numrows_this_rank
+    }
+
+    /// inspector: num_cols()
+    pub fn numcols(&self) -> usize {
+        self.numcols
+    }
+
+    /// inspector: nnz()
+    pub fn nnz(&self) -> usize {
+        self.nnz
+    }
+
     /// barrier that works for local SparseMat too
     pub fn barrier(&self) {
         if let Some(convey) = &self.convey {
@@ -228,7 +288,7 @@ impl SparseMat {
         }
     }
 
-    /// create a session without a pull_fn
+    /// convenience function to create a session
     pub fn session<'a, T: Copy + Serialize + DeserializeOwned>(&'a self) -> ConveySession<'a, T> {
         if let Some(convey) = &self.convey {
             convey.session()
@@ -383,6 +443,7 @@ impl SparseMat {
         SparseMat::read_mm(&mut reader)
     }
 
+    /// read a sparse matrix from an arbitrary reader
     pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat, Error>
     where
         R: BufRead,
@@ -525,6 +586,7 @@ impl SparseMat {
         Ok(())
     }
 
+    /// perdicate: is the SparseMat lower triangular
     pub fn is_lower_triangular(&self, unit_diagonal: bool) -> bool {
         let mut lower_cnt = 0;
         let mut diag_missing_cnt = 0;
@@ -551,6 +613,7 @@ impl SparseMat {
         total_lower != 0 || total_diag_missing != 0
     }
 
+    /// perdicate: is the SparseMat upper triangular
     pub fn is_upper_triangular(&self, unit_diagonal: bool) -> bool {
         let mut lower_cnt = 0;
         let mut diag_missing_cnt = 0;
@@ -577,19 +640,21 @@ impl SparseMat {
         total_lower != 0 || total_diag_missing != 0
     }
 
+    /// createa a new SparseMat which is the permutation of rows and
+    /// columns as defined by given permutations
     pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> Self {
         if let Some(_) = &self.value {
             todo!()
         }
         let mut rowcounts = vec![0_usize; self.numrows_this_rank];
-        assert_eq!(rperminv.perm.len(), self.numrows_this_rank);
-        assert_eq!(cperminv.perm.len(), self.numrows_this_rank);
+        assert_eq!(rperminv.len(), self.numrows_this_rank);
+        assert_eq!(cperminv.len(), self.numrows_this_rank);
         assert!(rperminv.is_perm());
         assert!(cperminv.is_perm());
         let mut nnz = 0_usize;
         self.simple(
-            (0..rperminv.perm.len()).map(|idx| {
-                let (offset, rank) = self.offset_rank(rperminv.perm[idx]);
+            (0..rperminv.len()).map(|idx| {
+                let (offset, rank) = self.offset_rank(rperminv.entry(idx));
                 let cnt = self.offset[idx + 1] - self.offset[idx];
                 ((offset, cnt), rank)
             }),
@@ -625,7 +690,7 @@ impl SparseMat {
                 while i == self.offset[row + 1] {
                     row += 1;
                 }
-                let (offset, rank) = self.offset_rank(rperminv.perm[row]);
+                let (offset, rank) = self.offset_rank(rperminv.entry(row));
                 session.push((offset, self.nonzero[i]), rank);
             }
             session.finish();
@@ -640,7 +705,7 @@ impl SparseMat {
                     let (offset, rank) = self.offset_rank(cloned_nonzero[i]);
                     ((i, offset), rank)
                 }),
-                |item: usize| cperminv.perm[item],
+                |item: usize| cperminv.entry(item),
                 |index: usize, val: usize| {
                     permuted.nonzero[index] = val;
                 },
@@ -649,6 +714,7 @@ impl SparseMat {
         permuted
     }
 
+    /// Create a new SparseMat which is the transpose of the given SparseMat
     pub fn transpose(&self) -> Self {
         if let Some(_) = &self.value {
             todo!()
@@ -697,6 +763,7 @@ impl SparseMat {
         trans
     }
 
+    /// Predicate: are two SparseMats equal?
     pub fn compare(&self, other: &SparseMat) -> bool {
         if (self.value == None && other.value != None)
             || (self.value != None && other.value == None)
@@ -752,6 +819,7 @@ impl SparseMat {
         true
     }
 
+    /// Create a new SparseMat which is the sum of 2 given
     pub fn add(&self, other: &SparseMat) -> Self {
         if let Some(_) = &self.value {
             todo!()
@@ -777,6 +845,14 @@ impl SparseMat {
         sum
     }
 
+    /// truncate the nonzero array and update as appropraite
+    pub fn truncate_nonzeros(&mut self, last: usize) {
+        self.nonzero.truncate(last);
+        self.nnz_this_rank = last;
+        self.nnz = self.reduce_sum(last);
+    }
+
+    /// Generate an erdos_renyi random sparse matrix
     pub fn gen_erdos_renyi_graph(
         num_vert: usize,
         prob: f64,
@@ -803,7 +879,8 @@ impl SparseMat {
         }
     }
 
-    pub fn erdos_renyi_tri(
+    /// Worker function: generate an erdos_renyi triangular random sparse matrix
+    fn erdos_renyi_tri(
         num_vert: usize,
         prob: f64,
         unit_diag: bool,
@@ -859,6 +936,7 @@ impl SparseMat {
     }
 }
 
+/// implement value colectives accessed through the Sparse matrix
 macro_rules! decl {
     ($ty: ident) => {
         impl ValueCollect<$ty> for SparseMat {
@@ -880,6 +958,7 @@ macro_rules! decl {
     };
 }
 
+// For all standard types
 decl!(u128);
 decl!(u64);
 decl!(u32);
@@ -897,6 +976,7 @@ decl!(isize);
 decl!(f32);
 decl!(f64);
 
+/// Bring in the permutation library
 pub mod perm;
 
 #[cfg(test)]
