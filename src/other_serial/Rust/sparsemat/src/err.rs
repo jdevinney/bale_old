@@ -1,3 +1,13 @@
+//! Bale Serial Sparsemat error library
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use std::error;
 use std::fmt;
 use std::time::SystemTimeError;
@@ -24,7 +34,7 @@ impl ParseMmError {
 }
 
 impl fmt::Display for ParseMmError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.detail)
     }
 }
@@ -36,7 +46,7 @@ impl error::Error for ParseMmError {
 }
 
 impl fmt::Display for SparseMatError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             SparseMatError::Sparsemat(ref e) => e.fmt(f),
             // This is a wrapper, so defer to the underlying types' implemenntation of `fmt`.
