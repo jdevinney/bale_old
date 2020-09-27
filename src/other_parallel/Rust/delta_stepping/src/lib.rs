@@ -450,6 +450,7 @@ pub trait DeltaStepping {
     ) -> SsspInfo;
     /// check results
     fn check_result(&self, info: &SsspInfo, input_file: &str, quiet: bool) -> bool;
+    /// compare vectors, treating infinity carefully
     fn sq_rel_diff(&self, a: &Vec<f64>, b: &Vec<f64>) -> f64;
 }
 
