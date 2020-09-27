@@ -1,38 +1,20 @@
-//
-//  Copyright(C) 2018, Institute for Defense Analyses
-//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-//
-//
-//  All rights reserved.
-//
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-//
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-//
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
 
+//! Bale Serial Sparsemat library
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use rand::Rng;
 use regex::Regex;
 use std::fs::File;
@@ -51,24 +33,27 @@ type Result<T> = std::result::Result<T, SparseMatError>;
 /// A structure to hold a sparse matrix
 #[derive(Debug, Clone)]
 pub struct SparseMat {
-    pub numrows: usize, // the total number of rows in the matrix
-    pub numcols: usize, // the nonzeros have values between 0 and numcols
-    pub nnz: usize,     // total number of nonzeros in the matrix
+    numrows: usize, // the total number of rows in the matrix
+    numcols: usize, // the nonzeros have values between 0 and numcols
+    nnz: usize,     // total number of nonzeros in the matrix
     /// the row offsets into the arrays nonzeros and values, size is nrows+1,
     /// offset[nrows] is nnz
     pub offset: Vec<usize>,
-    pub nonzero: Vec<usize>, // the global array of nonzero columns
-    pub value: Option<Vec<f64>>, // the global array of nonzero values, optional
+    /// The nonzero column indicies
+    pub nonzero: Vec<usize>,
+    /// The values, if present
+    pub value: Option<Vec<f64>>,
 }
 
 /// struct to hold the state used to iterate across the row of a sparse matrix.
+#[derive(Debug)]
 pub struct NextNz {
-    pub mat: SparseMat, //  the matrix
-    pub start: usize,
-    pub idx: usize,
-    pub stop: usize,
-    pub col: usize,
-    pub val: Option<f64>,
+    mat: SparseMat,
+    start: usize,
+    idx: usize,
+    stop: usize,
+    col: usize,
+    val: Option<f64>,
 }
 
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -82,16 +67,32 @@ pub fn wall_seconds() -> Result<f64> {
 /// A permutation
 #[derive(Debug, Clone)]
 pub struct Perm {
-    pub perm: Vec<usize>,
+    perm: Vec<usize>,
 }
 
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 
 impl Perm {
+    /// a new permutation of some size
     pub fn new(n: usize) -> Perm {
         let perm: Vec<usize> = (0..n).collect();
         Perm { perm }
+    }
+
+    /// Get the length of this permutation
+    pub fn len(&self) -> usize {
+        self.perm.len()
+    }
+
+    /// get the entry from a permutation
+    pub fn entry(&self, index: usize) -> usize {
+        self.perm[index]
+    }
+
+    /// get a reference to the permutation itself
+    pub fn perm(&mut self) -> &mut Vec<usize> {
+        &mut self.perm
     }
 
     /// create an int64_t array which holds a uniform random permutation
@@ -198,6 +199,16 @@ impl SparseMat {
         }
     }
 
+    /// inspector fn for numrows
+    pub fn numrows(&self) -> usize {
+        self.numrows
+    }
+
+    /// inspector fn for numcols
+    pub fn numcols(&self) -> usize {
+        self.numcols
+    }
+
     /// give a sparse matrix random (uniform [0,1]) values
     pub fn randomize_values(&mut self) {
         let mut value = Vec::new();
@@ -236,33 +247,33 @@ impl SparseMat {
             self.numrows
         };
         let stop_row = if use_maxrow {
-            maxrows / 2 
+            maxrows / 2
         } else {
             self.numrows
         };
 
         writeln!(file, "\n--------- offsets:")?;
-        for off in &self.offset[0..stop_row+1] {
+        for off in &self.offset[0..stop_row + 1] {
             write!(file, "{} ", off)?;
         }
         if use_maxrow {
             write!(file, "... ")?;
-            for off in &self.offset[start_row..self.numrows+1] {
+            for off in &self.offset[start_row..self.numrows + 1] {
                 write!(file, "{} ", off)?;
             }
         }
 
         writeln!(
-            file, 
+            file,
             "{}",
             match &self.value {
-                None    => "\n--------- row col:",
+                None => "\n--------- row col:",
                 Some(_) => "\n--------- row col val:",
             },
         )?;
 
         for i in 0..stop_row {
-            for k in self.offset[i]..self.offset[i+1] {
+            for k in self.offset[i]..self.offset[i + 1] {
                 if let Some(value) = &self.value {
                     writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
                 } else {
@@ -273,7 +284,7 @@ impl SparseMat {
         if use_maxrow {
             write!(file, ".\n.\n.\n")?;
             for i in start_row..self.numrows {
-                for k in self.offset[i]..self.offset[i+1] {
+                for k in self.offset[i]..self.offset[i + 1] {
                     if let Some(value) = &self.value {
                         writeln!(file, "{} {} {}", i, self.nonzero[k], value[k])?;
                     } else {
@@ -303,7 +314,10 @@ impl SparseMat {
 
         let avgdeg = sumdeg as f64 / self.numrows as f64;
 
-        println!("    min, avg, max degree = {}, {}, {}", mindeg, avgdeg, maxdeg);
+        println!(
+            "    min, avg, max degree = {}, {}, {}",
+            mindeg, avgdeg, maxdeg
+        );
     }
 
     /// writes a sparse matrix to a file in a MatrixMarket ASCII formats
@@ -316,6 +330,7 @@ impl SparseMat {
         self.write_mm(&mut writer)
     }
 
+    /// write mm to any writer
     pub fn write_mm<W>(&self, writer: &mut W) -> Result<()>
     where
         W: Write,
@@ -350,14 +365,15 @@ impl SparseMat {
         SparseMat::read_mm(&mut reader)
     }
 
-    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat>  
+    /// read from any BufRead
+    pub fn read_mm<R>(reader: &mut R) -> Result<SparseMat>
     where
         R: BufRead,
     {
         let line = reader.lines().next().unwrap_or(Ok("".to_string()))?;
         let re1 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *pattern*")?;
         let re2 = Regex::new(r"^%%MatrixMarket *matrix *coordinate *real*")?;
-        if !re1.is_match(&line) && !re2.is_match(&line){
+        if !re1.is_match(&line) && !re2.is_match(&line) {
             return Err(Sparsemat(ParseMmError::new(format!(
                 "invalid header {}",
                 line
@@ -392,7 +408,7 @@ impl SparseMat {
             let inputs: Vec<&str> = line.split_whitespace().collect();
             let row: usize = inputs[0].parse()?;
             let col: usize = inputs[1].parse()?;
-            let val: f64 = if has_values {inputs[2].parse()?} else {1.0};
+            let val: f64 = if has_values { inputs[2].parse()? } else { 1.0 };
             if row == 0 || row > nr || col == 0 || col > nc {
                 return Err(Sparsemat(ParseMmError::new(format!(
                     "bad matrix nonzero coordinates {} {}",
@@ -451,11 +467,13 @@ impl SparseMat {
     /// *cperminv pointer to the global array holding the inverse of the column permutation
     ///     rperminv[i] = j means that row i of A goes to row j in matrix Ap
     ///     cperminv[i] = j means that col i of A goes to col j in matrix Ap
-    pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> SparseMat { 
+    pub fn permute(&self, rperminv: &Perm, cperminv: &Perm) -> SparseMat {
         let mut ap = SparseMat::new(self.numrows, self.numcols, 0);
         let rperm = rperminv.inverse();
 
-        if let Some(_) = &self.value { todo!()}
+        if let Some(_) = &self.value {
+            todo!()
+        }
 
         // fill in permuted rows with permuted columns
         for i in 0..ap.numrows {
@@ -470,14 +488,16 @@ impl SparseMat {
     }
 
     /// produce the transpose of a sparse matrix
-    pub fn transpose(&self) -> SparseMat { 
+    pub fn transpose(&self) -> SparseMat {
         let mut colcounts: Vec<usize> = vec![0; self.numcols + 1];
         // histogram the column counts of A into colcounts
         for nz in &self.nonzero[0..self.nnz] {
             colcounts[*nz] += 1;
         }
 
-        if let Some(_) = &self.value { todo!()}
+        if let Some(_) = &self.value {
+            todo!()
+        }
 
         let mut at = SparseMat::new(self.numcols, self.numrows, self.nnz);
 
@@ -524,8 +544,10 @@ impl SparseMat {
     }
 
     /// sort the non-zeros in each row of a sparse matrix
-    pub fn sort_nonzeros(&mut self) -> () { 
-        if let Some(_) = &self.value { todo!()}
+    pub fn sort_nonzeros(&mut self) -> () {
+        if let Some(_) = &self.value {
+            todo!()
+        }
         for row in 0..self.numrows {
             self.nonzero[self.offset[row]..self.offset[row + 1]].sort_by(|a, b| a.cmp(b));
         }
@@ -534,15 +556,11 @@ impl SparseMat {
     /// compare the structs that hold two sparse matrices
     /// # Arguments
     /// * rmat pointer to the right sparse matrix
-    pub fn compare(&self, rmat: &SparseMat) -> bool { 
+    pub fn compare(&self, rmat: &SparseMat) -> bool {
         if self.value == None && rmat.value != None {
-            println!(
-                "(self.value = None)  != (rmat.value = Some(_))",
-            );
+            println!("(self.value = None)  != (rmat.value = Some(_))",);
         } else if self.value != None && rmat.value == None {
-            println!(
-                "(self.value = Some(_))  != (rmat.value = None)",
-            );
+            println!("(self.value = Some(_))  != (rmat.value = None)",);
         } else if self.numrows != rmat.numrows {
             println!(
                 "(self.numrows = {})  != (rmat.numrows = {})",
@@ -594,7 +612,7 @@ impl SparseMat {
             if let Some(sval) = &self.value {
                 if let Some(rval) = &rmat.value {
                     for i in 0..self.nnz {
-                        if (sval[i]-rval[i]).abs() > 10.0 * f64::EPSILON * sval[i].abs() {
+                        if (sval[i] - rval[i]).abs() > 10.0 * f64::EPSILON * sval[i].abs() {
                             println!(
                                 "(self.value[{}] = {})  != (rmat.value[{}] = {})",
                                 i, sval[i], i, rval[i]
@@ -819,7 +837,8 @@ mod tests {
     #[test]
     fn write_mm2() {
         let mat = SparseMat::read_mm_file("src/10_ring_values.mm").expect("failed read");
-        mat.write_mm_file("src/10_ring1_values.mm").expect("failed write");
+        mat.write_mm_file("src/10_ring1_values.mm")
+            .expect("failed write");
         let mat1 = SparseMat::read_mm_file("src/10_ring1_values.mm").expect("failed read");
         assert_eq!(mat.compare(&mat1), true);
     }

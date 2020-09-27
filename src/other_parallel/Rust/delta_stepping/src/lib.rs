@@ -1,3 +1,20 @@
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
+
+//! Deltastepping
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use chrono::{DateTime, Local};
 use convey_hpc::collect::ValueCollect;
 use convey_hpc::Convey;
@@ -30,8 +47,11 @@ pub fn display_ranges(max_disp: usize, num_items: usize) -> Vec<Range<usize>> {
 /// Output structure for single-source shortest path
 #[derive(Debug, Clone)]
 pub struct SsspInfo {
+    /// source size
     pub source: usize,
+    /// time to complete
     pub laptime: f64,
+    /// distance vector
     pub distance: Vec<f64>,
 }
 
@@ -137,8 +157,8 @@ struct BucketSearcher<'a> {
 
 impl<'a> BucketSearcher<'a> {
     /// Create a bucket structure for a weighted graph
-    fn new(graph: &SparseMat, delta: f64) -> BucketSearcher {
-        let nvtxs_this_rank = graph.numrows_this_rank;
+    fn new(graph: &SparseMat, delta: f64) -> BucketSearcher<'_> {
+        let nvtxs_this_rank = graph.numrows_this_rank();
 
         let mut my_max_edge_len: f64 = 0.0;
         if let Some(edge_len) = &graph.value {
@@ -189,7 +209,7 @@ impl<'a> BucketSearcher<'a> {
         let filename = format!("trace.{}.out", self.graph.my_rank());
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().append(true).create(true).open(path)?;
-        let nvtxs_this_rank = self.graph.numrows_this_rank;
+        let nvtxs_this_rank = self.graph.numrows_this_rank();
         let now: DateTime<Local> = Local::now();
         writeln!(
             file,
@@ -418,7 +438,9 @@ impl<'a> BucketSearcher<'a> {
     }
 }
 
+/// Trait to implement deltastepping extensions to SparseMat
 pub trait DeltaStepping {
+    /// Deltastepping function
     fn delta_stepping(
         &self,
         source: usize,
@@ -426,7 +448,10 @@ pub trait DeltaStepping {
         quiet: bool,
         trace: bool,
     ) -> SsspInfo;
+    /// check results
     fn check_result(&self, info: &SsspInfo, input_file: &str, quiet: bool) -> bool;
+    /// compare vectors, treating infinity carefully
+    fn sq_rel_diff(&self, a: &Vec<f64>, b: &Vec<f64>) -> f64;
 }
 
 impl DeltaStepping for SparseMat {
@@ -439,8 +464,8 @@ impl DeltaStepping for SparseMat {
         quiet: bool,
         trace: bool,
     ) -> SsspInfo {
-        assert!(self.numrows == self.numcols);
-        assert!(source < self.numrows);
+        assert!(self.numrows() == self.numcols());
+        assert!(source < self.numrows());
 
         let t1 = wall_seconds();
 
@@ -450,7 +475,7 @@ impl DeltaStepping for SparseMat {
             delta = d;
         } else {
             let (_my_mindeg, my_maxdeg, _my_sumdeg) =
-                self.rowcounts().fold((self.numcols, 0, 0), |acc, x| {
+                self.rowcounts().fold((self.numcols(), 0, 0), |acc, x| {
                     (acc.0.min(x), acc.1.max(x), acc.2 + x)
                 });
             let maxdeg = self.reduce_max(my_maxdeg);
@@ -459,7 +484,9 @@ impl DeltaStepping for SparseMat {
         if !quiet {
             println!(
                 "delta_stepping: nvtxs = {}, nedges = {}, delta = {}",
-                self.numrows, self.nnz, delta
+                self.numrows(),
+                self.nnz(),
+                delta
             );
         }
 
@@ -546,6 +573,30 @@ impl DeltaStepping for SparseMat {
         }
     }
 
+    /// Square of relative 2-norm difference between two distributed vectors, with inf-inf treated as 0.
+    /// This should be standard somewhere, but I can't find it.
+    fn sq_rel_diff(&self, a: &Vec<f64>, b: &Vec<f64>) -> f64 {
+        assert!(a.len() == b.len());
+        let mut l_diff: f64 = 0.0;
+        let mut l_csum: f64 = 0.0;
+        for v in 0..a.len() {
+            if a[v].is_finite() || b[v].is_finite() {
+                l_diff += (a[v] - b[v]).powi(2);
+            }
+            if a[v].is_finite() {
+                l_csum += a[v].powi(2);
+            }
+        }
+        let diff = self.reduce_sum(l_diff);
+        let csum = self.reduce_sum(l_csum);
+
+        if diff == 0.0 {
+            0.0
+        } else {
+            diff / csum
+        }
+    }
+
     /// check the result of delta stepping
     ///
     /// # Arguments
@@ -562,7 +613,7 @@ impl DeltaStepping for SparseMat {
         let mut l_unreachable = 0;
         let mut l_max_dist: f64 = 0.0;
         let mut l_sum_dist: f64 = 0.0;
-        for v in 0..self.numrows_this_rank {
+        for v in 0..self.numrows_this_rank() {
             if info.distance[v].is_finite() {
                 l_max_dist = f64::max(l_max_dist, info.distance[v]);
                 l_sum_dist += info.distance[v];
@@ -578,7 +629,7 @@ impl DeltaStepping for SparseMat {
                 "unreachable vertices: {}; max finite distance: {}; avg finite distance: {}",
                 unreachable,
                 max_dist,
-                sum_dist / (self.numrows as f64 - unreachable as f64)
+                sum_dist / (self.numrows() as f64 - unreachable as f64)
             );
         }
         // check against ground truth file if it's there
@@ -605,25 +656,14 @@ impl DeltaStepping for SparseMat {
                         check_dst.push(d);
                     }
                 }
-                let mut l_diff: f64 = 0.0;
-                let mut l_csum: f64 = 0.0;
-                for v in 0..self.numrows_this_rank {
-                    if check_dst[v].is_finite() || info.distance[v].is_finite() {
-                        l_diff += (check_dst[v] - info.distance[v]).powi(2);
-                    }
-                    if check_dst[v].is_finite() {
-                        l_csum += check_dst[v].powi(2);
-                    }
-                }
-                let diff = self.reduce_sum(l_diff);
-                let csum = self.reduce_sum(l_csum);
-                if diff <= f64::EPSILON.sqrt() * csum {
+                let diff = self.sq_rel_diff(&check_dst, &info.distance);
+                if diff <= f64::EPSILON.sqrt() {
                     if !quiet {
-                        println!("\nCORRECT! relative diff = {}", diff / csum);
+                        println!("\nCORRECT! squared relative diff = {}", diff);
                     }
                 } else {
                     if !quiet {
-                        println!("\nDISAGREE! relative diff = {}", diff / csum);
+                        println!("\nDISAGREE! squared relative diff = {}", diff);
                     }
                     return false;
                 }
@@ -632,5 +672,73 @@ impl DeltaStepping for SparseMat {
             }
         }
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SparseMat;
+    use crate::DeltaStepping;
+    use convey_hpc::testing_support::TestingMutex;
+
+    /*
+        #[test]
+        #[should_panic]
+        fn delta_stepping_rand1() {
+            let mutex = TestingMutex::new();
+            let numrows = 100;
+            let erdos_renyi_prob = 0.05;
+            let unit_diag = false;
+            let mode = 3;
+            let seed = 1;
+            let mat = SparseMat::gen_erdos_renyi_graph(numrows, erdos_renyi_prob, unit_diag, mode, seed);
+            let source = 0;
+            let forced_delta = None;
+            let quiet = true;
+            let trace = false;
+            let _matret = mat.delta_stepping(source, forced_delta, quiet, trace);
+            assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        }
+    */
+    #[test]
+    fn delta_stepping_rand2() {
+        let mutex = TestingMutex::new();
+        let numrows = 100;
+        let erdos_renyi_prob = 0.05;
+        let unit_diag = false;
+        let mode = 3;
+        let seed = 1;
+        let mut mat =
+            SparseMat::gen_erdos_renyi_graph(numrows, erdos_renyi_prob, unit_diag, mode, seed);
+        mat.randomize_values();
+        let source = 0;
+        let forced_delta = None;
+        let quiet = true;
+        let trace = false;
+        let matret_a = mat.delta_stepping(source, forced_delta, quiet, trace);
+        for delta in vec![0.01, 0.1, 1.0, 100.0] {
+            let matret_b = mat.delta_stepping(source, Some(delta), quiet, trace);
+            let diff = mat.sq_rel_diff(&matret_a.distance, &matret_b.distance);
+            assert!(diff <= f64::EPSILON.sqrt());
+        }
+        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+    }
+    #[test]
+    fn delta_stepping_sparse() {
+        let mutex = TestingMutex::new();
+        let input_file = "erdosrenyi/sparse100.mm";
+        let mat = SparseMat::read_mm_file(input_file).expect("can't read input file");
+        let source = 2;
+        let forced_delta = None;
+        let quiet = true;
+        let trace = false;
+        let matret_a = mat.delta_stepping(source, forced_delta, quiet, trace);
+        assert!(mat.check_result(&matret_a, input_file, quiet));
+        for delta in vec![0.01, 0.1, 1.0, 100.0] {
+            let matret_b = mat.delta_stepping(source, Some(delta), quiet, trace);
+            let diff = mat.sq_rel_diff(&matret_a.distance, &matret_b.distance);
+            assert!(diff <= f64::EPSILON.sqrt());
+        }
+        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
     }
 }
