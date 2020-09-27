@@ -5,12 +5,12 @@ use itertools::join;
 use regex::Regex;
 use sparsemat::SparseMat;
 use std::fs::File;
-use std::io::{BufRead};
-use std::io::{BufReader};
+use std::io::BufRead;
+use std::io::BufReader;
 
 /*
- * Application that finds shortest path lengths from a single source in 
- * a directed graph, using the Meyer/Sanders delta-stepping algorithm. 
+ * Application that finds shortest path lengths from a single source in
+ * a directed graph, using the Meyer/Sanders delta-stepping algorithm.
  * This serial Rust implementation is based on the serial C in bale,
  * and is intended as a first step toward a Rust/Conveyors version.
  */
@@ -25,29 +25,28 @@ use std::io::{BufReader};
    tentative distance of w to min(tent(w), tent(v) + c(v,w)). Eventually each vertex's
    tent() distance becomes final, or "settled"; initially only the source is settled.
 
-   Unsettled vertices with tent() < inf are kept in "buckets" by tent() value; bucket i 
-   contains vertices with tent() at least i*\Delta and less than (i+1)*\Delta, where 
+   Unsettled vertices with tent() < inf are kept in "buckets" by tent() value; bucket i
+   contains vertices with tent() at least i*\Delta and less than (i+1)*\Delta, where
    \Delta is a parameter.
 
-   The algorithm has three nested loops. 
-   
-   The outer (serial) loop is over buckets; an iteration processes vertices in the lowest 
-   nonempty bucket until it is empty. 
-   
-   The middle (serial) loop is over "phases"; a phase consists of removing all the vertices 
-   in the active bucket and relaxing all the "light" edges out of them (an edge is "light" 
-   if it has cost at most \Delta, "heavy" otherwise). The edge relaxations in a phase may 
-   cause vertices to enter the active bucket; phases continue until the bucket is empty. 
-   At that point all the vertices that were in that bucket are settled.  Following the 
-   light-edge phases, one more phase relaxes all the heavy edges from vertices deleted 
-   from the active bucket; this cannot cause any vertices to go into that bucket. 
-   
+   The algorithm has three nested loops.
+
+   The outer (serial) loop is over buckets; an iteration processes vertices in the lowest
+   nonempty bucket until it is empty.
+
+   The middle (serial) loop is over "phases"; a phase consists of removing all the vertices
+   in the active bucket and relaxing all the "light" edges out of them (an edge is "light"
+   if it has cost at most \Delta, "heavy" otherwise). The edge relaxations in a phase may
+   cause vertices to enter the active bucket; phases continue until the bucket is empty.
+   At that point all the vertices that were in that bucket are settled.  Following the
+   light-edge phases, one more phase relaxes all the heavy edges from vertices deleted
+   from the active bucket; this cannot cause any vertices to go into that bucket.
+
    The inner (potentially parallel) loop implements the edge relaxations in a single phase.
    Those relaxations can be done in any order, provided they are done atomically.
 */
 
 fn main() {
-
     let matches = App::new("DeltaStepping")
         .version("0.1.0")
         .about("Implements a test of DeltaStepping")
@@ -118,9 +117,7 @@ fn main() {
         .unwrap_or("0.3")
         .parse()
         .expect("er_prob: not a float");
-    let input_file: &str = matches
-        .value_of("input_file")
-        .unwrap_or("NONE");
+    let input_file: &str = matches.value_of("input_file").unwrap_or("NONE");
     let forced_delta: f64 = matches
         .value_of("forced_delta")
         .unwrap_or("0.0")
@@ -131,7 +128,7 @@ fn main() {
     let quiet = matches.is_present("quiet");
     let dump_files = matches.is_present("dump_files");
 
-    let mut mat: SparseMat; 
+    let mut mat: SparseMat;
     if matches.is_present("input_file") {
         mat = SparseMat::read_mm_file(input_file).expect("can't read MatrixMarket file");
     } else {
@@ -154,14 +151,25 @@ fn main() {
     if !quiet {
         let now: DateTime<Local> = Local::now();
         println!(
-            "Running delta_stepping on {} from source {} at {} ...", 
-            if matches.is_present("input_file") {input_file} else {"random matrix"},
-            source, 
+            "Running delta_stepping on {} from source {} at {} ...",
+            if matches.is_present("input_file") {
+                input_file
+            } else {
+                "random matrix"
+            },
+            source,
             now
         );
     }
 
-    let matret = mat.delta_stepping(source, if forced_delta == 0.0 {None} else {Some(forced_delta)});
+    let matret = mat.delta_stepping(
+        source,
+        if forced_delta == 0.0 {
+            None
+        } else {
+            Some(forced_delta)
+        },
+    );
     if dump_files {
         // matret.dump(0, "results.out").expect("results write error");
         matret.dump_wts("results.wts").expect("results write error");
@@ -187,26 +195,26 @@ fn main() {
                 check_dist.push(d);
             }
             let check_nv = check_dist[0] as usize;
-            if (check_nv != mat.numrows) || (check_nv != check_dist.len()-1) {
+            if (check_nv != mat.numrows()) || (check_nv != check_dist.len() - 1) {
                 println!(
                     "check file problem: mat.numrows = {}, check says nv = {}, check has {} distances",
-                    mat.numrows, check_nv, check_dist.len()-1
+                    mat.numrows(), check_nv, check_dist.len()-1
                 );
             } else {
                 let mut diff: f64 = 0.0;
                 let mut csum: f64 = 0.0;
                 for v in 0..check_nv {
-                    if check_dist[v+1].is_finite() || matret.distance[v].is_finite() {
-                        diff += (check_dist[v+1] - matret.distance[v]).powi(2); 
+                    if check_dist[v + 1].is_finite() || matret.distance[v].is_finite() {
+                        diff += (check_dist[v + 1] - matret.distance[v]).powi(2);
                     }
-                    if check_dist[v+1].is_finite() {
-                        csum += check_dist[v+1].powi(2); 
+                    if check_dist[v + 1].is_finite() {
+                        csum += check_dist[v + 1].powi(2);
                     }
                 }
-                if diff <= f64::EPSILON.sqrt() * csum  {
-                    println!("\nCORRECT! relative diff = {}", diff/csum);
+                if diff <= f64::EPSILON.sqrt() * csum {
+                    println!("\nCORRECT! relative diff = {}", diff / csum);
                 } else {
-                    println!("\nDISAGREE! relative diff = {}", diff/csum);
+                    println!("\nDISAGREE! relative diff = {}", diff / csum);
                 }
             }
         } else {

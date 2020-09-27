@@ -14,7 +14,7 @@ use sparsemat::SparseMat;
 /// Make the upper triangular matrix is the upper half of an Erdös–Renyi random graph
 /// We force the diagonal entry and pick the other edges with probability erdos_renyi_prob
 /// then randomly permute the rows and the columns.  
-/// The toposort algorithm takes this matrix and finds one of the possibly many row and 
+/// The toposort algorithm takes this matrix and finds one of the possibly many row and
 /// column permutations that would bring the matrix back to an upper triangular form.
 pub fn generate_toposort_input(
     numrows: usize,
@@ -82,8 +82,8 @@ impl TopoSort for SparseMat {
     /// # Arguments
     /// * tmat the transpose of mat
     fn toposort_queue(&self, tmat: &SparseMat) -> TopoInfo {
-        let nr = self.numrows;
-        let nc = self.numcols;
+        let nr = self.numrows();
+        let nc = self.numcols();
         let mut ret = TopoInfo::new(nr);
 
         let mut queue: Vec<usize> = vec![0; nr];
@@ -119,14 +119,14 @@ impl TopoSort for SparseMat {
             let col = (rowtrck[row] & 0xFFFF) as usize; // see cool trick
 
             //println!("row {} col {} queue {:?} rowtrck {:x?}", row, col, queue, rowtrck );
-            ret.rperm.perm[row] = nr - 1 - n_pivots;
-            ret.cperm.perm[col] = nc - 1 - n_pivots;
+            ret.rperm.perm()[row] = nr - 1 - n_pivots;
+            ret.cperm.perm()[col] = nc - 1 - n_pivots;
             n_pivots += 1;
 
             // look at this column (tmat's row) to find all the rows that hit it
             for nz in &tmat.nonzero[tmat.offset[col]..tmat.offset[col + 1]] {
                 let trow = *nz;
-                assert!(trow < self.numrows);
+                assert!(trow < self.numrows());
                 rowtrck[trow] -= (1 << 32) + col as i64;
                 if (rowtrck[trow] >> 32) == 1 {
                     queue[end] = trow;
@@ -145,8 +145,8 @@ impl TopoSort for SparseMat {
     /// # Arguments
     /// * tmat the transpose of mat
     fn toposort_loop(&self, tmat: &SparseMat) -> TopoInfo {
-        let nr = self.numrows;
-        let nc = self.numcols;
+        let nr = self.numrows();
+        let nc = self.numcols();
         let mut ret = TopoInfo::new(nr);
 
         let mut rowtrck: Vec<i64> = vec![0; nr];
@@ -173,15 +173,15 @@ impl TopoSort for SparseMat {
             for row in 0..nr {
                 if (rowtrck[row] >> 32) == 1 {
                     let col = (rowtrck[row] & 0xFFFF) as usize; // see cool trick
-                    ret.rperm.perm[row] = nr - 1 - n_pivots;
-                    ret.cperm.perm[col] = nc - 1 - n_pivots;
+                    ret.rperm.perm()[row] = nr - 1 - n_pivots;
+                    ret.cperm.perm()[col] = nc - 1 - n_pivots;
                     n_pivots += 1;
                     rowtrck[row] = 0;
 
                     // look at this column (tmat's row) to find all the rows that hit it
                     for nz in &tmat.nonzero[tmat.offset[col]..tmat.offset[col + 1]] {
                         let trow = *nz;
-                        assert!((trow) < self.numrows);
+                        assert!((trow) < self.numrows());
                         rowtrck[trow] -= (1 << 32) + col as i64;
                     }
                 }

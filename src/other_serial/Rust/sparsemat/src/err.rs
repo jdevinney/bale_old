@@ -24,7 +24,7 @@ impl ParseMmError {
 }
 
 impl fmt::Display for ParseMmError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.detail)
     }
 }
@@ -36,7 +36,7 @@ impl error::Error for ParseMmError {
 }
 
 impl fmt::Display for SparseMatError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             SparseMatError::Sparsemat(ref e) => e.fmt(f),
             // This is a wrapper, so defer to the underlying types' implemenntation of `fmt`.
