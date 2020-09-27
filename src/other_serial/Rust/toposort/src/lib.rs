@@ -1,3 +1,20 @@
+#![warn(
+    missing_docs,
+    future_incompatible,
+    missing_debug_implementations,
+    rust_2018_idioms
+)]
+
+//! Bale Serial Toposort library
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use sparsemat::wall_seconds;
 use sparsemat::Perm;
 use sparsemat::SparseMat;
@@ -52,10 +69,12 @@ pub fn generate_toposort_input(
     mat
 }
 
+/// return values used by main
 #[derive(Debug, Clone)]
 pub struct TopoInfo {
     rperm: Perm,
     cperm: Perm,
+    /// the time to complete
     pub laptime: f64,
 }
 
@@ -71,9 +90,13 @@ impl TopoInfo {
     }
 }
 
+/// a trait to extend SparseMat for toposort
 pub trait TopoSort {
+    /// queue implementation
     fn toposort_queue(&self, tmat: &SparseMat) -> TopoInfo;
+    /// loop implemetation
     fn toposort_loop(&self, tmat: &SparseMat) -> TopoInfo;
+    /// check results
     fn check_result(&self, info: &TopoInfo, dump_files: bool) -> bool;
 }
 
