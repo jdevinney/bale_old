@@ -91,8 +91,6 @@ typedef struct push_pull_ctr_t{
   int64_t npulls;
 }push_pull_ctr_t;
 
-push_pull_ctr_t calculate_num_pushes_pulls(sparsemat_t * L, args_t * args);
-
 typedef struct args_t{
   int alg;
   std_args_t std;
@@ -125,7 +123,7 @@ static struct argp_child children_parsers[] =
     {0}
   };
 
-
+push_pull_ctr_t calculate_num_pushes_pulls(sparsemat_t * L, args_t * args);
 
 int main(int argc, char * argv[]) {
 
@@ -300,7 +298,7 @@ push_pull_ctr_t calculate_num_pushes_pulls(sparsemat_t * L, args_t * args){
   }
   int64_t pulls_calc = 0;
   int64_t pushes_calc = 0;
-  if(args.alg == 0){
+  if(args->alg == 0){
     pulls_calc = lgp_reduce_add_l(rtimesc_calc);
     pushes_calc = lgp_reduce_add_l(rchoose2_calc);
   }else{
@@ -310,7 +308,7 @@ push_pull_ctr_t calculate_num_pushes_pulls(sparsemat_t * L, args_t * args){
 
   lgp_all_free(cc);
 
-  if(!args.std.json)
+  if(!args->std.json)
     T0_fprintf(stderr,"Calculated: Pulls = %"PRId64"\n            Pushes = %"PRId64"\n\n",pulls_calc, pushes_calc);
 
   push_pull_ctr_t p;
