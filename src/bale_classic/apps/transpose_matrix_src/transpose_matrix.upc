@@ -149,10 +149,6 @@ int main(int argc, char * argv[])
       if(compare_matrix(outmatT, inmat)){
         T0_fprintf(stderr,"ERROR: transpose of transpose does not match!\n");
         error = 1;
-        if(args.std.dump_files){
-          write_matrix_mm(outmat, "outmat");
-          write_matrix_mm(outmatT, "outmatT");
-        }
       }
       clear_matrix(outmatT);
     }

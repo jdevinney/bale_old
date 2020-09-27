@@ -237,7 +237,7 @@ int main(int argc, char * argv[]) {
 
   total_errors = lgp_reduce_add_l(num_errors);
   if( total_errors ) {
-    T0_fprintf(stderr,"YOU FAILED!!!!\n"); 
+    T0_fprintf(stderr,"YOU FAILED!!!!\n");    
   } 
 
   lgp_barrier();
@@ -248,6 +248,6 @@ int main(int argc, char * argv[]) {
 
   bale_app_finish(&args.std);
   
-  return(0);
+  return(total_errors);
 }
 

@@ -1,17 +1,26 @@
+//! Permutation Library, a part of the Sparse Matrix Library
+///
+/// Copyright (c) 2020, Institute for Defense Analyses
+/// 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
+///
+/// All rights reserved.
+///
+/// This file is part of Bale.  For licence information see the
+/// LICENSE file in the top level dirctory of the distribution.
+///
 use convey_hpc::collect::ValueCollect;
 use convey_hpc::Convey;
 use rand::distributions::{Distribution, Uniform};
 use std::cell::{Ref, RefCell, RefMut};
 use std::fs::File;
 use std::io::Write;
-//use std::io::{BufRead, Write};
-//use std::io::{BufReader, BufWriter};
 use std::path::Path;
 use std::rc::Rc;
 
+/// A permutation needs a convey and the permutation itself
 pub struct Perm {
     convey: Convey,
-    pub perm: Vec<usize>,
+    perm: Vec<usize>,
 }
 
 impl std::fmt::Debug for Perm {
@@ -24,6 +33,7 @@ impl std::fmt::Debug for Perm {
 }
 
 impl Perm {
+    /// new takes a vec to start with
     pub fn new(v: Vec<usize>) -> Self {
         let convey = Convey::new().unwrap();
         Perm {
@@ -32,6 +42,7 @@ impl Perm {
         }
     }
 
+    /// Create an identity permutation
     pub fn identity(n: usize) -> Self {
         let convey = Convey::new().unwrap();
         let mut perm = vec![0; convey.per_my_rank(n)];
@@ -42,6 +53,22 @@ impl Perm {
         Perm { perm, convey }
     }
 
+    /// Get the length of this permutation
+    pub fn len(&self) -> usize {
+        self.perm.len()
+    }
+
+    /// get the entry from a permutation
+    pub fn entry(&self, index: usize) -> usize {
+        self.perm[index]
+    }
+
+    /// get a reference to the permutation itself
+    pub fn perm(&mut self) -> &mut Vec<usize> {
+        &mut self.perm
+    }
+
+    /// predicate: is this a real permutation
     pub fn is_perm(&self) -> bool {
         let mut flags: Vec<bool> = vec![false; self.perm.len()];
         //println!("is_perm{:?}", self.perm);
@@ -59,6 +86,11 @@ impl Perm {
             println!("not a perm, {} unset", total_flags_unset);
         }
         total_flags_unset == 0
+    }
+
+    /// Create a random permutation
+    pub fn random(n: usize, seed: i64) -> Self {
+        Perm::random_darts_resubmit_local(n, seed)
     }
 
     /// Create a permutation from a dart-throwing vector
@@ -91,10 +123,6 @@ impl Perm {
         Perm::new(perm)
     }
 
-    pub fn random(n: usize, seed: i64) -> Self {
-        Perm::random_darts_resubmit_local(n, seed)
-    }
-
     /// writes the first and last part of an perm to the specified file
     /// # Arguments
     /// * a       the array
@@ -120,6 +148,8 @@ impl Perm {
         Ok(())
     }
 
+    /// version of random_darts which take darts which are invalid (already used)
+    /// and resubmit them on the local thread to throw again
     pub fn random_darts_resubmit_local(n: usize, _seed: i64) -> Self {
         let identity = Perm::identity(n);
         let convey = identity.convey;
@@ -156,6 +186,8 @@ impl Perm {
         Perm::from_target(target, n)
     }
 
+    /// version of random_darts which take darts which are invalid (already used)
+    /// and return them to the sender, who in turn will resend them
     pub fn random_darts_return_rejects(n: usize, _seed: i64) -> Self {
         let identity = Perm::identity(n);
         let convey = identity.convey;
@@ -204,7 +236,8 @@ impl Perm {
 }
 
 /// helper function: get a batch of work from a queue
-fn get_batch(mut queue: RefMut<Vec<usize>>, limit: usize) -> Vec<usize> {
+///   These help us avoid borrow checker problems.
+fn get_batch(mut queue: RefMut<'_, Vec<usize>>, limit: usize) -> Vec<usize> {
     let mut ret: Vec<usize> = Vec::new();
     for _i in 0..queue.len().min(limit) {
         ret.push(queue.pop().unwrap());
@@ -213,7 +246,8 @@ fn get_batch(mut queue: RefMut<Vec<usize>>, limit: usize) -> Vec<usize> {
 }
 
 /// helper function: get length from a queue
-fn get_len(queue: Ref<Vec<usize>>) -> usize {
+///   These help us avoid borrow checker problems.
+fn get_len(queue: Ref<'_, Vec<usize>>) -> usize {
     queue.len()
 }
 
