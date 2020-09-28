@@ -108,13 +108,15 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
     case 'K':
       args->kronecker = 1; 
       args->kargs.mode = atoi(arg);
+      if (args->kronecker && (args->kargs.mode < 0 || args->kargs.mode >2))
+        argp_failure(state, 1, 0, "Kronecker mode is 0, 1, or 2.");
       break;
     case ARGP_KEY_ARG:
       args->kargs.star_size[args->kargs.num_stars++] = atoi(arg);
       args->kargs.numrows *= (atoi(arg) + 1);
       break;
     case ARGP_KEY_END:
-      if(args->kronecker && args->kargs.num_stars < 2)
+      if (args->kronecker && args->kargs.num_stars < 2)
         argp_failure(state, 1, 0, "Must supply at least 2 star arguments for Kronecker product.");
       break;
     case ARGP_KEY_INIT:

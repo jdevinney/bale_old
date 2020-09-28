@@ -53,6 +53,7 @@
 #include <sys/time.h>
 #include <limits.h>
 #include <unistd.h>
+#include <time.h>
 #include <stdarg.h>
 #include <fcntl.h>
 #include <getopt.h>
@@ -95,6 +96,12 @@ typedef struct next_nz {
  * We only handle {0,1} matrices, so we don't need triples.
  */
 
+typedef struct w_edge_t{
+  int64_t row;
+  int64_t col;
+  double val;
+}w_edge_t;
+
 typedef struct edge_t{
   int64_t row;
   int64_t col;
@@ -102,6 +109,7 @@ typedef struct edge_t{
 
 typedef struct edge_list_t{
   edge_t * edges;
+  w_edge_t *wedges;
   int64_t nalloc;
   int64_t num;
 }edge_list_t;
@@ -110,7 +118,13 @@ typedef struct edge_list_t{
 typedef struct col_val_t{
    int64_t col;
    double value;
- }col_val_t;
+}col_val_t;
+
+// struct to represent a point on the plane. (for geometric graphs)
+typedef struct point_t{
+  double x;
+  double y;
+}point_t;
 
 typedef struct triple_t{
   int64_t row;
@@ -118,6 +132,7 @@ typedef struct triple_t{
   double val;
 }triple_t;
 
+#if 0
 typedef struct kron_args_t{
   char str[256];
   int mode;
@@ -125,6 +140,9 @@ typedef struct kron_args_t{
   int star_size[64];  // can't be too many stars, else the graph would be huge
   int64_t numrows;
 } kron_args_t;
+void             clear_kron_args(kron_args_t * kron_args);
+kron_args_t *    kron_args_init(char *str);
+#endif
 
 typedef enum graph_model {FLAT, GEOMETRIC, KRONECKER} graph_model;
 typedef enum edge_type {DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED} edge_type;
@@ -138,7 +156,6 @@ void incr_nxt_l_nz(next_nz_t * nxtnz);
 
 
 void             clear_matrix(sparsemat_t * mat);
-void             clear_kron_args(kron_args_t * kron_args);
 int64_t          compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
 sparsemat_t *    copy_matrix(sparsemat_t *srcmat);
 
@@ -149,9 +166,13 @@ sparsemat_t *    erdos_renyi_random_graph(int64_t n, double p, edge_type edge_ty
 sparsemat_t *    erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
 
 sparsemat_t *    geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
-kron_args_t *    kron_args_init(char *str);
-sparsemat_t *    kronecker_product_graph(kron_args_t * K);
-int64_t          tri_count_kron_graph(kron_args_t *K);
+
+sparsemat_t *    generate_kronecker_graph_from_spec(int mode, int * spec, int num);
+//sparsemat_t *    kronecker_product_graph(kron_args_t * K);
+sparsemat_t *    kronecker_product_of_stars(int64_t M, int64_t * m, int mode);
+sparsemat_t *    kronecker_product_graph_local(sparsemat_t * B, sparsemat_t * C);
+sparsemat_t *    kronecker_product_graph_dist(sparsemat_t * B, sparsemat_t * C);
+int64_t          tri_count_kron_graph(int kron_mode, int * kron_spec, int kron_num);
 
 sparsemat_t *    init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values);
 

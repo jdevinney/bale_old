@@ -256,16 +256,15 @@ int edge_comp(const void *a, const void *b)
   return( eltA->row - eltB->row );
 }
 
-/*! \brief the compare function for qsort called while reading 
- * a MatrixMarket format (for matrix with values).
+/*! \brief the compare function for qsort of w_edge_t structs.
  * NB. We sort on the rows so that we can fill the offset array
  * sequentially in one pass. We sort on the columns so that
  * the matrix will be "tidy"
  */
-int triple_comp(const void *a, const void *b) 
+int w_edge_comp(const void *a, const void *b) 
 {
-  triple_t * A = (triple_t *)a;
-  triple_t * B = (triple_t *)b;
+  w_edge_t * A = (w_edge_t *)a;
+  w_edge_t * B = (w_edge_t *)b;
   if( (A->row - B->row) == 0 )
     return( A->col - B->col );
   return( A->row - B->row );
@@ -274,24 +273,23 @@ int triple_comp(const void *a, const void *b)
 /*! \brief read a sparse matrix from a file in a MatrixMarket ASCII format
  * \param name the filename to be read
  * \return a pointer to the sparse matrix or NULL on failure
- * TODO: get this to work for matrices with real values.
  */
 sparsemat_t  *read_matrix_mm(char * name) 
 {
   int64_t i;
   int64_t nr, nc, nnz;
-  char object[24], format[24], field[24];
   int fscanfret;
 
   // Read the header line of the MatrixMarket format 
   FILE * fp = fopen(name, "r");
-  if( fp == NULL ){
+  if ( fp == NULL ) {
     fprintf(stderr,"read_matrix_mm: can't open file %s \n", name);
     exit(1);
   }
     
+  char object[24], format[24], field[24];
   fscanfret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
-  if( (fscanfret != 3 ) || strncmp(object,"matrix",24) || strncmp(format,"coordinate",24) ){
+  if ( (fscanfret != 3 ) || strncmp(object,"matrix",24) || strncmp(format,"coordinate",24) ) {
     fprintf(stderr,"read_matrix_mm: Incompatible matrix market format.\n");
     fprintf(stderr,"                First line should be either:\n");
     fprintf(stderr,"                matrix coordinate pattern\n");
@@ -302,120 +300,102 @@ sparsemat_t  *read_matrix_mm(char * name)
     exit(1);
   }
   
-  if(strncmp(field,"pattern",24) && strncmp(field,"real",24) && strncmp(field,"integer",24) ){
+  if (strncmp(field,"pattern",24) && strncmp(field,"real",24) && strncmp(field,"integer",24) ) {
     fprintf(stderr,"read_matrix_mm: Incompatible matrix market field.\n");
     fprintf(stderr,"                Last entry on first line should be pattern, real, or integer\n");
     exit(1);
   }
-  int value;
-
-  if(strncmp(field,"pattern",24) == 0){
-    value = 0; // no values
-  }else if(strncmp(field,"real",24) == 0){
-    value = 1; // real values
-  }else{
-    //value = 2; // integer values
-    printf("Error: read_matrix_mm: don't yet support integer weights (only doubles)\n");
-    return(NULL);
+  int values;
+  if (strncmp(field,"pattern",24) == 0) {
+    values = 0; // no values
+  } else if (strncmp(field,"real",24) == 0) {
+    values = 1; // real values
+  } else {
+    values = 2; // integer values
   }
 
+  // Read the header (nr, nc, nnz)
   fscanfret = fscanf(fp,"%"SCNd64" %"SCNd64" %"SCNd64"\n", &nr, &nc, &nnz);
-  if( (fscanfret != 3 ) || (nr<=0) || (nc<=0) || (nnz<=0) ){
+  if ( (fscanfret != 3 ) || (nr<=0) || (nc<=0) || (nnz<=0) ) {
     fprintf(stderr,"read_matrix_mm: reading nr, nc, nnz\n");
     exit(1);
   }
   
+  sparsemat_t * ret_mat;
+  edge_t *edges;
+  w_edge_t *w_edges;
+  if (values == 0L) { // no values
+    
+    // read all the nonzeros into the edges array of (row,col,[values])
+    // and sort them before building the sparsemat format
+    edges = calloc(nnz, sizeof(edge_t));
+    assert((edges != NULL) && "Memory Error");
+
+    for (i=0; i<nnz; i++) {
+      fscanfret = fscanf(fp,"%"SCNd64" %"SCNd64"\n", &(edges[i].row), &(edges[i].col));
+      assert (fscanfret == 2);
+      //fprintf(stderr,"--- %"PRId64" %"PRId64"\n",  edges[i].row, edges[i].col);
+      assert ( 0<edges[i].row && edges[i].row <=nr);
+      assert ( 0<edges[i].col && edges[i].col <=nc);
+      edges[i].row -=1;    // MatrixMarket format is 1-up, not 0-up
+      edges[i].col -=1;
+    }
+    qsort( edges, nnz, sizeof(edge_t), edge_comp);
+  } else { // real 
+    assert(values == 1);
+    w_edges = calloc(nnz, sizeof(w_edge_t));
+    assert((w_edges != NULL) && "Memory Error");
+
+    for (i=0; i<nnz; i++) {
+      fscanfret = fscanf(fp,"%"SCNd64" %"SCNd64" %lf\n", &(w_edges[i].row), &(w_edges[i].col), &(w_edges[i].val));
+      assert (fscanfret == 3);
+      assert ( 0<w_edges[i].row && w_edges[i].row <=nr);
+      assert ( 0<w_edges[i].col && w_edges[i].col <=nc);
+      w_edges[i].row -= 1;    // MatrixMarket format is 1-up, not 0-up
+      w_edges[i].col -= 1;
+    }
+    qsort( w_edges, nnz, sizeof(w_edge_t), w_edge_comp);
+  }
+  fclose(fp);
+
+  ret_mat = init_matrix( nr, nc, nnz, (values > 0));
+  assert((ret_mat != NULL) && "Memory Error");
+
   int64_t pos = 0;
   int64_t row = 0;
-  sparsemat_t * ret;
-  if(!value){ // no values
-    
-    // read all the nonzeros into the elts array of (row,col)
-    // and sort them before building the sparsemat format
-    edge_t * elts = calloc(nnz, sizeof(edge_t));
-    if( elts == NULL ){
-      fprintf(stderr,"read_matrix_mm: elts calloc failed\n");
-      exit(1);
-    }
-
-    for(i=0; i<nnz; i++){
-      fscanfret = fscanf(fp,"%"SCNd64" %"SCNd64"\n", &(elts[i].row), &(elts[i].col));
-      assert (fscanfret == 2);
-      //fprintf(stderr,"--- %"PRId64" %"PRId64"\n",  elts[i].row, elts[i].col);
-      assert ( 0<elts[i].row && elts[i].row <=nr);
-      assert ( 0<elts[i].col && elts[i].col <=nc);
-      elts[i].row -=1;    // MatrixMarket format is 1-up, not 0-up
-      elts[i].col -=1;
-    }
-    
-    qsort( elts, nnz, sizeof(edge_t), edge_comp);
-
-    ret = init_matrix( nr, nc, nnz, (value > 0));
-    if( ret == NULL ){
-      fprintf(stderr,"read_matrix_mm: sparsemat calloc failed\n");
-      exit(1);
-    }
-
-    ret->offset[row] = 0;
-    while( pos<nnz ){
-      if( elts[pos].row == row ){
-    ret->nonzero[pos] = elts[pos].col;
-    pos++;
-    continue;
-      }
-      while( row < elts[pos].row ){
-    row++;
-    ret->offset[row] = pos;
-      }
-    }
-    ret->offset[row+1] = pos;
-
-    free(elts);
-    
-  }else{ // real 
-
-    triple_t * elts = calloc(nnz, sizeof(triple_t));
-    if( elts == NULL ){
-      fprintf(stderr,"read_matrix_mm: elts calloc failed\n");
-      exit(1);
-    }
-
-    for(i=0; i<nnz; i++){
-      if(value == 1)
-        fscanfret = fscanf(fp,"%"SCNd64" %"SCNd64" %lf\n", &(elts[i].row), &(elts[i].col), &(elts[i].val));
-      assert (fscanfret == 3);
-      assert ( 0<elts[i].row && elts[i].row <=nr);
-      assert ( 0<elts[i].col && elts[i].col <=nc);
-      elts[i].row -= 1;    // MatrixMarket format is 1-up, not 0-up
-      elts[i].col -= 1;
-    }
-
-    qsort( elts, nnz, sizeof(triple_t), triple_comp);
-
-    ret = init_matrix( nr, nc, nnz, (value > 0));
-    if( ret == NULL ){
-      fprintf(stderr,"read_matrix_mm: sparsemat calloc failed\n");
-      exit(1);
-    }
-
-    ret->offset[row] = 0;
-    while( pos<nnz ){
-      if( elts[pos].row == row ){
-        ret->nonzero[pos] = elts[pos].col;
-        ret->value[pos] = elts[pos].val;
+  ret_mat->offset[row] = 0;
+  if (values == 0){
+    while (pos<nnz) {
+      if (edges[pos].row == row) {
+        ret_mat->nonzero[pos] = edges[pos].col;
         pos++;
         continue;
       }
-      while( row < elts[pos].row ){
+      while (row < edges[pos].row) {
         row++;
-        ret->offset[row] = pos;
+        ret_mat->offset[row] = pos;
       }
     }
-    ret->offset[row+1] = pos;
-    free(elts);
+    free(edges);
+  } else {
+    assert(values == 1);
+    while (pos<nnz) {
+      if (w_edges[pos].row == row) {
+        ret_mat->nonzero[pos] = w_edges[pos].col;
+        ret_mat->value[pos]   = w_edges[pos].val;
+        pos++;
+        continue;
+      }
+      while (row < w_edges[pos].row) {
+        row++;
+        ret_mat->offset[row] = pos;
+      }
+    }
+    free(w_edges);
   }
-  fclose(fp);
-  return(ret);
+  ret_mat->offset[row+1] = pos;
+
+  return(ret_mat);
 }
 
 
@@ -894,6 +874,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, se
 
 //****************** Kronecker Products of Star  Graphs *******************************/
 
+#if 0
 /*! \brief Parses a list describing the input for the Kronecker Product construction.
  * \param list is the ascii string describing which stars are to be used in the construction.
  *   must be close to the form "M: k0 k1 k2 ...k(M-1)"
@@ -942,6 +923,8 @@ kron_args_t * kron_args_init(char * list)
   }
   return(R);
 }
+
+#endif
 
 /*! \brief Generate the adjacency matrix for the star K_{1,m} (with or without loop edges)
  * \param m  the number of non-hub vertices
@@ -1050,6 +1033,85 @@ sparsemat_t * kronecker_mat_product(sparsemat_t * A, sparsemat_t * B)
  *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
  * \return the adjacency matrix for graph
 */
+sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num)
+{
+  int64_t i, k;
+  int64_t G_n, G_nnz;
+  sparsemat_t * star;
+
+  if (num < 2) {
+    fprintf(stderr,"ERROR: generate_kronecker_graph_from_spec requires at least two stars\n");
+    return(NULL);
+  }
+
+  sparsemat_t ** mats = calloc(2*num, sizeof(sparsemat_t *));
+
+  mats[0] = gen_star_graph(spec[0], mode);
+
+  for (i = 1; i < num; i++) {
+    star = gen_star_graph(spec[i], mode);
+    mats[i] = kronecker_mat_product(mats[i-1] , star);
+    clear_matrix(star);
+  }
+  sparsemat_t * R = mats[num-1];  // what we want but is fully symmetric and may have loops
+  
+  // count the number of nonzeros in the lower triangle part of the matrix
+  G_n = R->numrows;
+  G_nnz = 0;
+  for (i=0; i<R->numrows; i++) {
+    for (k=R->offset[i]; (k<R->offset[i+1]) && (R->nonzero[k] < i ); k++) {
+      G_nnz++;
+    }
+  }
+
+  // copy the lower triangle of the matrix (excluding the diagonal) to the returned matrix
+  sparsemat_t * G = init_matrix(G_n, G_n, G_nnz, 0);
+  assert( (G != NULL) && "Memory Error");
+  G->offset[0] = 0;
+  int64_t pos = 0;
+  for (i=0; i<R->numrows; i++) {
+    for (k=R->offset[i]; (k<R->offset[i+1]) && (R->nonzero[k] < i ); k++) {
+      G->nonzero[pos++] = R->nonzero[k];
+    }
+    G->offset[i+1] = pos;
+  }
+  for (i = 1; i < num; i++) 
+    free(mats[i]);
+  free(mats);
+
+  return(G);
+}
+
+int64_t tri_count_kron_graph(int mode, int * spec, int num)
+{
+   double approx, ns, nr;
+   int i;
+
+   if ( mode == 0 ) {
+     return 0;
+   } else if ( mode == 1 ) {
+     approx = 1.0;
+     nr = 1.0;
+     for (i = 0; i < num; i++) {
+       approx *= (3*spec[i] + 1);
+       nr *= spec[i] + 1.0;
+     }
+     return ( round((approx / 6.0) - 0.5 * nr + 1.0/3.0) );
+   } //else if ( mode == 2 ) 
+   assert(mode==2 && "Parameter error");
+   ns = (double)num;
+   return( round( (1.0/6.0)*pow(4,ns) - pow(2.0,(ns - 1.0)) + 1.0/3.0) );
+}
+
+#if 0
+/*! \brief Generate the kroncker product of a collection of star graphs.
+ * \param K is a struct that holds all the parameters for the construction
+ * \param mode 
+ *  - mode == 0: default, no self loops
+ *  - mode == 1: add a self loop to center vertex of each star 
+ *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
+ * \return the adjacency matrix for graph
+*/
 sparsemat_t * kronecker_product_graph(kron_args_t * K){
   int64_t i,j;
   int64_t G_n, G_nnz;
@@ -1095,27 +1157,7 @@ sparsemat_t * kronecker_product_graph(kron_args_t * K){
   // free mats
   return(G);
 }
-
-int64_t tri_count_kron_graph(kron_args_t * K)
-{
-   double approx, ns;
-   int i;
-
-   if( K->mode == 0 ) 
-     return 0;
-   else if( K->mode == 1 ){
-     approx = 1.0;
-     for(i = 0; i < K->num_stars; i++)
-       approx *= (3*K->star_size[i] + 1);
-     return ( round((approx / 6.0) - 0.5 * K->numrows + 1.0/3.0) );
-   } else if( K->mode == 2 ){
-     ns = (double) K->num_stars;
-     return( round( (1.0/6.0)*pow(4,ns) - pow(2.0,ns - 1.0) + 1.0/3.0) );
-   } else {
-     printf("ERROR: : init_matrix failed!\n");
-     return(-1); 
-   }
-}
+#endif
 
 // IF we are given nz_per_row (z), we calculate edge_prob (e)
 // or if we are given edge_prob, we calculate nz_per_row

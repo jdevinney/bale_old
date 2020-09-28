@@ -48,12 +48,12 @@ def test_all(path, implementation_mask):
       #runs.append('-k "1: 4 5 9 13" ')
       #runs.append('-k "2: 4 5 9 13" ')
     if app == 'sssp':
-      runs.append("-n 719 -e 0.05 ")
-      runs.append("-n 601 -e 0.5 ")
-      runs.append("-n 1213 -e 0.02 ")
-      runs.append("-n 1109 -g 0.05 ")
-      runs.append("-n 601 -g 0.5 ")
-      runs.append("-n 1409 -g 0.02 ")
+      runs.append("-n 719 -F -e 0.05 ")
+      runs.append("-n 601 -F -e 0.5 ")
+      runs.append("-n 1213 -F -e 0.02 ")
+      runs.append("-n 1109 -F -e 0.05 ")
+      runs.append("-n 601 -F -e 0.5 ")
+      runs.append("-n 1409 -F -e 0.02 ")
       
     for run in runs:
       cmd = "{0} {1} -M {2}".format(os.path.join(path, app), run, implementation_mask)
