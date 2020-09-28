@@ -1628,6 +1628,7 @@ void set_d_array(d_array_t * A, double v)
   }
 }
 
+//TODO copy_d_array produces a d_array , replace does this
 /*! \brief sets all the entries of d_array_t to a value
  * \param A the array
  * \param v the value
@@ -1675,6 +1676,7 @@ d_array_t * read_d_array(char *name)
  * \param name the filename to be written to
  * \return 0 on success, non-0 on error.
  */
+// TODO add comment lines
 int64_t write_d_array(d_array_t *A, char * name)
 {
   int64_t i;
