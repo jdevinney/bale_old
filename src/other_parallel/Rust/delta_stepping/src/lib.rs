@@ -78,9 +78,8 @@ impl SsspInfo {
 
     /// Write output distances to a file in Phil's format, collecting them all on rank 0
     pub fn write_dst(&self, filename: &str) -> Result<(), Error> {
-        let convey = Convey::new().expect("conveyor initialization failed");
-        let my_rank = convey.my_rank;
-        let num_ranks = convey.num_ranks;
+        let my_rank = Convey::my_rank();
+        let num_ranks = Convey::num_ranks();
         let num_vtxs = self.distance.len().reduce_sum();
         let mut all_distances: Vec<f64> = vec![0.0; if my_rank == 0 { num_vtxs } else { 0 }];
         #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -697,7 +696,7 @@ mod tests {
             let quiet = true;
             let trace = false;
             let _matret = mat.delta_stepping(source, forced_delta, quiet, trace);
-            assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+            drop(mutex);
         }
     */
     #[test]
@@ -721,7 +720,7 @@ mod tests {
             let diff = mat.sq_rel_diff(&matret_a.distance, &matret_b.distance);
             assert!(diff <= f64::EPSILON.sqrt());
         }
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn delta_stepping_sparse() {
@@ -739,6 +738,6 @@ mod tests {
             let diff = mat.sq_rel_diff(&matret_a.distance, &matret_b.distance);
             assert!(diff <= f64::EPSILON.sqrt());
         }
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
 }

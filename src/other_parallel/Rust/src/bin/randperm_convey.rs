@@ -53,13 +53,14 @@ fn main() {
         .expect("bad numrows arg");
     let verbose: u64 = matches.occurrences_of("verbose");
 
-    let convey = Convey::new().expect("convey initializtion failed");
-    let quiet = matches.is_present("quiet") || (verbose == 0 && convey.my_rank > 0);
+    let my_rank = Convey::my_rank();
+    let num_ranks = Convey::num_ranks();
+    let quiet = matches.is_present("quiet") || (verbose == 0 && my_rank > 0);
 
-    let numrows = numrows_per_rank * convey.num_ranks;
+    let numrows = numrows_per_rank * num_ranks;
 
     if !quiet {
-        println!("Running randperm on {} ranks", convey.num_ranks);
+        println!("Running randperm on {} ranks", num_ranks);
         println!("Number of rows per rank     (-n) {}", numrows_per_rank);
     }
 

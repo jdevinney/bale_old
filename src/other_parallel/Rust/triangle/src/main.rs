@@ -85,12 +85,13 @@ fn main() {
     let gen_kron = matches.is_present("gen_kron");
     let gen_kron_str = matches.value_of("gen_kron").unwrap_or("");
 
-    let convey = Convey::new().expect("Conveyor system initializtion failed");
     let seed = 12346;
-    let quiet = matches.is_present("quiet") || convey.my_rank > 0;
+    let my_rank = Convey::my_rank();
+    let num_ranks = Convey::num_ranks();
+    let quiet = matches.is_present("quiet") || my_rank > 0;
     let _dump_files = matches.is_present("dump_files");
 
-    let numrows = numrows_per_rank * convey.num_ranks;
+    let numrows = numrows_per_rank * num_ranks;
 
     if erdos_renyi_prob == 0.0 {
         // use nz_per_row to get erdos_renyi_prob
@@ -104,7 +105,7 @@ fn main() {
     }
 
     if !quiet {
-        println!("Running triangle on {} ranks", convey.num_ranks);
+        println!("Running triangle on {} ranks", num_ranks);
         println!("Number of rows per rank     (-n) {}", numrows_per_rank);
         println!("Algorithm                   (-a) {}", alg);
         if gen_kron {

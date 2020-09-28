@@ -8,7 +8,7 @@
 /// This file is part of Bale.  For licence information see the
 /// LICENSE file in the top level dirctory of the distribution.
 ///
-use convey_hpc::collect::ValueCollect;
+use convey_hpc::collect::CollectValues;
 use convey_hpc::Convey;
 use rand::distributions::{Distribution, Uniform};
 use std::cell::{Ref, RefCell, RefMut};
@@ -25,8 +25,9 @@ pub struct Perm {
 
 impl std::fmt::Debug for Perm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let my_rank = Convey::my_rank();
         f.debug_struct("Perm")
-            .field("rank", &self.convey.my_rank)
+            .field("rank", &my_rank)
             .field("len", &self.perm.len())
             .finish()
     }
@@ -46,9 +47,11 @@ impl Perm {
     pub fn identity(n: usize) -> Self {
         let convey = Convey::new().unwrap();
         let mut perm = vec![0; convey.per_my_rank(n)];
+        let my_rank = Convey::my_rank();
+        let num_ranks = Convey::num_ranks();
 
         for i in 0..perm.len() {
-            perm[i] = i * convey.num_ranks + convey.my_rank;
+            perm[i] = i * num_ranks + my_rank;
         }
         Perm { perm, convey }
     }
@@ -81,7 +84,7 @@ impl Perm {
         let flags_unset = flags
             .iter()
             .fold(0, |acc, x| if *x { acc } else { acc + 1 });
-        let total_flags_unset = self.convey.reduce_sum(flags_unset);
+        let total_flags_unset = flags_unset.reduce_sum();
         if total_flags_unset > 0 {
             println!("not a perm, {} unset", total_flags_unset);
         }
@@ -100,9 +103,10 @@ impl Perm {
         let count = target
             .iter()
             .fold(0_u64, |acc, x| if *x != -1_i64 { acc + 1 } else { acc });
-        let offset = convey.reduce_prior_sum(count) as usize;
+        let offset = count.reduce_prior_sum() as usize;
         let mut pos = 0;
-        let mut rank = offset % convey.num_ranks;
+        let num_ranks = Convey::num_ranks();
+        let mut rank = offset % num_ranks;
         {
             let mut session = Convey::begin(|item: i64, _from_rank| {
                 perm[pos] = item as usize;
@@ -113,7 +117,7 @@ impl Perm {
                 if *item >= 0 {
                     session.push(*item, rank);
                     rank += 1;
-                    if rank >= convey.num_ranks {
+                    if rank >= num_ranks {
                         rank = 0;
                     }
                 }
@@ -261,6 +265,7 @@ mod tests {
         let perm = Perm::identity(100);
         println!("identity perm: {:?}", perm.perm);
         assert_eq!(perm.perm.len(), mutex.convey.per_my_rank(100));
+        drop(mutex);
     }
     #[test]
     fn is_perm() {
@@ -268,7 +273,7 @@ mod tests {
         let perm = Perm::identity(100);
         println!("identity perm: {:?}", perm.perm);
         assert_eq!(perm.is_perm(), true);
-        assert_eq!(perm.convey.my_rank, mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn is_perm_fail() {
@@ -277,7 +282,7 @@ mod tests {
         perm.perm[0] += 1;
         println!("identity perm: {:?}", perm.perm);
         assert_eq!(perm.is_perm(), false);
-        assert_eq!(perm.convey.my_rank, mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn random_darts_resubmit_local() {
@@ -286,6 +291,7 @@ mod tests {
         //println!("random perm(resubmit): {:?}", perm.perm);
         assert_eq!(perm.is_perm(), true);
         assert_eq!(perm.perm.len(), mutex.convey.per_my_rank(2000));
+        drop(mutex);
     }
     #[test]
     fn random_darts_return_rejects() {
@@ -294,5 +300,6 @@ mod tests {
         println!("random perm(rejects): {:?}", perm.perm);
         assert_eq!(perm.is_perm(), true);
         assert_eq!(perm.perm.len(), mutex.convey.per_my_rank(100));
+        drop(mutex);
     }
 }

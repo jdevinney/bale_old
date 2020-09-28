@@ -198,8 +198,8 @@ impl SparseMat {
 
     /// convenience function to return my rank
     pub fn my_rank(&self) -> usize {
-        if let Some(convey) = &self.convey {
-            convey.my_rank
+        if self.convey.is_some() {
+            Convey::my_rank()
         } else {
             0
         }
@@ -207,8 +207,8 @@ impl SparseMat {
 
     /// Convenience function returning num_ranks
     pub fn num_ranks(&self) -> usize {
-        if let Some(convey) = &self.convey {
-            convey.num_ranks
+        if self.convey.is_some() {
+            Convey::num_ranks()
         } else {
             1
         }
@@ -483,8 +483,7 @@ impl SparseMat {
     /// * filename the filename to written to
     pub fn write_mm_file(&self, filename: &str) -> Result<(), Error> {
         // use a new conveyor, not the one in the SparseMat, to avoid borrow issues
-        let convey = Convey::new().expect("convey failed");
-        let my_rank = convey.my_rank;
+        let my_rank = Convey::my_rank();
         let file = if my_rank > 0 {
             Rc::new(RefCell::new(None))
         } else {
@@ -900,7 +899,7 @@ mod tests {
         let mat = SparseMat::erdos_renyi_tri(100, 0.05, false, false, 0);
         assert_eq!(mat.is_lower_triangular(false), false);
         assert_eq!(mat.is_upper_triangular(false), true);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn rand_mat_tri_lower() {
@@ -908,7 +907,7 @@ mod tests {
         let mat = SparseMat::erdos_renyi_tri(100, 0.05, false, true, 0);
         assert_eq!(mat.is_lower_triangular(false), true);
         assert_eq!(mat.is_upper_triangular(false), false);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn rand_mat_tri_upper_unit() {
@@ -916,7 +915,7 @@ mod tests {
         let mat = SparseMat::erdos_renyi_tri(100, 0.05, true, false, 0);
         assert_eq!(mat.is_lower_triangular(true), false);
         assert_eq!(mat.is_upper_triangular(true), true);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn rand_mat_tri_lower_unit() {
@@ -924,7 +923,7 @@ mod tests {
         let mat = SparseMat::erdos_renyi_tri(100, 0.05, true, true, 0);
         assert_eq!(mat.is_lower_triangular(true), true);
         assert_eq!(mat.is_upper_triangular(true), false);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn rand_mat_perm1() {
@@ -937,7 +936,7 @@ mod tests {
         assert_eq!(mat.is_upper_triangular(true), true);
         //assert_eq!(permuted.is_lower_triangular(true), false);
         //assert_eq!(permuted.is_upper_triangular(true), false);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     /*
         #[test]
@@ -963,7 +962,7 @@ mod tests {
         println!("ttmat:{:?}", ttmat);
         assert_eq!(mat.compare(&tmat), false);
         assert_eq!(mat.compare(&ttmat), true);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     /*
         #[test]
@@ -980,8 +979,7 @@ mod tests {
     fn write_read_mm1() {
         let mutex = TestingMutex::new();
         assert!(SparseMat::read_mm_file("not_there.mm").is_err());
-        let mat = SparseMat::new(10, 10, 10);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn write_read_mm2() {
@@ -993,7 +991,7 @@ mod tests {
         let mat_b = SparseMat::read_mm_file("test_write_read_mm2.mm").expect("failed read");
         assert!(mat_b.value == None);
         assert_eq!(mat_a.compare(&mat_b), true);
-        assert_eq!(mat_a.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn write_read_mm3() {
@@ -1006,6 +1004,6 @@ mod tests {
         let mat_b = SparseMat::read_mm_file("test_write_read_mm3.mm").expect("failed read");
         assert!(mat_b.value != None);
         assert_eq!(mat_a.compare(&mat_b), true);
-        assert_eq!(mat_a.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
 }

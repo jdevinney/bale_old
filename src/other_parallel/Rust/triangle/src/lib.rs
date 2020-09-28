@@ -30,8 +30,7 @@ pub fn generate_kronecker_graph(b_spec: &[u16], c_spec: &[u16], mode: u16) -> Sp
     let bmat = SparseMat::gen_local_mat_from_stars(b_spec, mode);
     let cmat = SparseMat::gen_local_mat_from_stars(c_spec, mode);
 
-    let convey = Convey::new().expect("fixme");
-    if convey.my_rank == 0 {
+    if Convey::my_rank() == 0 {
         println!(
             "Generating Mode {} Kronecker Product graph (A = B X C) with parameters: {:?} X {:?}",
             mode, b_spec, c_spec
@@ -241,11 +240,13 @@ impl Triangle for SparseMat {
     fn kron_prod_dist(&self, other: &SparseMat, lower: bool) -> SparseMat {
         let numrows = self.numrows_this_rank() * other.numrows_this_rank();
         let convey = Convey::new().expect("fixme");
+        let my_rank = Convey::my_rank();
+        let num_ranks = Convey::num_ranks();
 
         let mut nnz_this_rank = 0;
 
         for l_row in 0..convey.per_my_rank(numrows) {
-            let g_row = (l_row * convey.num_ranks) + convey.my_rank;
+            let g_row = (l_row * num_ranks) + my_rank;
             let row_b = g_row / other.numrows_this_rank();
             let row_c = g_row % other.numrows_this_rank();
             nnz_this_rank += (self.offset[row_b + 1] - self.offset[row_b])
@@ -270,7 +271,7 @@ impl Triangle for SparseMat {
         ret.offset[0] = 0;
 
         for l_row in 0..convey.per_my_rank(numrows) {
-            let g_row = (l_row * convey.num_ranks) + convey.my_rank;
+            let g_row = (l_row * num_ranks) + my_rank;
             let row_b = g_row / other.numrows_this_rank();
             let row_c = g_row % other.numrows_this_rank();
             for j in self.offset[row_b]..self.offset[row_b + 1] {

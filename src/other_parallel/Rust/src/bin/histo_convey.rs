@@ -72,24 +72,19 @@ fn main() {
 
     let convey = Convey::new().expect("shmem initializtion failed");
 
-    if ranks_per_node > convey.num_ranks {
-        ranks_per_node = convey.num_ranks;
+    let num_ranks = Convey::num_ranks();
+    if ranks_per_node > num_ranks {
+        ranks_per_node = num_ranks;
     }
 
-    do_histo_convey(&convey, buckets, updates, ranks_per_node, verbose);
+    do_histo_convey(buckets, updates, ranks_per_node, verbose);
     do_histo_convey_simple(&convey, buckets, updates, ranks_per_node, verbose);
 }
 
 /// the main work function using flexible conveyors
-fn do_histo_convey(
-    convey: &Convey,
-    buckets: usize,
-    updates: u64,
-    ranks_per_node: usize,
-    verbose: u64,
-) {
-    let me = convey.my_rank;
-    let num = convey.num_ranks;
+fn do_histo_convey(buckets: usize, updates: u64, ranks_per_node: usize, verbose: u64) {
+    let me = Convey::my_rank();
+    let num = Convey::num_ranks();
     if verbose > 0 {
         println!("Hello, world from rank {} of {}!", me, num);
     }
@@ -127,7 +122,7 @@ fn do_histo_convey(
         session.finish();
     }
     let d = now.elapsed();
-    if verbose > 0 || convey.my_rank == 0 {
+    if verbose > 0 || me == 0 {
         println!(
             "pe{}, {} updates, {} msec, {} mb/node-sec first 5 buckets {:?}",
             me,
@@ -147,8 +142,8 @@ fn do_histo_convey_simple(
     ranks_per_node: usize,
     verbose: u64,
 ) {
-    let me = convey.my_rank;
-    let num = convey.num_ranks;
+    let me = Convey::my_rank();
+    let num = Convey::num_ranks();
     if verbose > 0 {
         println!("Hello, world from rank {} of {}!", me, num);
     }
@@ -170,7 +165,7 @@ fn do_histo_convey_simple(
     );
 
     let d = now.elapsed();
-    if verbose > 0 || convey.my_rank == 0 {
+    if verbose > 0 || me == 0 {
         println!(
             "pe{}, {} updates, {} msec, {} mb/node-sec first 5 buckets {:?}",
             me,
