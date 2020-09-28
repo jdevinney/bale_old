@@ -16,7 +16,7 @@
 /// LICENSE file in the top level dirctory of the distribution.
 ///
 use crate::perm::Perm;
-use convey_hpc::collect::{IVal, PType, ValueCollect};
+use convey_hpc::collect::CollectValues;
 use convey_hpc::Convey;
 use rand::Rng;
 use regex::Regex;
@@ -98,7 +98,7 @@ impl SparseMat {
     /// current rank
     pub fn new(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         let convey = Convey::new().expect("fixme");
-        let total_nnz = convey.reduce_sum(nnz_this_rank);
+        let total_nnz = nnz_this_rank.reduce_sum();
         SparseMat {
             numrows: numrows,
             numrows_this_rank: convey.per_my_rank(numrows),
@@ -115,7 +115,7 @@ impl SparseMat {
     /// new_with_values creates a distributed sparse matrix intialized with zero values
     pub fn new_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         let convey = Convey::new().expect("fixme");
-        let total_nnz = convey.reduce_sum(nnz_this_rank);
+        let total_nnz = nnz_this_rank.reduce_sum();
         SparseMat {
             numrows: numrows,
             numrows_this_rank: convey.per_my_rank(numrows),
@@ -438,7 +438,7 @@ impl SparseMat {
             }
         }
         matrix.nnz_this_rank = elts.len();
-        matrix.nnz = matrix.reduce_sum(matrix.nnz_this_rank);
+        matrix.nnz = matrix.nnz_this_rank.reduce_sum();
         if matrix.nnz != nnz {
             panic!(format!(
                 "incorrect number of nonzeros {} != {}",
@@ -549,9 +549,9 @@ impl SparseMat {
                 diag_missing_cnt += 1;
             }
         }
-        let total_lower = self.reduce_sum(lower_cnt);
+        let total_lower = lower_cnt.reduce_sum();
         let total_diag_missing = if unit_diagonal {
-            self.reduce_sum(diag_missing_cnt)
+            diag_missing_cnt.reduce_sum()
         } else {
             0
         };
@@ -576,9 +576,9 @@ impl SparseMat {
                 diag_missing_cnt += 1;
             }
         }
-        let total_lower = self.reduce_sum(lower_cnt);
+        let total_lower = lower_cnt.reduce_sum();
         let total_diag_missing = if unit_diagonal {
-            self.reduce_sum(diag_missing_cnt)
+            diag_missing_cnt.reduce_sum()
         } else {
             0
         };
@@ -598,8 +598,8 @@ impl SparseMat {
         assert!(cperminv.is_perm());
         let mut nnz = 0_usize;
         Convey::simple(
-            (0..rperminv.perm.len()).map(|idx| {
-                let (offset, rank) = self.offset_rank(rperminv.perm[idx]);
+            (0..rperminv.len()).map(|idx| {
+                let (offset, rank) = self.offset_rank(rperminv.entry(idx));
                 let cnt = self.offset[idx + 1] - self.offset[idx];
                 ((offset, cnt), rank)
             }),
@@ -609,7 +609,7 @@ impl SparseMat {
             },
         );
 
-        assert_eq!(self.nnz, self.reduce_sum(nnz));
+        assert_eq!(self.nnz, nnz.reduce_sum());
         let mut permuted = SparseMat::new(self.numrows, self.numcols, nnz);
         permuted.offset[0] = 0;
 
@@ -794,7 +794,7 @@ impl SparseMat {
     pub fn truncate_nonzeros(&mut self, last: usize) {
         self.nonzero.truncate(last);
         self.nnz_this_rank = last;
-        self.nnz = self.reduce_sum(last);
+        self.nnz = last.reduce_sum();
     }
 
     /// Generate an erdos_renyi random sparse matrix
@@ -876,50 +876,10 @@ impl SparseMat {
         }
         tri.offset[row / num_ranks] = tri.nonzero.len();
         tri.nnz_this_rank = tri.nonzero.len();
-        tri.nnz = tri.reduce_sum(tri.nnz_this_rank);
+        tri.nnz = tri.nnz_this_rank.reduce_sum();
         tri
     }
 }
-
-/// implement value colectives accessed through the Sparse matrix
-macro_rules! decl {
-    ($ty: ident) => {
-        impl ValueCollect<$ty> for SparseMat {
-            type T = $ty;
-            fn reduce(
-                &self,
-                value: $ty,
-                combine_fn: impl Fn($ty, $ty) -> Self::T,
-                style: PType,
-                init: IVal,
-            ) -> Self::T {
-                if let Some(convey) = &self.convey {
-                    convey.reduce(value, combine_fn, style, init)
-                } else {
-                    value
-                }
-            }
-        }
-    };
-}
-
-// For all standard types
-decl!(u128);
-decl!(u64);
-decl!(u32);
-decl!(u16);
-decl!(u8);
-decl!(usize);
-
-decl!(i128);
-decl!(i64);
-decl!(i32);
-decl!(i16);
-decl!(i8);
-decl!(isize);
-
-decl!(f32);
-decl!(f64);
 
 /// Bring in the permutation library
 pub mod perm;
