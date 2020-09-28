@@ -16,7 +16,7 @@
 /// LICENSE file in the top level dirctory of the distribution.
 ///
 use chrono::{DateTime, Local};
-use convey_hpc::collect::ValueCollect;
+use convey_hpc::collect::CollectValues;
 use convey_hpc::Convey;
 use itertools::join;
 use regex::Regex;
@@ -81,7 +81,7 @@ impl SsspInfo {
         let convey = Convey::new().expect("conveyor initialization failed");
         let my_rank = convey.my_rank;
         let num_ranks = convey.num_ranks;
-        let num_vtxs = convey.reduce_sum(self.distance.len());
+        let num_vtxs = self.distance.len().reduce_sum();
         let mut all_distances: Vec<f64> = vec![0.0; if my_rank == 0 { num_vtxs } else { 0 }];
         #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
         struct Item {
@@ -170,7 +170,7 @@ impl<'a> BucketSearcher<'a> {
         } else {
             panic!("Graph must have edge weights (values)");
         }
-        let max_edge_len = graph.reduce_max(my_max_edge_len);
+        let max_edge_len = my_max_edge_len.reduce_max();
         // upper bound on number of buckets we will ever need at the same time
         let num_buckets = (max_edge_len / delta).ceil() as usize + 1;
         // tentative distances all start out infinite, including source
@@ -275,7 +275,7 @@ impl<'a> BucketSearcher<'a> {
 
     /// total size of a bucket over all ranks
     fn global_bucket_size(&self, bucket: usize) -> usize {
-        let ret = self.graph.reduce_sum(self.bucket_size[bucket]);
+        let ret = self.bucket_size[bucket].reduce_sum();
         ret
     }
 
@@ -287,7 +287,7 @@ impl<'a> BucketSearcher<'a> {
         {
             my_steps += 1;
         }
-        let steps = self.graph.reduce_min(my_steps);
+        let steps = my_steps.reduce_min();
         if steps < self.num_buckets {
             Some((start_bucket + steps) % self.num_buckets)
         } else {
@@ -478,7 +478,7 @@ impl DeltaStepping for SparseMat {
                 self.rowcounts().fold((self.numcols(), 0, 0), |acc, x| {
                     (acc.0.min(x), acc.1.max(x), acc.2 + x)
                 });
-            let maxdeg = self.reduce_max(my_maxdeg);
+            let maxdeg = my_maxdeg.reduce_max();
             delta = 1.0 / (maxdeg as f64);
         }
         if !quiet {
@@ -587,8 +587,8 @@ impl DeltaStepping for SparseMat {
                 l_csum += a[v].powi(2);
             }
         }
-        let diff = self.reduce_sum(l_diff);
-        let csum = self.reduce_sum(l_csum);
+        let diff = l_diff.reduce_sum();
+        let csum = l_csum.reduce_sum();
 
         if diff == 0.0 {
             0.0
@@ -621,9 +621,9 @@ impl DeltaStepping for SparseMat {
                 l_unreachable += 1;
             }
         }
-        let unreachable = self.reduce_sum(l_unreachable);
-        let max_dist: f64 = self.reduce_max(l_max_dist);
-        let sum_dist = self.reduce_sum(l_sum_dist);
+        let unreachable = l_unreachable.reduce_sum();
+        let max_dist: f64 = l_max_dist.reduce_max();
+        let sum_dist = l_sum_dist.reduce_sum();
         if !quiet {
             println!(
                 "unreachable vertices: {}; max finite distance: {}; avg finite distance: {}",

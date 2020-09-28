@@ -15,7 +15,7 @@
 /// This file is part of Bale.  For licence information see the
 /// LICENSE file in the top level dirctory of the distribution.
 ///
-use convey_hpc::collect::ValueCollect;
+use convey_hpc::collect::CollectValues;
 use convey_hpc::{Convey, RcVec};
 use serde::{Deserialize, Serialize};
 use spmat::perm::Perm;
@@ -251,7 +251,7 @@ impl TopoSort for SparseMat {
                         nr + nc
                     );
                     if wall_seconds() - t1 > 10.0 {
-                        session.convey.debug(true);
+                        session.debug(true);
                     }
                 }
             }
@@ -259,7 +259,7 @@ impl TopoSort for SparseMat {
 
         //println!("tsq1");
         num_levels += 1;
-        num_levels = self.reduce_max(num_levels);
+        num_levels = num_levels.reduce_max();
 
         let mut level_sizes: Vec<usize> = vec![0; num_levels];
         let mut level_start: Vec<usize> = vec![0; num_levels];
@@ -271,8 +271,8 @@ impl TopoSort for SparseMat {
         let mut total = 0;
         for i in 0..num_levels {
             let size = level_sizes[i];
-            level_start[i] = total + self.reduce_prior_sum(size);
-            level_sizes[i] = self.reduce_sum(size);
+            level_start[i] = total + size.reduce_prior_sum();
+            level_sizes[i] = size.reduce_sum();
             //println!("start[{}] {}, sizes {}", i, level_start[i], level_sizes[i]);
             total += level_sizes[i];
         }
@@ -422,7 +422,7 @@ impl TopoSort for SparseMat {
         }
 
         num_levels += 1;
-        num_levels = self.reduce_max(num_levels);
+        num_levels = num_levels.reduce_max();
 
         let mut level_sizes: Vec<usize> = vec![0; num_levels];
         let mut level_start: Vec<usize> = vec![0; num_levels];
@@ -434,8 +434,8 @@ impl TopoSort for SparseMat {
         let mut total = 0;
         for i in 0..num_levels {
             let size = level_sizes[i];
-            level_start[i] = total + self.reduce_prior_sum(size);
-            level_sizes[i] = self.reduce_sum(size);
+            level_start[i] = total + size.reduce_prior_sum();
+            level_sizes[i] = size.reduce_sum();
             //println!("start[{}] {}, sizes {}", i, level_start[i], level_sizes[i]);
             total += level_sizes[i];
         }

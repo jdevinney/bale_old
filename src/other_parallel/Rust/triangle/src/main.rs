@@ -9,7 +9,7 @@
 /// LICENSE file in the top level dirctory of the distribution.
 ///
 use clap::{App, Arg};
-use convey_hpc::collect::ValueCollect;
+use convey_hpc::collect::CollectValues;
 use convey_hpc::Convey;
 use triangle::Triangle;
 
@@ -185,8 +185,8 @@ fn main() {
             }
             triret = mat.triangle_pull(upper);
         }
-        let tot_shref = mat.reduce_sum(triret.sh_refs);
-        let tot_tri_cnt = mat.reduce_sum(triret.tri_cnt);
+        let tot_shref = triret.sh_refs.reduce_sum();
+        let tot_tri_cnt = triret.tri_cnt.reduce_sum();
         if !quiet {
             println!(
                 " {:.4} seconds, {} Shrefs, {} Triangles",
