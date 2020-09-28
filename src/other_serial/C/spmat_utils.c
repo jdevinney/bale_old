@@ -1628,18 +1628,37 @@ void set_d_array(d_array_t * A, double v)
   }
 }
 
-//TODO copy_d_array produces a d_array , replace does this
-/*! \brief sets all the entries of d_array_t to a value
- * \param A the array
- * \param v the value
+/*! \brief produces a copy of a source array
+ * \param src the sourcearray
  * \ingroup spmatgrp
  */
-void copy_d_array(d_array_t * dest, d_array_t * src) 
+d_array_t *copy_d_array(d_array_t * src) 
 {
   int64_t i;
+  d_array_t * ret = init_d_array(src->num);
  
-  for(i=0; i<dest->num; i++)
+  for(i=0; i<src->num; i++)
+    ret->entry[i] = src->entry[i];
+  return(ret);
+}
+
+/*! \brief replaces the destination array by overwriting the source array
+ * \param dest the destination array
+ * \param src the source array
+ * \ingroup spmatgrp
+ * Note: The destination must be allocated and of the right size.
+ */
+int64_t replace_d_array(d_array_t *dest, d_array_t *src) 
+{
+  int64_t i;
+  if(dest->num != src->num){
+    fprintf(stderr,"ERROR: replace_d_array: arrays lengths don't match\n");
+    return(0);
+  }
+  for(i=0; i<src->num; i++) {
     dest->entry[i] = src->entry[i];
+  }
+  return(1);
 }
 
 

@@ -54,7 +54,8 @@ typedef struct args_t{
   std_graph_args_t gstd;
 }args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
   switch(key)
     {
@@ -90,7 +91,7 @@ static struct argp_child children_parsers[] =
 
 int main(int argc, char * argv[]) 
 {
-  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING_PTR=4, DELTA_STEPPING_ARR=8, BELLMAN_SIMPLE=16, BELLMAN=32, ALL_Models=64};
+  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING=4, BELLMAN_SIMPLE=8, BELLMAN=16, ALL_Models=32};
   args_t args;  
   args.std.models_mask = ALL_Models - 1;
   struct argp argp = {options, parse_opt, 0, "SSSP for a weighted graph.", children_parsers};

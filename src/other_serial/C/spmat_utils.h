@@ -186,7 +186,9 @@ d_array_t * read_d_array(char *name);
 int64_t     write_d_array(d_array_t *A, char * name);
 void        set_d_array(d_array_t * A, double v);
 void        clear_d_array(d_array_t *A);
-void        copy_d_array(d_array_t *dest, d_array_t *src);
+d_array_t  *copy_d_array(d_array_t *src);
+int64_t     replace_d_array(d_array_t *dest, d_array_t *src);
+
 
 double wall_seconds();
 
