@@ -97,7 +97,8 @@ if __name__ == '__main__':
       ret = subprocess.run(cmd, shell=True)
       if ret.returncode:
         sys.stderr.write("Configure of {0} failed.\n".format(pkg))
-        exit(1)
+        pkg_status[pkg] = "failed configure"
+        break
 
       # make clean
       cmd = 'make clean'
@@ -120,7 +121,8 @@ if __name__ == '__main__':
       ret = subprocess.run(cmd, shell=True)    
       if ret.returncode:
         sys.stderr.write("build of {0} failed.\n".format(pkg))
-        exit(1)
+        pkg_status[pkg] = "failed make"
+        break
 
       new_time = os.path.getmtime("lib{0}.a".format(pkg))
       if orig_time != new_time:
@@ -142,7 +144,10 @@ if __name__ == '__main__':
       ret = subprocess.run(cmd, shell=True)
       if ret.returncode:
         sys.stderr.write("build of {0} failed.\n".format(pkg))
-      pkg_status[pkg] += "built"
+        pkg_status[pkg] = "failed make install"
+        break
+      else:
+        pkg_status[pkg] += "built"
         
     else:
       pkg_status[pkg] += "no need to build"
