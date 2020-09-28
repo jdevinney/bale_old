@@ -938,7 +938,7 @@ char *loopstr[] = {"LOOPS", "NOLOOPS"};
    // fill in the random values
    if(values){
      for(i = 0; i < nnz; i++){
-       A->value[i] = (double)rand()/RAND_MAX;
+       A->value[i] = rand_double();
      }
    }
    return(A);
@@ -1052,7 +1052,7 @@ sparsemat_t * kronecker_mat_product(sparsemat_t * A, sparsemat_t * B)
  *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
  * \return the adjacency matrix for graph
 */
-sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num)
+sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num, int weighted)
 {
   int64_t i, k;
   int64_t G_n, G_nnz;
@@ -1084,7 +1084,7 @@ sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num)
   }
 
   // copy the lower triangle of the matrix (excluding the diagonal) to the returned matrix
-  sparsemat_t * G = init_matrix(G_n, G_n, G_nnz, 0);
+  sparsemat_t * G = init_matrix(G_n, G_n, G_nnz, weighted);
   assert( (G != NULL) && "Memory Error");
   G->offset[0] = 0;
   int64_t pos = 0;
@@ -1093,6 +1093,12 @@ sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num)
       G->nonzero[pos++] = R->nonzero[k];
     }
     G->offset[i+1] = pos;
+  }
+   // fill in the random values
+  if(G->value){
+    for(i = 0; i < G->nnz; i++){
+      G->value[i] = rand_double();
+    }
   }
   for (i = 1; i < num; i++) 
     free(mats[i]);

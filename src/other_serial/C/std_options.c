@@ -152,7 +152,7 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs)
   if (!gargs->readfile) {
     if (gargs->model == KRONECKER) {
       // generate a random kronecker graph from a string (mode:#x#x...#)
-      mat = generate_kronecker_graph_from_spec(gargs->kron_mode, gargs->kron_spec, gargs->kron_num);
+      mat = generate_kronecker_graph_from_spec(gargs->kron_mode, gargs->kron_spec, gargs->kron_num, gargs->weighted);
     } else {
       // Generate a random FLAT or GEOMETRIC graph
       //int64_t numrows = gargs->numrows;

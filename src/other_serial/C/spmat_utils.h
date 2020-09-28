@@ -134,7 +134,7 @@ sparsemat_t *    erdos_renyi_random_graph_naive(int64_t n, double p, edge_type e
 
 sparsemat_t *    geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
 
-sparsemat_t *    generate_kronecker_graph_from_spec(int mode, int * spec, int num);
+sparsemat_t *    generate_kronecker_graph_from_spec(int mode, int * spec, int num, int weighted);
 //sparsemat_t *    kronecker_product_graph(kron_args_t * K);
 sparsemat_t *    kronecker_product_of_stars(int64_t M, int64_t * m, int mode);
 sparsemat_t *    kronecker_product_graph_local(sparsemat_t * B, sparsemat_t * C);

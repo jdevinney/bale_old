@@ -102,16 +102,9 @@ int main(int argc, char * argv[])
   else if (ret) return(0);
 
   //override command line 
-  if (args.gstd.loops == 1) {
-    fprintf(stderr,"WARNING: toposort requires 1s on the diagonal.\n");
-    args.gstd.loops = 0;
-  }
-  if (args.gstd.directed == 0) {
-    fprintf(stderr,"WARNING: toposort starts with an upper triangalur matrix.\n");
+  if ((args.gstd.loops == LOOPS) || (args.gstd.directed == 0) || (args.gstd.weighted == 0)) {
+    args.gstd.loops = NOLOOPS;
     args.gstd.directed = 1;
-  }
-  if (args.gstd.weighted == 0) {
-    fprintf(stderr,"WARNING: toposort starts with an upper triangalur matrix.\n");
     args.gstd.weighted = 1;
   }
 
@@ -124,47 +117,6 @@ int main(int argc, char * argv[])
 
   if(args.std.dump_files) write_matrix_mm(mat, "sssp_inmat");
 
-#if 0
-    fprintf(stderr,"Running C versions of SSSP\n");
-    if(args.gstd.readfile == 1)
-      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
-    else{
-      if(args.gstd.model == FLAT)
-        fprintf(stderr,"flat model           (-F)\n");
-      else        
-        fprintf(stderr,"geometric model      (-G)\n");
-      fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
-      fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
-      fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
-      fprintf(stderr,"random seed          (-s)= %ld\n",  args.std.seed);
-    }
-    fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
-    fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
-    fprintf(stderr,"---------------------------------------\n");
-#endif
-
-#if 0
-  sparsemat_t *mat;
-  if(args.gstd.readfile) {
-    mat = read_matrix_mm(args.gstd.filename);
-    if(!mat){printf("ERROR: sssp: read graph from %s Failed\n", args.gstd.filename); exit(1);}
-  } else {
-    mat = random_graph(numrows, model, DIRECTED_WEIGHTED, NOLOOPS, edge_prob, args.std.seed);
-    if(!mat){ printf("ERROR: sssp: erdos_renyi_graph Failed\n"); exit(1); }
-  }
-
-  if(!quiet){
-    printf("Input matrix stats:\n");
-    spmat_stats(mat);
-    fprintf(stderr,"---------------------------------------\n");
-  }
-
-  if(args.std.dump_files){
-    dump_matrix(mat, 20, "mat.out");
-    write_matrix_mm(mat, "ssspout.mm");
-  }
-
-#endif
   uint32_t use_model;
  
   double laptime = 0.0;
