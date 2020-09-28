@@ -1,52 +1,23 @@
-/******************************************************************
-//
-//
-// Copyright(C) 2018, Institute for Defense Analyses
-// 4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-// This material may be reproduced by or for the US Government
-// pursuant to the copyright license under the clauses at DFARS
-// 252.227-7013 and 252.227-7014.
-// 
-//
-// All rights reserved.
-// 
-// Redistribution and use in source and binary forms, with or without
-// modification, are permitted provided that the following conditions are met:
-//  * Redistributions of source code must retain the above copyright
-//   notice, this list of conditions and the following disclaimer.
-//  * Redistributions in binary form must reproduce the above copyright
-//   notice, this list of conditions and the following disclaimer in the
-//   documentation and/or other materials provided with the distribution.
-//  * Neither the name of the copyright holder nor the
-//   names of its contributors may be used to endorse or promote products
-//   derived from this software without specific prior written permission.
-// 
-// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-// FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-// COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-// INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-// (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-// SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-// HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-// STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-// ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-// OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-*****************************************************************/ 
+/*******************************************************************/
+/* Copyright (c) 2020, Institute for Defense Analyses              */
+/* 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500 */
+/*                                                                 */
+/* All rights reserved.                                            */
+/*                                                                 */
+/* This file is part of Bale.   For licence information see the    */
+/* LICENSE file in the top level dirctory of the distribution.     */
+/*******************************************************************/
 
 /*! \file sssp.c
- * \brief Demo application that calls different 
- * Single Source Shortest Path alogrithms.
+ * \brief The application that calls different Single Source Shortest Path alogrithms.
  *
- * versions of
- * Dijsktra's Algorithm
- * the Delta-stepping algorithm for 
+ * It calls several versions of Dijsktra's algorithm, the Bellman Ford algorithm, and
+ * the Delta-stepping algorithm.
  */
 
 #include "spmat_utils.h"
 #include "std_options.h"
+#include "default_app_sizes.h"
 
 double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);
 double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);
@@ -56,8 +27,6 @@ double sssp_bellmanford(d_array_t * tent, sparsemat_t *mat, int64_t r0);
 double sssp_delta_stepping_ptr(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);
 double sssp_delta_stepping_arr(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);
 double sssp_answer_diff(d_array_t *A, d_array_t *B);
-
-
 
 /*!
  * \brief Compare two arrays
@@ -78,6 +47,7 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B)
   return(sqrt(diff));
 }
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   std_args_t std;
   std_graph_args_t gstd;
@@ -107,11 +77,41 @@ static struct argp_child children_parsers[] =
 
 int main(int argc, char * argv[]) 
 {
- 
-  /* process command line */
+  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING_PTR=4, DELTA_STEPPING_ARR=8, BELLMAN_SIMPLE=16, BELLMAN=32, ALL_Models=64};
   args_t args;  
   struct argp argp = {options, parse_opt, 0, "SSSP for a weighted graph.", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
+  args.gstd.numrows = SSSP_NUM_ROWS;
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if (ret < 0) return(ret);
+  else if (ret) return(0);
+
+  //override command line 
+  //(note:these will lead to matrices with not quite the right number of nonzeros 
+  // if the user also used the -z flag.)
+  if (args.gstd.loops == 1) {
+    fprintf(stderr,"WARNING: toposort requires 1s on the diagonal.\n");
+    args.gstd.loops = 0;
+  }
+  if (args.gstd.directed == 0) {
+    fprintf(stderr,"WARNING: toposort starts with an upper triangalur matrix.\n");
+    args.gstd.directed = 1;
+  }
+  if (args.gstd.weighted == 0) {
+    fprintf(stderr,"WARNING: toposort starts with an upper triangalur matrix.\n");
+    args.gstd.weighted = 1;
+  }
+
+  write_std_graph_options(&args.std, &args.gstd);
+  write_std_options(&args.std);
+  
+  // read in a matrix or generate a random graph
+  sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);
+  if(!mat){fprintf(stderr, "ERROR: SSSP: mat is NULL!\n");return(-1);}
+
+  if(args.std.dump_files) write_matrix_mm(L, "sssp_inmat");
+
+#if 0
   
   double nz_per_row = args.gstd.nz_per_row;
   double edge_prob = args.gstd.edge_prob;
@@ -120,7 +120,6 @@ int main(int argc, char * argv[])
   self_loops loops = LOOPS;
   int quiet = args.std.quiet;
 
-  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING_PTR=4, DELTA_STEPPING_ARR=8, BELLMAN_SIMPLE=16, BELLMAN=32, ALL_Models=64};
   graph_model model = args.gstd.model;
   int64_t models_mask = args.std.models_mask;
   models_mask=ALL_Models - 1;
@@ -128,8 +127,9 @@ int main(int argc, char * argv[])
   if(args.gstd.readfile == 0){
     resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
   }
+#endif
   
-  if(!quiet ) {
+#if 1                 // TODO
     fprintf(stderr,"Running C versions of SSSP\n");
     if(args.gstd.readfile == 1)
       fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
@@ -146,9 +146,9 @@ int main(int argc, char * argv[])
     fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
     fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
     fprintf(stderr,"---------------------------------------\n");
-  }
+#endif
 
-
+#if 0
   sparsemat_t *mat;
   if(args.gstd.readfile) {
     mat = read_matrix_mm(args.gstd.filename);
@@ -168,7 +168,7 @@ int main(int argc, char * argv[])
     dump_matrix(mat, 20, "mat.out");
     write_matrix_mm(mat, "ssspout.mm");
   }
-
+#endif
   double laptime = 0.0;
   uint32_t use_model;
  
@@ -177,7 +177,7 @@ int main(int argc, char * argv[])
   set_d_array(tent, INFINITY);
 
   for(use_model=1; use_model < ALL_Models; use_model *=2 ){
-    switch( use_model & models_mask ){
+    switch( use_model & args.std.models_mask ){
     case GENERIC_Model:
       if( !quiet ) printf("Generic          sssp: ");
       laptime = sssp_dijsktra_linear(tent, mat, 0);

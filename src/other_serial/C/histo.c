@@ -157,11 +157,11 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 }
 
 static struct argp_option options[] =
-  {
-    {"num_updates",'n', "NUM", 0, "Number of updates to the histogram table"},
-    {"table_size", 'T', "SIZE", 0, "Number of entries in the histogram table"},
-    {0}
-  };
+{
+  {"num_updates",'n', "NUM", 0, "Number of updates to the histogram table"},
+  {"table_size", 'T', "SIZE", 0, "Number of entries in the histogram table"},
+  {0}
+};
 
 static struct argp_child children_parsers[] =
   {

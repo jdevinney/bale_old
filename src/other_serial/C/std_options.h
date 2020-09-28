@@ -7,6 +7,7 @@
 /* This file is part of Bale.   For licence information see the    */
 /* LICENSE file in the top level dirctory of the distribution.     */
 /*******************************************************************/
+
 #ifndef STD_OPTIONS_H
 #define STD_OPTIONS_H
 
