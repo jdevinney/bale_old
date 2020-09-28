@@ -71,7 +71,7 @@ static struct argp_child children_parsers[] =
 
 int main(int argc, char * argv[]) 
 {
-  args_t args = {0};                        // TODO wtf
+  args_t args = {{0}};
   enum FLAVOR {GENERIC=1, ALL_Models=2};
   args.std.models_mask = ALL_Models-1;
   args.gstd.numrows = PERMUTE_NUM_ROWS;

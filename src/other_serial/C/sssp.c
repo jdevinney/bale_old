@@ -92,7 +92,7 @@ static struct argp_child children_parsers[] =
 int main(int argc, char * argv[]) 
 {
   enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING=4, BELLMAN_SIMPLE=8, BELLMAN=16, ALL_Models=32};
-  args_t args;  
+  args_t args={0};  
   args.std.models_mask = ALL_Models - 1;
   struct argp argp = {options, parse_opt, 0, "SSSP for a weighted graph.", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
@@ -102,8 +102,6 @@ int main(int argc, char * argv[])
   else if (ret) return(0);
 
   //override command line 
-  //(note:these will lead to matrices with not quite the right number of nonzeros 
-  // if the user also used the -z flag.)
   if (args.gstd.loops == 1) {
     fprintf(stderr,"WARNING: toposort requires 1s on the diagonal.\n");
     args.gstd.loops = 0;

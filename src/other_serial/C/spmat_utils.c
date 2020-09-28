@@ -64,7 +64,8 @@ int64_t * rand_perm(int64_t N, int64_t seed)
 {
   int64_t r, i, L, s;
 
-  if( seed != 0 ) srand48( seed );
+  if( seed != 0 ) 
+    rand_seed( seed );
 
   int64_t * perm = malloc(N * sizeof(int64_t));
   if( perm == NULL ) return(NULL);
@@ -73,7 +74,7 @@ int64_t * rand_perm(int64_t N, int64_t seed)
   if( seed == 0 )
     return(perm);
   for(L=N-1; L>0; L--){
-    r = lrand48() % (L+1);  // must be allowed to swap the Lth slot with itself
+    r = rand_int64(L+1);
     s = perm[L];
     perm[L] = perm[r];
     perm[r] = s;
@@ -1433,8 +1434,8 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
   int64_t end = n;
   int64_t ndiag = n;
 
-  printf("making a random graph:\n");
-  printf("n = %ld, p=%f, edges = %d, loops = %d, seed %ld\n", n, p, edge_type, loops, seed);
+  if(0){printf("making a erdos_renyi random graph:\n");}
+  if(0){printf("n = %ld, p=%f, edges = %d, loops = %d, seed %ld\n", n, p, edge_type, loops, seed);}
   assert(n > 0);
 
   // first loop to count the number of nonzeros
