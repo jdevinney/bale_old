@@ -1,3 +1,12 @@
+/*******************************************************************/
+/* Copyright (c) 2020, Institute for Defense Analyses              */
+/* 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500 */
+/*                                                                 */
+/* All rights reserved.                                            */
+/*                                                                 */
+/* This file is part of Bale.   For licence information see the    */
+/* LICENSE file in the top level dirctory of the distribution.     */
+/*******************************************************************/
 #ifndef STD_OPTIONS_H
 #define STD_OPTIONS_H
 
@@ -35,8 +44,6 @@ typedef struct std_graph_args_t{
 } std_graph_args_t;
 
 extern struct argp std_graph_options_argp;
-
-/* defines to support the different models of global and buffered references */
 
 sparsemat_t *  get_input_graph(std_args_t * sargs, std_graph_args_t * gargs);       // TODO should this be in spmat_utils
 void           write_std_options(std_args_t * sargs);
