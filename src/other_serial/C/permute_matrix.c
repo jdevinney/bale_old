@@ -90,57 +90,13 @@ int main(int argc, char * argv[])
 
   if(args.std.dump_files) write_matrix_mm(mat, "permute_inmat");
 
-#if 0
-  double nz_per_row = args.gstd.nz_per_row;
-  double edge_prob = args.gstd.edge_prob;
-  int64_t numrows = args.gstd.numrows;
-  edge_type edge_type = DIRECTED;
-  self_loops loops = NOLOOPS;
-  
-  if(!args.gstd.readfile){
-    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
-  }
-
-  if(!args.std.quiet ) {
-    fprintf(stderr,"Running C version of permute matrix\n");
-    if(args.gstd.readfile == 1)
-      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
-    else{
-      if(args.gstd.model == FLAT)
-        fprintf(stderr,"flat model           (-F)\n");
-      else        
-        fprintf(stderr,"geometric model      (-G)\n");
-      fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
-      fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
-      fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
-      fprintf(stderr,"random seed          (-s)= %ld\n",  args.std.seed);
-    }
-    fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
-    fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
-  }
-  
-  sparsemat_t *mat;
-  if( args.gstd.readfile ) {
-    mat = read_matrix_mm(args.gstd.filename);
-    if(!mat){printf("ERROR: Read graph from %s Failed\n", args.gstd.filename); exit(1);}
-  } else {
-    //mat = erdos_renyi_graph(numrows, er_prob, ER_GRAPH_DIRECT, seed);
-    mat = random_graph(numrows, args.gstd.model, edge_type, loops, edge_prob, args.std.seed);
-    if(!mat){printf("ERROR: erdos_renyi_graph failed!\n"); exit(1);}
-  }
-  if(args.std.dump_files) dump_matrix(mat, 20, "mat.out");
-  
-
-  if(!args.std.quiet) spmat_stats(mat);
-  
-#endif
   int64_t *rperm = rand_perm(mat->numrows, args.std.seed + 1); assert(rperm != NULL);
   int64_t *cperm = rand_perm(mat->numrows, args.std.seed + 2); assert(cperm != NULL);
 
   uint32_t use_model;
   double laptime = 0.0;
-  for( use_model=1; use_model < ALL_Models; use_model *=2 ) {
-    switch( use_model & args.std.models_mask ) {
+  for (use_model=1; use_model < ALL_Models; use_model *=2) {
+    switch (use_model & args.std.models_mask) {
     case GENERIC:
       printf("generic permute matrix: ");     //TODO model_str
       laptime = permute_matrix_generic(mat, rperm, cperm);

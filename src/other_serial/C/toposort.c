@@ -322,12 +322,9 @@ int main(int argc, char * argv[])
   //override command line 
   //(note:these will lead to matrices with not quite the right number of nonzeros 
   // if the user also used the -z flag.)
-  if (args.gstd.loops == 0) {
-    fprintf(stderr,"WARNING: toposort requires 1s on the diagonal.\n");
+  if ( (args.gstd.loops == 0) || (args.gstd.directed == 1) ) {
+    fprintf(stderr,"WARNING: toposort starts with a undirected graph with loops.\n");
     args.gstd.loops = 1;
-  }
-  if (args.gstd.directed == 1) {
-    fprintf(stderr,"WARNING: toposort starts with an upper triangalur matrix.\n");
     args.gstd.directed = 0;
   }
 
@@ -337,53 +334,15 @@ int main(int argc, char * argv[])
   sparsemat_t * mat = generate_toposort_input(&args.std, &args.gstd);
   if(!mat){printf("ERROR: topo: generate_toposort_input failed\n"); exit(1);}
   
-
-  if(args.std.dump_files) write_matrix_mm(mat, "topo_inmat");
-
-#if 0
-
-  double nz_per_row = args.gstd.nz_per_row;
-  double edge_prob = args.gstd.edge_prob;
-  int64_t numrows = args.gstd.numrows;
-  edge_type edge_type = UNDIRECTED;
-  self_loops loops = LOOPS;
-  int quiet = args.std.quiet;
-  
-  if(1) {
-    fprintf(stderr,"Running C version of toposort\n");
-    if(args.gstd.readfile == 1)
-      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
-    else{
-      if(args.gstd.model == FLAT)
-        fprintf(stderr,"flat model           (-F)\n");
-      else        
-        fprintf(stderr,"geometric model      (-G)\n");
-      fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
-      fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
-      fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
-      fprintf(stderr,"random seed          (-s)= %ld\n",  args.std.seed);
-    }
-    fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
-    fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
-    fprintf(stderr,"---------------------------------------\n");
-  }
-  
-#endif  
-
-  printf("Input matrix stats:\n");
-  spmat_stats(mat);
-  fprintf(stderr,"---------------------------------------\n");
-  if(args.std.dump_files) dump_matrix(mat,20, "mat.out");
-
-  write_matrix_mm(mat, "topo_mat.mm");
-
   sparsemat_t * tmat = transpose_matrix(mat);
   if(!tmat){printf("ERROR: topo: transpose_matrix failed\n"); exit(1);}
 
-  if(args.std.dump_files) dump_matrix(tmat,20, "trans.out");
-  write_matrix_mm(tmat, "topo_tmat.mm");
-
-  printf("Running toposort on mat (and tmat) ...\n");
+  if (args.std.dump_files) {
+    write_matrix_mm(mat, "topo_inmat");
+    write_matrix_mm(tmat, "topo_tmat.mm");
+    dump_matrix(mat,20, "mat.out");
+    dump_matrix(tmat,20, "trans.out");
+  }
 
   double laptime = 0.0;
   enum FLAVOR {GENERIC=1, LOOP=2, ALL=4};
@@ -392,15 +351,14 @@ int main(int argc, char * argv[])
   int64_t *rperminv2 = calloc(mat->numrows, sizeof(int64_t));
   int64_t *cperminv2 = calloc(mat->numrows, sizeof(int64_t));
   int models_mask = (args.std.models_mask) ? args.std.models_mask : 3;
-  printf("++++++++++%d\n", models_mask);
   for( use_model=1; use_model < ALL; use_model *=2 ) {
     switch( use_model & models_mask ) {
     case GENERIC:
-      printf("   using generic toposort: ");
+      printf("   using generic toposort: ");                                 // TODO model_str thing
       laptime = toposort_matrix_queue(rperminv2, cperminv2, mat, tmat);
       break;
     case LOOP:
-      printf("   using loop    toposort: ");
+      printf("   using loop    toposort: ");                                 // TODO model_str thing
       laptime = toposort_matrix_loop(rperminv2, cperminv2, mat, tmat);
       break;
     }
