@@ -1,2 +1,4 @@
-test_mm/
+# no data files here
 *.out
+*.dump
+*.mm
