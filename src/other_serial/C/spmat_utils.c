@@ -59,6 +59,21 @@ double wall_seconds()
 
 }
 
+void rand_seed(int64_t seed)
+{
+  srand48(seed);
+}
+
+double rand_double()
+{
+  return(drand48());
+}
+
+int64_t rand_int64(int64_t N)
+{
+  assert(N < 281474976710656);
+  return((int64_t)(drand48()*N));
+}
 
 /*! \brief create an int64_t array which holds a uniform random permutation
  * \param N the length of the global array
@@ -534,40 +549,117 @@ sparsemat_t * make_symmetric_from_lower(sparsemat_t * L)
 }
 
 
-/*! \brief checks that the sparse matrix is (strictly, i.e. zero on diagonal) lower triangluar
+/*! \brief checks that the sparse matrix is triangular with or without a diagonal
  * \param A pointer to the sparse matrix
+ * \param upper is it upper=1 or lower upper=0
+ * \param ondiag whether or not to include diagonal: 0=no-diagonal, 1=all-diagonal, else don't care
  * \return 0 on success, non-0 on error.
+ * Only called by is_(upper|lower)_triangular
  */
-int64_t is_lower_triangular(sparsemat_t *A) 
+static int64_t is_triangular(sparsemat_t *A, int64_t upper, int64_t ondiag) 
 {
-  int64_t j, row;
+  int64_t row, k;
   int64_t err = 0;
+  int64_t diag_cnt = 0;
 
-  for(row=0; row < A->numrows; row++){
-    for(j=A->offset[row]; j < A->offset[row+1];j++){
-      if( A->nonzero[j] > row ) 
-        err++;
+  for (row=0; row < A->numrows; row++){
+    for (k=A->offset[row]; k < A->offset[row+1];k++) {
+      if (A->nonzero[k] == row) {
+        diag_cnt++;
+      }
+      err += ((upper==1) && (A->nonzero[k] < row)) ? 1 : 0;
+      err += ((upper==0) && (A->nonzero[k] > row)) ? 1 : 0;
     }
   }
-  return(err);
+  if(err > 0)
+    return(0);
+  if ((ondiag == 0) && (diag_cnt !=0))
+    return(0);
+  if ((ondiag == 1) && (diag_cnt != A->numrows))
+    return(0);
+  return(1);
+}
+
+/*! \brief checks that the sparse matrix is (strictly, i.e. zero on diagonal) lower triangluar
+ * \param A pointer to the sparse matrix
+ * \param ondiag whether or not to include diagonal: 0=no-diagonal, 1=all-diagonal, else don't care
+ * \return 0 on success, non-0 on error.
+ */
+int64_t is_lower_triangular(sparsemat_t *A, int64_t ondiag) 
+{
+  return(is_triangular(A, 0, ondiag));
 }
 
 /*! \brief checks that the sparse matrix is (strictly) upper triangluar
  * \param A pointer to the sparse matrix
+ * \param ondiag whether or not to include diagonal: 0=no-diagonal, 1=all-diagonal, else don't care
  * \return 0 on success, non-0 on error.
  */
-int64_t is_upper_triangular(sparsemat_t *A) 
+int64_t is_upper_triangular(sparsemat_t *A, int64_t ondiag) 
 {
-  int64_t j, row;
-  int64_t err = 0;
+  return(is_triangular(A, 1, ondiag));
+}
 
-  for(row=0; row < A->numrows; row++){
-    for(j=A->offset[row]; j < A->offset[row+1];j++){
-      if( A->nonzero[j] < row ) 
-        err++;
+/*! \brief Sets all entries above the kth diagonal to zero.
+ * \param A A pointer to a sparse matrix
+ * \param kth the kth diagonal (kth > 0 is above the main diagonal kth < 0 is below)
+ * \return The number of nonzeros that were removed.
+ * NB: this packs the nonzero and values into the front of the arrays;
+ * we don't reallocate.
+ * \ingroup spmatgrp
+ */
+int64_t tril(sparsemat_t * A, int64_t kth)
+{
+  int64_t i, k, col, pos, start;
+  int weighted = (A->value != NULL);
+  pos = 0; 
+  start = 0;
+  for (i = 0; i < A->numrows; i++) {
+    for (k = start; k < A->offset[i+1]; k++) {
+      col = A->nonzero[k];
+      if ((col - i) <= kth) {
+        A->nonzero[pos] = col;
+        if (weighted) A->value[pos] = A->value[k];
+        pos++;
+      }
     }
+    start = A->offset[i+1];
+    A->offset[i+1] = pos;
   }
-  return(err);
+  int64_t ret = A->nnz - pos;
+  A->nnz = pos;
+  return(ret);
+}
+
+/*! \brief Sets all entries below the kth diagonal to zero.
+ * \param A A pointer to a sparse matrix
+ * \param kth the kth diagonal will be zero (kth > 0 is above the main diagonal kth < 0 is below)
+ * \return The number of nonzeros that were removed.
+ * NB: this packs the nonzero and values into the front of the arrays;
+ * we don't reallocate.
+ * \ingroup spmatgrp
+ */
+int64_t triu(sparsemat_t * A, int64_t kth) 
+{
+  int64_t i, k, col, pos, start;
+  int weighted = (A->value != NULL);
+  pos = 0; 
+  start = 0;
+  for (i = 0; i < A->numrows; i++) {
+    for (k = start; k < A->offset[i+1]; k++) {
+      col = A->nonzero[k];
+      if ((col - i) >= kth) {
+        A->nonzero[pos] = col;
+        if(weighted) A->value[pos] = A->value[k];
+        pos++;
+      }
+    }
+    start = A->offset[i+1];
+    A->offset[i+1] = pos;
+  }
+  int64_t ret = A->nnz - pos;
+  A->nnz = pos;
+  return(ret);
 }
 
 /*! \brief comparison function for qsort in sort_nonzeros
@@ -784,9 +876,16 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
 sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                             double edge_density, int64_t seed)
 {
-
+   
+char *graphmodelstr[] = {"FLAT","GEOMETRIC","KRONECKER"};
+char *edgetypestr[] = {"DIRECTED", "UNDIRECTED", "DIRECTED_WEIGHTED", "UNDIRECTED_WEIGHTED"};
+char *loopstr[] = {"LOOPS", "NOLOOPS"};
+   if(DPRT){
+     printf("making a random graph:\n");
+     printf("n = %ld, model = %s, edges = %s, loops = %s, prob = %lf, seed %ld\n",
+            n, graphmodelstr[model], edgetypestr[edge_type], loopstr[loops], edge_density, seed);
+   }
    if(model == FLAT){
-     if(DPRT){printf("making an erdos-renyi graph\n");}
      return(erdos_renyi_random_graph(n, edge_density, edge_type, loops, seed));
    }else if(model == GEOMETRIC){
      if(DPRT){printf("making a geometric graph\n");}
@@ -873,59 +972,6 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, se
 }
 
 //****************** Kronecker Products of Star  Graphs *******************************/
-
-#if 0
-/*! \brief Parses a list describing the input for the Kronecker Product construction.
- * \param list is the ascii string describing which stars are to be used in the construction.
- *   must be close to the form "M: k0 k1 k2 ...k(M-1)"
- *   where M is the mode:
- *    - mode == 0: default, no self loops
- *    - mode == 1: add a self loop to center vertex of star (row zero)
- *    - mode == 2: add a self loop to an outer vertex (the last one)
- *   then a space separated list of sizes.
- * \return a pointer to the argument struct
-*/
-kron_args_t * kron_args_init(char * list)
-{
-  int64_t cnt, error=0;
-  int i, n;
-  int64_t numrows = 1;
-
-  kron_args_t * R = (kron_args_t *) calloc(1,sizeof(kron_args_t));
-
-  strncpy(R->str, list, 256);
-  do { 
-    cnt =  sscanf(list, "%"PRId32": %n", &(R->mode), &n);
-    if(cnt != 1){
-      error = 1;     // didn't find the mode or its NULL
-      break;
-    }
-    list += n;
-
-    for (i=0; i<64; i++){
-      cnt = sscanf(list, "%"PRId32" %n", &(R->star_size[i]), &n);
-      if (cnt != 1)  // not an error, just done
-        break;
-      list += n;
-      numrows *= (R->star_size[i] + 1); // a star is a K{1,m} graph
-    }
-    if(i < 1 || i > 63){
-      error = 2;     // didn't find stars or found too many
-      break;
-    }
-    R->num_stars = i;
-    R->numrows = numrows;
-  } while(0); // cause goto's are bad
-
-  if( error ){
-    printf("ERROR: trouble parsing the kron argument list! (error = %"PRId64")\n", error); 
-    return(NULL);
-  }
-  return(R);
-}
-
-#endif
-
 /*! \brief Generate the adjacency matrix for the star K_{1,m} (with or without loop edges)
  * \param m  the number of non-hub vertices
  * \param mode
@@ -1102,62 +1148,6 @@ int64_t tri_count_kron_graph(int mode, int * spec, int num)
    ns = (double)num;
    return( round( (1.0/6.0)*pow(4,ns) - pow(2.0,(ns - 1.0)) + 1.0/3.0) );
 }
-
-#if 0
-/*! \brief Generate the kroncker product of a collection of star graphs.
- * \param K is a struct that holds all the parameters for the construction
- * \param mode 
- *  - mode == 0: default, no self loops
- *  - mode == 1: add a self loop to center vertex of each star 
- *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
- * \return the adjacency matrix for graph
-*/
-sparsemat_t * kronecker_product_graph(kron_args_t * K){
-  int64_t i,j;
-  int64_t G_n, G_nnz;
-  sparsemat_t * star;
-  int64_t M = K->num_stars;
-
-
-  if(M < 2){
-    printf("ERROR: kronecker_product_graph requires  number of stars to be >= 2!\n");
-    return(NULL);
-  }
-
-  sparsemat_t ** mats = calloc(2*M, sizeof(sparsemat_t *));
-
-  mats[0] = gen_star_graph(K->star_size[0], K->mode);
-
-  for(i = 1; i < M; i++){
-    star = gen_star_graph(K->star_size[i], K->mode);
-    mats[i] = kronecker_mat_product(mats[i-1] , star);
-    clear_matrix( star );
-  }
-  sparsemat_t * R = mats[M-1];  // what we want but is full symmetric and may have loops
-  
-  // count the number of nonzeros in the lower triangle part of the matrix
-  G_n = R->numrows;
-  G_nnz = 0;
-  for(i=0; i<R->numrows; i++){
-    for(j=R->offset[i]; (j<R->offset[i+1]) && (R->nonzero[j] < i ); j++){
-      G_nnz++;
-    }
-  }
-
-  // copy the lower triangle of the matrix (excluding the diagonal) to the returned matrix
-  sparsemat_t * G = init_matrix(G_n, G_n, G_nnz, 0);
-  G->offset[0] = 0;
-  int64_t pos = 0;
-  for(i=0; i<R->numrows; i++){
-    for(j=R->offset[i]; (j<R->offset[i+1]) && (R->nonzero[j] < i ); j++){
-      G->nonzero[pos++] = R->nonzero[j];
-    }
-    G->offset[i+1] = pos;
-  }
-  // free mats
-  return(G);
-}
-#endif
 
 // IF we are given nz_per_row (z), we calculate edge_prob (e)
 // or if we are given edge_prob, we calculate nz_per_row
@@ -1449,6 +1439,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
  }
 
  
+//****************************** Erdos Renyi Graphs *******************************************/
 /*! \brief Generates the lower half of the adjacency matrix for an Erdos-Renyi random graph. 
  * This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
  * by Batageli and Brandes appearing in Physical Review 2005. Instead of flipping a coin for each potential edge
@@ -1465,30 +1456,28 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed)
 {
   int64_t row, col;
-  double lM = log(RAND_MAX);
   double D  = log(1 - p);
   int64_t nnz;
-  int64_t r;
   int64_t end = n;
   int64_t ndiag = n;
 
+  printf("making a random graph:\n");
+  printf("n = %ld, p=%f, edges = %d, loops = %d, seed %ld\n", n, p, edge_type, loops, seed);
   assert(n > 0);
 
   // first loop to count the number of nonzeros
-  srand(seed);
+  rand_seed(seed);
   row = 0;
   nnz = 0;
-  do { r = rand(); } while(r == RAND_MAX);     
-  col = 1 + floor((log(RAND_MAX - r) - lM)/D);
-  while(row < n){
+  col = 1 + floor(log(1 - rand_double()) / D);
+  while (row < n) {
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       end = row;
     while(col < end){
       if(col == row) // we hit a diagonal for free!
         ndiag--;
       nnz++;
-      do { r = rand(); } while(r == RAND_MAX);     
-      col += 1 + floor((log(RAND_MAX - r) - lM)/D);
+      col += 1 + floor(log(1 - rand_double()) / D);
     }
     row++;
     col -= end;
@@ -1501,12 +1490,11 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
   if(!mat){ printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL); }
 
   // fill in the nonzeros
-  srand(seed);
+  rand_seed(seed);
   nnz = 0;
   row = 0;
   mat->offset[0] = 0;
-  do { r = rand(); } while(r == RAND_MAX);     
-  col = 1 + floor((log(RAND_MAX - r) - lM)/D);
+  col = 1 + floor(log(1 - rand_double()) / D);
   while(row < n){
     int need_diag = (loops==LOOPS);
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
@@ -1514,8 +1502,7 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
     while(col < end){
       if(col == row) need_diag = 0;
       mat->nonzero[nnz++] = col;
-      do { r = rand(); } while(r == RAND_MAX);     
-      col += 1 + floor((log(RAND_MAX - r) - lM)/D);     
+      col += 1 + floor(log(1 - rand_double()) / D);
     }
     
     if(need_diag){
@@ -1530,7 +1517,7 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
   if(weighted){
     int64_t i;
     for(i = 0; i < nnz; i++){
-      mat->value[i] = (double)rand()/RAND_MAX;
+      mat->value[i] = rand_double();
     }
   }
   assert(mat->nnz == nnz);
@@ -1604,7 +1591,6 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   
   return( mat);
 }
-
 
 
 /*! \brief prints some stats of a sparse matrix

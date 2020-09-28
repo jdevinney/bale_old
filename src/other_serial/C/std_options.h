@@ -38,7 +38,7 @@ extern struct argp std_graph_options_argp;
 
 /* defines to support the different models of global and buffered references */
 
-sparsemat_t *  get_input_graph(std_args_t * sargs, std_graph_args_t * gargs);
+sparsemat_t *  get_input_graph(std_args_t * sargs, std_graph_args_t * gargs);       // TODO should this be in spmat_utils
 void           write_std_options(std_args_t * sargs);
 void           write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs);
 

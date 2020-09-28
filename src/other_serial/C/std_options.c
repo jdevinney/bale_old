@@ -87,7 +87,7 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
     args->edge_prob = 0.0;
     args->readfile = 0;
     args->model = FLAT;
-    args->numrows = 0;
+    args->numrows = 100;
     args->nz_per_row = 10.0;
     break;
   case ARGP_KEY_END:
@@ -128,6 +128,8 @@ struct argp std_graph_options_argp =
 {
   graph_options, graph_parse_opt, 0, 0, 0
 };
+
+//TODO should this be in spmat_utils  maybe need std_enums
 /* this function looks at the std_args_t and std_graph_args_t structs to decide
    whether to read a matrix or generate a random matrix. The function returns
    the read or generated matrix. It also writes some matrix statistics to stderr,
@@ -144,7 +146,6 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs)
     } else {
       // Generate a random FLAT or GEOMETRIC graph
       //int64_t numrows = gargs->numrows;
-      int64_t seed = sargs->seed;
       edge_type et;
       if (gargs->directed) {
         et = (gargs->weighted ? DIRECTED_WEIGHTED : DIRECTED);
@@ -153,7 +154,8 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs)
       }
       self_loops loops = (gargs->loops ? LOOPS : NOLOOPS);
       
-      mat = random_graph(gargs->numrows, gargs->model, et, loops, gargs->edge_prob, seed + 2);
+      mat = random_graph(gargs->numrows, gargs->model, et, loops, gargs->edge_prob, sargs->seed);
+
     }
   } else {
     // Read a matrix from a file

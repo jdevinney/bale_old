@@ -103,7 +103,7 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
     return(1);
   }
   mat2 = permute_matrix(mat, rperminv, cperminv);
-  if(is_upper_triangular(mat2) != 0)
+  if(is_upper_triangular(mat2, 1) != 0)
     ret = 1;
   if(dump_files) 
     dump_matrix(mat2, 20, "mat2.out");
@@ -138,7 +138,7 @@ sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double
   sparsemat_t * U = transpose_matrix(L);
   clear_matrix(L); free(L);
 
-  if(is_upper_triangular(U) != 0 ){
+  if(is_upper_triangular(U, 1) != 0 ){
     fprintf(stderr,"ERROR: generate_toposort did not start with an upper triangular\n");
     exit(1);
   }

@@ -59,7 +59,6 @@
 #include <getopt.h>
 #include <assert.h>
 
-
 /*! \struct sparsemat_t 
  * \brief A structure to hold a sparse matrix 
  * \ingroup spmatgrp
@@ -147,6 +146,9 @@ kron_args_t *    kron_args_init(char *str);
 typedef enum graph_model {FLAT, GEOMETRIC, KRONECKER} graph_model;
 typedef enum edge_type {DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED} edge_type;
 typedef enum self_loops {LOOPS, NOLOOPS} self_loops;
+//char *graphmodelstr[] = {"FLAT","GEOMETRIC","KRONECKER"};
+//char *edgetypestr[] = {"DIRECTED", "UNDIRECTED", "DIRECTED_WEIGHTED", "UNDIRECTED_WEIGHTED"};
+//char *loopstr[] = {"LOOPS", "NOLOOPS"};
 
 next_nz_t * new_nxt_nz( sparsemat_t *mat );
 void init_nxt_l_nz(next_nz_t * nxtnz, int64_t row);
@@ -174,10 +176,15 @@ sparsemat_t *    kronecker_product_graph_local(sparsemat_t * B, sparsemat_t * C)
 sparsemat_t *    kronecker_product_graph_dist(sparsemat_t * B, sparsemat_t * C);
 int64_t          tri_count_kron_graph(int kron_mode, int * kron_spec, int kron_num);
 
+//sparsemat_t *    get_input_graph(std_args_t * sargs, std_graph_args_t * gargs);
+
 sparsemat_t *    init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values);
 
-int64_t          is_upper_triangular(sparsemat_t *A);
-int64_t          is_lower_triangular(sparsemat_t *A);
+int64_t          tril(sparsemat_t * A, int64_t k);
+int64_t          triu(sparsemat_t * A, int64_t k);
+
+int64_t          is_upper_triangular(sparsemat_t *A, int64_t ondiag);
+int64_t          is_lower_triangular(sparsemat_t *A, int64_t ondiag);
 int64_t          is_perm(int64_t * perm, int64_t N);
 
 int              nz_comp(const void *a, const void *b);
@@ -213,6 +220,13 @@ void        copy_d_array(d_array_t *dest, d_array_t *src);
 
 
 double wall_seconds();
+
+double  rand_double();
+int64_t rand_int64(int64_t N);
+void    rand_seed(int64_t seed);
+
+
+
 #define DEBUG 0
 #define Dprintf if(DEBUG) printf
 #endif
