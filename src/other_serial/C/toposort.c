@@ -103,7 +103,7 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
     return(1);
   }
   mat2 = permute_matrix(mat, rperminv, cperminv);
-  if(is_upper_triangular(mat2, 1) != 0)
+  if(!is_upper_triangular(mat2, 1))
     ret = 1;
   if(dump_files) 
     dump_matrix(mat2, 20, "mat2.out");
@@ -125,46 +125,40 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
  * The toposort algorithm takes this matrix and finds one of the possibly many row and column permutations 
  *  that would bring the matrix back to an upper triangular form.
  */
-sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double edge_prob, uint64_t seed, int64_t dump_files)
+  // read in a matrix or generate a random graph
+sparsemat_t *generate_toposort_input(std_args_t *sargs, std_graph_args_t *gargs)
 {
-  int64_t numcols = numrows;
-  
-  sparsemat_t * L = random_graph(numrows, model, UNDIRECTED, LOOPS, edge_prob, seed);
-  if(!L){
-    printf("ERROR: generate_toposort_input: random_graph!\n");
+  int64_t nr = gargs->numrows;
+  printf("%ld \n",nr); 
+  sparsemat_t * L = get_input_graph(sargs, gargs);
+  if (!L) { fprintf(stderr, "ERROR: topo: L is NULL!\n");return(NULL); }
+  sparsemat_t * U = transpose_matrix(L);
+  if (!U) { fprintf(stderr, "ERROR: topo: U is NULL!\n");return(NULL); }
+  if (!is_upper_triangular(U, 1)) {
+    fprintf(stderr,"ERROR: generate_toposort did not start with an upper triangular\n");
     return(NULL);
   }
-
-  sparsemat_t * U = transpose_matrix(L);
   clear_matrix(L); free(L);
 
-  if(is_upper_triangular(U, 1) != 0 ){
-    fprintf(stderr,"ERROR: generate_toposort did not start with an upper triangular\n");
-    exit(1);
-  }
-  
-  if(dump_files) dump_matrix(U, 0, "orig_tri.out");
+  if(sargs->dump_files) write_matrix_mm(U, "topo_orig");
   
   // get random row and column permutations
-  int64_t * rperminv = rand_perm(numrows, 1234);
-  int64_t * cperminv = rand_perm(numcols, 5678);
-  //int64_t * rperminv = rand_perm(numrows, 0);
-  //int64_t * cperminv = rand_perm(numcols, 0);
+  int64_t * rperminv = rand_perm(nr, 1234);
+  int64_t * cperminv = rand_perm(nr, 5678);
   if(!rperminv || !cperminv){
     printf("ERROR: generate_toposort_input: rand_perm returned NULL!\n");
     exit(1);
   }
-  if(dump_files){
-    dump_array(rperminv, numrows, 20, "rperm.out");
-    dump_array(cperminv, numcols, 20, "cperm.out");
-  }
+  //if(dump_files){
+  //  dump_array(rperminv, numrows, 20, "rperm.out");
+  //  dump_array(cperminv, numcols, 20, "cperm.out");
+  //}
   
   sparsemat_t * mat = permute_matrix(U, rperminv, cperminv);
   if(!mat) {
     printf("ERROR: generate_toposort_input: permute_matrix returned NULL");
-    exit(1);
+    return(NULL);
   }
-  if(dump_files) dump_matrix(mat,20, "perm.out");
   
   clear_matrix( U ); free( U );
   free(rperminv);
@@ -311,46 +305,71 @@ double toposort_matrix_loop(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sp
 
 
 typedef struct args_t{
+  int alg;
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
-  switch(key)
-    {
-    case ARGP_KEY_INIT:
-      state->child_inputs[0] = &args->std;
-      state->child_inputs[1] = &args->gstd;
-      break;
-    }
+  switch (key) {
+  case 'a': args->alg = atoi(arg); break;     
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    state->child_inputs[1] = &args->gstd;
+    break;
+  }
   return(0);
 }
 
-static struct argp_option options[] = {{0}};
+static struct argp_option options[] =
+{
+  {"toposort", 'a', "ALG", 0, "Algorithm: 0 means loops, 1 means queue"},  
+  {0}
+};
 
 static struct argp_child children_parsers[] =
-  {
-    {&std_options_argp, 0, "Standard Options", -2},
-    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
-    {0}
-  };
-
-
+{
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
+};
 
 
 int main(int argc, char * argv[])
 {
-
-  double laptime = 0.0;
-  enum FLAVOR {GENERIC=1, LOOP=2, ALL=4};
-  uint32_t use_model;
-
-  /* process command line */
-  args_t args;  
-  struct argp argp = {options, parse_opt, 0, "Transpose a sparse matrix.", children_parsers};
+  args_t args = {0};  
+  struct argp argp = {options, parse_opt, 0, "Toposort", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
+  args.gstd.numrows = 500;
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if (ret < 0) return(ret);
+  else if (ret) return(0);
   
+  //override command line 
+  //(note:these will lead to matrices with not quite the right number of nonzeros 
+  // if the user also used the -z flag.)
+  if (args.gstd.loops == 0) {
+    fprintf(stderr,"WARNING: toposort requires 1s on the diagonal.\n");
+    args.gstd.loops = 1;
+  }
+  if (args.gstd.directed == 1) {
+    fprintf(stderr,"WARNING: toposort starts with an upper triangalur matrix.\n");
+    args.gstd.directed = 0;
+  }
+
+  write_std_graph_options(&args.std, &args.gstd);
+  write_std_options(&args.std);
+  
+  sparsemat_t * mat = generate_toposort_input(&args.std, &args.gstd);
+  if(!mat){printf("ERROR: topo: generate_toposort_input failed\n"); exit(1);}
+  
+
+  if(args.std.dump_files) write_matrix_mm(mat, "topo_inmat");
+
+#if 0
+
   double nz_per_row = args.gstd.nz_per_row;
   double edge_prob = args.gstd.edge_prob;
   int64_t numrows = args.gstd.numrows;
@@ -358,11 +377,7 @@ int main(int argc, char * argv[])
   self_loops loops = LOOPS;
   int quiet = args.std.quiet;
   
-  if(args.gstd.readfile == 0){
-    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
-  }
-  
-  if(!quiet ) {
+  if(1) {
     fprintf(stderr,"Running C version of toposort\n");
     if(args.gstd.readfile == 1)
       fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
@@ -381,16 +396,11 @@ int main(int argc, char * argv[])
     fprintf(stderr,"---------------------------------------\n");
   }
   
-  
-  //if(!quiet) printf("Creating input matrix for toposort\n");
-  sparsemat_t * mat = generate_toposort_input (numrows, args.gstd.model, edge_prob, args.std.seed, args.std.dump_files);
-  if(!mat){printf("ERROR: topo: generate_toposort_input failed\n"); exit(1);}
-  
-  if(!quiet){
-    printf("Input matrix stats:\n");
-    spmat_stats(mat);
-    fprintf(stderr,"---------------------------------------\n");
-  }
+#endif  
+
+  printf("Input matrix stats:\n");
+  spmat_stats(mat);
+  fprintf(stderr,"---------------------------------------\n");
   if(args.std.dump_files) dump_matrix(mat,20, "mat.out");
 
   write_matrix_mm(mat, "topo_mat.mm");
@@ -401,29 +411,32 @@ int main(int argc, char * argv[])
   if(args.std.dump_files) dump_matrix(tmat,20, "trans.out");
   write_matrix_mm(tmat, "topo_tmat.mm");
 
-  if(!quiet) printf("Running toposort on mat (and tmat) ...\n");
+  printf("Running toposort on mat (and tmat) ...\n");
+
+  double laptime = 0.0;
+  enum FLAVOR {GENERIC=1, LOOP=2, ALL=4};
+  uint32_t use_model;
   // arrays to hold the row and col permutations
-  int64_t *rperminv2 = calloc(numrows, sizeof(int64_t));
-  int64_t *cperminv2 = calloc(numrows, sizeof(int64_t));
+  int64_t *rperminv2 = calloc(mat->numrows, sizeof(int64_t));
+  int64_t *cperminv2 = calloc(mat->numrows, sizeof(int64_t));
+  int models_mask = (args.std.models_mask) ? args.std.models_mask : 3;
+  printf("++++++++++%d\n", models_mask);
   for( use_model=1; use_model < ALL; use_model *=2 ) {
-    switch( use_model & args.std.models_mask ) {
+    switch( use_model & models_mask ) {
     case GENERIC:
-      if(!quiet) printf("   using generic toposort: ");
+      printf("   using generic toposort: ");
       laptime = toposort_matrix_queue(rperminv2, cperminv2, mat, tmat);
       break;
     case LOOP:
-      if(!quiet) printf("   using loop    toposort: ");
+      printf("   using loop    toposort: ");
       laptime = toposort_matrix_loop(rperminv2, cperminv2, mat, tmat);
       break;
-
-    default:
-       continue;
     }
     if( check_result(mat, rperminv2, cperminv2, args.std.dump_files) ) {
-      fprintf(stderr,"nERROR: After toposort_matrix_queue: mat2 is not upper-triangular!\n");
+      fprintf(stderr,"\nERROR: After toposort_matrix_queue: mat2 is not upper-triangular!\n");
       exit(1);
     }
-    if(!quiet) printf("  %8.3lf seconds \n", laptime);
+    printf("  %8.3lf seconds \n", laptime);
   }
   return(0);
 }

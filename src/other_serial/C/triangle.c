@@ -80,7 +80,7 @@ double triangles_matrix(int64_t *triangles, sparsemat_t *mat)
           l++;
         }else if( mat->nonzero[k] > mat->nonzero[l] ){
           l++;
-        }else{ // ( mat->nonzero[u] > mat->nonzero[W] ) {
+        }else{ // ( mat->nonzero[u] > mat->nonzero[W] )
           k++;
         }
       }
@@ -100,16 +100,16 @@ typedef struct args_t{
   std_graph_args_t gstd;
 }args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
-  switch(key)
-    {
-    case 'a': args->alg = atoi(arg); break;     
-    case ARGP_KEY_INIT:
-      state->child_inputs[0] = &args->std;
-      state->child_inputs[1] = &args->gstd;
-      break;
-    }
+  switch(key) {
+  case 'a': args->alg = atoi(arg); break;     
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    state->child_inputs[1] = &args->gstd;
+    break;
+  }
   return(0);
 }
 
@@ -129,9 +129,8 @@ static struct argp_child children_parsers[] =
 
 int main(int argc, char * argv[]) 
 {
-  args_t args = {0};  // initialize args struct to all zero
-  struct argp argp = {options, parse_opt, 0,
-                      "C triangle counting", children_parsers};  
+  args_t args = {0};
+  struct argp argp = {options, parse_opt, 0, "Triangle counting", children_parsers};  
   args.gstd.numrows = 500;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
