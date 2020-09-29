@@ -9,12 +9,13 @@
 /*******************************************************************/
 
 /*! \file triangle.c
- * \brief Demo application that counts the number of triangles in 
- * a graph given by its adjacency matrix
+ * \brief Program that counts the number of triangles in a graph 
+ * given by its adjacency matrix
  */
 
 #include "spmat_utils.h"
 #include "std_options.h"
+#include "default_app_sizes.h"
 
 
 /*! \page triangle_page 
@@ -66,6 +67,7 @@ double triangles_matrix(int64_t *triangles, sparsemat_t *mat)
 }
 
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   int alg;
   std_args_t std;
@@ -110,14 +112,9 @@ int main(int argc, char * argv[])
 
   //override command line (these will lead to matrices with not quite the right number of nonzeros
   // if the user also used the -z flag.
-  if (args.gstd.loops == 1) {
-    fprintf(stderr,"WARNING: triangles requires no-loops, overriding command line.\n");
-    fprintf(stderr,"Suggest running without this option.\n");
+  if ( (args.gstd.loops == 1) || (args.gstd.directed == 1) ) {
+    fprintf(stderr,"WARNING: triangles counting requires undirected no-loops graph\n");
     args.gstd.loops = 0;
-  }
-  if (args.gstd.directed == 1) {
-    fprintf(stderr,"WARNING: triangles requires undirected graph, overriding command line.\n");
-    fprintf(stderr,"Suggest running without this option.\n");
     args.gstd.directed = 0;
   }
 

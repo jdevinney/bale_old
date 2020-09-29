@@ -20,6 +20,7 @@
 
 #include "spmat_utils.h"
 #include "std_options.h"
+#include "default_app_sizes.h"
 
 /*! \page toposort_page Topologically sort a morally upper triangular matrix. 
  
@@ -276,6 +277,7 @@ double toposort_matrix_loop(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sp
 }
 
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   int alg;
   std_args_t std;
