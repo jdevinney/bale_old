@@ -174,13 +174,18 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
 //
 // this is new code not ready for release in bale2.0
 //
-int64_t read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t * nwriters,
+int64_t read_sparse_matrix_metadata(char * dirname,
+                                    int64_t * nr,
+                                    int64_t * nc,
+                                    int64_t * nnz,
+                                    int64_t * nwriters,
                                     int64_t * values){
 
   *nr = 0;
   *nc = 0;
   *nnz = 0;
   *nwriters = 0;
+  *values = 0;
   
   if(MYTHREAD == 0){
     int ret = 0;
@@ -229,7 +234,8 @@ int64_t write_sparse_matrix_metadata(char * dirname, sparsemat_t * A){
     sprintf(fname, "%s/metadata", dirname);
     FILE * fp = fopen(fname, "w");
     int values = (A->values != NULL);
-    fprintf(fp, "%"PRId64"\n%"PRId64"\n%"PRId64"\n%d\n%d\n", A->numrows, A->numcols, A->nnz, THREADS, values);
+    fprintf(fp, "%"PRId64"\n%"PRId64"\n%"PRId64"\n%d\n%d\n",
+            A->numrows, A->numcols, A->nnz, THREADS, values);
     fclose(fp);
   }
   return(0);

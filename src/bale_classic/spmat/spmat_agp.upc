@@ -291,11 +291,9 @@ int64_t write_rowcounts(char * dirname, sparsemat_t * A){
  */
 int64_t write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
   int64_t i;
-
-  if(A->value){
-    T0_fprintf(stderr,"WARNING: write_sparse_matrix_agp: writing a matrix with values not supported.\n");
-    T0_fprintf(stderr,"Only, nonzero positions will be written.\n");
-  }
+  int values = 0;
+  if(A->value)
+    values = 1;
   
   /* create the directory  */
   mkdir(dirname, 0770);
@@ -321,10 +319,17 @@ int64_t write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
   while(BUFSIZE < max_row_cnt)
     BUFSIZE *= 2;
   int64_t * buf = calloc(BUFSIZE, sizeof(int64_t));
+  double * vbuf;
+  if(values)
+    vbuf = calloc(BUFSIZE, sizeof(double));
 
   char fname[64];
   sprintf(fname, "%s/nonzero_%d", dirname, MYTHREAD);
   FILE * fp = fopen(fname, "wb");
+  if(values){
+    sprintf(fname, "%s/value_%d", dirname, MYTHREAD);
+    vfp = fopen(fname, "wb");
+  }
   
   /* write out the nonzeros in your block */
   int64_t pos = 0;
@@ -332,26 +337,36 @@ int64_t write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
     int64_t row_start = lgp_get_int64(A->offset, i);
     int64_t row_cnt = lgp_get_int64(A->offset, i + THREADS) - row_start;
     if(pos + row_cnt >= BUFSIZE){
-      fwrite(buf, sizeof(int64_t), pos, fp);
+      fwrite(buf, sizeof(int64_t), pos, fp); 
+      if(values) fwrite(vfbu, sizeof(double), pos, vfp);
       pos = 0;
     }
-    lgp_memget(&buf[pos], A->nonzero, row_cnt*sizeof(int64_t), row_start*THREADS + i % THREADS);
+    int64_t plc = row_start*THREADS + i % THREADS;
+    lgp_memget(&buf[pos], A->nonzero, row_cnt*sizeof(int64_t), plc);
+    if(values) lgp_memget(&vbuf[pos], A->value, row_cnt*sizeof(int64_t), plc);
     pos += row_cnt;
   }
   fwrite(buf, sizeof(int64_t), pos, fp);
+  if(values) fwrite(vbuf, sizeof(int64_t), pos, vfp);
 
   lgp_barrier();
-  fclose(fp);
-  
+
+  fclose(fp);  
   free(buf);
+
+  if(values){
+    fclose(vfp);
+    free(vbuf);
+  }
+  
   return(0);  
 }
 
 sparsemat_t * read_sparse_matrix_agp(char * dirname){
   int64_t i;
   int64_t nr, nc, nnz, nwriters;
-  int64_t lnr;
   int64_t values;
+  char fname[128];
   
   /* read the ASCII file */
   int ret = read_sparse_matrix_metadata(dirname, &nr, &nc, &nnz, &nwriters, &values);
@@ -360,20 +375,34 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
   }
   fprintf(stderr,"metadata: %ld %ld %ld %ld\n", nc, nc, nnz, nwriters);fflush(stderr);
 
-  /* read rowcnts */
+  int64_t rows_to_read = (numrows + THREADS - MYTHREAD - 1)/THREADS;
+  int64_t first_row_to_read = MYTHREAD * rows_to_read + ((MYTHREAD < numrows % THREADS ? 0 : numrows % THREADS));
+  
+  /* read rowcnts in BLOCKED fashion */
   int64_t * rowcnts_read = read_rowcnts(dirname, nr, nwriters);
-
+  if(rowcnts_read == NULL){
+    T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: read_rowcnts_failed");
+    return(NULL);
+  }
+  
   SHARED int64_t * rowcnt = lgp_all_alloc(nr, sizeof(int64_t));
-  if(rowcnt == NULL)
+  if(rowcnt == NULL){
+    T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: could not allocate rowcnt");
+    return(NULL);
+  }
   int64_t * lrowcnt = lgp_local_part(int64_t, rowcnt);
+
+  /* distribute row counts in CYCLIC fashion */
+  int64_t nnz_to_read = 0;
+  for(i = 0; i < rows_to_read; i++){
+    lgp_put_int64(rowcnt, first_row_to_read + i, read_rowcnts[i]);
+    nnz_to_read += read_rowcnts[i];
+  }
+  lgp_barrier();
   
   /* calculate lnnz on each PE */
-  int64_t * PE_hist = calloc(THREADS, sizeof(int64_t));
-  lnr = (nr + THREADS - MYTHREAD - 1)/THREADS;
-
   int64_t lnnz = 0;
-  for(i = 0; i < lnr; i++){
-    //PE_hist[i*THREADS + MYTHREAD] += lrowcnt[i];
+  for(i = 0; i < rows_to_read; i++){
     lnnz += lrowcnt[i];
   }
   fprintf(stderr,"PE %d gets %ld nonzeros\n", MYTHREAD, lnnz);fflush(stderr);
@@ -386,15 +415,116 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
 
   /* create A->offset array */
   A->loffset[0] = 0;
-  for(i = 0; i < lnr; i++){
+  for(i = 0; i < rows_to_read; i++){
     A->loffset[i+1] = A->loffet[i] + lrowcnt[i];
   }
+
+  lgp_barrier();
+  lgp_all_free(rowcnt);
+  
+  /* populate nnz per file */
+  SHARED int64_t * nnz_in_file = lgp_all_alloc(nwriters, sizeof(int64_t));
+  
+  for(i = MYTHREAD; i < nwriters; i+=THREADS){
+    sprintf(fname, "%s/nonzero_%d", dirname, i);
+    int fd = open(fname, O_RDONLY);
+    struct stat_buf;
+    fstat(fd, &buf);
+    lgp_put_int64(nnz_in_file, i, buf.st_size/8);
+    close(fd);
+  }
+
+  lgp_barrier();
+  
+  /* find the right spot in the nonzeros files */
+  int64_t skip = lgp_prior_add_l(nnz_to_read);
+
+  int64_t current_file = 0;
+  int64_t current_nnz = 0;
+  for(current_file = 0; current_file < nwriters; current_file++){
+    int64_t nnz_this_file = lgp_get_int64(nnz_in_file, current_file);
+    if( current_nnz + nnz_this_file > skip)
+      break;
+    current_nnz += nnz_this_file;
+  }
+
+  /* open first file and seek to the right place */
+  FILE * fp, *vfp;  
+  sprintf(fname, "%s/nonzero_%d", dirname, current_file);
+  fp = fopen(fname,"rb");
+  if(values){
+    sprintf(fname, "%s/value_%d", dirname, current_file);
+    vfp = fopen(fname,"rb");
+  }
+  
+  if(current_nnz < skip){
+    fseek(fp, skip - current_nnz, SEEK_SET);
+    if(values)  fseek(vfp, skip - current_nnz, SEEK_SET);
+    current_nnz = skip;
+  }
     
-  /* seek to the right spot in the nonzeros files */
-  
   /* read your slice of nonzeros and spray them out to other PEs */
+  int64_t current_local_row = 0;
+  int new_file = 0;
+  int64_t buf_size = 512*512;
+  int64_t * buf = calloc(buf_size, sizeof(int64_t));
+  double * vbuf;
+  if(values) vbuf = calloc(buf_size, sizeof(double));
+
+  while(nnz_to_read){
+
+    if(new_file){
+      sprintf(fname, "%s/nonzero_%d", dirname, current_file);
+      fp = fopen(fname,"rb");
+      if(values){
+        sprintf(fname, "%s/value_%d", dirname, current_file);
+        vfp = fopen(fname, "rb");
+      }
+    }
+    new_file = 0;
+    
+    /* read from current file until EOF or you don't need to read any more */
+    int64_t num_to_read_now = 0;
+    int64_t num_rows_to_read_now = 0;
+    while(num_to_read_now + read_rowcnts[current_local_row + num_rows_to_read_now] < buf_size){
+      num_to_read_now + read_rowcnts[current_local_row + num_rows_to_read_now];
+      num_rows_to_read_now++;
+    }
+    
+    num_read = fread(buf, sizeof(int64_t), num_to_read_now, fp);
+    if(values){
+      int64_t num_v_read = fread(vbuf, sizeof(double), num_to_read_now, vfp);
+      assert(num_v_read == num_read);
+    }
+    nnz_to_read -= num_read;
+    
+    if(num_read != num_to_read_now || nnz_to_read == 0){
+      fclose(fp);
+      current_file++;
+      new_file = 1;
+    }
+    
+    while(num_read){
+      rc = read_rowcnts[current_local_row];
+      global_row = first_row_to_read + current_local_row;
+      rs = A->offset[global_row]*THREADS + global_row%THREADS;
+      lgp_memput(A->nonzero, &buf[pos], rc*sizeof(int64_t), rs);
+      if(values)
+        lgp_memput(A->values, &vbuf[pos], rc*sizeof(double), rs);
+      pos += rc;
+      num_read -= rc;
+      assert(num_read >= 0);
+      current_local_row++;
+    }
+  }
+
+  lgp_barrier();
+
+  free(buf);
+  if(values) free(vbuf);
+  free(read_rowcnts);
+  lgp_all_free(nnz_in_file);
   
-  
-  
+  return(A);
 }
 
