@@ -174,8 +174,14 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
 //
 // this is new code not ready for release in bale2.0
 //
-int64_t read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t * nwriters){
-  *nr = *nc = *nnz = 0;
+int64_t read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t * nwriters,
+                                    int64_t * values){
+
+  *nr = 0;
+  *nc = 0;
+  *nnz = 0;
+  *nwriters = 0;
+  
   if(MYTHREAD == 0){
     int ret = 0;
     char fname[64];
@@ -185,17 +191,22 @@ int64_t read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, 
     ret += fscanf(fp, "%"PRId64"\n", nc);
     ret += fscanf(fp, "%"PRId64"\n", nnz);
     ret += fscanf(fp, "%"PRId64"\n", nwriters);
-    if(ret != 4){
-      fprintf(stderr,"ERROR: read_sparse_matrix_metadata\n");      
+    ret += fscanf(fp, "%"PRId64"\n", values);
+    if(ret != 5){
+      fprintf(stderr,"ERROR: read_sparse_matrix_metadata\n");
+      *nr = -1;
     }
-    *nr = -1;
     fclose(fp);
-  }
+  }  
+
   lgp_barrier();
+
   *nr = lgp_reduce_add_l(*nr);
   *nc = lgp_reduce_add_l(*nc);
   *nnz = lgp_reduce_add_l(*nnz);
   *nwriters = lgp_reduce_add_l(*nwriters);
+  *values = lgp_reduce_add_l(*values);
+
   if(*nr < 0) return(-1);
   return(0);
 }
@@ -217,12 +228,98 @@ int64_t write_sparse_matrix_metadata(char * dirname, sparsemat_t * A){
     char fname[64];
     sprintf(fname, "%s/metadata", dirname);
     FILE * fp = fopen(fname, "w");
-    fprintf(fp, "%"PRId64"\n%"PRId64"\n%"PRId64"\n%d\n", A->numrows, A->numcols, A->nnz,THREADS);
+    int values = (A->values != NULL);
+    fprintf(fp, "%"PRId64"\n%"PRId64"\n%"PRId64"\n%d\n%d\n", A->numrows, A->numcols, A->nnz, THREADS, values);
     fclose(fp);
   }
   return(0);
 }
 
+int64_t * read_rowcnts(char * datadir, int64_t numrows, int64_t nwriters){
+  int64_t i;
+
+  int64_t rows_to_read = (numrows + THREADS - MYTHREAD - 1)/THREADS;
+  int64_t first_row_to_read = MYTHREAD * rows_to_read + ((MYTHREAD < numrows % THREADS ? 0 : numrows % THREADS));
+  int64_t stop_row = first_row_to_read + rows_to_read;
+  
+  int64_t * rowcnts = calloc(rows_to_read, sizeof(int64_t));
+  if(rowcnts==NULL){T0_fprintf(stderr,"ERROR: read_rowcnts: could not allocate rowcnts array\n");return(NULL);}
+
+  /* figure out which file to start reading your rowcnts from */
+  int64_t current_file = 0;
+  int64_t current_row = 0;
+  int64_t num_recs_this_file = (numrows + nwriters - 1)/nwriters;
+  for(i = 0; i < nwriters; i++){
+    if ( current_row + num_recs_this_file > first_row_to_read)
+      break;
+    current_row += num_recs_this_file;
+    current_file++;
+    num_recs_this_file = (numrows + nwriters - current_file - 1)/nwriters;
+  }
+  
+  /* open the first rowcnt file you will read from */
+  char fname[64];
+  sprintf(fname, "%s/rowcnt_%d", datadir, current_file);
+  FILE * fp = fopen(fname, "rb");
+  if(!fp){
+    fprintf(stderr,"ERROR: read_rowcnts: could not open file %s\n", fname);
+    return(NULL);
+  }
+  /* seek to the right place */  
+  fseek(fp, first_row_to_read - current_row, SEEK_SET);
+  current_row = first_row_to_read;
+  fprintf(stderr,"PE %d is reading file %ld at row %ld (seeked to %ld)\n",MYTHREAD, current_file, current_row, first_row_to_read - current_row);fflush(stderr);
+  
+  /* keep reading rowcnts until you are done */
+  int64_t rows_read = 0, num_to_read;
+  
+  num_recs_this_file = (numrows + nwriters - current_file - 1)/nwriters;  
+  while(1){
+
+    if(current_row + num_recs_this_file > stop_row)
+      num_to_read = stop_row - current_row;
+    else
+      num_to_read = num_recs_this_file;
+    
+    int64_t num_read = fread(&rowcnts[rows_read], sizeof(int64_t), num_to_read, fp);
+    if(num_read != num_to_read){
+      fprintf(stderr,"ERROR: read_rowcnts: read %ld but expected %ld in %s\n", num_read, num_to_read, fname);
+      return(NULL);
+    }
+
+    rows_read += num_read;
+    current_row += num_read;
+    if(current_row == stop_row)
+      break;
+
+    num_recs_this_file -= num_read;
+    
+    /* open the next file */
+    if(num_recs_this_file == 0){
+      fclose(fp);
+      
+      current_file++;
+      num_recs_this_file = (numrows + nwriters - current_file - 1)/nwriters;
+      sprintf(fname, "%s/rowcnt_%d", datadir, current_file);
+      fp = fopen(fname, "rb");
+      if(!fp){
+        fprintf(stderr,"ERROR: read_rowcnts: could not open file %s\n", fname);
+        return(NULL);
+      }
+    }
+    
+  }
+
+  lgp_barrier();
+  
+  if(!MYTHREAD)
+    for(i = 0; i < numrows; i++)
+      T0_fprintf(stderr,"%d: %ld\n", i, lgp_get_int64(rowcnts, i));
+
+  lgp_barrier();
+  
+  return(rowcnts);
+}
 
 /*! \brief Read a sparse matrix in matrix market format on one PE and create a distributed matrix
   from that.

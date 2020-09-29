@@ -134,18 +134,17 @@ int main(int argc, char * argv[])
   char * datadir = calloc(64, sizeof(char));
   char model_str[32];
   int64_t use_model;
+  int error = 0;
+  sprintf(datadir,"%s","write_matrix_dir");
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
     case AGP_Model:
-      sprintf(datadir,"%s","write_matrix_test_agp");
       write_sparse_matrix_agp(datadir, inmat);
       sprintf(model_str, "AGP");
       break;
     case EXSTACK_Model:
-      sprintf(datadir,"%s","write_matrix_test_exstack");
       write_sparse_matrix_exstack(datadir, inmat, args.std.buffer_size);
-      //read_sparse_matrix_agp(datadir);
       sprintf(model_str, "Exstack");
       break;
     case EXSTACK2_Model:
@@ -154,22 +153,33 @@ int main(int argc, char * argv[])
       //break;
     case CONVEYOR_Model:
       continue;
-      sprintf(model_str, "Conveyor");
+      //sprintf(model_str, "Conveyor");
       //break;    
     case ALTERNATE_Model:
       T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
-      break;
+      continue;
     case 0:
       continue;
     }
+
+    sparsemat_t * readmat = read_sparse_matrix_agp(datadir);
+    if(readmat == NULL){
+      T0_fprintf(stderr,"ERROR: write_sparse_matrix: read failed!\n"); error = 1;
+    }else{
+      if(compare_matrix(readmat, inmat)){
+        T0_fprintf(stderr,"ERROR: write_sparse_matrix: read version of written matrix does not match!\n"); error = 1; 
+      }
+      clear_matrix(readmat); free(readmat);
+    }
+    
     t1 = wall_seconds() - t1;
     lgp_min_avg_max_d( stat, t1, THREADS );
     bale_app_write_time(&args.std, model_str, stat->avg);
   }
   
   free(datadir);
-  clear_matrix(inmat);
+  clear_matrix(inmat); free(inmat);
   lgp_barrier();
   bale_app_finish(&args.std);
-  return(0);
+  return(error);
 }

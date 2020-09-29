@@ -347,26 +347,54 @@ int64_t write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
   return(0);  
 }
 
-#if 0
 sparsemat_t * read_sparse_matrix_agp(char * dirname){
   int64_t i;
   int64_t nr, nc, nnz, nwriters;
   int64_t lnr;
+  int64_t values;
   
   /* read the ASCII file */
-  read_sparse_matrix_metadata(dirname, &nr, &nc, &nnz, &nwriters);
-  //fprintf(stderr,"%ld %ld %ld %ld\n", nc, nc, nnz, nwriters);
+  int ret = read_sparse_matrix_metadata(dirname, &nr, &nc, &nnz, &nwriters, &values);
+  if(ret){
+    T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: read_metadata failed!\n"); return(NULL);
+  }
+  fprintf(stderr,"metadata: %ld %ld %ld %ld\n", nc, nc, nnz, nwriters);fflush(stderr);
 
   /* read rowcnts */
-  SHARED int64_t * rowcnt = read_rowcnts(dirname);
+  int64_t * rowcnts_read = read_rowcnts(dirname, nr, nwriters);
+
+  SHARED int64_t * rowcnt = lgp_all_alloc(nr, sizeof(int64_t));
+  if(rowcnt == NULL)
+  int64_t * lrowcnt = lgp_local_part(int64_t, rowcnt);
   
   /* calculate lnnz on each PE */
+  int64_t * PE_hist = calloc(THREADS, sizeof(int64_t));
   lnr = (nr + THREADS - MYTHREAD - 1)/THREADS;
-  for(i = 0; i < lnr; i++)
-    PE_hist[i*THREADS + MYTHREAD] += lrowcnt[i];
+
+  int64_t lnnz = 0;
+  for(i = 0; i < lnr; i++){
+    //PE_hist[i*THREADS + MYTHREAD] += lrowcnt[i];
+    lnnz += lrowcnt[i];
+  }
+  fprintf(stderr,"PE %d gets %ld nonzeros\n", MYTHREAD, lnnz);fflush(stderr);
   
-  /* get offset array */
+  /* initialize sparse matrix */
+  A = init_matrix(nr, nc, lnnz, values);
+  if(!A){
+    T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: init_matrix failed!\n");return(NULL);
+  }
+
+  /* create A->offset array */
+  A->loffset[0] = 0;
+  for(i = 0; i < lnr; i++){
+    A->loffset[i+1] = A->loffet[i] + lrowcnt[i];
+  }
+    
+  /* seek to the right spot in the nonzeros files */
   
-  return(NULL);
+  /* read your slice of nonzeros and spray them out to other PEs */
+  
+  
+  
 }
-#endif
+
