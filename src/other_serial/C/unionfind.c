@@ -1,49 +1,23 @@
-/******************************************************************
-//
-//
-//  Copyright(C) 2018, Institute for Defense Analyses
-//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-// 
-//
-//  All rights reserved.
-//  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-*****************************************************************/ 
+/*******************************************************************/
+/* Copyright (c) 2020, Institute for Defense Analyses              */
+/* 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500 */
+/*                                                                 */
+/* All rights reserved.                                            */
+/*                                                                 */
+/* This file is part of Bale.   For licence information see the    */
+/* LICENSE file in the top level dirctory of the distribution.     */
+/*******************************************************************/
+
 
 /*! \file unionfind.c
- * \brief Demo that uses a unionfind data structure to find connected components in a graph
+ * \brief Program that uses a unionfind data structure to find connected components in a graph
  *
  * Run unionfind --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"
 #include "std_options.h"
+#include "default_app_sizes.h"
 
 /*! \page unionfind_page 
  Demo that uses the unionfind data structure
@@ -74,7 +48,7 @@ sparsemat_t * generate_concomp_input(int64_t numrows, double edge_prob,  uint32_
 }
 
 /*! \struct comp_tree_t 
- * \brief  guts of the whole thing
+ * \brief the nodes of the disjoint union trees
  */
 typedef struct comp_tree_t {
   int64_t parent;  //!< pointer to the nodes parent in the tree
@@ -215,6 +189,7 @@ double concomp(int64_t *numcomps, comp_tree_t * cc, sparsemat_t *graph, int verb
 }
 
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   std_args_t std;
   std_graph_args_t gstd;
@@ -233,93 +208,70 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 }
 
 static struct argp_option options[] =
-  {
-    {0}
-  };
+{
+  {0}
+};
 
 static struct argp_child children_parsers[] =
-  {
-    {&std_options_argp, 0, "Standard Options", -2},
-    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
-    {0}
-  };
-
-
+{
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
+};
 
 int main(int argc, char * argv[])
 {  
-  int64_t num_components = 0;
-  enum MODEL {GENERIC_Model=1, ALL_Models=2};
-  uint32_t use_model;  
-  sparsemat_t *graph;
-  double laptime;
-
-  /* process command line */
-  args_t args;  
-  struct argp argp = {options, parse_opt, 0, "Transpose a sparse matrix.", children_parsers};
+  args_t args = {{0}};
+  enum FLAVOR {GENERIC=1, ALL_Models=2};
+  args.std.models_mask = ALL_Models-1;
+  args.gstd.numrows = UNIONFIND_NUM_ROWS;
+  struct argp argp = {options, parse_opt, 0, "Union Find for connected components", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if (ret < 0) return(ret);
+  else if (ret) return(0);
+
+  write_std_graph_options(&args.std, &args.gstd);
+  write_std_options(&args.std);
   
-  double nz_per_row = args.gstd.nz_per_row;
-  double edge_prob = args.gstd.edge_prob;
-  int64_t numrows = args.gstd.numrows;
-  edge_type edge_type = UNDIRECTED;
-  self_loops loops = LOOPS;
-  int quiet = args.std.quiet;
-  
-  if(args.gstd.readfile == 0){
-    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
-  }
-  
-  if(!quiet ) {
-    fprintf(stderr,"Running C version of toposort\n");
-    if(args.gstd.readfile == 1)
-      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
-    else{
-      if(args.gstd.model == FLAT)
-        fprintf(stderr,"flat model           (-F)\n");
-      else        
-        fprintf(stderr,"geometric model      (-G)\n");
-      fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
-      fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
-      fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
-      fprintf(stderr,"random seed          (-s)= %"PRId64"\n",  args.std.seed);
-    }
-    fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
-    fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
-    fprintf(stderr,"---------------------------------------\n");
-  }
-  
-  if( args.gstd.readfile ) {
-    graph = read_matrix_mm(args.gstd.filename);
-    if(!graph){printf("ERROR: Read graph from %s Failed\n", args.gstd.filename); exit(1);}
-  }  else {
-    graph = generate_concomp_input(numrows, edge_prob, args.std.seed, args.std.dump_files);
-    if(!graph){printf("ERROR: graph is NULL!\n"); exit(1);}
+  //override command line (these will lead to matrices with not quite the right number of nonzeros
+  // if the user also used the -z flag.
+  if ( (args.gstd.loops == 1) || (args.gstd.directed == 1) ) {
+    fprintf(stderr,"WARNING: triangles counting requires undirected no-loops graph\n");
+    args.gstd.loops = 0;
+    args.gstd.directed = 0;
   }
 
-  comp_tree_t * cc = calloc(graph->numrows, sizeof(comp_tree_t));
+
+  sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);
+  if(!mat){fprintf(stderr, "ERROR: triangle: mat is NULL!\n");return(-1);}
+
+  comp_tree_t * cc = calloc(mat->numrows, sizeof(comp_tree_t));
   int64_t i;
-  for( i = 0; i< graph->numrows; i++){
+  for( i = 0; i< mat->numrows; i++){
     cc[i].parent = i;
     cc[i].rank   = 1;
   }
   
-  if(args.std.dump_files) 
-    dump_matrix(graph, 20, "dump.out");
+  if(args.std.dump_files) write_matrix_mm(mat, "unionfind_inmat");
+  int verbose=0;
 
+  int64_t num_components = 0;
+  double laptime;
+  uint32_t use_model;  
   for( use_model=1; use_model < ALL_Models; use_model *=2 ) {
     switch( use_model & args.std.models_mask ) {
-    case GENERIC_Model:
-      if(!quiet) printf("generic unionfind: ");
-      laptime = concomp(&num_components, cc, graph, quiet, 1);
+    case GENERIC:
+      printf("generic unionfind: ");
+      laptime = concomp(&num_components, cc, mat, verbose, 1);
       break;
     default:
       continue;
     }
-    if(!quiet) printf(" number of components: %8"PRId64" in  %8.3lf seconds \n", num_components, laptime);
+    printf(" number of components: %8"PRId64" in  %8.3lf seconds \n", num_components, laptime);
   }
   
-  clear_matrix(graph);
+  clear_matrix(mat);
   return(0);
 }
 

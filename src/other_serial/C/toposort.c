@@ -1,40 +1,12 @@
-/******************************************************************
-//
-//
-//  Copyright(C) 2018, Institute for Defense Analyses
-//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-// 
-//
-//  All rights reserved.
-//  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-*****************************************************************/ 
+/*******************************************************************/
+/* Copyright (c) 2020, Institute for Defense Analyses              */
+/* 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500 */
+/*                                                                 */
+/* All rights reserved.                                            */
+/*                                                                 */
+/* This file is part of Bale.   For licence information see the    */
+/* LICENSE file in the top level dirctory of the distribution.     */
+/*******************************************************************/
 
 /*! \file toposort.c
  * \brief Demo application that finds an upper triangular form for a matrix.  
@@ -48,6 +20,7 @@
 
 #include "spmat_utils.h"
 #include "std_options.h"
+#include "default_app_sizes.h"
 
 /*! \page toposort_page Topologically sort a morally upper triangular matrix. 
  
@@ -103,7 +76,7 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
     return(1);
   }
   mat2 = permute_matrix(mat, rperminv, cperminv);
-  if(is_upper_triangular(mat2) != 0)
+  if(!is_upper_triangular(mat2, 1))
     ret = 1;
   if(dump_files) 
     dump_matrix(mat2, 20, "mat2.out");
@@ -125,46 +98,40 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
  * The toposort algorithm takes this matrix and finds one of the possibly many row and column permutations 
  *  that would bring the matrix back to an upper triangular form.
  */
-sparsemat_t * generate_toposort_input(int64_t numrows, graph_model model, double edge_prob, uint64_t seed, int64_t dump_files)
+  // read in a matrix or generate a random graph
+sparsemat_t *generate_toposort_input(std_args_t *sargs, std_graph_args_t *gargs)
 {
-  int64_t numcols = numrows;
-  
-  sparsemat_t * L = random_graph(numrows, model, UNDIRECTED, LOOPS, edge_prob, seed);
-  if(!L){
-    printf("ERROR: generate_toposort_input: random_graph!\n");
+  int64_t nr = gargs->numrows;
+  printf("%ld \n",nr); 
+  sparsemat_t * L = get_input_graph(sargs, gargs);
+  if (!L) { fprintf(stderr, "ERROR: topo: L is NULL!\n");return(NULL); }
+  sparsemat_t * U = transpose_matrix(L);
+  if (!U) { fprintf(stderr, "ERROR: topo: U is NULL!\n");return(NULL); }
+  if (!is_upper_triangular(U, 1)) {
+    fprintf(stderr,"ERROR: generate_toposort did not start with an upper triangular\n");
     return(NULL);
   }
-
-  sparsemat_t * U = transpose_matrix(L);
   clear_matrix(L); free(L);
 
-  if(is_upper_triangular(U) != 0 ){
-    fprintf(stderr,"ERROR: generate_toposort did not start with an upper triangular\n");
-    exit(1);
-  }
-  
-  if(dump_files) dump_matrix(U, 0, "orig_tri.out");
+  if(sargs->dump_files) write_matrix_mm(U, "topo_orig");
   
   // get random row and column permutations
-  int64_t * rperminv = rand_perm(numrows, 1234);
-  int64_t * cperminv = rand_perm(numcols, 5678);
-  //int64_t * rperminv = rand_perm(numrows, 0);
-  //int64_t * cperminv = rand_perm(numcols, 0);
+  int64_t * rperminv = rand_perm(nr, 1234);
+  int64_t * cperminv = rand_perm(nr, 5678);
   if(!rperminv || !cperminv){
     printf("ERROR: generate_toposort_input: rand_perm returned NULL!\n");
     exit(1);
   }
-  if(dump_files){
-    dump_array(rperminv, numrows, 20, "rperm.out");
-    dump_array(cperminv, numcols, 20, "cperm.out");
-  }
+  //if(dump_files){
+  //  dump_array(rperminv, numrows, 20, "rperm.out");
+  //  dump_array(cperminv, numcols, 20, "cperm.out");
+  //}
   
   sparsemat_t * mat = permute_matrix(U, rperminv, cperminv);
   if(!mat) {
     printf("ERROR: generate_toposort_input: permute_matrix returned NULL");
-    exit(1);
+    return(NULL);
   }
-  if(dump_files) dump_matrix(mat,20, "perm.out");
   
   clear_matrix( U ); free( U );
   free(rperminv);
@@ -310,120 +277,98 @@ double toposort_matrix_loop(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sp
 }
 
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
+  int alg;
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
-  switch(key)
-    {
-    case ARGP_KEY_INIT:
-      state->child_inputs[0] = &args->std;
-      state->child_inputs[1] = &args->gstd;
-      break;
-    }
+  switch (key) {
+  case 'a': args->alg = atoi(arg); break;     
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    state->child_inputs[1] = &args->gstd;
+    break;
+  }
   return(0);
 }
 
-static struct argp_option options[] = {{0}};
+static struct argp_option options[] =
+{
+  {"toposort", 'a', "ALG", 0, "Algorithm: 0 means loops, 1 means queue"},  
+  {0}
+};
 
 static struct argp_child children_parsers[] =
-  {
-    {&std_options_argp, 0, "Standard Options", -2},
-    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
-    {0}
-  };
-
-
+{
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
+};
 
 
 int main(int argc, char * argv[])
 {
+  args_t args = {0};  
+  struct argp argp = {options, parse_opt, 0, "Toposort", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
+  args.gstd.numrows = 500;
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if (ret < 0) return(ret);
+  else if (ret) return(0);
+  
+  //override command line 
+  //(note:these will lead to matrices with not quite the right number of nonzeros 
+  // if the user also used the -z flag.)
+  if ( (args.gstd.loops == 0) || (args.gstd.directed == 1) ) {
+    fprintf(stderr,"WARNING: toposort starts with a undirected graph with loops.\n");
+    args.gstd.loops = 1;
+    args.gstd.directed = 0;
+  }
+
+  write_std_graph_options(&args.std, &args.gstd);
+  write_std_options(&args.std);
+  
+  sparsemat_t * mat = generate_toposort_input(&args.std, &args.gstd);
+  if(!mat){printf("ERROR: topo: generate_toposort_input failed\n"); exit(1);}
+  
+  sparsemat_t * tmat = transpose_matrix(mat);
+  if(!tmat){printf("ERROR: topo: transpose_matrix failed\n"); exit(1);}
+
+  if (args.std.dump_files) {
+    write_matrix_mm(mat, "topo_inmat");
+    write_matrix_mm(tmat, "topo_tmat.mm");
+    dump_matrix(mat,20, "mat.out");
+    dump_matrix(tmat,20, "trans.out");
+  }
 
   double laptime = 0.0;
   enum FLAVOR {GENERIC=1, LOOP=2, ALL=4};
   uint32_t use_model;
-
-  /* process command line */
-  args_t args;  
-  struct argp argp = {options, parse_opt, 0, "Transpose a sparse matrix.", children_parsers};
-  argp_parse(&argp, argc, argv, 0, 0, &args);
-  
-  double nz_per_row = args.gstd.nz_per_row;
-  double edge_prob = args.gstd.edge_prob;
-  int64_t numrows = args.gstd.numrows;
-  edge_type edge_type = UNDIRECTED;
-  self_loops loops = LOOPS;
-  int quiet = args.std.quiet;
-  
-  if(args.gstd.readfile == 0){
-    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
-  }
-  
-  if(!quiet ) {
-    fprintf(stderr,"Running C version of toposort\n");
-    if(args.gstd.readfile == 1)
-      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
-    else{
-      if(args.gstd.model == FLAT)
-        fprintf(stderr,"flat model           (-F)\n");
-      else        
-        fprintf(stderr,"geometric model      (-G)\n");
-      fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
-      fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
-      fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
-      fprintf(stderr,"random seed          (-s)= %ld\n",  args.std.seed);
-    }
-    fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
-    fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
-    fprintf(stderr,"---------------------------------------\n");
-  }
-  
-  
-  //if(!quiet) printf("Creating input matrix for toposort\n");
-  sparsemat_t * mat = generate_toposort_input (numrows, args.gstd.model, edge_prob, args.std.seed, args.std.dump_files);
-  if(!mat){printf("ERROR: topo: generate_toposort_input failed\n"); exit(1);}
-  
-  if(!quiet){
-    printf("Input matrix stats:\n");
-    spmat_stats(mat);
-    fprintf(stderr,"---------------------------------------\n");
-  }
-  if(args.std.dump_files) dump_matrix(mat,20, "mat.out");
-
-  write_matrix_mm(mat, "topo_mat.mm");
-
-  sparsemat_t * tmat = transpose_matrix(mat);
-  if(!tmat){printf("ERROR: topo: transpose_matrix failed\n"); exit(1);}
-
-  if(args.std.dump_files) dump_matrix(tmat,20, "trans.out");
-  write_matrix_mm(tmat, "topo_tmat.mm");
-
-  if(!quiet) printf("Running toposort on mat (and tmat) ...\n");
   // arrays to hold the row and col permutations
-  int64_t *rperminv2 = calloc(numrows, sizeof(int64_t));
-  int64_t *cperminv2 = calloc(numrows, sizeof(int64_t));
+  int64_t *rperminv2 = calloc(mat->numrows, sizeof(int64_t));
+  int64_t *cperminv2 = calloc(mat->numrows, sizeof(int64_t));
+  int models_mask = (args.std.models_mask) ? args.std.models_mask : 3;
   for( use_model=1; use_model < ALL; use_model *=2 ) {
-    switch( use_model & args.std.models_mask ) {
+    switch( use_model & models_mask ) {
     case GENERIC:
-      if(!quiet) printf("   using generic toposort: ");
+      printf("   using generic toposort: ");                                 // TODO model_str thing
       laptime = toposort_matrix_queue(rperminv2, cperminv2, mat, tmat);
       break;
     case LOOP:
-      if(!quiet) printf("   using loop    toposort: ");
+      printf("   using loop    toposort: ");                                 // TODO model_str thing
       laptime = toposort_matrix_loop(rperminv2, cperminv2, mat, tmat);
       break;
-
-    default:
-       continue;
     }
     if( check_result(mat, rperminv2, cperminv2, args.std.dump_files) ) {
-      fprintf(stderr,"nERROR: After toposort_matrix_queue: mat2 is not upper-triangular!\n");
+      fprintf(stderr,"\nERROR: After toposort_matrix_queue: mat2 is not upper-triangular!\n");
       exit(1);
     }
-    if(!quiet) printf("  %8.3lf seconds \n", laptime);
+    printf("  %8.3lf seconds \n", laptime);
   }
   return(0);
 }
