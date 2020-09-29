@@ -50,6 +50,7 @@
  *        (the weight of the tentative distance to the tail plus the weight of the edge).
  * This is effectively an atomic min operation of the new and old tentative distances.
  */
+#if 0
 static void relax_bellman_agp(d_array_t *tent, int64_t J, double tw)
 {
   // Allows us to use the bits of new and old, either as doubles for the
@@ -72,7 +73,48 @@ static void relax_bellman_agp(d_array_t *tent, int64_t J, double tw)
 
   }
 }
+#endif
 
+#if 0
+static void relax_bellman_agp(d_array_t *tent, int64_t J, double new_tw)
+{
+  int64_t i_old_tw, i_new_tw;
+  double old_tw;
+
+  memcpy(&i_new_tw, &new_tw, sizeof(int64_t));
+  while(1){
+    old_tw = lgp_get_double(tent->entry, J);
+    if(new_tw > old_tw) 
+      break;
+    memcpy(&i_old_tw, &old_tw, sizeof(int64_t));
+    if( i_old_tw == lgp_cmp_and_swap(tent->entry, J, i_old_tw, i_new_tw) )
+      break;
+  }
+}
+
+static void relax_bellman_agp(d_array_t *tent, int64_t J, double new_tw)
+{
+  double old_tw;
+
+  while(1){
+    old_tw = lgp_get_double(tent->entry, J);
+    if(new_tw > old_tw) 
+      break;
+    if( old_tw == lgp_cmp_and_swap(*(SHARED int64_t *)&tent->entry, J, *(int64_t *)&old_tw, *(int64_t *)&new_tw) )
+      break;
+  }
+}
+#endif
+
+#if 1
+static void relax_bellman_agp(d_array_t *tent, int64_t J, double new_tw)
+{
+  double old_tw = lgp_get_double(tent->entry, J);
+  if(new_tw > old_tw) 
+     return;
+  lgp_put_double(tent->entry, J, new_tw);
+}
+#endif
 /*!
  * \brief This routine implements the Bellman-Ford algorithm with the AGP model
  *

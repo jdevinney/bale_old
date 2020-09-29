@@ -53,7 +53,7 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
   apps.append("permute_matrix")
   apps.append("topo")
   apps.append("triangles")
-  #apps.append("sssp")
+  apps.append("sssp")
   apps.append("write_sparse_matrix")
 
   launcher = determine_launcher(launcher_cmd)
@@ -123,7 +123,9 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
         if app != 'triangles':
           runs.append("-b 44 -f ../../../example_matrices/directed_flat_100.mm")
           runs.append("-b 44 -f ../../../example_matrices/directed_geometric_100.mm")
-
+    if app == 'sssp':
+      runs.append("-n 100")
+          
     print()
     print("*************************************************************")
     for pes in node_range:

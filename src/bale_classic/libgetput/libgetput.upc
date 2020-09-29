@@ -330,7 +330,7 @@ double lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, 
 
   local_ptr =(double*)(( (char*)addr ) + local_index);
 
-  return shmem_int64_g ( local_ptr, pe );
+  return shmem_double_g ( local_ptr, pe );
 }
 
 #endif

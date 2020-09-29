@@ -43,7 +43,7 @@
 #include "sssp.h"
 
 /*!
- * \brief pop routine to implement relaxing the edges
+ * \brief Relax the head of the edges delivered by a conveyor buffer
  * \param tent pointer to the tentative distances array
  * \param *conv the conveyor
  * \param done the signal to convey_advance that this thread is done
@@ -61,6 +61,28 @@ static int64_t bellman_convey_relax_process(d_array_t *tent, convey_t *conv, int
   }
   return( convey_advance(conv, done) );
 }
+
+/*!
+ * \brief Push the potentially improved weight to the thread handling the head of the edge
+ * \param conv the extack buffers
+ * \param tent pointer to the tentative distances array to be passed thru to bellman_convey_relax_process
+ * \param J the head of the edge, given by it global name
+ * \param tw the new weight
+ * \return the value from the push
+ */
+static int64_t bellman_convey_push(convey_t *conv, d_array_t *tent, int64_t J, double tw)
+{
+  int64_t ret, pe;
+  sssp_pkg_t pkg;
+  pe     = J % THREADS;
+  pkg.lj = J / THREADS;
+  pkg.tw = tw;
+  if((ret = convey_push(conv, &pkg, pe)) == 0){
+    bellman_convey_relax_process(tent, conv, 0);
+  }
+  return(ret);
+}
+
 
 /*!
 * \brief This routine implements the conveyor variant of Bellman-Ford algorithm
@@ -126,21 +148,15 @@ double sssp_bellman_convey(d_array_t *dist, sparsemat_t *mat, int64_t v0)
         continue;
       changed = 1;
       for(k=mat->loffset[li]; k< mat->loffset[li+1]; k++){
-        J = mat->lnonzero[k];
-        pe  = J % THREADS;
-        pkg.lj = J / THREADS;
-        pkg.tw = tent_cur->lentry[li] + mat->lvalue[k];
         if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, li * THREADS + MYTHREAD, J, tent_cur->lentry[li],  pkg.tw);}
-        if( convey_push(conv, &pkg, pe) != convey_OK ){
-          bellman_convey_relax_process(tent_new, conv, 0); 
+        if( bellman_convey_push(conv, tent_new, mat->lnonzero[k],  tent_cur->lentry[li] + mat->lvalue[k]) == 0)
           k--;
-        }
       }
     }
     while(bellman_convey_relax_process(tent_new, conv, 1))// keep popping til all threads are done
       ;
     lgp_barrier();
-    if( lgp_reduce_add_l(changed) == 0 ){
+    if( lgp_reduce_add_l(changed) == 0 ){                 // keep looping until nothing changes
       replace_d_array(dist, tent_new);
       break;
     }

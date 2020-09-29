@@ -51,11 +51,11 @@
 #include <locale.h>
 
 double        sssp_bellman_agp(d_array_t *tent, sparsemat_t * mat, int64_t v0);
-double    sssp_bellman_exstack(d_array_t *tent, sparsemat_t * mat, int64_t v0);
-double   sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0);
+double    sssp_bellman_exstack(d_array_t *tent, sparsemat_t * mat, int64_t buf_cnt, int64_t v0);
+double   sssp_bellman_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t buf_cnt, int64_t v0);
 double     sssp_bellman_convey(d_array_t *tent, sparsemat_t * mat, int64_t v0);
-double      sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t v0, double opt_delta);
-double      sssp_delta_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t v0, double opt_delta);
+double      sssp_delta_exstack(d_array_t *tent, sparsemat_t * mat, int64_t buf_cnt, int64_t v0, double opt_delta);
+double     sssp_delta_exstack2(d_array_t *tent, sparsemat_t * mat, int64_t buf_cnt, int64_t v0, double opt_delta);
 double       sssp_delta_convey(d_array_t *tent, sparsemat_t * mat, int64_t v0, double opt_delta);
 
 void dump_tent(char *str, d_array_t *tent);
