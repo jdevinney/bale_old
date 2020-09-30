@@ -96,8 +96,8 @@ int main(int argc, char * argv[])
   for (use_model=1; use_model < 2; use_model *=2) {
     switch (use_model & args.std.models_mask) {
     case GENERIC:
-    printf("transpose matrix : ");
-    laptime = transpose_generic(mat, args.std.dump_files);
+      printf("transpose matrix : ");
+      laptime = transpose_generic(mat, args.std.dump_files);
     break;
     default:
       continue;
@@ -105,7 +105,7 @@ int main(int argc, char * argv[])
     printf("  %8.3lf seconds \n", laptime);
   }
 
-  // TODO check the result
+  // TODO check the result for transpose
   return(0);
 }
 

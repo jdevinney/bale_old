@@ -31,21 +31,41 @@ double wall_seconds()
 
 }
 
-void rand_seed(int64_t seed)
-{
+
+
+/*! \brief set the seed for the random number generator
+ * \param seed
+ */
+void rand_seed(int64_t seed){
+#ifdef USE_KNUTH
+  ranf_start(seed);
+#else
   srand48(seed);
+#endif
 }
 
-double rand_double()
-{
-  return(drand48());
-}
-
-int64_t rand_int64(int64_t N)
-{
-  assert(N < 281474976710656);
+/*! \brief return the next random integer mod N
+ * \param N the modulus
+ * \return a random number from 0 to N-1
+ */
+int64_t rand_int64(int64_t N){
+  assert(N < CBALE_RAND_MAX);
+#ifdef USE_KNUTH
+  return((int64_t)(ranf_arr_next()*N));
+#else
   return((int64_t)(drand48()*N));
+#endif
 }
+
+
+double rand_double(){
+#ifdef USE_KNUTH
+  return(ranf_arr_next());
+#else
+  return(drand48());
+#endif
+}
+
 
 /*! \brief create an int64_t array which holds a uniform random permutation
  * \param N the length of the global array
@@ -882,69 +902,8 @@ char *loopstr[] = {"LOOPS", "NOLOOPS"};
    
 }
 
-/*! \brief Subroutine to create a random sparse matrix.
-  * 
-  * The matrix is formed using a Erdo-Renyi like method. A[i,j] is nonzero with a fixed probability p.
-  * The value of p depends on the density specified.
-  *
-  * \param nrows The number of rows
-  * \param ncols The number of columns
-  * \params density d in [0,1) specifying the fraction of entries that are nonzero
-  * \params values 0 means all nonzeros are 1, 1 means all nonzeros are [0,1) uniform random.
-  * \params seed RNG seed
-  */
- 
- sparsemat_t * random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed){
-   int64_t i, r;
-   int64_t row, col;
-   double lM = log(RAND_MAX);
-   double D  = log(1 - density);
-   int64_t nnz = 0;
-   
-   // first loop to count the number of nonzeros
-   srand(seed);
-   row = 0;
-   do { r = rand(); } while(r == RAND_MAX);
-   col = 1 + floor((log(RAND_MAX - r) - lM)/D);
-   while(row < nrows){
-     while(col < ncols){
-       nnz++;
-       do { r = rand(); } while(r == RAND_MAX);     
-       col += 1 + floor((log(RAND_MAX - r) - lM)/D);
-     }
-     row++;
-     col -= ncols;
-   }
 
-   sparsemat_t * A = init_matrix(nrows, ncols, nnz, values);
-
-   //second pass: regenerate same random sequence and populate the matrix
-   srand(seed);
-   row = 0;
-   nnz = 0;
-   do { r = rand(); } while(r == RAND_MAX);
-   col = 1 + floor((log(RAND_MAX - r) - lM)/D);
-   while(row < nrows){
-     while(col < ncols){
-       A->nonzero[nnz++] = col;
-       do { r = rand(); } while(r == RAND_MAX);     
-       col += 1 + floor((log(RAND_MAX - r) - lM)/D);
-     }
-     row++;
-     A->offset[row] = nnz;
-     col -= ncols;
-   }
-
-   // fill in the random values
-   if(values){
-     for(i = 0; i < nnz; i++){
-       A->value[i] = rand_double();
-     }
-   }
-   return(A);
-}
-
-//****************** Kronecker Products of Star  Graphs *******************************/
+/****************** Kronecker Products of Star  Graphs *******************************/
 /*! \brief Generate the adjacency matrix for the star K_{1,m} (with or without loop edges)
  * \param m  the number of non-hub vertices
  * \param mode
@@ -1250,10 +1209,12 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 
 
   // First pass, generate the points and count how many will fall in each sector.
-  srand(seed);
+  rand_seed(seed); 
   for(i = 0; i < n; i++){
-    double x = (double)rand()/RAND_MAX;
-    double y = (double)rand()/RAND_MAX;
+    //double x = (double)rand()/RAND_MAX;
+    //double y = (double)rand()/RAND_MAX;
+    double x = rand_double();
+    double y = rand_double();
     int64_t row = floor(y/sector_width);
     int64_t col = floor(x/sector_width);
     assert(row < nsectors_across);
@@ -1279,10 +1240,10 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     }
   }
   // Second pass: generate the points and insert them into the struct
-  srand(seed);
+  rand_seed(seed);
   for(i = 0; i < n; i++){
-    double x = (double)rand()/RAND_MAX;
-    double y = (double)rand()/RAND_MAX;
+    double x = rand_double();
+    double y = rand_double();
     int64_t row = floor(y/sector_width);
     int64_t col = floor(x/sector_width);
     int64_t li = sectors[row][col].numpoints;
@@ -1313,7 +1274,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
         for(l = 0; l < k; l++){
           other_node = sec->points[l].index;
           if(dist(sec->points[k], sec->points[l]) < r2){
-            if(directed && (rand() & 1L))
+            if(directed && rand_int64(2))
               append_edge(el, other_node, this_node);
             else
               append_edge(el, this_node, other_node);
@@ -1328,7 +1289,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
           for(l = 0; l < sec2->numpoints; l++){
             other_node = sec2->points[l].index;
             if(dist(sec->points[k], sec2->points[l]) < r2){
-              if(directed && (rand() & 1L))
+              if(directed && rand_int64(2))
                 append_edge(el, other_node, this_node);
               else
                 append_edge(el, this_node, other_node);
@@ -1341,7 +1302,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
           for(l = 0; l < sec2->numpoints; l++){
             other_node = sec2->points[l].index;
             if(dist(sec->points[k], sec2->points[l]) < r2){
-              if(directed && (rand() & 1L))
+              if(directed && rand_int64(2))
                 append_edge(el, other_node, this_node);
               else
                 append_edge(el, this_node, other_node);
@@ -1354,7 +1315,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
           for(l = 0; l < sec2->numpoints; l++){
             other_node = sec2->points[l].index;
             if(dist(sec->points[k], sec2->points[l]) < r2){
-              if(directed && (rand() & 1L))
+              if(directed && rand_int64(2))
                 append_edge(el, other_node, this_node);
               else
                 append_edge(el, this_node, other_node);
@@ -1367,7 +1328,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
           for(l = 0; l < sec2->numpoints; l++){
             other_node = sec2->points[l].index;
             if(dist(sec->points[k], sec2->points[l]) < r2){
-              if(directed && (rand() & 1L))
+              if(directed && rand_int64(2))
                 append_edge(el, other_node, this_node);
               else
                 append_edge(el, this_node, other_node);
@@ -1403,7 +1364,7 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
       A->offset[row] = i;
     }
     A->nonzero[i] = el->edges[i].col;
-    if(weighted) A->value[i] = (double)rand()/RAND_MAX;
+    if(weighted) A->value[i] = rand_double();
   }
   
   while(row < n){
@@ -1516,24 +1477,25 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
  * \return A sparsemat_t
  */
 
-sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed){
+sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed)
+{
   int64_t row, col;
-  int64_t P = p*RAND_MAX;
   int64_t pos;
   
   assert(n > 0);
+  assert(0.0<p && p<1.0);
   
-  srand(seed);
+  rand_seed(seed);
   int64_t nnz = 0;
   int64_t end = n;
   for(row = 0; row < n; row++){
     if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
       end = row;    
     for(col = 0; col < end; col++){
-      if(col == row) continue;
-      if( rand() < P ){
+      if(col == row) 
+        continue;
+      if(rand_double() < p)
         nnz++;
-      }
     }
   }
   if(loops == LOOPS) nnz += n;
@@ -1543,7 +1505,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   if(!mat){ printf("ERROR: erdos_renyi_random_graph_naive: init_matrix failed!\n"); return(NULL); }
 
   // fill in the nonzeros
-  srand(seed);
+  rand_seed(seed);
   pos = 0;
   mat->offset[0] = 0;
   for(row = 0; row < n; row++){
@@ -1554,7 +1516,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
         mat->nonzero[pos++] = row;
         continue;
       }
-      if( rand() < P ){
+      if(rand_double() < p){
         mat->nonzero[pos++] = col;
       }
     }
@@ -1564,10 +1526,9 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   if(weighted){
     int64_t i;
     for(i = 0; i < pos; i++){
-      mat->value[i] = (double)rand()/RAND_MAX;
+      mat->value[i] = rand_double();
     }
   }
-  
   return( mat);
 }
 
@@ -1702,12 +1663,11 @@ d_array_t * read_d_array(char *name)
  * \param name the filename to be written to
  * \return 0 on success, non-0 on error.
  */
-// TODO add comment lines
-int64_t write_d_array(d_array_t *A, char * name)
+int64_t write_d_array(d_array_t *A, char * name)      // TODO add comment lines in output file
 {
   int64_t i;
 
-  FILE * fp = fopen(name, "w");       // FIXME error
+  FILE * fp = fopen(name, "w");
   if( fp == NULL ){
     fprintf(stderr,"write_d_array: can't open file %s \n", name);
     exit(1);
