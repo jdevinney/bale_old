@@ -10,8 +10,7 @@
 
 #include "std_options.h"
 
-// TODO:doxygen the arg_parse function for std_args_t.
-static int std_parse_opt(int key, char * arg, struct argp_state * state)
+static int std_parse_opt(int key, char * arg, struct argp_state * state) // TODO:doxygen 
 {
   std_args_t * args = (std_args_t *)state->input;
   switch(key){
@@ -30,7 +29,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state)
   return(0);
 }
 
-static struct argp_option std_options[] = 
+static struct argp_option std_options[] =  // TODO:doxygen 
 {
   {"dump_files", 'D', 0, 0, "Dump files for debugging"},
   {"models_mask", 'M', "MASK", 0, "Which flavors to run."},
@@ -39,13 +38,13 @@ static struct argp_option std_options[] =
   {0}
 };
 
-struct argp std_options_argp = 
+struct argp std_options_argp =  // TODO:doxygen 
 {
   std_options, std_parse_opt, 0, 0, 0
 };
 
 // This function writes some of the standard options and their values to the screen (or json file).
-void write_std_options(std_args_t * sargs){
+void write_std_options(std_args_t * sargs){ // TODO:doxygen 
   if(sargs->json == 0){
     fprintf(stderr,"Standard options:\n");
     fprintf(stderr,"----------------------------------------------------\n");
@@ -139,13 +138,13 @@ struct argp std_graph_options_argp =
   graph_options, graph_parse_opt, 0, 0, 0
 };
 
-//TODO should this be in spmat_utils  maybe need std_enums
 /* this function looks at the std_args_t and std_graph_args_t structs to decide
    whether to read a matrix or generate a random matrix. The function returns
    the read or generated matrix. It also writes some matrix statistics to stderr,
    or the output json file.
 */
-sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs)
+sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs) //TODO: move to spmat_utils ??? //TODO: doxygen
+//TODO should this be in spmat_utils  maybe need std_enums
 {
   sparsemat_t * mat;
   
@@ -231,7 +230,7 @@ void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs)
 
 // TODO: look at argv for the strings "--help", "--usage", or "-?".
 //   If those strings are found, we know, main needs to exit after parsing the command line.
-int check_for_exit(int argc, char * argv[], int ret)
+int check_for_exit(int argc, char * argv[], int ret) //TODO: doxygen 
 {
   int i;
   for(i = 0; i < argc; i++){

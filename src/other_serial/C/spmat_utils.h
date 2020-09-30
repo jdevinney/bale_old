@@ -158,7 +158,7 @@ sparsemat_t *    permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cper
 int64_t *        rand_perm(int64_t N, int64_t seed);
 
 sparsemat_t *    random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops, double edge_density, int64_t seed);
-sparsemat_t *    random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed);
+//sparsemat_t *    random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed);  // TODO delete
 
 sparsemat_t *    read_matrix_mm(char * name);
 void             resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row,
@@ -192,30 +192,19 @@ int64_t     replace_d_array(d_array_t *dest, d_array_t *src);
 
 double wall_seconds();
 
+#define USE_KNUTH
+#ifdef USE_KNUTH
+#define CBALE_RAND_MAX 2251799813685248
+#include "knuth_rng_double_2019.h"
+#else
+#define CBALE_RAND_MAX 281474976710656
+#endif
 double  rand_double();
 int64_t rand_int64(int64_t N);
 void    rand_seed(int64_t seed);
-
 
 
 #define DEBUG 0
 #define Dprintf if(DEBUG) printf
 #endif
 
-#if 0 // TODO
-/*! \brief struct to hold the state used to iterate across the row of a sparse matrix.
- * \ingroup spmatgrp
- */
-typedef struct next_nz {
-  sparsemat_t * mat;      //!<  the matrix
-  int64_t start;
-  int64_t idx;
-  int64_t stop;
-  int64_t col;
-} next_nz_t;
-
-next_nz_t * new_nxt_nz( sparsemat_t *mat );
-void init_nxt_l_nz(next_nz_t * nxtnz, int64_t row);
-int has_nxt_l_nz(next_nz_t * nxtnz);
-void incr_nxt_l_nz(next_nz_t * nxtnz);
-#endif
