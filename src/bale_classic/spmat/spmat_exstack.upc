@@ -708,7 +708,9 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
     }
     lgp_barrier();
   }
-
+  
+  fclose(rcfp);
+  fclose(nzfp);
   
   /* make sure all threads wrote cleanly */
   ret = lgp_reduce_add_l(error);

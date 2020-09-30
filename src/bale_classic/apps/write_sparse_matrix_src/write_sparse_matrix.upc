@@ -111,7 +111,7 @@ int main(int argc, char * argv[])
   /* process command line */
   args_t args = {0};
   struct argp argp = {NULL, parse_opt, 0,
-                      "Parallel sparse matrix transpose.", children_parsers};
+                      "Parallel write sparse matrix.", children_parsers};
 
   args.gstd.l_numrows = 1000000;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
@@ -125,7 +125,7 @@ int main(int argc, char * argv[])
 
   // read in a matrix or generate a random graph
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
-  if(!inmat){T0_fprintf(stderr, "ERROR: transpose: inmat is NULL!\n");return(-1);}
+  if(!inmat){T0_fprintf(stderr, "ERROR: write_sparse_matrix: inmat is NULL!\n");return(-1);}
 
   if(args.std.dump_files) write_matrix_mm(inmat, "inmat");
   

@@ -219,7 +219,7 @@ sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_ty
                                  double edge_density, int64_t seed);
 
 sparsemat_t *       read_matrix_mm_to_dist(char * name);
-SHARED int64_t *    read_rowcnts(char * datadir, int64_t numrows, int64_t nwriters);
+int64_t *           read_rowcnts(char * datadir, int64_t numrows, int64_t nwriters);
 int64_t             read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc,
                                                 int64_t * nnz, int64_t * nwriters, int64_t * values);
 sparsemat_t *       read_sparse_matrix_agp(char * datadir);

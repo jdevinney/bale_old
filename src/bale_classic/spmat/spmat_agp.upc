@@ -40,6 +40,8 @@
  */
 #include <spmat.h>
 #include <sys/stat.h>   // for mkdir()
+#include <fcntl.h>
+
 /******************************************************************************/
 /*! \brief create a global int64_t array with a uniform random permutation
  * \param N the length of the global array
@@ -326,6 +328,7 @@ int64_t write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
   char fname[64];
   sprintf(fname, "%s/nonzero_%d", dirname, MYTHREAD);
   FILE * fp = fopen(fname, "wb");
+  FILE * vfp;
   if(values){
     sprintf(fname, "%s/value_%d", dirname, MYTHREAD);
     vfp = fopen(fname, "wb");
@@ -338,7 +341,7 @@ int64_t write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
     int64_t row_cnt = lgp_get_int64(A->offset, i + THREADS) - row_start;
     if(pos + row_cnt >= BUFSIZE){
       fwrite(buf, sizeof(int64_t), pos, fp); 
-      if(values) fwrite(vfbu, sizeof(double), pos, vfp);
+      if(values) fwrite(vbuf, sizeof(double), pos, vfp);
       pos = 0;
     }
     int64_t plc = row_start*THREADS + i % THREADS;
@@ -368,23 +371,25 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
   int64_t values;
   char fname[128];
   
-  /* read the ASCII file */
+  /* read the metadata file */
   int ret = read_sparse_matrix_metadata(dirname, &nr, &nc, &nnz, &nwriters, &values);
   if(ret){
     T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: read_metadata failed!\n"); return(NULL);
   }
-  fprintf(stderr,"metadata: %ld %ld %ld %ld\n", nc, nc, nnz, nwriters);fflush(stderr);
 
-  int64_t rows_to_read = (numrows + THREADS - MYTHREAD - 1)/THREADS;
-  int64_t first_row_to_read = MYTHREAD * rows_to_read + ((MYTHREAD < numrows % THREADS ? 0 : numrows % THREADS));
+  //T0_fprintf(stderr,"metadata: %ld %ld %ld %ld\n", nc, nc, nnz, nwriters);fflush(stderr);
+  
+  int64_t rows_to_read = (nr + THREADS - MYTHREAD - 1)/THREADS;
+  int64_t first_row_to_read = MYTHREAD * rows_to_read + ((MYTHREAD < nr % THREADS ? 0 : nr % THREADS));
   
   /* read rowcnts in BLOCKED fashion */
-  int64_t * rowcnts_read = read_rowcnts(dirname, nr, nwriters);
-  if(rowcnts_read == NULL){
+  int64_t * read_rc = read_rowcnts(dirname, nr, nwriters);
+  if(read_rc == NULL){
     T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: read_rowcnts_failed");
     return(NULL);
   }
-  
+
+  /* distribute row counts in CYCLIC fashion */
   SHARED int64_t * rowcnt = lgp_all_alloc(nr, sizeof(int64_t));
   if(rowcnt == NULL){
     T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: could not allocate rowcnt");
@@ -392,11 +397,10 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
   }
   int64_t * lrowcnt = lgp_local_part(int64_t, rowcnt);
 
-  /* distribute row counts in CYCLIC fashion */
   int64_t nnz_to_read = 0;
   for(i = 0; i < rows_to_read; i++){
-    lgp_put_int64(rowcnt, first_row_to_read + i, read_rowcnts[i]);
-    nnz_to_read += read_rowcnts[i];
+    lgp_put_int64(rowcnt, first_row_to_read + i, read_rc[i]);
+    nnz_to_read += read_rc[i];
   }
   lgp_barrier();
   
@@ -405,10 +409,10 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
   for(i = 0; i < rows_to_read; i++){
     lnnz += lrowcnt[i];
   }
-  fprintf(stderr,"PE %d gets %ld nonzeros\n", MYTHREAD, lnnz);fflush(stderr);
+  //fprintf(stderr,"PE %d gets %ld nonzeros\n", MYTHREAD, lnnz);fflush(stderr);
   
   /* initialize sparse matrix */
-  A = init_matrix(nr, nc, lnnz, values);
+  sparsemat_t * A = init_matrix(nr, nc, lnnz, values);
   if(!A){
     T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: init_matrix failed!\n");return(NULL);
   }
@@ -416,7 +420,7 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
   /* create A->offset array */
   A->loffset[0] = 0;
   for(i = 0; i < rows_to_read; i++){
-    A->loffset[i+1] = A->loffet[i] + lrowcnt[i];
+    A->loffset[i+1] = A->loffset[i] + lrowcnt[i];
   }
 
   lgp_barrier();
@@ -428,15 +432,16 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
   for(i = MYTHREAD; i < nwriters; i+=THREADS){
     sprintf(fname, "%s/nonzero_%d", dirname, i);
     int fd = open(fname, O_RDONLY);
-    struct stat_buf;
+    struct stat buf;
     fstat(fd, &buf);
     lgp_put_int64(nnz_in_file, i, buf.st_size/8);
+    //fprintf(stderr,"%ld nnz in file %ld\n", lgp_get_int64(nnz_in_file, i), i);
     close(fd);
   }
 
   lgp_barrier();
   
-  /* find the right spot in the nonzeros files */
+  /* find the right spot to seek to in the nonzeros files */
   int64_t skip = lgp_prior_add_l(nnz_to_read);
 
   int64_t current_file = 0;
@@ -447,7 +452,7 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
       break;
     current_nnz += nnz_this_file;
   }
-
+  
   /* open first file and seek to the right place */
   FILE * fp, *vfp;  
   sprintf(fname, "%s/nonzero_%d", dirname, current_file);
@@ -456,13 +461,19 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
     sprintf(fname, "%s/value_%d", dirname, current_file);
     vfp = fopen(fname,"rb");
   }
-  
+
+  ret = 0;
   if(current_nnz < skip){
-    fseek(fp, skip - current_nnz, SEEK_SET);
+    ret = fseek(fp, skip - current_nnz, SEEK_SET);
+    if(ret){
+      fprintf(stderr,"ERROR: read_sparse_matrx: seek failed!\n");
+    }
     if(values)  fseek(vfp, skip - current_nnz, SEEK_SET);
     current_nnz = skip;
   }
-    
+  ret = lgp_reduce_add_l(ret);
+  if(ret) return(NULL);
+  
   /* read your slice of nonzeros and spray them out to other PEs */
   int64_t current_local_row = 0;
   int new_file = 0;
@@ -486,12 +497,18 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
     /* read from current file until EOF or you don't need to read any more */
     int64_t num_to_read_now = 0;
     int64_t num_rows_to_read_now = 0;
-    while(num_to_read_now + read_rowcnts[current_local_row + num_rows_to_read_now] < buf_size){
-      num_to_read_now + read_rowcnts[current_local_row + num_rows_to_read_now];
+    while(1){
+      num_to_read_now += read_rc[current_local_row + num_rows_to_read_now];
       num_rows_to_read_now++;
+      if(num_to_read_now + read_rc[current_local_row + num_rows_to_read_now] >= buf_size)
+        break;
+      if(current_local_row + num_rows_to_read_now == rows_to_read)
+        break;
     }
     
-    num_read = fread(buf, sizeof(int64_t), num_to_read_now, fp);
+    size_t num_read = fread(buf, sizeof(int64_t), num_to_read_now, fp);
+    //fprintf(stderr,"Trying to read %ld from %ld read %ld\n",
+    //num_to_read_now, current_file, num_read);
     if(values){
       int64_t num_v_read = fread(vbuf, sizeof(double), num_to_read_now, vfp);
       assert(num_v_read == num_read);
@@ -501,16 +518,17 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
     if(num_read != num_to_read_now || nnz_to_read == 0){
       fclose(fp);
       current_file++;
-      new_file = 1;
+      new_file = 1; 
     }
     
+    int64_t pos = 0;
     while(num_read){
-      rc = read_rowcnts[current_local_row];
-      global_row = first_row_to_read + current_local_row;
-      rs = A->offset[global_row]*THREADS + global_row%THREADS;
+      int64_t rc = read_rc[current_local_row];
+      int64_t global_row = first_row_to_read + current_local_row;
+      int64_t rs = lgp_get_int64(A->offset,global_row)*THREADS + global_row%THREADS;
       lgp_memput(A->nonzero, &buf[pos], rc*sizeof(int64_t), rs);
       if(values)
-        lgp_memput(A->values, &vbuf[pos], rc*sizeof(double), rs);
+        lgp_memput(A->value, &vbuf[pos], rc*sizeof(double), rs);
       pos += rc;
       num_read -= rc;
       assert(num_read >= 0);
@@ -522,9 +540,11 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
 
   free(buf);
   if(values) free(vbuf);
-  free(read_rowcnts);
+  free(read_rc);
   lgp_all_free(nnz_in_file);
-  
+
+  //if(!MYTHREAD)
+  //print_matrix(A);
   return(A);
 }
 

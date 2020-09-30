@@ -233,7 +233,7 @@ int64_t write_sparse_matrix_metadata(char * dirname, sparsemat_t * A){
     char fname[64];
     sprintf(fname, "%s/metadata", dirname);
     FILE * fp = fopen(fname, "w");
-    int values = (A->values != NULL);
+    int values = (A->value != NULL);
     fprintf(fp, "%"PRId64"\n%"PRId64"\n%"PRId64"\n%d\n%d\n",
             A->numrows, A->numcols, A->nnz, THREADS, values);
     fclose(fp);
@@ -271,57 +271,53 @@ int64_t * read_rowcnts(char * datadir, int64_t numrows, int64_t nwriters){
     fprintf(stderr,"ERROR: read_rowcnts: could not open file %s\n", fname);
     return(NULL);
   }
-  /* seek to the right place */  
-  fseek(fp, first_row_to_read - current_row, SEEK_SET);
-  current_row = first_row_to_read;
-  fprintf(stderr,"PE %d is reading file %ld at row %ld (seeked to %ld)\n",MYTHREAD, current_file, current_row, first_row_to_read - current_row);fflush(stderr);
+  
+  /* seek to the right place */
+  if(first_row_to_read != current_row){
+    fseek(fp, first_row_to_read - current_row, SEEK_SET);
+    current_row = first_row_to_read;
+  }
+  //fprintf(stderr,"PE %d is reading file %ld at row %ld (seeked to %ld)\n",MYTHREAD, current_file, current_row, first_row_to_read - current_row);fflush(stderr);
   
   /* keep reading rowcnts until you are done */
   int64_t rows_read = 0, num_to_read;
   
-  num_recs_this_file = (numrows + nwriters - current_file - 1)/nwriters;  
-  while(1){
+  
+  while(current_row < stop_row){
 
+    num_recs_this_file = (numrows + nwriters - current_file - 1)/nwriters;
+    
     if(current_row + num_recs_this_file > stop_row)
       num_to_read = stop_row - current_row;
     else
       num_to_read = num_recs_this_file;
-    
+
+    //fprintf(stderr,"Reading %ld from file %ld (%ld)\n", num_to_read, current_file, num_recs_this_file);fflush(0);
+
     int64_t num_read = fread(&rowcnts[rows_read], sizeof(int64_t), num_to_read, fp);
     if(num_read != num_to_read){
       fprintf(stderr,"ERROR: read_rowcnts: read %ld but expected %ld in %s\n", num_read, num_to_read, fname);
       return(NULL);
     }
 
+    fclose(fp);
+    
     rows_read += num_read;
     current_row += num_read;
     if(current_row == stop_row)
       break;
 
-    num_recs_this_file -= num_read;
-    
-    /* open the next file */
-    if(num_recs_this_file == 0){
-      fclose(fp);
-      
-      current_file++;
-      num_recs_this_file = (numrows + nwriters - current_file - 1)/nwriters;
-      sprintf(fname, "%s/rowcnt_%d", datadir, current_file);
-      fp = fopen(fname, "rb");
-      if(!fp){
-        fprintf(stderr,"ERROR: read_rowcnts: could not open file %s\n", fname);
-        return(NULL);
-      }
-    }
-    
+    /* if we are not done, open the next file */
+    current_file++;
+
+    sprintf(fname, "%s/rowcnt_%d", datadir, current_file);
+    fp = fopen(fname, "rb");
+    if(!fp){
+      fprintf(stderr,"ERROR: read_rowcnts: could not open file %s\n", fname);
+      return(NULL);
+    }    
   }
-
-  lgp_barrier();
   
-  if(!MYTHREAD)
-    for(i = 0; i < numrows; i++)
-      T0_fprintf(stderr,"%d: %ld\n", i, lgp_get_int64(rowcnts, i));
-
   lgp_barrier();
   
   return(rowcnts);
@@ -1769,16 +1765,20 @@ sparsemat_t * triples_to_sparsemat(triples_t * T){
   return(A);
 }
 
+
 void print_matrix(sparsemat_t * A){
   int64_t i, j;
-
+  
   for(i = 0; i < A->numrows; i++){
     T0_printf("row %ld: ",i);
-    for(j = A->offset[i]; j < A->offset[i+THREADS]; j++){
-	    if( A->value != NULL ){
-        T0_printf("(%ld, %lg) ", A->nonzero[j*THREADS + i%THREADS], A->value[j*THREADS + i%THREADS]);
+    int64_t start = lgp_get_int64(A->offset, i);
+    int64_t end = lgp_get_int64(A->offset, i+THREADS);
+    for(j = start; j < end; j++){
+      if( A->value != NULL ){
+        T0_printf("(%ld, %lg) ", lgp_get_int64(A->nonzero, j*THREADS + i%THREADS),
+                  lgp_get_double(A->value, j*THREADS + i%THREADS));
       } else {
-        T0_printf("%ld ", A->nonzero[j*THREADS + i%THREADS]);
+        T0_printf("%ld ", lgp_get_int64(A->nonzero, j*THREADS + i%THREADS));
       }
     }
     T0_printf("\n");
