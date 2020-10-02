@@ -25,9 +25,9 @@
 
 /*! \brief Generate a matrix for the lower triangular section of the adjacency matrix of a Erdös–Renyi random graph.
  * \param numrows the number of rows (and columns) in the produced matrix
- * \param er_prob the probability that a particular edge exists in the graph
+ * \param edge_prob the probability that a particular edge exists in the graph
  * \param seed the seed for random number generator that determines the original matrix and the permutations
- * \param dump_files is a debugging flag
+ * \param dump_files a debugging flag to output the matrix
  * \return the lower triangular matrix
  */
 sparsemat_t * generate_concomp_input(int64_t numrows, double edge_prob,  uint32_t seed, int dump_files) 
