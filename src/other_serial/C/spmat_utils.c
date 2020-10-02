@@ -1004,11 +1004,13 @@ sparsemat_t * kronecker_mat_product(sparsemat_t * A, sparsemat_t * B)
 
 
 /*! \brief Generate the kroncker product of a collection of star graphs.
- * \param K is a struct that holds all the parameters for the construction
  * \param mode 
  *  - mode == 0: default, no self loops
  *  - mode == 1: add a self loop to center vertex of each star 
  *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
+ * \param spec an array the holds the sizes of the stars
+ * \param num number of stars
+ * \param weighted whether or not to apply weights to the edges
  * \return the adjacency matrix for graph
 */
 sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num, int weighted)
@@ -1066,6 +1068,15 @@ sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num, 
   return(G);
 }
 
+/*! \brief compute the number of triangles in the the Kroncker Product graph
+ * \param mode 
+ *  - mode == 0: default, no self loops
+ *  - mode == 1: add a self loop to center vertex of each star 
+ *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
+ * \param spec an array the holds the sizes of the stars
+ * \param num number of stars
+ * \return the number of triangles
+*/
 int64_t tri_count_kron_graph(int mode, int * spec, int num)
 {
    double approx, ns, nr;
@@ -1096,6 +1107,14 @@ int64_t tri_count_kron_graph(int mode, int * spec, int num)
 // (z-1)*n = e*(n*(n-1)/2) (for UNDIRECTED*) or (z-1)*n = e*(n(n-1)) for DIRECTED
 //
 
+/*! 
+ * \brief computes the number of non-zeros per row from the edge probability or vice-versa.
+ * \param edge_prob given edge probability (or place to put the computed edge_prob)
+ * \param nz_per_row  given number of nonzeros per row (or place to put the computed nz_per_row)
+ * \param numrows = numcols global order of the matrix 
+ * \param edge_type weighted or unweighted
+ * \param loops whether the diagonal is all zeros or all ones
+ */
 void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows,
                                       edge_type edge_type, self_loops loops){
   if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob

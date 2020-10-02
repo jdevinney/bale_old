@@ -61,9 +61,9 @@ double histo_buffered(int64_t *index, int64_t num_ups,  int64_t *counts, int64_t
   int64_t i,j;
   int64_t nbits;
   int64_t sort_shift;
-#define LOG_NUM_BUFFERS 6  
-#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS)
-#define BUFFER_SIZE 128
+#define LOG_NUM_BUFFERS 6                 /*!< parameters to play with buffering histo */
+#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS) /*!< number of buffers */
+#define BUFFER_SIZE 128                   /*!< size of the buffers */
   int64_t s, cnts[NUM_BUFFERS]; 
   int64_t counts_idx[NUM_BUFFERS][BUFFER_SIZE];
   

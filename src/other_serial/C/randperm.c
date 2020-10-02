@@ -111,18 +111,15 @@ double randperm_dart(int64_t len, uint32_t s)
 /*! \struct idxkey_t 
  * \brief structure used by the randperm_sort routine
  * NB. Repeated key are bad, but tolerated. 
- * They would be ok if ties were broken randomly or if doubles were
- * real numbers. 
+ * They would be ok if ties were broken randomly or if doubles were real numbers. 
  */
 typedef struct idxkey_t {
-  int64_t idx; //!< sequential index 0,...,len-1 
-  double  key; //!< random key
+  int64_t idx; /*!< sequential index 0,...,len-1 */
+  double  key; /*!< random key */
 } idxkey_t;
 
 
-/*! \brief the compare function for qsort called in the 
- * randperm_sort routine
- */
+/*! \brief the compare function for qsort called in the randperm_sort routine */
 static int rp_comp( const void *a, const void *b) {
   idxkey_t * ak = (idxkey_t *)a;
   idxkey_t * bk = (idxkey_t *)b;
@@ -132,7 +129,7 @@ static int rp_comp( const void *a, const void *b) {
 /*!
  * \brief The sorting algorithm to produce a random perm
  * \param len length of the permutation array
- * \param s seed for the random number generator.
+ * \param seed seed for the random number generator.
  * We form an (index, key) pair. Then we randomly fill the keys
  * and then sort on the key. Then we read the permutation from the indices
  */

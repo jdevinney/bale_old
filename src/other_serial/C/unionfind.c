@@ -55,7 +55,8 @@ typedef struct comp_tree_t {
   int64_t rank;    //!< if the node is the root, size of the component
 } comp_tree_t;
 
-/*! \brief Find the name (the root of the parent tree) for the component containing a given node.
+/*! 
+ * \brief Find the name (the root of the parent tree) for the component containing a given node.
  * \param cc the component tree
  * \param x a given node
  * \return the index of the root of the tree
@@ -136,6 +137,8 @@ void dump_comp_tree( char *prefix, comp_tree_t *cc, int64_t numverts, int verbos
  * \param *numcomps address to return the number of components
  * \param *cc the comp_tree_t data structure 
  * \param *graph the matrix that specifies the graph
+ * \param verbose print tracing statements
+ * \param which_union base union on rank or not
  * \return run time
  */
 double concomp(int64_t *numcomps, comp_tree_t * cc, sparsemat_t *graph, int verbose, int which_union)

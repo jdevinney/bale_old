@@ -76,7 +76,7 @@ double ig_generic(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *table
  * \param *index array of indices into the source array of counts
  * \param num_req the length of the index array (number of updates)
  * \param *table the array from which the values are gathered
- * \param log_tab_size the log of size of the table (number of bits in an index)
+ * \param tab_size the size of the table 
  * \return run time
  * The idea is to buffer up the indices based on their high bits.
  * Hopefully there will be a difference between doing full random loads and
@@ -88,9 +88,9 @@ double ig_buffered(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *tabl
   int64_t i, j;
   int64_t nbits;
   int64_t sort_shift;
-#define LOG_NUM_BUFFERS 6  
-#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS)
-#define BUFFER_SIZE 128
+#define LOG_NUM_BUFFERS 6                     /*!< parameters to play with buffering */
+#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS)     /*!< the number of buffers */
+#define BUFFER_SIZE 128                       /*!< the size of the buffers */
 
   int64_t s, cnts[NUM_BUFFERS]; 
   int64_t table_idx[NUM_BUFFERS][BUFFER_SIZE];

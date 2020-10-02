@@ -86,10 +86,8 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
 }
 
 /*! \brief Generate a matrix that is the a random permutation of a sparse uppper triangular matrix.
- * \param numrows the number of rows (and columns) in the produced matrix
- * \param edge_probability the probability that an entry in the matrix is non-zero
- * \param seed the seed for random number generator that determines the original matrix and the permutations
- * \param dump_files is a debugging flag
+ * \param sargs the standard command line arguments
+ * \param gargs the graph arguments line arguments
  * \return the permuted upper triangular matrix
  * 
  * Make the upper triangular matrix. We do this by getting the lower-triangular portion of the adjacency matrix of a random
