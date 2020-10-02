@@ -547,17 +547,10 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
   int64_t ret, error;
   exstack_t * ex;
 
-  //T0_fprintf(stderr,"\n***** Begining to write sparse matrix %s *****\n", dirname);
+  spmat_dataset_t * spd = open_sparse_matrix_write(dirname, mat);
 
-  //T0_fprintf(stderr,"Writing out a sparsemat_t with ");  
-  //T0_fprintf(stderr,"%lu rows %lu columns and %lu nonzeros\n",
-  //         mat->numrows, mat->numcols, mat->nnz);
-  if(mat->value){
-    T0_fprintf(stderr,"WARNING: write_sparse_matrix_exstack: writing a matrix with values not supported.\n");
-    T0_fprintf(stderr,"Only, nonzero positions will be written.\n");
-  }
-  lgp_barrier();
-
+  write_row_info(spd, mat);
+  
   /* get max row density */
   max = 0;
   for(row = 0; row < mat->lnumrows; row++){
@@ -608,20 +601,10 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
     //T0_fprintf("%d first_pe = %"PRId64" last_row[%d]= %"PRId64" current_row_to_th[%"PRId64"] = %"PRId64"\n", MYTHREAD, first_pe, i, last_row[i], i, current_row_to_th[i]);
   
   
-  /* make the directory */  
-  mkdir(dirname, 0770);
-
-  /* write the metadata file */
-  write_sparse_matrix_metadata(dirname, mat);
-  
-  /* open rowcnt file */
-  char filename[64];
-  sprintf(filename, "%s/rowcnt_%d", dirname, MYTHREAD);
-  FILE * rcfp = fopen(filename, "wb");
-  
   /* open nonzero file */
-  sprintf(filename, "%s/nonzero_%d", dirname, MYTHREAD);
-  FILE * nzfp = fopen(filename, "wb");
+  char fname[128];
+  sprintf(fname, "%s/nonzero_%d", spd->dirname, MYTHREAD);
+  FILE * nzfp = fopen(fname, "wb");
   
   /*********************************/
   /*        WRITE OUT DATASET      */
@@ -684,16 +667,6 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
         }
       }
 
-      /*******************************/
-      /*   FIRST WRITE ROW COUNTS    */
-      /*******************************/
-      /* write row counts */
-      recs_written = fwrite(rowcnt_buf, sizeof(int64_t), rc_pos, rcfp);
-      if(recs_written != rc_pos){
-        error = 1;
-        fprintf(stderr, "write_sparse_matrix_exstack: recs_written != numrows %"PRId64" %"PRId64" on PE %d\n", recs_written, rc_pos, MYTHREAD);
-      }
-        
       /* count up the number of nonzeros to be written */
       nnz = 0;
       for(i = 0; i < rc_pos; i++)
@@ -709,7 +682,6 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
     lgp_barrier();
   }
   
-  fclose(rcfp);
   fclose(nzfp);
   
   /* make sure all threads wrote cleanly */

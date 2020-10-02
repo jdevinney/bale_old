@@ -171,75 +171,8 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
 
 
 
-//
-// this is new code not ready for release in bale2.0
-//
-int64_t read_sparse_matrix_metadata(char * dirname,
-                                    int64_t * nr,
-                                    int64_t * nc,
-                                    int64_t * nnz,
-                                    int64_t * nwriters,
-                                    int64_t * values){
+#if 0
 
-  *nr = 0;
-  *nc = 0;
-  *nnz = 0;
-  *nwriters = 0;
-  *values = 0;
-  
-  if(MYTHREAD == 0){
-    int ret = 0;
-    char fname[64];
-    sprintf(fname, "%s/metadata", dirname);
-    FILE * fp = fopen(fname, "r");
-    ret += fscanf(fp, "%"PRId64"\n", nr);
-    ret += fscanf(fp, "%"PRId64"\n", nc);
-    ret += fscanf(fp, "%"PRId64"\n", nnz);
-    ret += fscanf(fp, "%"PRId64"\n", nwriters);
-    ret += fscanf(fp, "%"PRId64"\n", values);
-    if(ret != 5){
-      fprintf(stderr,"ERROR: read_sparse_matrix_metadata\n");
-      *nr = -1;
-    }
-    fclose(fp);
-  }  
-
-  lgp_barrier();
-
-  *nr = lgp_reduce_add_l(*nr);
-  *nc = lgp_reduce_add_l(*nc);
-  *nnz = lgp_reduce_add_l(*nnz);
-  *nwriters = lgp_reduce_add_l(*nwriters);
-  *values = lgp_reduce_add_l(*values);
-
-  if(*nr < 0) return(-1);
-  return(0);
-}
-
-/*! \brief This function writes out the ASCII metadata file for a sparse matrix dataset.
- * The metadata file is called "metadata" and contains 4 lines
- * - numrows
- * - numcols
- * - number of nonzeros
- * - number of PEs that were writing.
- *
- * \param dirname The name of the directory where the dataset will be written.
- * \param A The sparse matrix that is being written.
- * \ingroup spmatgrp
- */
-int64_t write_sparse_matrix_metadata(char * dirname, sparsemat_t * A){
-  if(MYTHREAD == 0){
-    /* open params file for writing */
-    char fname[64];
-    sprintf(fname, "%s/metadata", dirname);
-    FILE * fp = fopen(fname, "w");
-    int values = (A->value != NULL);
-    fprintf(fp, "%"PRId64"\n%"PRId64"\n%"PRId64"\n%d\n%d\n",
-            A->numrows, A->numcols, A->nnz, THREADS, values);
-    fclose(fp);
-  }
-  return(0);
-}
 
 int64_t * read_rowcnts(char * datadir, int64_t numrows, int64_t nwriters){
   int64_t i;
@@ -322,6 +255,7 @@ int64_t * read_rowcnts(char * datadir, int64_t numrows, int64_t nwriters){
   
   return(rowcnts);
 }
+#endif
 
 /*! \brief Read a sparse matrix in matrix market format on one PE and create a distributed matrix
   from that.
@@ -1564,7 +1498,8 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   int64_t total = lgp_reduce_add_l(nnz_this_thread);
   mat->nonzero = lgp_all_alloc(max*THREADS, sizeof(int64_t));
   if(mat->nonzero == NULL){
-    T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for nonzero array (max = %"PRId64")\n", max*THREADS*8, max);
+    T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for nonzero array (max = %"PRId64")\n",
+              max*THREADS*8, max);
     return(NULL);
   }
   mat->lnonzero = lgp_local_part(int64_t, mat->nonzero);
@@ -1572,7 +1507,8 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   if(weighted){
     mat->value = lgp_all_alloc(max*THREADS, sizeof(double));
     if(mat->value == NULL){
-      T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for value array (max = %"PRId64")\n", max*THREADS*8, max);
+      T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for value array (max = %"PRId64")\n",
+                max*THREADS*8, max);
       return(NULL);
     }
     mat->lvalue = lgp_local_part(double, mat->value);
@@ -1584,6 +1520,8 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   mat->nnz = total;
   mat->lnnz = nnz_this_thread;
 
+  lgp_barrier();
+  
   return(mat);
 }
 
@@ -1672,6 +1610,12 @@ void clear_triples(triples_t * T) {
   free(T->col);
 }
 
+void clear_spmat_dataset(spmat_dataset_t * spd){
+  free(spd->dirname);
+  free(spd->nrows_in_file);
+  free(spd->nrows_read_in_file);
+  free(spd->rowcnt);
+}
 /*! \brief Append a triple to a triples_t struct and expand the storage if necessary
  *
  * \param T The triples_t struct

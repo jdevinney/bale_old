@@ -36,7 +36,7 @@
 # 
 # *****************************************************************/ 
 
-bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix read_sparse_matrix sssp #unionfind
+bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix  sssp #unionfind
 
 #BDEBUG = -g -O0
 BDEBUG =
@@ -210,20 +210,6 @@ write_sparse_matrix_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
-read_sparse_matrix_sources = read_sparse_matrix_src/read_sparse_matrix.upc
-
-read_sparse_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/read_sparse_matrix_src
-read_sparse_matrix_LDADD = @libdeps_LIBS@ -lm
-
-if BUILD_UPC
-read_sparse_matrix_SOURCES = $(read_sparse_matrix_sources)
-read_sparse_matrix_LINK=$(UPCLINK)
-endif
-if BUILD_SHMEM
-read_sparse_matrix_SOURCES = $(read_sparse_matrix_sources:.upc=__c.c)
-read_sparse_matrix_CPPFLAGS += -DUSE_SHMEM
-read_sparse_matrix_LINK=$(LINK) $(BDEBUG)
-endif
 
 ###################################################################
 noinst_HEADERS += sssp_src/sssp.h sssp_src/sssp_delta_common.h

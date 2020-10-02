@@ -250,6 +250,8 @@ sparsemat_t * transpose_matrix_agp(sparsemat_t *A) {
   return(At);
 }
 
+
+#if 0
 /*! \brief Write file called rowcnt_[thread number] into the given directory.
  * \param dirname The directory name
  * \param A  pointer to the matrix
@@ -285,6 +287,8 @@ int64_t write_rowcounts(char * dirname, sparsemat_t * A){
   return(0);
 }
 
+
+
 /*! \brief Write a sparsemat_t to disk (in the directory dirname).
  * \param dirname The directory to write the sparse matrix data into.
  * \param A  pointer to the matrix
@@ -297,11 +301,7 @@ int64_t write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
   if(A->value)
     values = 1;
   
-  /* create the directory  */
-  mkdir(dirname, 0770);
-  
-  /* write metadata ASCII file */
-  write_sparse_matrix_metadata(dirname, A);
+
   
   /* write out the row counts */
   write_rowcounts(dirname, A);
@@ -371,13 +371,6 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
   int64_t values;
   char fname[128];
   
-  /* read the metadata file */
-  int ret = read_sparse_matrix_metadata(dirname, &nr, &nc, &nnz, &nwriters, &values);
-  if(ret){
-    T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: read_metadata failed!\n"); return(NULL);
-  }
-
-  //T0_fprintf(stderr,"metadata: %ld %ld %ld %ld\n", nc, nc, nnz, nwriters);fflush(stderr);
   
   int64_t rows_to_read = (nr + THREADS - MYTHREAD - 1)/THREADS;
   int64_t first_row_to_read = MYTHREAD * rows_to_read + ((MYTHREAD < nr % THREADS ? 0 : nr % THREADS));
@@ -548,3 +541,4 @@ sparsemat_t * read_sparse_matrix_agp(char * dirname){
   return(A);
 }
 
+#endif

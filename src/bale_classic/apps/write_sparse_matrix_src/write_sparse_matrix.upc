@@ -82,6 +82,7 @@ for the source for the kernels.
  */
 
 typedef struct args_t{
+  int64_t num_readers;
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
@@ -90,6 +91,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
+    case 'r': args->num_readers = atoi(arg); break;
     case ARGP_KEY_INIT:
       state->child_inputs[0] = &args->std;
       state->child_inputs[1] = &args->gstd;
@@ -97,6 +99,13 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
     }
   return(0);
 }
+
+static struct argp_option options[] =
+  {
+    {"num_readers", 'r', "NUM", 0, "Specify the number of PEs to read the written matrix back in."},
+    {0}
+  };
+
 
 static struct argp_child children_parsers[] =
   {
@@ -110,14 +119,18 @@ int main(int argc, char * argv[])
 
   /* process command line */
   args_t args = {0};
-  struct argp argp = {NULL, parse_opt, 0,
+  struct argp argp = {options, parse_opt, 0,
                       "Parallel write sparse matrix.", children_parsers};
 
   args.gstd.l_numrows = 1000000;
+  args.num_readers = -1;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
+  if(args.num_readers == -1)
+    args.num_readers = THREADS;
+  
   if(!MYTHREAD){
     write_std_graph_options(&args.std, &args.gstd);
     write_std_options(&args.std);
@@ -128,7 +141,7 @@ int main(int argc, char * argv[])
   if(!inmat){T0_fprintf(stderr, "ERROR: write_sparse_matrix: inmat is NULL!\n");return(-1);}
 
   if(args.std.dump_files) write_matrix_mm(inmat, "inmat");
-  
+  //print_matrix(inmat);
   double t1;
   minavgmaxD_t stat[1];
   char * datadir = calloc(64, sizeof(char));
@@ -162,12 +175,14 @@ int main(int argc, char * argv[])
       continue;
     }
 
-    sparsemat_t * readmat = read_sparse_matrix_agp(datadir);
+    sparsemat_t * readmat = read_sparse_matrix_agp(datadir, args.num_readers);
     if(readmat == NULL){
-      T0_fprintf(stderr,"ERROR: write_sparse_matrix: read failed!\n"); error = 1;
+      T0_fprintf(stderr,"ERROR: write_sparse_matrix: read failed!\n");
+      error = 1;
     }else{
       if(compare_matrix(readmat, inmat)){
-        T0_fprintf(stderr,"ERROR: write_sparse_matrix: read version of written matrix does not match!\n"); error = 1; 
+        T0_fprintf(stderr,"ERROR: write_sparse_matrix: read version of written matrix does not match!\n");
+        error = 1; 
       }
       clear_matrix(readmat); free(readmat);
     }
