@@ -8,44 +8,43 @@
 /* LICENSE file in the top level dirctory of the distribution.     */
 /*******************************************************************/
 
-/*!
- * \defgroup Bale_C
- * This is a version of the bale apps written in simple serial C code.
- * There is no need for a infrastucture code in the parallel version 
- * of Bale. 
- * We wrote this version in the hope that it might start discussions
- * among those who are unfamiliar with UPC or SHMEM.
- *
- * \defgroup spmatgrp Sparse Matrix library (spmat)
- * We also have a parts of the sparse matrix library, again,
- * the serial version is much less complicated than the parallel version.
- */
 
-/*! \mainpage
- *
+/*! 
+\mainpage Serial C version of Bale
+\section intro Introduction 
 
- \section Bale apps in C.
-   Why bother with is?
+Why bother with is?
 
- \section Whats here:
-  This contains a serial version of each of the apps in bale.
-  The parallel programming library <tt>libgetput</tt> is not needed.
-  The parts of the <tt> spmat </tt> library that are needed just 
-  live a single file <tt> spmat_utils.c</tt>.
+\section contents Contents 
+This directory contains a serial version of the bale apps written in C.
+There is a serial version of the `spmat` library and a few of the utility
+functions that would be in the `libgetput` library.
+These are combined in the files `spmat_utils.h` and `spmat_utils.c`.
+We also use the same argument parsing routines (except for the extensions
+needed to handle parallel threads).
 
-  The apps:
-  - \subpage histo_page histogram a large number of items into a large table
-  - \subpage ig_page simple random loads from memory
-  - \subpage randperm_page generate a random sparse matrix
-  - \subpage permute_matrix_page permute a sparse matrix
-  - \subpage transpose_matrix_page transpose a sparse matrix
-  - \subpage triangle_page count triangles in a graph (given by a lower triangular matrix)
-  - \subpage toposort_page a bfs algorithm to re-order the rows and columns of  "morally" upper triangular matrix
-  - \subpage unionfind_page application of the union-find data structure
-  - \subpage spmat_utils_page stuff
+The apps:
+  - <b>histo</b>  tests random writes to memory: `histo.c` 
+  - <b>ig</b>  tests random loads from memory: `ig.c`
+  - <b>randperm</b>  generate a random permutation: `randperm.c`
+  - <b>permute_matrix</b> permute rows and columns of a sparse matrix: `permute_matrix.c`
+  - <b>transpose_matrix</b> transpose a sparse matrix: `transpose_matrix.c`
+  - <b>triangle</b> count triangles in a simple graph: `triangle.c`
+  - <b>toposort</b> a bfs algorithm verify that a matrix is "morally" upper triangular: `toposort.c`
+  - <b>sssp solve</b> Single Source Shortest Path problem on a weighted graph: `sssp.c`
+  - <b>unionfind</b> application of the disjoint union data structure: `unionfind.c`
 
-  Also:
-  - <tt>runall.sh</tt> a bash script to run all the apps with trivial parameters.
-
+Other:
+  - \ref spmat_utils_page sparse matrix library and utility functions
+  - \ref std_option_page use of argp to parse command line
+  - \ref pytest_page pytest
 */
 
+/*!
+\defgroup bale_c
+ * This is a version of the bale apps has been written as simple serial C code.
+ * There is no need for a much of the infrastucture code that is in the 
+ * "bale classic" parallel version.
+ * We wrote this version in the hope that it might start discussions
+ * among those who are unfamiliar with UPC or SHMEM.
+ */

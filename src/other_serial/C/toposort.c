@@ -22,8 +22,11 @@
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*! \page toposort_page Topologically sort a morally upper triangular matrix. 
- 
+/*!  \page toposort_page toposort 
+Find permutations that verify that a given matrix is morally upper triangular
+*/ 
+
+/* TODO move to README.md
    First we generate the problem by generating an upper triangular matrix
    and applying row and column permutations.
    

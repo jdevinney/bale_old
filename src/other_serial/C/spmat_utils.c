@@ -15,13 +15,19 @@
 
 #include "spmat_utils.h"
 
-/*! \page spmat_utils_page Sparse matrix routines and few utils */
+/*! \page spmat_utils_page spmat_utils
+Sparse matrix routines and few utils
 
-/*! \brief  A routine to give access to the wall clock timer on most UNIX-like systems.
- * Uses gettimeofday.
- * \return the number of seconds since the beginning of time on UNIX machines.
- */
+The serial version of the sparse matrix library.
+There are a few routines in the libgetput library at are also useful
+in the serial case.  We have combined into this one file.
+*/
 
+/*! \brief  
+A routine to give access to the wall clock timer on most UNIX-like systems.
+\return the number of seconds since the beginning of time on UNIX machines.
+Uses gettimeofday.
+*/
 double wall_seconds() 
 {
   struct timeval tp;
@@ -33,9 +39,10 @@ double wall_seconds()
 
 
 
-/*! \brief set the seed for the random number generator
- * \param seed
- */
+/*! 
+\brief set the seed for the random number generator
+\param seed the seed
+*/
 void rand_seed(int64_t seed){
 #ifdef USE_KNUTH
   ranf_start(seed);
@@ -44,10 +51,11 @@ void rand_seed(int64_t seed){
 #endif
 }
 
-/*! \brief return the next random integer mod N
- * \param N the modulus
- * \return a random number from 0 to N-1
- */
+/*!
+\brief return the next random integer mod N
+\param N the modulus
+\return a random number from 0 to N-1
+*/
 int64_t rand_int64(int64_t N){
   assert(N < CBALE_RAND_MAX);
 #ifdef USE_KNUTH
@@ -58,6 +66,10 @@ int64_t rand_int64(int64_t N){
 }
 
 
+/*!
+\brief return the next random double
+\return a random number from 0 to N-1
+*/
 double rand_double(){
 #ifdef USE_KNUTH
   return(ranf_arr_next());
@@ -67,19 +79,21 @@ double rand_double(){
 }
 
 
-/*! \brief create an int64_t array which holds a uniform random permutation
- * \param N the length of the global array
- * \param seed seed for the random number generator
- * \return the permutation (return identity perm if seed is 0)
- * 
- * This implements the standard serial algorithm, known at least as
- * Fisher-Yates or Knuth shuffle, to generate the uniform permutation.
- * Start with an array holding the identity permutation,
- *   swap he last entry with a random entry in the array,
- *   this determines the last entry,
- *   shorten the array to be all but the last entry 
- *   and repeat
- */
+/*!
+\brief create an int64_t array which holds a uniform random permutation
+\param N the length of the global array
+\param seed seed for the random number generator
+\return the permutation (return identity perm if seed is 0)
+
+This implements the standard serial algorithm, known at least as
+Fisher-Yates or Knuth shuffle, to generate the uniform permutation.
+
+Start with an array holding the identity permutation,
+  - swap the last entry with a random entry in the array,
+  - this determines the last entry,
+  - shorten the array to be all but the last entry 
+  -  and repeat
+*/
 int64_t * rand_perm(int64_t N, int64_t seed) 
 {
   int64_t r, i, L, s;

@@ -13,7 +13,11 @@
  *
  * Run ig --help or --usage for insructions on running.
  */
-/*! \page ig_page Indexgather */
+
+/*!
+\page ig_page ig
+Gather a large number of entries from a large table
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"

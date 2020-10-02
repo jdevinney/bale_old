@@ -18,8 +18,8 @@
 #include "default_app_sizes.h"
 
 
-/*! \page triangle_page 
-  Count the triangles in a graph presented by a lower triangular matrix 
+/*! \page triangle_page triangle
+Count the triangles in a graph simple graph (a lower triangular matrix)
 */
 
 /*!

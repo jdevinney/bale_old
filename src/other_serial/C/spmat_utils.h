@@ -172,16 +172,17 @@ sparsemat_t *    make_symmetric_from_lower(sparsemat_t * L);
 int64_t          write_matrix_mm(sparsemat_t * A, char * name);
 
 
-/*! \struct d_array_t  
- * \brief struct to hold the lenght and the elements in an array of doubles
- * More of a convenience in the serial case, but it is more useful in the parallel case
- */
+/*! \struct d_array_t 
+\brief holds the length and the elements in an array of doubles
+
+This is used mostly to make the serial code look more like the parallel code.
+*/
 typedef struct d_array_t {
   int64_t num;                 //!< the total number of entries in the array
   double * entry;              //!< the array of doubles
 } d_array_t;
 
-d_array_t * init_d_array(int64_t num); 
+d_array_t * init_d_array(int64_t num);  
 d_array_t * read_d_array(char *name);
 int64_t     write_d_array(d_array_t *A, char * name);
 void        set_d_array(d_array_t * A, double v);

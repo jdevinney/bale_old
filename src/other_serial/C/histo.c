@@ -20,9 +20,9 @@
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*! \page histo_page 
- * Statements about why histo is not as lame as it seems.       // TODO move to README
- */
+/*!  \page histo_page histo
+Histogram a large number of items into a large table
+*/
 
 /*! \brief This routine is a generic histogram of a large number of 
  * items (int64_t's) into a large table

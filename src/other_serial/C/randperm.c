@@ -21,8 +21,10 @@
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*! \page randperm_page                                      // TODO move to README
- * Generate a uniform random permutation.  We consider three different algorithm:
+/*!
+\page randperm_page randperm
+Generate a uniform random permutation.
+We consider three different algorithm:
   - the standard array method known at least by the names
      Fisher-Yates or Knuth shuffle.
   - the dart board algorithm 

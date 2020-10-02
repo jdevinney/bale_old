@@ -9,8 +9,16 @@
 /*******************************************************************/
 
 #include "std_options.h"
+/*! \page std_option_page std_option
+we are using argp to parse the commandline options
+*/
 
-static int std_parse_opt(int key, char * arg, struct argp_state * state) // TODO:doxygen 
+/*!
+\brief parse the std options
+
+TODO
+*/
+static int std_parse_opt(int key, char * arg, struct argp_state * state) 
 {
   std_args_t * args = (std_args_t *)state->input;
   switch(key){
@@ -18,9 +26,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state) // TODO
   case 'j': args->json = 1; strcpy(args->json_output,arg); break;
   case 'M': args->models_mask = atol(arg); break;
   case 's': args->seed = atol(arg); break;
-  case 'q': args->quiet = 1; break;
   case ARGP_KEY_INIT:
-    args->quiet = 0;
     args->seed = 122222;
     args->dump_files = 0;
     args->json = 0;
@@ -29,7 +35,12 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state) // TODO
   return(0);
 }
 
-static struct argp_option std_options[] =  // TODO:doxygen 
+/*!
+\brief fill in the struct for standard options
+
+TODO
+*/
+static struct argp_option std_options[] =
 {
   {"dump_files", 'D', 0, 0, "Dump files for debugging"},
   {"models_mask", 'M', "MASK", 0, "Which flavors to run."},
@@ -38,13 +49,21 @@ static struct argp_option std_options[] =  // TODO:doxygen
   {0}
 };
 
+/*!
+\brief sets up std_options_argp with its parser
+
+TODO
+*/
 struct argp std_options_argp =  // TODO:doxygen 
 {
   std_options, std_parse_opt, 0, 0, 0
 };
 
-// This function writes some of the standard options and their values to the screen (or json file).
-void write_std_options(std_args_t * sargs){ // TODO:doxygen 
+/*!
+\brief echo the standard options being used in a particular run
+\param sargs the standard options
+*/
+void write_std_options(std_args_t * sargs){
   if(sargs->json == 0){
     fprintf(stderr,"Standard options:\n");
     fprintf(stderr,"----------------------------------------------------\n");
@@ -58,7 +77,11 @@ void write_std_options(std_args_t * sargs){ // TODO:doxygen
 }
 
 
-// the arg_parse function for std_graph_args_t.
+/*!
+\brief parse the graph options
+
+TODO
+*/
 static int graph_parse_opt(int key, char * arg, struct argp_state * state){
   std_graph_args_t * args = (std_graph_args_t *)state->input;
   switch(key){
@@ -71,7 +94,7 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
     args->model = KRONECKER;
     strcpy(args->kron_string,arg);
     char * ptr = arg;
-    //T0_fprintf(stderr, "%s\n", arg);
+    //fprintf(stderr, "%s\n", arg);
     sscanf(ptr, "%d:", &args->kron_mode);
     //printf("mode %d\n", args->kron_mode);
     int i = 0;
@@ -85,11 +108,10 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
       }
       ptr++; 
     }
-
     args->kron_num = i;
     break;
   case 'l': args->loops = 1; break;
-  case 'n': args->numrows = atol(arg); break;
+  case 'N': args->numrows = atol(arg); break;
   case 'w': args->weighted = 1; break;
   case 'z': args->nz_per_row = atof(arg); break;
   case ARGP_KEY_INIT:
@@ -115,7 +137,11 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
   }
   return(0);
 }
+/*!
+\brief struct for the graph options
 
+TODO
+*/
 static struct argp_option graph_options[] =
 {
   {0, 0, 0, 0, "Input (as file):", 5},
@@ -133,15 +159,24 @@ static struct argp_option graph_options[] =
   {0}
 };
 
+/*!
+\brief sets up std_options_argp with its parser
+
+TODO
+*/
 struct argp std_graph_options_argp =
 {
   graph_options, graph_parse_opt, 0, 0, 0
 };
 
-/* this function looks at the std_args_t and std_graph_args_t structs to decide
-   whether to read a matrix or generate a random matrix. The function returns
-   the read or generated matrix. It also writes some matrix statistics to stderr,
-   or the output json file.
+/*!
+\brief considers the std and graph options and determine how to generated the required matrix
+
+this function looks at the std_args_t and std_graph_args_t structs to decide
+whether to read a matrix or generate a random matrix. The function returns
+the read or generated matrix. 
+
+It also writes some matrix statistics to stderr, or the output json file.
 */
 sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs) //TODO: move to spmat_utils ??? //TODO: doxygen
 //TODO should this be in spmat_utils  maybe need std_enums
@@ -189,6 +224,11 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs) //TO
 
 
 // Writes some parameters for the input matrix before it is generated to stderr or an output json file.
+/*!
+\brief echo the graph options being used in a particular run
+\param sargs the standard options
+\param gargs the standard graph options
+*/
 void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs)
 {
   if (!gargs->readfile) {
@@ -227,10 +267,13 @@ void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs)
   }
 }
 
+/*!
+\brief Check for certain arguments at would cause an exit
 
-// TODO: look at argv for the strings "--help", "--usage", or "-?".
-//   If those strings are found, we know, main needs to exit after parsing the command line.
-int check_for_exit(int argc, char * argv[], int ret) //TODO: doxygen 
+In serial code we could just exit, but in parallel one must insure that
+all threads exit.  This is here to shadow the parallel code.
+*/
+int check_for_exit(int argc, char * argv[], int ret)
 {
   int i;
   for(i = 0; i < argc; i++){
@@ -245,20 +288,21 @@ int check_for_exit(int argc, char * argv[], int ret) //TODO: doxygen
 }
 
 
-/*! \brief This function initializes the environment, parses the command line, and prints
- * some basic app data to stderr or json.
- * 
- * \param argc Standard argc
- * \param argv Standard argv
- * \param args The arguments struct from the app. This struct will be different in general for each app.
- * \param arg_len The sizeof(the arguments struct)
- * \param argp The argp struct which must be initialized in main.
- * \param sargs A pointer to an std_args_t, which must be a field in args.
- * \return 0 if success, < 0 if error, > 0 if main should exit after this call, but main should return(0)
- */
+/*! 
+\brief Initialize the environment, parses the command line, and prints
+some basic app data to stderr or json.
+
+\param argc Standard argc
+\param argv Standard argv
+\param args The arguments struct from the app. This struct will be different in general for each app.
+\param arg_len The sizeof(the arguments struct)
+\param argp The argp struct which must be initialized in main.
+\param sargs A pointer to an std_args_t, which must be a field in args.
+\return 0 if success, < 0 if error, > 0 if main should exit after this call, but main should return(0)
+*/
 int bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp * argp, std_args_t * sargs)
 {
-    argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, args);
+  argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, args);
 
   // print header 
   time_t now = time(NULL);
@@ -287,21 +331,22 @@ int bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp 
 }
 
 
-/*! \brief Finish off the json output file if appropriate. Call lgp_finalize()
- */
+/*!
+\brief Finish off the json output file if appropriate before 
+*/
 void bale_app_finish(std_args_t * sargs)
 {
   if (sargs->json) {    
     FILE * jp = fopen(sargs->json_output, "r+");
-    fseek(jp,-2,SEEK_END); //{
+    fseek(jp,-2,SEEK_END);
     fprintf(jp,"\n}");
     fclose(jp);
   }
 }
 
-/*! \brief Write the time of an app implmentation to stderr, or the json file.
- *
- */
+/*!
+\brief Write the time of an app implmentation to stderr, or the json file.
+*/
 void bale_app_write_time(std_args_t * sargs, char * model_str, double time)
 {
   if (sargs->json) {    
@@ -313,6 +358,9 @@ void bale_app_write_time(std_args_t * sargs, char * model_str, double time)
   }
 }
 
+/*!
+\brief Write an int to stderr, or the json file.
+*/
 void bale_app_write_int(std_args_t * sargs, char * key, int64_t val)
 {
   if (sargs->json) {    
@@ -323,3 +371,4 @@ void bale_app_write_int(std_args_t * sargs, char * key, int64_t val)
     fprintf(stderr, "%10s: %"PRId64"\n", key, val);
   }
 }
+

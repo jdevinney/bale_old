@@ -18,6 +18,9 @@
 #include "spmat_utils.h"
 #include "std_options.h"
 #include "default_app_sizes.h"
+/*! \page sssp_page sssp
+Solve the Single Source Shortest Path problem on a weighted graph
+*/
 
 double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);
 double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);
