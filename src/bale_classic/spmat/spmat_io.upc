@@ -42,6 +42,7 @@
 #include <spmat.h>
 #include <sys/stat.h>   // for mkdir()
 #include <fcntl.h>
+#include <exstack.h>
 
 
 /*! \brief This function reads the metadata file for a sparse matrix dataset.
@@ -251,7 +252,12 @@ void write_row_info(spmat_dataset_t * spd, sparsemat_t * A){
 
 
 
-/* \brief This function reads the row_info files for the dataset.
+/*! \brief This function reads the row_info files for the dataset.
+ * 
+ * After this function we will have the row counts of every row we are
+ * responsible for reading. We will also have the number of files we
+ * are going to read from, the first file we are going to read from
+ * and then place to seek to in that first file.
  */
 void read_row_info(spmat_dataset_t * spd){
   int64_t i, j;
@@ -291,7 +297,10 @@ void read_row_info(spmat_dataset_t * spd){
     }    
     
     spd->current_file = spd->first_file; // this sets us up to start reading nonzeros
-    //fprintf(stderr,"PE%d: first_file %ld sr %ld gfr %ld\n", MYTHREAD, spd->first_file, spd->start_row_first_file, spd->global_first_row);
+
+    //fprintf(stderr,"PE%d: first_file %ld sr %ld gfr %ld\n", MYTHREAD, spd->first_file,
+    // spd->start_row_first_file, spd->global_first_row);
+
     /* figure out how many rows in each file this reader will need to read */
     spd->nrows_in_file      = calloc(spd->nfiles, sizeof(int64_t));
     spd->nrows_read_in_file = calloc(spd->nfiles, sizeof(int64_t));
@@ -312,17 +321,15 @@ void read_row_info(spmat_dataset_t * spd){
       // we might not need to read all of last file
       spd->nrows_in_file[spd->nfiles - 1] -= total - spd->lnumrows;
 
-      //if(spd->nrows_in_file[spd->nfiles - 1] == 0)
-      //spd->nfiles--;
     }
     
   }
 
-  /* For each file this PE is going to read, read all of the data
-     we are supposed to read (nrows_in_file) and convert that data
-     into rowcounts. 
-     It is important to record the offset of our 
-     first nonzero we are to read.
+  /* For each file this PE is going to read from, read all of the data
+   * we are supposed to read (nrows_in_file) and convert that data
+   * into rowcounts. 
+   *
+   * Also record the offset of our first nonzero we are to read.
   */
   int64_t num_to_read, rows_read = 0;
   for(i = 0; i < spd->nfiles; i++){
@@ -350,17 +357,18 @@ void read_row_info(spmat_dataset_t * spd){
     
     if(i == 0){  // remember the offset of the first nonzero in first file
       spd->first_file_offset = spd->rowcnt[rows_read];
-      //T0_fprintf(stderr,"PE %d:       ffo %ld\n", MYTHREAD, spd->first_file_offset);
     }
     
-    // turn offsets into rowcounts.
+    // turn nonzero offsets into rowcounts.
     for(j = 0; j < num_read - 1; j++){
       //fprintf(stderr,"PE%d before: rc[%ld] = %ld\n", MYTHREAD, rows_read+j, spd->rowcnt[rows_read + j]);
       spd->rowcnt[rows_read+j] = spd->rowcnt[rows_read + j + 1] - spd->rowcnt[rows_read + j];
       //T0_fprintf(stderr,"PE %d after: rc[%ld] = %ld\n", MYTHREAD, rows_read+j, spd->rowcnt[rows_read + j]);
     }
-    
 
+    // handle the last row that you read. If it is the not the last
+    // row in the file, you can just read the next offset, otherwise
+    // you will have to figure out its rowcnt from the file size.
     int64_t tmp, last_num_read;
     last_num_read = fread(&tmp, sizeof(uint64_t), 1, fp);
     if(last_num_read){
@@ -376,7 +384,7 @@ void read_row_info(spmat_dataset_t * spd){
       spd->rowcnt[rows_read + num_read - 1] = (buf.st_size/8) - spd->rowcnt[rows_read + num_read - 1];
       close(fd);
     }
-    //T0_fprintf(stderr,"PE %d after: rc[%ld] = %ld\n", MYTHREAD, rows_read+num_read - 1, spd->rowcnt[rows_read + num_read - 1]);
+    //T0_fprintf(stderr,"PE %d after: rc[%ld] = %ld\n",MYTHREAD,rows_read+num_read-1,spd->rowcnt[rows_read + num_read - 1]);
     rows_read += num_read;
 
   }
@@ -388,10 +396,18 @@ void read_row_info(spmat_dataset_t * spd){
 }
 
 
-// This routine reads the next block of nonzeros of complete rows from the current file.
-// It will read up to buf_size nonzeros. It returns the total number of rows for which the
-// nonzeros were read and puts the nonzeros in buf (and values in vbuf in the case of
-// a matrix with values). Both buf and vbuf must have been previously allocated.
+/*! \brief This routine reads the next block of nonzeros of complete rows from the current file.
+ * 
+ * It will read up to buf_size nonzeros. It returns the total number of rows for which the
+ * nonzeros were read and puts the nonzeros in buf (and values in vbuf in the case of
+ * a matrix with values). Both buf and vbuf must have been previously allocated.
+ *
+ * \param spd The spmat_dataset_t obtained from calling open_sparse_matrix_read().
+ * \param buf A buffer to hold the read nonzeros.
+ * \param vbuf A buffer to hold the read values (if the matrix has values).
+ * \param The length of these buffers.
+ * \return The number of rows that were read.
+ */
 int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
                              double * vbuf, int64_t buf_size){
 
@@ -435,9 +451,6 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
   /* read nonzero and value data into buffers */
   int64_t num = fread(buf, sizeof(int64_t), current_buf_cnt, spd->nnzfp);
   assert(num == current_buf_cnt);
-  //if(MYTHREAD == 1)
-  //for(int i = 0; i < current_buf_cnt; i++)
-  //  fprintf(stderr,"PE 1: read nonzero %ld\n", buf[i]);
   if(spd->values){
     fread(vbuf, sizeof(double), current_buf_cnt, spd->valfp);
     assert(num == current_buf_cnt);
@@ -457,6 +470,14 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
   return(num_rows);
 }
 
+/*! \brief Reads a distributed sparse matrix in parallel using an arbitrary number of 
+ * PEs (between 1 and THREADS) to do the actual I/O.
+ *
+ * \param datadir The directory that holds the dataset.
+ * \param nreaders Number of PEs that will actually do the I/O (all other PEs will mostly
+ * be idle.
+ * \return The sparsemat_t that was read from the matrix dataset.
+ */
 sparsemat_t * read_sparse_matrix_agp(char * datadir, int64_t nreaders){
   int64_t i;
   
@@ -538,9 +559,26 @@ sparsemat_t * read_sparse_matrix_agp(char * datadir, int64_t nreaders){
   return(A);
 }
 
-/* Every THREAD just writes a slice of the matrix (in BLOCK fashion).
-   This requires data to be transferred since the matrix is stored
-   in CYCLIC layout in memory. */
+/* \brief Write a sparsemat_t to disk in parallel. 
+ * This is different than write_matrix_mm since a) it is done in parallel
+ * and b) we are not using matrix market format.
+ *
+ * Every THREAD just writes a slice of the matrix (in BLOCK fashion).
+ * This requires data to be transferred since the matrix is stored
+ * in CYCLIC layout in memory. 
+ *
+ * We write the dataset into PEs*2 files plus an ASCII metadata
+ * file. Each PE writes a nonzero file which contains all the nonzeros
+ * in their slice and a row_offset file (which says the offsets for
+ * each row in the nonzero file). If there are values in the matrix,
+ * there will be 3*PEs files.
+ *
+ * The metadata file just contains some high level info about the matrix
+ * dataset.
+ * \param dirname The directory to write the matrix to.
+ * \param A The matrix to write.
+ * \return 0 on SUCCESS 1 on error.
+ */
 int write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
   int64_t i;
   
