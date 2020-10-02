@@ -23,3 +23,35 @@ Though we do not have a read_sparse_matrix in bale yet, such an app would be ver
 ### Other thoughts
 
 Another idea for the write is to always just dump the data in CYCLIC layout. Then when reading back in, the PEs need to figure out which rows they read and where those rows go. This can be tricky since the rows are laid out in a way that depends on the number of writing PEs and the communication pattern during the read depends on the number of PEs used to write and how many are reading. 
+
+
+
+
+Demo program that runs the variants of write_sparse_matrix kernel. It first generates 
+a random matrix in FLAT mode and then it writes this matrix to disk
+in a directory called 'write_sparse_test'.
+
+We define a sparse matrix dataset to be the following:
+ - It lives in a directory of its own
+ - It contains one ASCII file called 'metadata' which contains the number of rows, columns and nonzeros in the matrix.
+ - It contains N binary 'rowcnt' files. These files contain the number of nonzeros in each row for rows 0..A->numrows
+ - It contains N binary 'nonzero' files. These files contain the nonzeros in each row and are ordered by row.
+
+This application is interesting because, as implemented, it requires
+us to shuffle the rows of the matrix from cyclic to block. That is,
+the nonzeros for row i is stored on PE (i % THREADS) in the
+sparsemat_t data structure.  However, we wish PE 0 to write out the
+first block of (approx) A->numrows/THREADS rows. One way to do this
+would be to call permute_sparse_matrix to get a copy of the matrix
+whose rows are distributed in the block layout. However, that would
+require 2x the storage space of the matrix. We don't want the
+write_sparse_matrix routine to have this requirement. That is where
+things get interesting. We have a fixed buffer for writing on each PE
+and each PE collects or is sent nonzero data to write in their current
+buffer. In AGP (where the PEs just get the data) or synchronous
+exstack, this is easy. We don't have a nice way of doing this with
+exstack2 or asynchronous conveyors yet. The reason this is a challenge
+for asynchronous methods is that PEs can get into a deadlock waiting
+for the records they need to complete a write buffer.
+
+

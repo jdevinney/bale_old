@@ -65,9 +65,12 @@
 #include <upc_nb.h>
 #endif
 
+/*! \struct exstack_t 
+ * \brief the struct for each of the individual buffers (or stacks)
+ */
 typedef struct exstack_buffer_t{
-  int64_t count;
-  char data[];
+  int64_t count;        /*!< number of things in the buffer */
+  char data[];          /*!< bytes to hold the buffer */
 }exstack_buffer_t;
 
 /*******************  Classic Exstack  ***************************************************/
@@ -77,25 +80,25 @@ typedef struct exstack_buffer_t{
  * \ingroup exstackgrp
  */
 typedef struct exstack_t {
-  //SHARED char *snd_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for items to be sent */
-  //SHARED char *rcv_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for recieved items */
-  int64_t bytes_per_stack;
-  SHARED char * snd_buf;
-  SHARED char * rcv_buf;
-  //char **l_snd_buf;           /*!< Local pointers to each of the send buffers */
-  //char **l_rcv_buf;           /*!< Local pointers to each of the receive buffers */
-  exstack_buffer_t ** l_snd_buf;
-  exstack_buffer_t ** l_rcv_buf;
-  char **fifo_ptr;            /*!< (internal) pointer to oldest work item in each rcv buffer */
-  char **push_ptr;            /*!< (internal) pointer to next avail work item position in each snd buffer */
-  int *put_order;             /*!< local pointer to random upc_memput ordering */
-  uint64_t buf_cnt;           /*!< The number of structs to allocate for each send and recieve buffer */
-  uint64_t pkg_size;          /*!< The size of each struct (work item) in bytes */
-  uint64_t first_ne_rcv;      /*!< (internal) 1st possible non-empty rcv buffer */
+  //SHARED char *snd_buf;        /*!< Shared THREADS*THREADS*buf_len_alloc buffer for items to be sent */   //TODO
+  //SHARED char *rcv_buf;        /*!< Shared THREADS*THREADS*buf_len_alloc buffer for recieved items */
+  int64_t bytes_per_stack;       /*!< bytes version of buf_cnt */
+  SHARED char * snd_buf;         /*!< SHARED send buffers */
+  SHARED char * rcv_buf;         /*!< SHARED receive buffers */
+  //char **l_snd_buf;            /*!< local pointers to each of the send buffers */              // TODO delete
+  //char **l_rcv_buf;            /*!< local pointers to each of the receive buffers */ 
+  exstack_buffer_t ** l_snd_buf; /*!< local pointer to a threads part of the send buffer */
+  exstack_buffer_t ** l_rcv_buf; /*!< local pointer to a threads part of the receive buffer */
+  char **fifo_ptr;               /*!< (internal) pointer to oldest work item in each rcv buffer */
+  char **push_ptr;               /*!< (internal) pointer to next avail work item position in each snd buffer */
+  int *put_order;                /*!< local pointer to random upc_memput ordering */
+  uint64_t buf_cnt;              /*!< The number of structs to allocate for each send and recieve buffer */
+  uint64_t pkg_size;             /*!< The size of each struct (work item) in bytes */
+  uint64_t first_ne_rcv;         /*!< (internal) 1st possible non-empty rcv buffer */
 
-  int64_t notify_done;        /*!< flag to say this pe has sent its done status. */
-  SHARED int64_t *wait_done;  /*!< The shared array which will communicate done condition. */
-  int64_t *l_wait_done;       /*!< The local pointer to wait_done. */
+  int64_t notify_done;           /*!< flag to say this pe has sent its done status. */
+  SHARED int64_t *wait_done;     /*!< The shared array which will communicate done condition. */
+  int64_t *l_wait_done;          /*!< The local pointer to wait_done. */
 } exstack_t;
 
 /* public routines */
@@ -139,8 +142,7 @@ void exstack_reset(exstack_t *q);
 //#define FALSE         0
 
 /*! \struct exstack2_t 
- * \brief A structure to hold the buffers and the flags used to control them 
- * along with flags for the endgame.
+ * \brief A structure to hold the buffers and the flags used to control them  along with flags for the endgame.
  * \ingroup exstackgrp
  */
 typedef struct exstack2_t { 
@@ -193,8 +195,6 @@ typedef struct exstack2_t {
 
   int all_done;         /*!< This exstack is all done (exstack2_proceed should return 0), useful in nested exstacks */
   int num_done_sending; /*!< This is a counter of the number of threads that are done sending to me. */
-
-
 } exstack2_t;
 
 /* public routines */

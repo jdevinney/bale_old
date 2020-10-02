@@ -462,15 +462,19 @@ double wall_seconds() {
 
 
 
-#define USE_KNUTH
+#define USE_KNUTH   /*!< Default define to set whether we use the Knuth random number generator or rand48 */
 #ifdef USE_KNUTH
-#define LGP_RAND_MAX 2251799813685248
+#define LGP_RAND_MAX 2251799813685248  /*!< max random number depends on which rng we use */
 #include "knuth_rng_double_2019.h"
 #else
 #define LGP_RAND_MAX 281474976710656
 #endif
 
-// all PEs should call this with the same seed.
+/*! 
+ * \brief seed for the random number generator
+ * \param seed the seed
+ * Note: if all thread call this with the same seed they actually get different seeds.
+ */
 void lgp_rand_seed(int64_t seed){
 #ifdef USE_KNUTH
   ranf_start(seed + 1 + MYTHREAD);
@@ -479,7 +483,9 @@ void lgp_rand_seed(int64_t seed){
 #endif
 }
 
-/*! \brief return a random integer mod N.
+/*! 
+ * \brief return a random integer mod N.
+ * \param N the modulus
  */
 int64_t lgp_rand_int64(int64_t N){
   assert(N < LGP_RAND_MAX);
@@ -490,7 +496,9 @@ int64_t lgp_rand_int64(int64_t N){
 #endif
 }
 
-
+/*! 
+ * \brief return a random double in the interval (0,1]
+ */
 double lgp_rand_double(){
 #ifdef USE_KNUTH
   return(ranf_arr_next());

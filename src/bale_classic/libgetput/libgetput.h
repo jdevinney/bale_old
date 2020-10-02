@@ -56,7 +56,7 @@
 #include <sys/time.h>
 #include <assert.h>
 
-#define BALE_VERSION 3.0
+#define BALE_VERSION 3.0  /*!< define for the global use of version number */
 
 #if HAVE_CONFIG_H
 #include "config.h"
@@ -256,9 +256,9 @@ double wall_seconds(); /*!< wall time timer using gettimeofday */
 /////////////////////////
 // RNG functions
 /////////////////////////
-double lgp_rand_double();
-int64_t lgp_rand_int64(int64_t N);
-void lgp_rand_seed(int64_t seed);
+double lgp_rand_double();              /*!< wrapper for uniform random number generator for doubles in (0,1] */
+int64_t lgp_rand_int64(int64_t N);     /*!< wrapper for uniform random number generator for int64_t in [0,N) */
+void lgp_rand_seed(int64_t seed);      /*!< wrapper for setting seed for the random number generator */
 
 
 /////////////////////////

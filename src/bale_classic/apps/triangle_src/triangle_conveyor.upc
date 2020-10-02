@@ -36,8 +36,8 @@
 // 
  *****************************************************************/ 
 
-/*! \file toposort_conveyor.upc
- * \brief Demo application that does a toposort on a permuted upper triangular matrix
+/*! \file triangle_conveyor.upc
+ * \brief Implementations of triangle counting algorithm using conveyors.
  */
 
 #include "triangle.h"
@@ -48,7 +48,7 @@ typedef struct pkg_tri_t{             // TODO unify all these packages in triang
 }pkg_tri_t;
 
 /*!
- * \brief pop routine to handle the pushes
+ * \brief routine to handle the conveyor pushes to the remote thread
  * \param *c a place to return the number of hits.
  * \param *conv the conveyor
  * \param *mat the input sparse matrix 
@@ -81,7 +81,7 @@ static int64_t tri_convey_push_process(int64_t *c, convey_t *conv, sparsemat_t *
  * where one pushes the appropriate part of the local row to the remote row. 
  * \param *count  a place to return the counts from each thread
  * \param *sr a place to return the number of shared references
- * \param *L lower triangle of the input matrix
+ * \param *L lower triangle of the input matrix     //TODO explain this
  * \param *U upper triangle of the input matrix
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \return average run time

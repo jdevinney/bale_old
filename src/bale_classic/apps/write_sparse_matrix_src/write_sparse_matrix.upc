@@ -41,46 +41,16 @@
 #include <std_options.h>
 
 /*! \file write_sparse_matrix.upc
- * \brief Demo program that runs the variants of write_sparse_matrix kernel. This program
- * writes a sparsemat_t to disk in a binary format.
+ * \brief Implementations of the kernel that writes (in parallel) a sparse matrix to disk in a binary format.
  */
 
 /*! 
-\page write_sparse_matrix_page Write Sparse Matrix
-
-Demo program that runs the variants of write_sparse_matrix kernel. It first generates 
-a random matrix in FLAT mode and then it writes this matrix to disk
-in a directory called 'write_sparse_test'.
-
-We define a sparse matrix dataset to be the following:
- - It lives in a directory of its own
- - It contains one ASCII file called 'metadata' which contains the number of rows, columns and nonzeros in the matrix.
- - It contains N binary 'rowcnt' files. These files contain the number of nonzeros in each row for rows 0..A->numrows
- - It contains N binary 'nonzero' files. These files contain the nonzeros in each row and are ordered by row.
-
-This application is interesting because, as implemented, it requires
-us to shuffle the rows of the matrix from cyclic to block. That is,
-the nonzeros for row i is stored on PE (i % THREADS) in the
-sparsemat_t data structure.  However, we wish PE 0 to write out the
-first block of (approx) A->numrows/THREADS rows. One way to do this
-would be to call permute_sparse_matrix to get a copy of the matrix
-whose rows are distributed in the block layout. However, that would
-require 2x the storage space of the matrix. We don't want the
-write_sparse_matrix routine to have this requirement. That is where
-things get interesting. We have a fixed buffer for writing on each PE
-and each PE collects or is sent nonzero data to write in their current
-buffer. In AGP (where the PEs just get the data) or synchronous
-exstack, this is easy. We don't have a nice way of doing this with
-exstack2 or asynchronous conveyors yet. The reason this is a challenge
-for asynchronous methods is that PEs can get into a deadlock waiting
-for the records they need to complete a write buffer.
-
-See files spmat_agp.upc, spmat_exstack.upc
-for the source for the kernels.
-
-* Run with the --help, -?, or --usage flags for run details.
+ \page write_sparse_matrix_page Write Sparse Matrix
+ * See files spmat_agp.upc, spmat_exstack.upc for the source for the kernels.
+ * Run with the --help, -?, or --usage flags for run details.
  */
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   std_args_t std;
   std_graph_args_t gstd;
