@@ -1,53 +1,27 @@
-/******************************************************************
-//
-//
-//  Copyright(C) 2018, Institute for Defense Analyses
-//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-// 
-//
-//  All rights reserved.
-//  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-*****************************************************************/ 
+/*******************************************************************/
+/* Copyright (c) 2020, Institute for Defense Analyses              */
+/* 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500 */
+/*                                                                 */
+/* All rights reserved.                                            */
+/*                                                                 */
+/* This file is part of Bale.   For licence information see the    */
+/* LICENSE file in the top level dirctory of the distribution.     */
+/*******************************************************************/
 
 /*! \file randperm.c
- * \brief Demo program that generates a random permutation.
- * The well known serial algorithm is from Knuth (Vol FIXME).
- * The "dart throwing" and the "sorting algorithm" can be parallelized.
+ * \brief Program that generates a random permutation.
+ * We implement the well known serial algorithm is from Knuth (Vol FIXME).
+ * and the "dart throwing" as a serial demo of the parallel dart throwing alg
+ * and the "sorting algorithm" which can also be parallelized.
  *
  * Run randperm --help or --usage for insructions on running.
  */
 
 #include "spmat_utils.h"
 #include "std_options.h"
+#include "default_app_sizes.h"
 
-/*! \page randperm_page 
+/*! \page randperm_page                                      // TODO move to README
  * Generate a uniform random permutation.  We consider three different algorithm:
   - the standard array method known at least by the names
      Fisher-Yates or Knuth shuffle.
@@ -55,21 +29,21 @@
   - random sort algorithm
 */
 
-/*! \brief A timing wrapper around the rand_perm routine 
- * that is in spmat_utils.
- * \param l length of the permutation array
+/*! \brief A timing wrapper around the rand_perm routine that is in spmat_utils.
+ * \param len length of the permutation array
  * \param s seed for the random number generator.
+ * This is the standard serial array version
  */
-double randperm_generic(int64_t l, uint32_t s) 
+double randperm_generic(int64_t len, uint32_t s) 
 {
   double tm;
   int64_t *p;
   tm = wall_seconds();
  
-  p = rand_perm(l, s);          // from the sparsemat library
+  p = rand_perm(len, s);          // from the sparsemat library
  
   tm = wall_seconds() - tm;
-  if(!is_perm(p, l)){
+  if(!is_perm(p, len)){
     fprintf(stderr, "\nERROR: randperm_generic failed\n\n");
     exit(1);
   }
@@ -79,46 +53,46 @@ double randperm_generic(int64_t l, uint32_t s)
 
 /*!
  * \brief The "dart board" algorithm
- * \param l length of the permutation array
+ * \param len length of the permutation array
  * \param s seed for the random number generator.
- * We pick a dart board (an array) that is bigger than the 
- * permutation needed. Then randomly throw darts at the 
- * dart board, re-throwing any dart that hits a entry 
- * that is already occupied. Then we squeeze out the holes.
+ * We pick a dart board (an array) that is bigger than the permutation needed,
+ * say twice as big. Then randomly throw darts at the  dart board, 
+ * re-throwing any dart that hits a entry that is already occupied. 
+ * Then we squeeze out the holes.
  * We picked the dartboard to be twice the size of the array 
  * so that even the last dart has a 50/50 of hitting an open entry.
  */
-double randperm_dart(int64_t l, uint32_t s) 
+double randperm_dart(int64_t len, uint32_t s) 
 {
   double tm;
   int64_t i, j, d;
-  tm = wall_seconds();
   
-  int64_t * dartboard = calloc(2*l, sizeof(int64_t));
+  int64_t * dartboard = calloc(2*len, sizeof(int64_t));
+  int64_t * p = calloc(len, sizeof(int64_t));
+  tm = wall_seconds();
  
   // fill the dartboard with empty holes
-  for(i=0; i<2*l; i++)
+  for(i=0; i<2*len; i++)
     dartboard[i] = -1;
  
-  // randomly throw darts (entries 0 through l-1) 
+  // randomly throw darts (entries 0 through len-1) 
   // at the dartboard until they all stick (land in 
   // an empty slot)
-  srand(s);
-  for (i=0; i < l;  ) {
-    d = rand() % (2*l);
+  rand_seed(s);
+  for (i=0; i < len;  ) {
+    d = rand_int64(2*len);
     if( dartboard[d] == -1 ){
       dartboard[d] = i;
       i++;
     }
   }
   // squeeze out the holes
-  int64_t * p = calloc(l, sizeof(int64_t));
-  for(i=0, j=0; i<l; i++){
+  for(i=0, j=0; i<len; i++){
     while( dartboard[j] == -1 ) 
       j++;
     p[i] = dartboard[j];
     j++;
-    if( j > 2*l ) {
+    if( j > 2*len ) {
       fprintf(stderr, "ERROR: randperm_dart ran out of darts\n");
       exit(2);
     }
@@ -126,7 +100,7 @@ double randperm_dart(int64_t l, uint32_t s)
   tm = wall_seconds() - tm;
   free(dartboard);
  
-  if(!is_perm(p, l)){
+  if(!is_perm(p, len)){
      fprintf(stderr, "ERROR: randperm_dart not a permutation\n");
      exit(1);
   }
@@ -136,12 +110,13 @@ double randperm_dart(int64_t l, uint32_t s)
 
 /*! \struct idxkey_t 
  * \brief structure used by the randperm_sort routine
- * NB. Repeated key are bad, but tolerated. They would
- *  be ok if ties were broken randomly. 
+ * NB. Repeated key are bad, but tolerated. 
+ * They would be ok if ties were broken randomly or if doubles were
+ * real numbers. 
  */
 typedef struct idxkey_t {
-  int64_t idx; //!< sequential index 0,...,l-1 
-  int64_t key; //!< random key
+  int64_t idx; //!< sequential index 0,...,len-1 
+  double  key; //!< random key
 } idxkey_t;
 
 
@@ -156,41 +131,42 @@ static int rp_comp( const void *a, const void *b) {
 
 /*!
  * \brief The sorting algorithm to produce a random perm
- * \param l length of the permutation array
+ * \param len length of the permutation array
  * \param s seed for the random number generator.
- * We form an (index, key) pair. Then randomly fill the key
- * and then sort on the key. Then read out the permuted index.
+ * We form an (index, key) pair. Then we randomly fill the keys
+ * and then sort on the key. Then we read the permutation from the indices
  */
-double randperm_sort(int64_t l, uint32_t seed) 
+double randperm_sort(int64_t len, uint32_t seed) 
 {
   double tm;
   int64_t i;
   
+  
+  idxkey_t *idxkey = calloc(len, sizeof(idxkey_t));
+  int64_t *p = calloc(len, sizeof(int64_t));
   tm = wall_seconds();
   
-  idxkey_t * idxkey = calloc(l, sizeof(idxkey_t));
-  
-  srand(seed);
-  for(i=0; i<l; i++) {
+  rand_seed(seed);
+  for(i=0; i<len; i++) {
     idxkey[i].idx = i;
-    idxkey[i].key = rand();
+    idxkey[i].key = rand_double();
   }
-  qsort( idxkey, l, sizeof(idxkey_t), rp_comp );
+  qsort( idxkey, len, sizeof(idxkey_t), rp_comp );
   
-  int64_t * p = calloc(l, sizeof(int64_t));
-  for(i=0; i<l; i++)
+  for(i=0; i<len; i++)
     p[i] = idxkey[i].idx;
   
   tm = wall_seconds() - tm;
-  if(!is_perm(p, l)){
+  if(!is_perm(p, len)){
      fprintf(stderr, "ERROR: sorting not a permutation\n");
      exit(1);
   }
-  free(p);
   free(idxkey);
+  free(p);
   return(tm);
 }
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   int64_t perm_size;
   std_args_t std;
@@ -224,43 +200,40 @@ static struct argp_child children_parsers[] =
 
 int main(int argc, char * argv[])
 {
-  double laptime = 0.0;
-
-  /* process command line */
-  args_t args;
-  args.perm_size = 100000;
+  enum MODEL {GENERIC_Model=1, DART_Model=2, SORT_Model=4, ALL_Models=8};
+  args_t args={0};
+  args.perm_size = RANDPERM_SIZE;
+  args.std.models_mask = ALL_Models-1;
   struct argp argp = {options, parse_opt, 0, "Create a random permutation.", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if (ret < 0) return(ret);
+  else if (ret) return(0);
 
-  enum MODEL {GENERIC_Model=1, DART_Model=2, SORT_Model=4, ALL_Models=8};
+  printf("Randperm Serial C\n");                            //TODO 
+  printf("permuatation size: %ld\n", args.perm_size);
+  printf("----------------------\n");
+
   uint32_t use_model;
-  uint32_t models_mask = args.std.models_mask;
-  uint32_t quiet = args.std.quiet;
-
-  if(!quiet){
-    printf("Randperm Serial C\n");
-    printf("permuatation size: %ld\n", args.perm_size);
-    printf("----------------------\n");
-  }
-  
+  double laptime = 0.0;
   for( use_model=1; use_model < ALL_Models; use_model *=2 ) {
-    switch( use_model & models_mask ) {
+    switch( use_model & args.std.models_mask ) {
     case GENERIC_Model:
-      if(!quiet) printf("Generic  perm: ");
+      printf("Generic  perm: ");                 // TODO model_str
       laptime = randperm_generic(args.perm_size, args.std.seed);
       break;
     case DART_Model:
-      if(!quiet) printf("Dart     perm: ");
+      printf("Dart     perm: ");                 // TODO model_str
       laptime = randperm_dart(args.perm_size, args.std.seed);
       break;
     case SORT_Model:
-      if(!quiet) printf("Sort     perm: ");
+      printf("Sort     perm: ");                 // TODO model_str
       laptime = randperm_sort(args.perm_size, args.std.seed);
       break;
     default:
       continue;
     }
-    if(!quiet) printf("  %8.3lf seconds \n", laptime);
+    printf("  %8.3lf seconds \n", laptime);
   }
 	return(0);
 }

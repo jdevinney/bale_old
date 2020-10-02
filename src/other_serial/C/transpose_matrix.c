@@ -1,52 +1,28 @@
-/******************************************************************
-//
-//
-//  Copyright(C) 2018, Institute for Defense Analyses
-//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-// 
-//
-//  All rights reserved.
-//  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-*****************************************************************/ 
+/*******************************************************************/
+/* Copyright (c) 2020, Institute for Defense Analyses              */
+/* 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500 */
+/*                                                                 */
+/* All rights reserved.                                            */
+/*                                                                 */
+/* This file is part of Bale.   For licence information see the    */
+/* LICENSE file in the top level dirctory of the distribution.     */
+/*******************************************************************/
 
 /*! \file transpose_matrix.c
- * \brief Demo program that runs the transpose_matrix from the 
- *  spmat library to provide a framework to study other implementations.
+ * \brief Program that runs the transpose_matrix from the spmat library.
  * 
  * Run transpose_matrix --help or --usage for usage.
  */
 
 #include "spmat_utils.h"
 #include "std_options.h"
+#include "default_app_sizes.h"
 
-/*! \page transpose_matrix_page Transpose a given sparse matrix */
+/*! \page transpose_matrix_page Transpose a given sparse matrix 
+ * \param *A  sparsemat_t holding the given matrix
+ * \param dump_files flag to dump files or not
+ * \return run time
+ */
 double transpose_generic(sparsemat_t *A, int64_t dump_files)
 {
   double tm;
@@ -63,6 +39,7 @@ double transpose_generic(sparsemat_t *A, int64_t dump_files)
   return(tm);
 }
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   std_args_t std;
   std_graph_args_t gstd;
@@ -93,73 +70,42 @@ static struct argp_child children_parsers[] =
   };
 
 
-int main(int argc, char * argv[]){
-  
-  sparsemat_t *mat;
-  double laptime = 0.0;
-  uint32_t use_model;
-  enum FLAVOR {GENERIC=1, ALL=2};
-
-  /* process command line */
-  args_t args;  
-  struct argp argp = {options, parse_opt, 0, "Transpose a sparse matrix.", children_parsers};
+int main(int argc, char * argv[])
+{
+  args_t args = {{0}};
+  enum FLAVOR {GENERIC=1, ALL_Models=2};
+  args.std.models_mask = ALL_Models-1;
+  args.gstd.numrows = PERMUTE_NUM_ROWS;
+  struct argp argp = {options, parse_opt, 0, "Permute rows and columns of a sparse matrix", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
-  
-  double nz_per_row = args.gstd.nz_per_row;
-  double edge_prob = args.gstd.edge_prob;
-  int64_t numrows = args.gstd.numrows;
-  edge_type edge_type = DIRECTED;
-  self_loops loops = NOLOOPS;
-  
-  if(args.gstd.readfile == 0){
-    resolve_edge_prob_and_nz_per_row(&edge_prob, &nz_per_row, numrows, edge_type, loops);
-  }
-  
-  if(!args.std.quiet ) {
-    fprintf(stderr,"Running C version of transpose matrix\n");
-    if(args.gstd.readfile == 1)
-      fprintf(stderr,"Reading a matrix from file (-f [%s])\n", args.gstd.filename);
-    else{
-      if(args.gstd.model == FLAT)
-        fprintf(stderr,"flat model           (-F)\n");
-      else        
-        fprintf(stderr,"geometric model      (-G)\n");
-      fprintf(stderr,"Number of rows       (-n) %"PRId64"\n", numrows);
-      fprintf(stderr,"edge_density         (-e)= %lg\n", edge_prob);
-      fprintf(stderr,"nz_per_row           (-z)= %lg\n", nz_per_row);
-      fprintf(stderr,"random seed          (-s)= %ld\n",  args.std.seed);
-    }
-    fprintf(stderr,"models_mask          (-M)= %d\n", args.std.models_mask);
-    fprintf(stderr,"dump_files           (-D)= %d\n", args.std.dump_files);
-  }
-  
-  if( args.gstd.readfile ) {
-     mat = read_matrix_mm(args.gstd.filename);     
-     if(!mat){printf("ERROR: transpose_matrix: read_matrix (%s) failed\n", args.gstd.filename); exit(1);}
-  } else {
-    mat = random_graph(numrows, args.gstd.model, edge_type, loops, edge_prob, args.std.seed);
-    if(!mat){printf("ERROR: transpose_matrix: erdos_renyi_graph failed\n"); exit(1);}
-  }
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if (ret < 0) return(ret);
+  else if (ret) return(0);
 
-  if(!args.std.quiet) {
-    printf("Input matrix stats:\n");
-    spmat_stats(mat);
-  }
-  if(args.std.dump_files)
-    dump_matrix(mat, 20, "dump.out");
-  
-  for( use_model=1; use_model < 2; use_model *=2 ) {
-    switch( use_model & args.std.models_mask ) {
+  write_std_graph_options(&args.std, &args.gstd);
+  write_std_options(&args.std);
+
+  // read in a matrix or generate a random graph
+  sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);
+  if(!mat){fprintf(stderr, "ERROR: triangle: L is NULL!\n");return(-1);}
+
+  if(args.std.dump_files) write_matrix_mm(mat, "trans_inmat");
+
+  uint32_t use_model;
+  double laptime = 0.0;
+  for (use_model=1; use_model < 2; use_model *=2) {
+    switch (use_model & args.std.models_mask) {
     case GENERIC:
-    if(!args.std.quiet) printf("transpose matrix : ");
-    laptime = transpose_generic(mat, args.std.dump_files);
+      printf("transpose matrix : ");
+      laptime = transpose_generic(mat, args.std.dump_files);
     break;
     default:
-    continue;
+      continue;
     }
-    if(!args.std.quiet) printf("  %8.3lf seconds \n", laptime);
+    printf("  %8.3lf seconds \n", laptime);
   }
 
+  // TODO check the result for transpose
   return(0);
 }
 

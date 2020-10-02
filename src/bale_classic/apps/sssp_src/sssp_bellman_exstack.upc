@@ -43,11 +43,7 @@
 #include "sssp.h"
 
 /*!
- * \brief 
- */
-
-/*!
- * \brief pop routine to implement relaxing the edges
+ * \brief Relax the head of the edges delivered by an exstack buffer
  * \param tent pointer to the tentative distances array
  * \param *ex the extack buffers
  * \param done the signal to exstack_proceed that this thread is done
@@ -70,13 +66,35 @@ static int64_t bellman_exstack_relax_process(d_array_t *tent, exstack_t *ex, int
 }
 
 /*!
+ * \brief Push the potentially improved weight to the thread handling the head of the edge
+ * \param ex the extack buffers
+ * \param tent pointer to the tentative distances array to be passed thru to bellman_exstack_relax_process
+ * \param J the head of the edge, given by it global name
+ * \param tw the new weight
+ * \return the value from the push
+ */
+static int64_t bellman_exstack_push(exstack_t *ex, d_array_t *tent, int64_t J, double tw)
+{
+  int64_t ret, pe;
+  sssp_pkg_t pkg;
+  pe     = J % THREADS;
+  pkg.lj = J / THREADS;
+  pkg.tw = tw;
+  if((ret = exstack_push(ex, &pkg, pe)) == 0){
+    bellman_exstack_relax_process(tent, ex, 0);
+  }
+  return(ret);
+}
+
+
+/*!
  * \brief This routine implements the Bellman-Ford algorithm using exstack
  * \param *tent the SHARED array that holds the tentative distances
  * \param *mat the input matrix
  * \param v0 is the the staring row (vertex)
  * \return average run time
  */
-double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t v0)
+double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t v0)
 {
   double t1 = wall_seconds();
 
@@ -90,8 +108,7 @@ double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t v0)
   d_array_t *tent0, *tent1, *tent2;
   d_array_t *tent_old, *tent_cur, *tent_new, *tent_temp;
 
-  //TODO: Fix the buffer size 
-  exstack_t * ex = exstack_init(64, sizeof(sssp_pkg_t));
+  exstack_t * ex = exstack_init(buf_cnt, sizeof(sssp_pkg_t));
   if( ex == NULL) return(-1.0);
 
 
@@ -129,22 +146,16 @@ double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t v0)
         continue;
       changed = 1;
       for(k=mat->loffset[li]; k< mat->loffset[li+1]; k++){
-        J = mat->lnonzero[k];
-        pe  = J % THREADS;
-        pkg.lj = J / THREADS;
-        pkg.tw = tent_cur->lentry[li] + mat->lvalue[k];
         if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, li*THREADS + MYTHREAD, J, tent_cur->lentry[li],  pkg.tw);}
-        if( exstack_push(ex, &pkg, pe) == 0 ) {
-            bellman_exstack_relax_process(tent_new, ex, 0);
+        if( bellman_exstack_push(ex, tent_new, mat->lnonzero[k],  tent_cur->lentry[li] + mat->lvalue[k]) == 0)
             k--;
-        }
       }
     }
-    while(bellman_exstack_relax_process(tent_new, ex, 1))
+    while(bellman_exstack_relax_process(tent_new, ex, 1))  // keep popping til all threads are done
       ;
 
     lgp_barrier();
-    if( lgp_reduce_add_l(changed) == 0 ){
+    if( lgp_reduce_add_l(changed) == 0 ){                  // keep looping until nothing changes
       replace_d_array(dist, tent_new);
       break;
     }

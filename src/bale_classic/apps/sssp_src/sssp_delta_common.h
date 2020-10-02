@@ -24,6 +24,8 @@ void dump_bucket(ds_t *ds, int64_t i_m);
 void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m);
 void remove_node_from_bucket(ds_t *ds, int64_t v);
 void local_relax(ds_t *ds, int64_t w, double cand_dist);
+sparsemat_t *get_light_edges(sparsemat_t *mat, double delta);
+sparsemat_t *get_heavy_edges(sparsemat_t *mat, double delta);
 
 
 void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat, double opt_delta);

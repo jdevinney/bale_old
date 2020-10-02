@@ -41,17 +41,12 @@
  */
 #include "sssp.h"
 
-
 /*!
- * \brief 
- */
-
-/*!
- * \brief pop routine to implement relaxing the edges
+ * \brief Relax the head of the edges delivered by an exstack2 buffer
  * \param tent pointer to the tentative distances array
- * \param *ex2 the extack buffers
+ * \param ex2 the extack buffers
  * \param done the signal to exstack_proceed that this thread is done
- * \return the return value from exstack_proceed
+ * \return the return value from exstack2_proceed
  */
 static int64_t bellman_exstack2_relax_process(d_array_t *tent, exstack2_t *ex2, int64_t done) 
 {
@@ -68,13 +63,34 @@ static int64_t bellman_exstack2_relax_process(d_array_t *tent, exstack2_t *ex2, 
 }
 
 /*!
+ * \brief Push the potentially improved weight to the thread handling the head of the edge
+ * \param *ex2 the extack2 buffers
+ * \param tent pointer to the tentative distances array to be passed thru to bellman_exstack2_relax_process
+ * \param J the head of the edge, given by it global name
+ * \param tw the new weight
+ * \return the value from the push
+ */
+static int64_t bellman_exstack2_push(exstack2_t *ex2, d_array_t *tent, int64_t J, double tw)
+{
+  int64_t ret, pe;
+  sssp_pkg_t pkg;
+  pe     = J % THREADS;
+  pkg.lj = J / THREADS;
+  pkg.tw = tw;
+  if((ret = exstack2_push(ex2, &pkg, pe)) == 0){
+    bellman_exstack2_relax_process(tent, ex2, 0);
+  }
+  return(ret);
+}
+
+/*!
  * \brief This routine implements the Bellman-Ford algorithm using exstack
  * \param *tent the SHARED array that holds the tentative distances
  * \param *mat the input matrix
  * \param v0 is the the staring row (vertex)
  * \return average run time
  */
-double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t v0)
+double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t v0)
 {
   double t1 = wall_seconds();
 
@@ -89,8 +105,7 @@ double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t v0)
   d_array_t *tent_old, *tent_cur, *tent_new, *tent_temp;
 
 
-  //TODO: Fix the buffer size 
-  exstack2_t * ex2 = exstack2_init(64, sizeof(sssp_pkg_t));
+  exstack2_t * ex2 = exstack2_init(buf_cnt, sizeof(sssp_pkg_t));
   if( ex2 == NULL) return(-1.0);
 
   pe_v0 = v0 % THREADS;
@@ -115,7 +130,6 @@ double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 
   //dump_tent("Exstack2: 1", tent1);
 
-  lgp_barrier();
   tent2 = init_d_array(tent1->num);
 
   tent_old = tent0;
@@ -132,15 +146,9 @@ double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t v0)
         continue;
       changed = 1;
       for(k=mat->loffset[li]; k< mat->loffset[li+1]; k++){
-        J = mat->lnonzero[k];
-        pe  = J % THREADS;
-        pkg.lj = J / THREADS;
-        pkg.tw = tent_cur->lentry[li] + mat->lvalue[k];
-        if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, li * THREADS + MYTHREAD, J, tent_cur->lentry[li],  pkg.tw);}
-        if( exstack2_push(ex2, &pkg, pe) == 0 ) {
-            bellman_exstack2_relax_process(tent_new, ex2, 0);
+        if(0){printf("%ld %d: relaxing (%ld,%ld)   %lg %lg\n", loop, MYTHREAD, li*THREADS + MYTHREAD, J, tent_cur->lentry[li],  pkg.tw);}
+        if( bellman_exstack2_push(ex2, tent_new, mat->lnonzero[k],  tent_cur->lentry[li] + mat->lvalue[k]) == 0)
             k--;
-        }
       }
     }
     while(bellman_exstack2_relax_process(tent_new, ex2, 1))

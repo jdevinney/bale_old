@@ -3,7 +3,7 @@ import os
 
 def test_all(path, implementation_mask):
 
-  apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles", "sssp"]
+  apps = ["histo", "ig", "topo", "randperm", "transpose_matrix", "permute_matrix", "triangles", "sssp", "unionfind"]
   for app in apps:
 
     assert(os.path.exists(os.path.join(path,app)))
@@ -38,22 +38,23 @@ def test_all(path, implementation_mask):
       runs.append("-n 3109 -G -e 0.05 ")
       runs.append("-n 601 -G -e 0.5 ")
       runs.append("-n 4409 -G -e 0.02 ")
-      #runs.append('-k "0: 3 4 5" ')
-      #runs.append('-k "1: 3 4 5" ')
-      #runs.append('-k "2: 3 4 5" ')
-      #runs.append('-k "0: 4 5 9" ')
-      #runs.append('-k "1: 4 5 9" ')
-      #runs.append('-k "2: 4 5 9" ')
-      #runs.append('-k "0: 4 5 9 13" ')
-      #runs.append('-k "1: 4 5 9 13" ')
-      #runs.append('-k "2: 4 5 9 13" ')
+      runs.append('-K "0:3x4x5" ')
+      runs.append('-K "1:3x4x5" ')
+      runs.append('-K "2:3x4x5" ')
     if app == 'sssp':
-      runs.append("-n 719 -e 0.05 ")
-      runs.append("-n 601 -e 0.5 ")
-      runs.append("-n 1213 -e 0.02 ")
-      runs.append("-n 1109 -g 0.05 ")
-      runs.append("-n 601 -g 0.5 ")
-      runs.append("-n 1409 -g 0.02 ")
+      runs.append("-n 719 -F -e 0.05 ")
+      runs.append("-n 601 -F -e 0.5 ")
+      runs.append("-n 1213 -F -e 0.02 ")
+      runs.append("-n 1109 -G -e 0.05 ")
+      runs.append("-n 601 -G -e 0.5 ")
+      runs.append("-n 1409 -G -e 0.02 ")
+    if app == 'unionfind':
+      runs.append("-n 719 -F -e 0.05 ")
+      runs.append("-n 719 -G -e 0.05 ")
+      runs.append("-n 601 -F -e 0.02 ")
+      runs.append("-n 601 -G -e 0.02 ")
+      runs.append("-n 1213 -F -e 0.01 ")
+      runs.append("-n 1213 -G -e 0.01 ")
       
     for run in runs:
       cmd = "{0} {1} -M {2}".format(os.path.join(path, app), run, implementation_mask)
