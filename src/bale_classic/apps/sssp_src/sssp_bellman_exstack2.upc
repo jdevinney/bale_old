@@ -36,8 +36,8 @@
 // 
  *****************************************************************/ 
 
-/*! \file sssp_exstack2.upc
- * \brief Maybe we don't need this????
+/*! \file sssp_bellman_exstack2.upc
+ * \brief Application that implements Bellman-Ford with exstack2
  */
 #include "sssp.h"
 
@@ -85,9 +85,9 @@ static int64_t bellman_exstack2_push(exstack2_t *ex2, d_array_t *tent, int64_t J
 
 /*!
  * \brief This routine implements the Bellman-Ford algorithm using exstack
- * \param *tent the SHARED array that holds the tentative distances
- * \param *mat the input matrix
- * \param v0 is the the staring row (vertex)
+ * \param dist pointer to the array for return the distances (weights) to each vertex
+ * \param mat the input matrix that holds the graph
+ * \param v0 is the given staring row (vertex)
  * \return average run time
  */
 double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t v0)

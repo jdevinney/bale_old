@@ -89,8 +89,8 @@ static int64_t bellman_exstack_push(exstack_t *ex, d_array_t *tent, int64_t J, d
 
 /*!
  * \brief This routine implements the Bellman-Ford algorithm using exstack
- * \param *tent the SHARED array that holds the tentative distances
- * \param *mat the input matrix
+ * \param dist pointer to the array for return the distances (weights) to each vertex
+ * \param mat the input matrix that holds the graph
  * \param v0 is the the staring row (vertex)
  * \return average run time
  */

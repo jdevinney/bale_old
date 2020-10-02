@@ -67,7 +67,7 @@ Run with the --help, -?, or --usage flags for run details.
 #include <unistd.h>
 
 typedef struct args_t{
-  int64_t l_num_rows;
+  int64_t l_num_rows;     /*!< per thread number of elements in the shared permutation */
   std_args_t std;
 }args_t;
 

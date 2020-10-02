@@ -71,8 +71,8 @@ Run with the --help, -?, or --usage flags for run details.
 
 
 typedef struct args_t{
-  int64_t l_num_ups;
-  int64_t l_tbl_size;
+  int64_t l_num_ups;    /*!< number of updates for each thread */
+  int64_t l_tbl_size;   /*!< per thread size of the counts table */
   std_args_t std;
 }args_t;
 

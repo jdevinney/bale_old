@@ -41,16 +41,10 @@
 #include "histo.h"
 
 /*!
- * \brief This routine implements straight forward, 
- *         single word atomic updates to implement histogram.
- * \param *index array of indices into the shared array of counts.
- * \param l_num_ups the local length of the index array
- * \param *counts SHARED pointer to the count array.
+ * \brief This routine implements straight forward, single word atomic updates to implement histogram.
+ * \param data the histo_t struct that carries all the parameters for the implementations
  * \return average run time
- *
  */
-
-//double histo_agp(int64_t *index, int64_t l_num_ups,  SHARED int64_t *counts) {
 double histo_agp(histo_t * data){
   double tm;
   int64_t i;
