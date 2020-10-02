@@ -36,24 +36,16 @@
 // 
  *****************************************************************/
 /*! \file sssp.upc
- * \brief Demo application that implements Single Source Shortest Path algorithms
+ * \brief Implementation of Single Source Shortest Path algorithms
  */
 
 #include "sssp.h"
 #include <std_options.h>
 
-/*!
-  \page sssp_page Single Source Shortest Path
-
-
-We are given a weight adjacency matrix for a (directed) graph
-and an initial starting vertex. 
-The problem is to find the distance 
-(the sum of the weights of the edges on the least heavy path)
-to all other vertices in the graph.
-
+/*! \brief debugging rountine to dump the d_array holding the tentative weights
+ * \param str a string to prefix the line of weights
+ * \param tent the d_array of tentative weights
  */
-
 void dump_tent(char *str, d_array_t *tent)
 {
   int64_t i;
@@ -66,6 +58,12 @@ void dump_tent(char *str, d_array_t *tent)
   }
 }
 
+/*!
+ * \brief Compare two d_arrays
+ * \param *A one array (as a vector)
+ * \param *B the other (as a vector)
+ * \return the l_2 norm of the given arrays
+ */
 double sssp_answer_diff(d_array_t *A, d_array_t *B)
 {
   int64_t i;
@@ -82,8 +80,7 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B)
   return(sqrt(lgp_reduce_add_d(ldiff)));
 }
 
-
-
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   double deltaStep; 
   int64_t V0;

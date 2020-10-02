@@ -42,16 +42,19 @@
 
 #include "toposort.h"
 
+/* \struct pkg_rowcol_t 
+ * \brief the package struct for exstack 
+ */
 typedef struct pkg_rowcol_t{
-  int64_t row;    
-  int64_t col;
+  int64_t row;   /*!< local row */
+  int64_t col;   /*!< column */
 }pkg_rowcol_t;
 
 /*!
  * \brief This routine implements the exstack variant of toposort. It uses atomic ops
  * to construct the permutations.
- * \param *rperm returns the row permutation that is found
- * \param *cperm returns the column permutation that is found
+ * \param *rperm place to return the row permutation that is found
+ * \param *cperm place to return the column permutation that is found
  * \param *mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
  * \param *tmat the transpose of mat
  * \return average run time

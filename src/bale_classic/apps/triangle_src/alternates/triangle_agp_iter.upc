@@ -36,7 +36,7 @@
 // 
  *****************************************************************/ 
 /*! \file triangle_agp_iter.upc
- * \brief The intuitive implementation of triangle counting 
+ * \brief A ?intuitive? implementation of triangle counting 
  * that uses global references hidden behind "iterators"
  */
 
@@ -45,11 +45,19 @@
 // ALWAYS use the global view of rows, 
 // even if we need to localize them behind the scene
 
+/*! \struct my_row_iter_t
+ * \brief a struct to hold the state need to iterate across a row
+ */
 typedef struct my_row_iter_t {
-  int64_t cur_row;            // the global name for a local row
-  int64_t num_rows;        // the global number of rows
+  int64_t cur_row;   /*!< the global index for a local row */
+  int64_t num_rows;  /*!<  the global number of rows */
 }my_row_iter_t;
 
+/*!
+ * \brief initialize the row iterator
+ * \param riter the row iter struct
+ * \parem mat the sparse matrix
+ */
 int64_t my_row_iter_init(my_row_iter_t *riter, sparsemat_t *mat)
 {
   riter->cur_row=MYTHREAD;
@@ -57,27 +65,41 @@ int64_t my_row_iter_init(my_row_iter_t *riter, sparsemat_t *mat)
   return( riter->cur_row );
 }
 
+/*!
+ * \brief move to the next row
+ * \param riter the row iter struct
+ * \return the next row or -1 if we are done
+ */
 int64_t my_row_iter_next(my_row_iter_t *riter)
 {
   riter->cur_row += THREADS;
   return( ((riter->cur_row)< riter->num_rows) ? riter->cur_row: -1);
 }
 
-// The idea is that we always reference non_zeros with a (thread, local index) pair
-// in the case where we know the row is local we short-curcuit the arith and
-// use a local pointer
+/* \struct col_iter_t
+ * \brief A structure that holds the state required to move across the non-zeros in a row
+ * The idea is that we always reference non_zeros with a (thread, local index) pair
+ * in the case where we know the row is local we short-curcuit the arith and use a local pointer
+ */
 #define COL_CACHE_SZ 32
 typedef struct col_iter_t {
-  bool using_local;
-  sparsemat_t *mat;
-  int64_t pe, l_row;
-  int64_t idx_range[2];// holds index into nonzeros: idx_range[0] = current, idx_range[1] is one to_many
-  int64_t ntg;
-  int64_t c_idx;
-  int64_t cached[COL_CACHE_SZ];  // we will get a block of nonzero if we can
+  bool using_local; /*!< is the row local to MYTHREAD */
+  sparsemat_t *mat; /*!< the matrix */
+  int64_t pe; /*!< the thread number */
+  int64_t l_row; /*!< the local index for the row */
+  int64_t idx_range[2]; /*!< array to holds index boundaries for the nonzeros in this row */
+  int64_t ntg; /*!< number to get to fill the cached nonzeros */
+  int64_t c_idx; /*!< index into the cache of nonzeros */
+  int64_t cached[COL_CACHE_SZ]; /*!<  we get a block of nonzero if we can */
 }col_iter_t;
 
-
+/*!
+ * \brief Initializes the struct for the state needed to move across a row
+ * \param citer the column iter struct
+ * \param mat the matrix
+ * \param Row the global index for the row
+ * \return the first nonzero in the Row or -1 if there isn't one
+ */
 int64_t col_iter_init( col_iter_t *citer, sparsemat_t *mat, int64_t Row)
 {
    if( (Row%THREADS) == MYTHREAD ) { 
@@ -119,6 +141,11 @@ int64_t col_iter_init( col_iter_t *citer, sparsemat_t *mat, int64_t Row)
 }
 
 
+/*!
+ * \brief gets the next nonzero in the Row
+ * \param citer the column iter struct
+ * \return the next nonzero in the Row or -1 if there isn't one
+ */
 int64_t col_iter_next( col_iter_t *citer)
 {
   if( citer->using_local == true ) {
@@ -155,9 +182,10 @@ int64_t col_iter_next( col_iter_t *citer)
  * \brief This routine implements another AGP variant of triangle counting
  * \param *count a place to return the counts from this thread
  * \param *sr a place to return the number of shared references
- * \param *mat the input sparse matrix 
- *        NB: This must be the tidy lower triangular matrix from the adjacency matrix
+ * \param *Lmat the tidy lower triangular part of the adjacency matrix    //TODO transpose ???
+ * \param *Umat the tidy lower triangular part of the adjacency matrix    //TODO
  * \return average run time
+ * NB: The matrix must be the tidy lower triangular matrix form of the adjacency matrix
  */
 double triangle_agp_iter(int64_t *count, int64_t *sr, sparsemat_t * Lmat, sparsemat_t * Umat, int64_t alg){
   int64_t cnt=0;

@@ -1,3 +1,41 @@
+/******************************************************************
+//
+//
+//  Copyright(C) 2020, Institute for Defense Analyses
+//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+//  This material may be reproduced by or for the US Government
+//  pursuant to the copyright license under the clauses at DFARS
+//  252.227-7013 and 252.227-7014.
+// 
+//
+//  All rights reserved.
+//  
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//    * Neither the name of the copyright holder nor the
+//      names of its contributors may be used to endorse or promote products
+//      derived from this software without specific prior written permission.
+// 
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+//  OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
+ *****************************************************************/
+
 /*! \file sssp_delta_common.upc
  * \brief Routines common to all the delta stepping implementations.
  */
@@ -6,7 +44,10 @@
 #include "sssp_delta_common.h"
 
 
-// debugging function
+/*! \brief A debugging routine that dumps the contents of a bucket
+ * \param ds the data structure that hold or points to everything
+ * \param i_m the ith bucket (mod num_buckets)
+ */
 void dump_bucket(ds_t *ds, int64_t i_m)
 {
   int64_t v, w ;
@@ -29,9 +70,12 @@ void dump_bucket(ds_t *ds, int64_t i_m)
 
 
 
-
-
-// Prepend node v into a bucket i
+/*! \brief Adds a vertex to the ith bucket
+ * \param ds the data structure that holds or points to everything
+ * \param v the node
+ * \param i_m the ith bucket (mod num_buckets)
+ * The prepends v to the list of nodes in the bucket
+ */
 void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m)
 {
   int64_t w;                   // node on list, given by ds->B[i_m]
@@ -59,8 +103,11 @@ void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m)
   ds->in_bucket[v] = i_m;
 }
 
-
-// Remove node v from its bucket (need not be in any bucket)
+/*! \brief Removes a vertex from the ith bucket
+ * \param ds the data structure that holds or points to everything
+ * \param v the node
+ * Finds v in the list and removes it (v need not be in a bucket, this avoids checking in the main loop).
+ */
 void remove_node_from_bucket(ds_t *ds, int64_t v)
 {
   int64_t i_m, w;
@@ -88,9 +135,11 @@ void remove_node_from_bucket(ds_t *ds, int64_t v)
   return;
 }
 
-// relax an edge to the head vertex, given the new tentative distance
-// (= the tentative distance to the tail plus the weight of the edge).
-// the candidate distance to w is cand_dist.
+/*! \brief Relax an edge, specifically given the head, w, and cand_dist, update tent[w].
+ * \param ds the data structure that holds or points to everything
+ * \param w the head vertex of the given edge
+ * \param cand_dist = tent[v]+c(v,w) the candidate new weight
+ */
 void local_relax(ds_t *ds, int64_t w, double cand_dist)
 {
   int64_t iold, inew;
@@ -111,6 +160,12 @@ void local_relax(ds_t *ds, int64_t w, double cand_dist)
   }
 }
 
+/*! \brief Allocate all the arrays need to hold pointer and values
+ * \param lnumrows the local number of rows on this thread
+ * \param num_buckets the number of buckets 
+ * \param w the head vertex of the given edge
+ * \param delta delta
+ */
 void allocate_and_initialize_delta_stepping_struct(ds_t *ds, int64_t lnumrows, int64_t num_buckets, double delta)
 {
   int64_t i;
@@ -137,6 +192,9 @@ void allocate_and_initialize_delta_stepping_struct(ds_t *ds, int64_t lnumrows, i
   ds->delta = delta;
 }
 
+/*! \brief Clear the memory used by ds
+ * \param ds the data structure that holds or points to everything
+ */
 void clear_ds_struct(ds_t *ds)
 {
   free(ds->next);
@@ -147,7 +205,12 @@ void clear_ds_struct(ds_t *ds)
   free(ds->tent);
 }
 
-// calculate delta and num_buckets
+/*! \brief Determines delta and number of buckets, based on commandline options and the graph
+ * \param delta the place to write the computed delta
+ * \param num_buckets the place to write the number of buckets 
+ * \param mat the sparse matrix that holds the graph
+ * \param opt_delta the delta given on the command line, delta=0.0 means compute it here
+ */
 void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat, double opt_delta)
 { 
   double del;
@@ -182,6 +245,11 @@ void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparse
 }
 
 
+/*! \brief Produces a sparse matrix with only the light edges (weights are less < delta)
+ * \param mat the sparse matrix that holds the whole graph
+ * \param delta  delta
+ * \return the light sparse matrix
+ */
 sparsemat_t * get_light_edges(sparsemat_t *mat, double delta)
 {
   int64_t i, k;
@@ -209,6 +277,11 @@ sparsemat_t * get_light_edges(sparsemat_t *mat, double delta)
   return(retmat);
 }
 
+/*! \brief Produces a sparse matrix with only the light edges (weights are less >= delta)
+ * \param mat the sparse matrix that holds the whole graph
+ * \param delta  delta
+ * \return the light sparse matrix
+ */
 sparsemat_t * get_heavy_edges(sparsemat_t *mat, double delta)
 {
   int64_t i, k;
