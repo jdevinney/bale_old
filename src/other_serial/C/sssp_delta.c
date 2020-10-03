@@ -149,7 +149,7 @@ void relax_edge(ds_t *ds, int64_t w, double cand_wt)
 \param mat the graph (matrix)
 \param r0 the given single source node
 \param delta the algorithm parameter delta
-\*
+*/
 double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, double del)
 {
   int64_t i, i_m, k;
