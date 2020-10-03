@@ -143,13 +143,15 @@ int64_t is_perm(int64_t * perm, int64_t N)
   return(err == 0L);
 }
 
-/*! \brief writes the first and last part of an array of int64_t's to the specified file
- * \param A pointer to the array
- * \param maxdisp the number of entries that are written, 0 means everything, 
-     otherwise write the first and last maxdisplay/2 entries
- * \param name the filename to written to
- * \return 0 on success, non-0 on error.
- */
+/*!
+\brief writes the first and last part of an array of int64_t's to the specified file
+\param A pointer to the array
+\param len the length of the array
+\param maxdisp the number of entries that are written, 0 means everything, 
+  otherwise write the first and last maxdisplay/2 entries
+\param name the filename to written to
+\return 0 on success, non-0 on error.
+*/
 int64_t dump_array(int64_t *A, int64_t len, int64_t maxdisp, char * name) 
 {
   int64_t i, stoprow, startrow;
@@ -169,13 +171,14 @@ int64_t dump_array(int64_t *A, int64_t len, int64_t maxdisp, char * name)
 }
 
 
-/*! \brief dumps a sparse matrix to a file in a ASCII format
- * \param A pointer to the sparse matrix
- * \param maxrows the number of rows that are written, 0 means everything, 
-     otherwise write the first and last maxrows/2 rows
- * \param name the filename to written to
- * \return 0 on success, non-0 on error.
- */
+/*!
+\brief dumps a sparse matrix to a file in a ASCII format
+\param A pointer to the sparse matrix
+\param maxrows the number of rows that are written, 0 means everything, 
+  otherwise write the first and last maxrows/2 rows
+\param name the filename to written to
+\return 0 on success, non-0 on error.
+*/
 int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name) 
 {
   int64_t i,j, off, nxtoff;
@@ -848,6 +851,7 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
   return(mat);
 }
 
+//TODO move to README
  /*************************************************************************************/
  /*                               RANDOM MATRICES                                     */
  /*************************************************************************************/
@@ -869,27 +873,32 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
  // triangle: kron_graph (special lower triangular), or any random lower triangular, or read in
  // SSSP: random non-symmetric square with values
 
-/*! \brief A routine to generate the adjacency matrix of a random graph.
-  * If the graph is undirected, this routine only returns a lower-triangular
-  * adjancency matrix (since the adjancency matrix would be symmetric and we don't need
-  * the redundant entries).
-  * 
-  * \param n The number of vertices in the graph.
-  * \param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
-  * \param edge_type See edge_type enum. Directed, or not, Weighted or not.
-  * \param loops see self_loops enum. Does every node have a loop or not.
-  * \param edge_density: d in [0, 1), target fraction of edges present.
-  * \param seed: RNG seed.
-  */
+/*! \brief DPRT whether or not to do debug printing */
 #define DPRT 1
+
+/*!
+\brief routine to generate the adjacency matrix of a random graph.
+\param n the number of vertices in the graph.
+\param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
+\param edge_type See edge_type enum. directed, or not, weighted or not.
+\param loops see self_loops enum. Does every node have a loop or not.
+\param edge_density: d in [0, 1), target fraction of edges present.
+\param seed: RNG seed.
+
+If the graph is undirected, this routine only returns a lower-triangular
+adjancency matrix (since the adjancency matrix would be symmetric and we don't need
+the redundant entries).
+*/
 sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                             double edge_density, int64_t seed)
 {
-   
+//TODO delete   
 char *graphmodelstr[] = {"FLAT","GEOMETRIC","KRONECKER"};
 char *edgetypestr[] = {"DIRECTED", "UNDIRECTED", "DIRECTED_WEIGHTED", "UNDIRECTED_WEIGHTED"};
 char *loopstr[] = {"LOOPS", "NOLOOPS"};
-   if(DPRT){
+//TODO delete   
+//TODO do this with tracing
+   if(DPRT){ 
      printf("making a random graph:\n");
      printf("n = %ld, model = %s, edges = %s, loops = %s, prob = %lf, seed %ld\n",
             n, graphmodelstr[model], edgetypestr[edge_type], loopstr[loops], edge_density, seed);
@@ -962,7 +971,7 @@ sparsemat_t * gen_star_graph(int64_t m, int mode)
 /*! \brief Produce the Kronecker matrix product of two square {0,1}-matrices
  * \param A sparse matrix, A is A_n x A_n
  * \param B sparse matrix, B is B_n x B_n
- * \return $C =  A \bigotimes B$
+ * \return \f$C =  A \otimes B\f$
  * 
  * Key fact is that element wise, using the notation C[row,col], A[r,s] and B[u,v],
  * 

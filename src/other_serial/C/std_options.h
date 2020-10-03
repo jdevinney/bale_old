@@ -8,6 +8,10 @@
 /* LICENSE file in the top level dirctory of the distribution.     */
 /*******************************************************************/
 
+/*!  \file std_options.h
+Header file to support the use of argp to parse the commandline options
+*/
+
 #ifndef STD_OPTIONS_H
 #define STD_OPTIONS_H
 
@@ -16,6 +20,7 @@
 #include "spmat_utils.h"
 #include <argp.h>
 
+/*! \brief the version (equals the version of bale_classic) */
 #define C_BALE_VERSION 3.0
 
 /*!

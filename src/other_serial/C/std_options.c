@@ -8,10 +8,12 @@
 /* LICENSE file in the top level dirctory of the distribution.     */
 /*******************************************************************/
 
-#include "std_options.h"
-/*! \page std_option_page std_option
-we are using argp to parse the commandline options
+/*!  \file std_options.c
+Code to support the use of argp to parse the commandline options
 */
+
+
+#include "std_options.h"
 
 /*!
 \brief parse the std options

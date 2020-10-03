@@ -11,9 +11,14 @@
 #include "spmat_utils.h"
 
 /*! \file sssp_dijsktra.c
- * \brief These are the function that implement and support two implementations 
- * of Dijsktra's Alg.
- * 
+\brief These are the function that implement and support two implementations 
+of Dijsktra's Alg.
+*/
+
+
+
+// TODO move to README
+/* 
  * It is assumed that the Algorithm is known.
  * Excellent description of the algorithm are easily found.
  * To fix our terminology we say that the algorithm expands 
@@ -28,8 +33,8 @@
 
 
 /*!
-\brief This routine implements the most naive version of Dijkstra's algorithm
-\param tent sparsemat_t that holds the graph. 
+\brief Implementation of naive version of Dijkstra's algorithm
+\param tent pointer to an array that holds the tentative weights. 
 \param mat sparsemat_t that holds the graph. 
 \param v0 is the starting vertex
 \return runtime
@@ -50,11 +55,10 @@ double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)     
   double *dist = tent->entry;
   for(k = mat->offset[v0];  k < mat->offset[v0+1]; k++)
     dist[ mat->nonzero[k] ] = mat->value[k];
-  dist[v0] = -0.0;
+  dist[v0] = -0.0;                          // trick: -0.0 is different than 0.0
   //printf("dist[v0] = %lg\n", dist[v0]);
 
-  while( 1 ) {
-    // find the smallest tentative distance
+  while( 1 ) { // find the smallest tentative distance
     minwt = INFINITY;
     minidx = numrows;
     for(i=0; i<numrows; i++){
@@ -123,7 +127,7 @@ int64_t check_pqueue(PQ_t * pq);     //!< check that the heap property holds
 \param numrows the number in the matrix (nodes in the graph)
 
 Note the indexing into the queue will be "1-up" so the parent and children are easy to calculate.
-A given parent, p, has kids 2*p and 2*p+1, and the parent of kid, k, is \floor(k/2) 
+A given parent, p, has kids 2*p and 2*p+1, and the parent of kid, k, is \f$\lfloor k/2 \rfloor\f$.
 As a convenience, we will use the zero node in the heap for the initial row (starting vertex).
 We allocate an extra node so that numrows is a safe index.
 This allows us to use certain positions in the heap as flags to the rows: 
@@ -236,6 +240,7 @@ void delete_root(PQ_t * pq)
 }
 
 
+/*! \brief DRPT control the printing of debugging printfs */
 #define DPRT 0
 /*!
 \brief The implementation of Dijkstra's algorithm that uses a heap to prioritize the tentative vertices.
