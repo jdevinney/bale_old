@@ -80,9 +80,11 @@ typedef struct edge_list_t{
   int64_t num;          //!< number of elements in the array
 }edge_list_t;
 
-/*!
-\brief struct use while sorting a row in a matrix with values
-*/
+/*! \brief struct use while sorting a row in a matrix with values */
+typedef struct col_val_t{
+  int64_t col;         //!< col
+  double value;        //!< val
+}col_val_t;
 
 /*!  
 \brief struct to represent a point on the plane. (for geometric graphs)
