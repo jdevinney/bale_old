@@ -41,7 +41,7 @@ Other:
 */
 
 /*!
-\defgroup bale_c
+\defgroup bale_c C_Bale
  * This is a version of the bale apps has been written as simple serial C code.
  * There is no need for a much of the infrastucture code that is in the 
  * "bale classic" parallel version.

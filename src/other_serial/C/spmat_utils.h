@@ -88,9 +88,9 @@ typedef struct col_val_t{
    double value;        //!< val
 }col_val_t;
 
-/*! \struct point_  
- * \brief struct to represent a point on the plane. (for geometric graphs)
- */
+/*!  
+\brief struct to represent a point on the plane. (for geometric graphs)
+*/
 typedef struct point_t{
   double x;         //!< x
   double y;         //!< y

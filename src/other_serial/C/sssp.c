@@ -18,16 +18,13 @@
 #include "spmat_utils.h"
 #include "std_options.h"
 #include "default_app_sizes.h"
-/*! \page sssp_page sssp
-Solve the Single Source Shortest Path problem on a weighted graph
-*/
 
-double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);
-double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);
-double sssp_bellmanford_simple(d_array_t * tent, sparsemat_t *mat, int64_t r0);
-double sssp_bellmanford_dynprog(d_array_t * tent, sparsemat_t *mat, int64_t r0);
-double sssp_bellmanford(d_array_t * tent, sparsemat_t *mat, int64_t r0);
-double sssp_delta_stepping(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);
+double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);            //!< Dijsktra's alg with linear search for smallest tent[v]
+double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);              //!< Dijsktra's alg with heap to track the smallest tent[v]
+double sssp_bellmanford_simple(d_array_t * tent, sparsemat_t *mat, int64_t r0);          //!< Bellman-Ford simple with one tentative array
+double sssp_bellmanford_dynprog(d_array_t * tent, sparsemat_t *mat, int64_t r0);         //!< Bellman-Ford dynamic program with n squared storage
+double sssp_bellmanford(d_array_t * tent, sparsemat_t *mat, int64_t r0);                 //!< Bellman-Ford recycling tentative arrays from dynamic program
+double sssp_delta_stepping(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);  //!< Delta-Stepping algorithm
 
 /*!
  * \brief Compare two arrays

@@ -75,17 +75,19 @@ double ig_generic(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *table
 }
 
 /*!
- * \brief This routine implements a buffered version of indexgather
- * \param *tgt array of target locations for the gathered values
- * \param *index array of indices into the source array of counts
- * \param num_req the length of the index array (number of updates)
- * \param *table the array from which the values are gathered
- * \param tab_size the size of the table 
- * \return run time
+\brief This routine implements a buffered version of indexgather
+\param tgt array of target locations for the gathered values
+\param index array of indices into the source array of counts
+\param num_req the length of the index array (number of updates)
+\param table the array from which the values are gathered
+\param table_size the size of the table 
+\return runtime
+
+//TODO move to README
  * The idea is to buffer up the indices based on their high bits.
  * Hopefully there will be a difference between doing full random loads and
  * doing loads that are close to each another. 
- */
+*/
 double ig_buffered(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *table, int64_t table_size) 
 {
   double tm;

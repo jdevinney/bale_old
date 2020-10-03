@@ -28,17 +28,17 @@
 
 
 /*!
- * \brief This routine implements the most naive version of Dijkstra's algorithm
- *
- * This first implementation uses a simple array to hold the
- * tentative weights and uses tricks with the weights to flag
- * the transition of vertices from unvisited to tentative to resolved.
- *
- * \param *mat sparsemat_t that holds the graph. 
- * \param v0 is the starting vertex
- * \return runtime
+\brief This routine implements the most naive version of Dijkstra's algorithm
+\param tent sparsemat_t that holds the graph. 
+\param mat sparsemat_t that holds the graph. 
+\param v0 is the starting vertex
+\return runtime
+
+This first implementation uses a simple array to hold the
+tentative weights and uses tricks with the weights to flag
+the transition of vertices from unvisited to tentative to resolved.
  */
-double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)
+double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)        //TODO fix dist, tent, weights
 {
   double tm = wall_seconds();
   int64_t i, k, rn;
@@ -86,7 +86,8 @@ double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)
   return(wall_seconds() - tm);
 }
 
-/*! Brief The min-heap implementation.
+// TODO move to README
+/* The min-heap implementation of Dijkstra's alg.
  * 
  * In the heap implementation the tentative weights are stored in
  * a min-heap data structure that is coupled with the rows of the matrix.
@@ -97,32 +98,39 @@ double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)
  * row[n] gives a way look up the row when the heap node n reaches the root of the heap
  * node[r] gives a way look up the heap node that currently handles row r's tentative weight
  */
+
+/*!
+\brief holds the simple binary heap that we use as our priority queue to find the lightest tent[v]
+*/
 typedef struct PQ_t {
-  int64_t numrows; // the number of vertices in the graph, rows in the matrix
-  int64_t tail;    // the first node not actively in the queue;
-  double  *wt;     // the corresponding weight that is being prioritized
-  int64_t *row;    // the index of the row being represented by the given node in the heap
-  int64_t *node;   // the index into the heap where the weight for the given row is stored
+  int64_t numrows; //!< the number of vertices in the graph, rows in the matrix
+  int64_t tail;    //!< the first node not actively in the queue;
+  double  *wt;     //!< the corresponding weight that is being prioritized
+  int64_t *row;    //!< the index of the row being represented by the given node in the heap
+  int64_t *node;   //!< the index into the heap where the weight for the given row is stored
 }PQ_t;
 
-PQ_t * init_pqueue(int64_t numrows);
-void bubble_up(PQ_t *pq, int64_t k);
-void delete_root(PQ_t * pq);
+PQ_t * init_pqueue(int64_t numrows); //!< allocate and initialize the heap
+void bubble_up(PQ_t *pq, int64_t k); //!< starting a position k in the heap swap children for a parent to heapify the element before position k
+void delete_root(PQ_t * pq);         //!< pop the root element from the heap
 
-void  heapify_pqueue(PQ_t * pq);
-void print_queue(PQ_t * pq);
-int64_t check_pqueue(PQ_t * pq);
+void  heapify_pqueue(PQ_t * pq);     //!< starting with the heap filled with arbitrary values, repeatedly bubble_up element until the heap property
+void print_queue(PQ_t * pq);         //!< print the elements in the active part of the heap
+int64_t check_pqueue(PQ_t * pq);     //!< check that the heap property holds
 
-/*! Brief initialize the heap
- * Note the indexing into the queue will be "1-up" so the parent and children are easy to calculate.
- * A given parent, p, has kids 2*p and 2*p+1, and the parent of kid, k, is \floor(k/2) 
- * As a convenience, we will use the zero node in the heap for the initial row (starting vertex).
- * We allocate an extra node so that numrows is a safe index.
- * That allows us to use node[] to flag rows: 
- *   node[row] == numrows means the row is unvisited
- *   node[row] == 0 means the row is resolved
- *   otherwise node[row] is the index of the entry in the heap that holds the tentative weight of row.
- */  
+/*!
+\brief initialize the heap
+\param numrows the number in the matrix (nodes in the graph)
+
+Note the indexing into the queue will be "1-up" so the parent and children are easy to calculate.
+A given parent, p, has kids 2*p and 2*p+1, and the parent of kid, k, is \floor(k/2) 
+As a convenience, we will use the zero node in the heap for the initial row (starting vertex).
+We allocate an extra node so that numrows is a safe index.
+This allows us to use certain positions in the heap as flags to the rows: 
+  node[row] == numrows means the row is unvisited
+  node[row] == 0 means the row is resolved
+  otherwise node[row] is the index of the entry in the heap that holds the tentative weight of row.
+*/  
 PQ_t * init_pqueue(int64_t numrows)
 {
   PQ_t * pq = calloc(1, sizeof(PQ_t));
@@ -134,13 +142,15 @@ PQ_t * init_pqueue(int64_t numrows)
   return(pq);
 }
 
-/*! Brief bubble up a given node to return the heap to a legal state
- * Since a tentative weight only changes if it gets smaller
- * and we change only one node at a time, it is enough 
- * to bubble up the changed node until it is not smaller than its parent.
- * \param pq the priority queue
- * \param nd the index of the node that has changed
- */  
+/*!
+\brief bubble up a given node to return the heap to a legal state
+\param pq the priority queue
+\param nd the index of the node that has changed
+
+Since a tentative weight only changes if it gets smaller
+and we change only one node at a time, it is enough 
+to bubble up the changed node until it is not smaller than its parent.
+*/  
 void bubble_up(PQ_t *pq, int64_t nd)
 {
    double w;
@@ -168,13 +178,15 @@ void bubble_up(PQ_t *pq, int64_t nd)
   return;
 }
 
-/*! Brief remove the root node of the heap 
- *  Replace it with the last node in the heap (making the heap one node shorter).
- *  Then restore the heap property by bubbling the root node down until
- *  it is not bigger than either of its children.
- *  \param pq the priority queue
- *  \return 0 if the heap is empty, 1 otherwise
- */  
+/*!
+\brief remove the root node of the heap 
+\param pq the priority queue
+\return 0 if the heap is empty, 1 otherwise
+
+Replace it with the last node in the heap (making the heap one node shorter).
+Then restore the heap property by bubbling the root node down until
+it is not bigger than either of its children.
+*/  
 void delete_root(PQ_t * pq)
 {
   double w;
@@ -226,11 +238,12 @@ void delete_root(PQ_t * pq)
 
 #define DPRT 0
 /*!
- * \brief The implementation of Dijkstra's algorithm that uses a heap to prioritize the tentative vertices.
- * \param *mat sparsemat_t that holds the graph. 
- * \param r0 is the starting row (vertex)
- * \return run time
- */
+\brief The implementation of Dijkstra's algorithm that uses a heap to prioritize the tentative vertices.
+\param tent the tentative weights
+\param mat sparsemat_t that holds the graph. 
+\param r0 is the starting row (vertex)
+\return runtime
+*/
 double sssp_dijsktra_heap(d_array_t *tent, sparsemat_t * mat, int64_t r0)
 {
   double tm = wall_seconds();

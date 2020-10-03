@@ -110,14 +110,15 @@ double randperm_dart(int64_t len, uint32_t s)
   return(tm);
 }
 
-/*! \struct idxkey_t 
- * \brief structure used by the randperm_sort routine
- * NB. Repeated key are bad, but tolerated. 
- * They would be ok if ties were broken randomly or if doubles were real numbers. 
- */
+/*! 
+\brief structure used by the randperm_sort routine
+
+NB. Repeated key are bad, but tolerated. 
+They would be ok if ties were broken randomly or if doubles were real numbers. 
+*/
 typedef struct idxkey_t {
-  int64_t idx; /*!< sequential index 0,...,len-1 */
-  double  key; /*!< random key */
+  int64_t idx; //!< sequential index 0,...,len-1 
+  double  key; //!< random key 
 } idxkey_t;
 
 
