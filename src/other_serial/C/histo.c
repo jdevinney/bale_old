@@ -20,9 +20,9 @@
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*!  \page histo_page histo
-Histogram a large number of items into a large table
-*/
+//  \page histo_page histo
+//Histogram a large number of items into a large table
+//
 
 /*! \brief This routine is a generic histogram of a large number of 
  * items (int64_t's) into a large table
@@ -47,6 +47,9 @@ double histo_generic(int64_t *index, int64_t num_ups,  int64_t *counts, int64_t 
   return( tm );
 }
 
+#define LOG_NUM_BUFFERS 6                 /*!< parameters to play with buffering histo */
+#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS) /*!< number of buffers */
+#define BUFFER_SIZE 128                   /*!< size of the buffers */
 /*!
  * \brief This routine does a buffered version of histogram.
  * \param *index array of indices into the array of counts
@@ -61,9 +64,6 @@ double histo_buffered(int64_t *index, int64_t num_ups,  int64_t *counts, int64_t
   int64_t i,j;
   int64_t nbits;
   int64_t sort_shift;
-#define LOG_NUM_BUFFERS 6                 /*!< parameters to play with buffering histo */
-#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS) /*!< number of buffers */
-#define BUFFER_SIZE 128                   /*!< size of the buffers */
   int64_t s, cnts[NUM_BUFFERS]; 
   int64_t counts_idx[NUM_BUFFERS][BUFFER_SIZE];
   

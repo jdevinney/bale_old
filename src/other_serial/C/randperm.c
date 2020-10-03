@@ -31,7 +31,7 @@ We consider three different algorithm:
   - random sort algorithm
 */
 
-/*! \brief A timing wrapper around the rand_perm routine that is in spmat_utils.
+/*! \brief A timing wrapper around the rand_perm routine that is in `spmat_utils.c`
  * \param len length of the permutation array
  * \param s seed for the random number generator.
  * This is the standard serial array version
@@ -42,7 +42,7 @@ double randperm_generic(int64_t len, uint32_t s)
   int64_t *p;
   tm = wall_seconds();
  
-  p = rand_perm(len, s);          // from the sparsemat library
+  p = rand_perm(len, s);
  
   tm = wall_seconds() - tm;
   if(!is_perm(p, len)){

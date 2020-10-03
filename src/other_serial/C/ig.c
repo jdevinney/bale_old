@@ -74,6 +74,10 @@ double ig_generic(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *table
   return( tm );
 }
 
+
+#define LOG_NUM_BUFFERS 6                     /*!< parameters to play with buffering */
+#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS)     /*!< the number of buffers */
+#define BUFFER_SIZE 128                       /*!< the size of the buffers */
 /*!
 \brief This routine implements a buffered version of indexgather
 \param tgt array of target locations for the gathered values
@@ -94,9 +98,6 @@ double ig_buffered(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *tabl
   int64_t i, j;
   int64_t nbits;
   int64_t sort_shift;
-#define LOG_NUM_BUFFERS 6                     /*!< parameters to play with buffering */
-#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS)     /*!< the number of buffers */
-#define BUFFER_SIZE 128                       /*!< the size of the buffers */
 
   int64_t s, cnts[NUM_BUFFERS]; 
   int64_t table_idx[NUM_BUFFERS][BUFFER_SIZE];

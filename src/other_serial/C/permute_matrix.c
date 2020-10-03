@@ -23,7 +23,7 @@ Permute the rows and columns of a sparse matrix
 */
 
 /*!
- * \brief A timing wrapper around the permute_matrix call in spmat_utils
+ * \brief A timing wrapper around the permute_matrix call in `spmat_utils.c`
  * \param *A  sparsemat_t holding the given matrix
  * \param *rp the row permutation
  * \param *cp the column permutation

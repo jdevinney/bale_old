@@ -459,13 +459,15 @@ sparsemat_t * permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cpermin
   return(Ap);
 }
 
-/*! \brief produce the transpose of a sparse matrix
- * Since this is serial, we don't have to worry about sorting the nonzero column
- * indicies (the get populated in the correct order).
- * 
- * \param A  pointer to the original matrix
- * \return a pointer to the matrix that has been produced or NULL if error.
- */
+/*! 
+\brief produce the transpose of a sparse matrix
+\param A  pointer to the original matrix
+\return a pointer to the matrix that has been produced or NULL on error.
+ 
+Note: Given a tidy matrix, this will produce a tidy matrix because we
+process the rows of the given matrix in order. Thus, we fill the 
+columns of the transpose in order.
+*/
 sparsemat_t * transpose_matrix(sparsemat_t *A) 
 {
   int64_t i, j, row, col;

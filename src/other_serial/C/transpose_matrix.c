@@ -24,7 +24,7 @@ Transpose a given sparse matrix
 */
 
 /*!
-\brief call the transpose_matrix in spmat_utils 
+\brief timing wrapper around the transpose_matrix in `spmat_utils.c`
 \param A  pointer to the given matrix
 \param dump_files flag to output the matrix or not
 \return runtime
