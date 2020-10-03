@@ -46,10 +46,10 @@
 #include <convey.h>
 #include <locale.h>
 
-/*! \struct histo_t
- * \brief A structure to carry all the histogram arrays, counts to different implementations,
- *   aids in error checking
- */ 
+/*!
+\brief A structure to carry all the histogram arrays, counts to different implementations,
+and aids in error checking
+*/ 
 typedef struct histo_t {
   SHARED int64_t * counts;  /*!< the shared array that holds the histogram counts */
   int64_t * lcounts;        /*!< the local pointer to the per thread parts of counts */

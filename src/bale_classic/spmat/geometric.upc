@@ -41,16 +41,34 @@
  */
 #include <spmat.h>
 #include <exstack.h>
+
 int64_t sector_max;
 
 
-// returns the square of the L2 distance
+/*! 
+\brief compute the square of the distance between two points
+\param a the first point
+\param b the other point
+\return the square 
+*/
 double dist(point_t a, point_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
 
-// This function computes all edges between two sectors and added them to the edge list
+/*! 
+\brief This function computes all edges between two sectors and added them to the edge list
+\param this_sec_idx index of my sector
+\param other_sec_idx index of the other sector
+\param my_first_sector the first sector on my thread
+\param nsectors number of sectors
+\param points array of points
+\param first_point_in_sector the first point in the sectors
+\param counts the number of
+\param r2 square of the radius
+\param loops whether or not we have loops
+\param el the edge list
+*/
 void append_edges_between_sectors(uint64_t this_sec_idx,
                                   uint64_t other_sec_idx,
                                   int64_t my_first_sector,
@@ -136,10 +154,21 @@ void append_edges_between_sectors(uint64_t this_sec_idx,
 }
 
 
-// This routine appends to the edge_list (el) all edges for points in a given sector.
-// It does this by looking for point pairs that are closer than r, where one point lies
-// in "sector" and the other point lies in any of the 8 neighboring sectors or "sector" itself.
-// 
+/*!
+\brief This routine appends to the edge_list (el) all edges for points in a given sector.
+\param sector the sector
+\param my_first_sector the first sector on my thread
+\param nsectors number of sectors
+\param points array of points
+\param first_point_in_sector the first point in the sectors
+\param counts the number of
+\param r the radius
+\param loops whether or not we have loops
+\param el the edge list
+
+It does this by looking for point pairs that are closer than r, where one point lies
+in "sector" and the other point lies in any of the 8 neighboring sectors or "sector" itself.
+*/ 
 void append_edges_for_sector(int64_t sector,
                              int64_t my_first_sector,
                              int64_t nsectors,
@@ -179,7 +208,14 @@ void append_edges_for_sector(int64_t sector,
                              
 
 
-// This is the Hillis and Steele algorithm as presented on wikipedia.
+/*!
+\brief produces a shared array containing the prefix scan of the given array
+\param counts the given array
+\param n the length of the array
+\return a pointer to the new array
+
+This is the Hillis and Steele algorithm as presented on wikipedia.
+*/
 SHARED int64_t * prefix_scan(SHARED int64_t * counts, int64_t n){
   int64_t i, j;
   SHARED int64_t * cumsum = lgp_all_alloc(n, sizeof(int64_t));
@@ -207,20 +243,20 @@ SHARED int64_t * prefix_scan(SHARED int64_t * counts, int64_t n){
   return(cumsum);
 }
 
-/*! \brief Generates the adjacency matrix for a random geometric graph. 
-  * 
-  * See https://en.wikipedia.org/wiki/Random_geometric_graph
-  * Each vertex corresponds to a point randomly placed in the unit square. Two vertices
-  * are adjancent if their corresponding points are within distance r of each other.
-  * 
-  * \param n The number of vertices
-  * \param r The size of the neighborhoods that determine edges.
-  * \param type See edge_type. Must be UNDIRECTED or UNDIRECTED_WEIGHTED.
-  * \param loops See self_loops. Are there self loops?
-  * \param seed A seed for the RNG. This should be a single across all PEs (it will be modified by each PE individually).
-  * \param points (Optional) If you supply this pointer, the routine will populate it with the points associated with the vertices in the graph. 
-  * \return An adjacency matrix (or lower portion of in the undirected case).
-  */
+/*!
+\brief Generates the adjacency matrix for a random geometric graph. 
+\param n The number of vertices
+\param r The size of the neighborhoods that determine edges.
+\param edge_type See edge_type. Must be UNDIRECTED or UNDIRECTED_WEIGHTED.
+\param loops See self_loops. Are there self loops?
+\param seed A seed for the RNG. This should be a single across all PEs (it will be modified by each PE individually).
+\param out_points (Optional) If you supply this pointer, the routine will populate it with the points associated with the vertices in the graph. 
+\return An adjacency matrix (or lower portion of it in the undirected case).
+
+See https://en.wikipedia.org/wiki/Random_geometric_graph
+Each vertex corresponds to a point randomly placed in the unit square. Two vertices
+are adjancent if their corresponding points are within distance r of each other.
+*/
 
 // TODO: add optional return that gives back the geometric positions of points
 sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points){

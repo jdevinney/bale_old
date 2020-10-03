@@ -1188,6 +1188,14 @@ int sort_nonzeros( sparsemat_t *mat) {
   return(0);
 }
 
+/*!
+\brief compute the number of triangles in a Kronecker Product of stars graph
+\param kron_mode the mode 0,1,2
+\param kron_spec the list of sizes of the stars (note the +1)
+\param kron_num the number of stars
+
+See: //TODO find the reference
+*/
 
 int64_t calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num){  //TODO rename this to indicate it is for Kronecker Graphs
   int i;

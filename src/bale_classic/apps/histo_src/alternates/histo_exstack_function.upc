@@ -59,9 +59,9 @@ void histo_exstack_service( exstack_t *ex, int64_t *lcounts, int64_t done_pushin
 
 /*!
  * \brief histo_exstack_request routine pushes the indices 
- * \param *ex pointer to the exstack struct
+ * \param ex pointer to the exstack struct
  * \param pckidx the packed index holding the requested pe and local index 
- * \param *lcount local view of the counts array,  needs to be passed to the service function
+ * \param lcounts local view of the counts array,  needs to be passed to the service function
  * \return void
  */
 void histo_exstack_request(exstack_t *ex, int64_t pckidx,  int64_t *lcounts) {

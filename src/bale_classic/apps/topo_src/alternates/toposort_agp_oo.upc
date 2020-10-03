@@ -50,17 +50,16 @@
    hence the macros above.
  */
 
-/*! \struct swlrQ_t 
- * \brief A structure to hold a queue that can be filled by other threads
- *     and emptied only by MYTHREAD
- *
- *  We used shared arrays for the items and both shared and a local variable to hold the 
- *  indices for the heads of the queues. Since one dequeues item locally, we only need
- *  a local variable for the tails.
- *  The race condition to add items to a queue is handled with a fetch_and_add to the shared head.
- *  The read after write race condition to dequeue items up to head is side stepped by using a 
- *  snap shot of the queues and only updating the snap shots between barriers. 
- */  
+/*!
+\brief A structure to hold a queue that can be filled by other threads and emptied only by MYTHREAD
+
+We used shared arrays for the items and both shared and a local variable to hold the 
+indices for the heads of the queues. Since one dequeues items locally, we only need
+a local variable for the tails.
+The race condition to add items to a queue is handled with a fetch_and_add to the shared head.
+The read after write race condition to dequeue items up to head is side stepped by using a 
+snap shot of the queues and only updating the snap shots between barriers. 
+*/  
 typedef struct swlrQ {
    SHARED int64_t * S_queue;  //!< space for all the queues
    int64_t * l_queue;         //!< localized pointers to the individual queues
@@ -70,9 +69,9 @@ typedef struct swlrQ {
 } swlrQ_t;
 
 /*!
- * \brief initialize the shared write local read queue
- * \param nitems the number of items on each local queue
- */
+\brief initialize the shared write local read queue
+\param nitems the number of items on each local queue
+*/
 swlrQ_t * init_swlrQ(int64_t nitems) {
   swlrQ_t * sq = calloc(1, sizeof(swlrQ_t));
   sq->S_queue  = lgp_all_alloc(((nitems/THREADS+1)*THREADS), sizeof(int64_t));
@@ -88,9 +87,9 @@ swlrQ_t * init_swlrQ(int64_t nitems) {
 }
 
 /*!
- * \brief clears the shared write local read queue
- * \param sq pointer to the shared queue
- */
+\brief clears the shared write local read queue
+\param sq pointer to the shared queue
+*/
 void * clear_swlrQ( swlrQ_t * sq ) {
   if( !sq ) return(NULL);
   lgp_all_free(sq->S_queue);
@@ -99,12 +98,12 @@ void * clear_swlrQ( swlrQ_t * sq ) {
 }
 
 /*!
- * \brief grabs a local snap shot version of the queue by setting the "local head" of the queue
- * \param sq pointer to the shared queue
- * \param nitems place to hold the number of items on the local queue
- * \return the total number of items in all the threads queues
- *  This allows one to work with local queue while other threads are use S_head to add more items to the queue.
- */
+\brief grabs a local snap shot version of the queue by setting the "local head" of the queue
+\param sq pointer to the shared queue
+\param nitems place to hold the number of items on the local queue
+\return the total number of items in all the threads queues
+This allows one to work with local queue while other threads are use S_head to add more items to the queue.
+*/
 int64_t grab_swlrQ(swlrQ_t * sq, int64_t *nitems) {
    lgp_barrier();   // finish inflight pushes, updates to rowcnt and rowsum
    sq->l_head = lgp_get_int64(sq->S_head, MYTHREAD);
@@ -113,12 +112,12 @@ int64_t grab_swlrQ(swlrQ_t * sq, int64_t *nitems) {
 }
 
 /*!
- * \brief pushs an item (int64_t) on to another threads queue
- * \param sq pointer to the shared queue
- * \param owner the target thread for the item
- * \param item the int64_t we are pushing
- * \return true (might return false if we did some error checking)
- */
+\brief pushs an item (int64_t) on to another threads queue
+\param sq pointer to the shared queue
+\param owner the target thread for the item
+\param item the int64_t we are pushing
+\return true (might return false if we did some error checking)
+*/
 bool en_swlrQ(swlrQ_t * sq, int64_t owner, int64_t item) {
    int64_t l_pos;
    
@@ -131,11 +130,11 @@ bool en_swlrQ(swlrQ_t * sq, int64_t owner, int64_t item) {
 }
 
 /*!
- * \brief pull the tail element from a thread's queue.
- * \param sq pointer to the shared write local read queue
- * \param ret_item a place to put the int64_t item from the queue
- * \return false if the queue was empty, else true
- */
+\brief pull the tail element from a thread's queue.
+\param sq pointer to the shared write local read queue
+\param ret_item a place to put the int64_t item from the queue
+\return false if the queue was empty, else true
+*/
 bool de_swlrQ(swlrQ_t * sq, int64_t *ret_item ) {
   if( sq->l_head > sq->l_tail ) {
      *ret_item = sq->l_queue[sq->l_tail];
@@ -149,14 +148,14 @@ bool de_swlrQ(swlrQ_t * sq, int64_t *ret_item ) {
 }
 
 /*!
- * \brief This routine implements an AGP variant of toposort with code to encapsulate working 
- *   with the queue of degree one rows and moving across the rows a transpose matrix.
- * \param *rperm place to return the row permutation that is found
- * \param *cperm place to return the column permutation that is found
- * \param *mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
- * \param *tmat the transpose of mat
- * \return average run time
- */
+\brief This routine implements an AGP variant of toposort with code to encapsulate working 
+  with the queue of degree one rows and moving across the rows a transpose matrix.
+\param rperm place to return the row permutation that is found
+\param cperm place to return the column permutation that is found
+\param mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
+\param tmat the transpose of mat
+\return average runtime
+*/
 double toposort_matrix_oo(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) {
   //T0_fprintf(stderr,"Running Toposort with UPC ....");
   int64_t l_row, S_col, S_row;

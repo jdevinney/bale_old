@@ -41,9 +41,9 @@
  */
 #include "ig.h"
   
-/*! \struct index_val_t
-  *\brief the package struct for elements of the exstack buffers
-  */
+/*!
+\brief the package struct for elements of the exstack buffers               //TODO make these uniform
+*/
 typedef struct index_val_t {
   int64_t i;                      /*!< this local index on the "remote" thread */
   int64_t idx;                    /*!< the global index */

@@ -85,10 +85,10 @@ See "Design, Generation, and Validation of Extreme Scale Power-Law Graphs" by Ke
 for more information on Kronecker product graphs. 
  */
 
-
+/*! \brief structure to hold counts of the number of pushes and pulls */
 typedef struct push_pull_ctr_t{
-  int64_t npushes;
-  int64_t npulls;
+  int64_t npushes;                //!< number of pushes
+  int64_t npulls;                 //!< number of pulls
 }push_pull_ctr_t;
 
 typedef struct args_t{

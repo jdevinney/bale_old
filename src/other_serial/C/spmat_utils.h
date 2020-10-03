@@ -83,10 +83,6 @@ typedef struct edge_list_t{
 /*!
 \brief struct use while sorting a row in a matrix with values
 */
-typedef struct col_val_t{
-   int64_t col;         //!< col
-   double value;        //!< val
-}col_val_t;
 
 /*!  
 \brief struct to represent a point on the plane. (for geometric graphs)
@@ -161,6 +157,7 @@ sparsemat_t *    permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cper
 int64_t *        rand_perm(int64_t N, int64_t seed);
 
 sparsemat_t *    random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops, double edge_density, int64_t seed);
+//TODO
 //sparsemat_t *    random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed);  // TODO delete
 
 sparsemat_t *    read_matrix_mm(char * name);

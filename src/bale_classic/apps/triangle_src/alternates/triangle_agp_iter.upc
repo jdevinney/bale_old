@@ -45,19 +45,19 @@
 // ALWAYS use the global view of rows, 
 // even if we need to localize them behind the scene
 
-/*! \struct my_row_iter_t
- * \brief a struct to hold the state need to iterate across a row
- */
+/*!
+\brief a struct to hold the state need to iterate across a row
+*/
 typedef struct my_row_iter_t {
   int64_t cur_row;   /*!< the global index for a local row */
   int64_t num_rows;  /*!<  the global number of rows */
 }my_row_iter_t;
 
 /*!
- * \brief initialize the row iterator
- * \param riter the row iter struct
- * \parem mat the sparse matrix
- */
+\brief initialize the row iterator
+\param riter the row iter struct
+\param mat the sparse matrix
+*/
 int64_t my_row_iter_init(my_row_iter_t *riter, sparsemat_t *mat)
 {
   riter->cur_row=MYTHREAD;
@@ -66,22 +66,25 @@ int64_t my_row_iter_init(my_row_iter_t *riter, sparsemat_t *mat)
 }
 
 /*!
- * \brief move to the next row
- * \param riter the row iter struct
- * \return the next row or -1 if we are done
- */
+\brief move to the next row
+\param riter the row iter struct
+\return the next row or -1 if we are done
+*/
 int64_t my_row_iter_next(my_row_iter_t *riter)
 {
   riter->cur_row += THREADS;
   return( ((riter->cur_row)< riter->num_rows) ? riter->cur_row: -1);
 }
 
-/* \struct col_iter_t
- * \brief A structure that holds the state required to move across the non-zeros in a row
- * The idea is that we always reference non_zeros with a (thread, local index) pair
- * in the case where we know the row is local we short-curcuit the arith and use a local pointer
- */
+/*! \brief COL_CACHE_SZ is the number of column to read at a time */
 #define COL_CACHE_SZ 32
+/*
+\struct
+\brief A structure that holds the state required to move across the non-zeros in a row
+
+The idea is that we always reference non_zeros with a (thread, local index) pair
+in the case where we know the row is local we short-curcuit the arith and use a local pointer
+*/
 typedef struct col_iter_t {
   bool using_local; /*!< is the row local to MYTHREAD */
   sparsemat_t *mat; /*!< the matrix */
@@ -94,58 +97,58 @@ typedef struct col_iter_t {
 }col_iter_t;
 
 /*!
- * \brief Initializes the struct for the state needed to move across a row
- * \param citer the column iter struct
- * \param mat the matrix
- * \param Row the global index for the row
- * \return the first nonzero in the Row or -1 if there isn't one
- */
+\brief Initializes the struct for the state needed to move across a row
+\param citer the column iter struct
+\param mat the matrix
+\param Row the global index for the row
+\return the first nonzero in the Row or -1 if there isn't one
+*/
 int64_t col_iter_init( col_iter_t *citer, sparsemat_t *mat, int64_t Row)
 {
-   if( (Row%THREADS) == MYTHREAD ) { 
-      citer->using_local = true;
-      citer->mat = mat;
-      citer->pe = MYTHREAD;
-      citer->l_row = Row / THREADS;
-      citer->idx_range[0] = mat->loffset[ citer->l_row ];
-      citer->idx_range[1] = mat->loffset[ citer->l_row + 1];
-      if( citer->idx_range[0] < citer->idx_range[1] )
-        return( mat->lnonzero[citer->idx_range[0]] );
-      else
-        return( -1 );
-   } else {
-      citer->using_local = false;
-      citer->mat = mat;
-      citer->pe = Row % THREADS;
-      citer->l_row = Row / THREADS;
-      citer->ntg = 0;
-      citer->c_idx = 0;
-      for(int k=0; k<2;k++)
-	citer->idx_range[k] = lgp_get_int64(mat->offset, Row + k*THREADS);
-	//citer->idx_range[k] = mat->offset[ Row + k*THREADS ]; // pattern match to get both?
+  if( (Row%THREADS) == MYTHREAD ) { 
+    citer->using_local = true;
+    citer->mat = mat;
+    citer->pe = MYTHREAD;
+    citer->l_row = Row / THREADS;
+    citer->idx_range[0] = mat->loffset[ citer->l_row ];
+    citer->idx_range[1] = mat->loffset[ citer->l_row + 1];
+    if( citer->idx_range[0] < citer->idx_range[1] )
+      return( mat->lnonzero[citer->idx_range[0]] );
+    else
+      return( -1 );
+  } else {
+    citer->using_local = false;
+    citer->mat = mat;
+    citer->pe = Row % THREADS;
+    citer->l_row = Row / THREADS;
+    citer->ntg = 0;
+    citer->c_idx = 0;
+    for(int k=0; k<2;k++)
+      citer->idx_range[k] = lgp_get_int64(mat->offset, Row + k*THREADS);
+      //citer->idx_range[k] = mat->offset[ Row + k*THREADS ]; // pattern match to get both?
 
-      if( citer->idx_range[0] < citer->idx_range[1] ){
-        citer->ntg = citer->idx_range[1] - citer->idx_range[0];
-        citer->ntg = ((citer->ntg) > COL_CACHE_SZ) ? COL_CACHE_SZ : citer->ntg;
-        for(int k=0; k<citer->ntg; k++)
-	  //#pragma pgas defer_sync
-	  citer->cached[k] = lgp_get_int64(mat->nonzero, (citer->idx_range[0] + k) * THREADS + citer->pe);
-	//citer->cached[k] = mat->nonzero[(citer->idx_range[0] + k) * THREADS + citer->pe];
-        citer->idx_range[0] += citer->ntg;
-//        upc_fence;
-        return( citer->cached[citer->c_idx] );
-      } else {
-        return( -1 );
-      }
-   }
+    if( citer->idx_range[0] < citer->idx_range[1] ){
+      citer->ntg = citer->idx_range[1] - citer->idx_range[0];
+      citer->ntg = ((citer->ntg) > COL_CACHE_SZ) ? COL_CACHE_SZ : citer->ntg;
+      for(int k=0; k<citer->ntg; k++)
+        //#pragma pgas defer_sync
+        citer->cached[k] = lgp_get_int64(mat->nonzero, (citer->idx_range[0] + k) * THREADS + citer->pe);
+        //citer->cached[k] = mat->nonzero[(citer->idx_range[0] + k) * THREADS + citer->pe];
+      citer->idx_range[0] += citer->ntg;
+        //upc_fence;
+      return( citer->cached[citer->c_idx] );
+    } else {
+      return( -1 );
+    }
+  }
 }
 
 
 /*!
- * \brief gets the next nonzero in the Row
- * \param citer the column iter struct
- * \return the next nonzero in the Row or -1 if there isn't one
- */
+\brief gets the next nonzero in the Row
+\param citer the column iter struct
+\return the next nonzero in the Row or -1 if there isn't one
+*/
 int64_t col_iter_next( col_iter_t *citer)
 {
   if( citer->using_local == true ) {
@@ -179,15 +182,15 @@ int64_t col_iter_next( col_iter_t *citer)
 
 
 /*!
- * \brief This routine implements another AGP variant of triangle counting
- * \param *count a place to return the counts from this thread
- * \param *sr a place to return the number of shared references
- * \param *Lmat the tidy lower triangular part of the adjacency matrix    //TODO transpose ???
- * \param *Umat the tidy lower triangular part of the adjacency matrix    //TODO
- * \return average run time
- * NB: The matrix must be the tidy lower triangular matrix form of the adjacency matrix
+\brief This routine implements another AGP variant of triangle counting
+\param count a place to return the counts from this thread
+\param sr a place to return the number of shared references
+\param Lmat the tidy lower triangular part of the adjacency matrix    //TODO transpose ???
+\param Umat the tidy lower triangular part of the adjacency matrix    //TODO
+\return average runtime
+NB: The matrix must be the tidy lower triangular matrix form of the adjacency matrix
  */
-double triangle_agp_iter(int64_t *count, int64_t *sr, sparsemat_t * Lmat, sparsemat_t * Umat, int64_t alg){
+double triangle_agp_iter(int64_t *count, int64_t *sr, sparsemat_t * Lmat, sparsemat_t * Umat, int64_t alg){        //TODO remove alg arg
   int64_t cnt=0;
   int64_t numpulled=0;
   int64_t U,W,V,H;

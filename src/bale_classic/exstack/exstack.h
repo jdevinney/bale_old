@@ -74,11 +74,10 @@ typedef struct exstack_buffer_t{
 }exstack_buffer_t;
 
 /*******************  Classic Exstack  ***************************************************/
-/*! \struct exstack_t 
- * \brief A structure to hold the exstack buffers and
- *  the flags used in the endgame.
- * \ingroup exstackgrp
- */
+/*!
+\brief A structure to hold the exstack buffers and the flags used in the endgame.
+\ingroup exstackgrp
+*/
 typedef struct exstack_t {
   //SHARED char *snd_buf;        /*!< Shared THREADS*THREADS*buf_len_alloc buffer for items to be sent */   //TODO
   //SHARED char *rcv_buf;        /*!< Shared THREADS*THREADS*buf_len_alloc buffer for recieved items */
@@ -141,10 +140,10 @@ void exstack_reset(exstack_t *q);
 //#define TRUE          1
 //#define FALSE         0
 
-/*! \struct exstack2_t 
- * \brief A structure to hold the buffers and the flags used to control them  along with flags for the endgame.
- * \ingroup exstackgrp
- */
+/*!
+\brief A structure to hold the buffers and the flags used to control them  along with flags for the endgame.
+\ingroup exstackgrp
+*/
 typedef struct exstack2_t { 
   
   /*******  Buffers  ***********/

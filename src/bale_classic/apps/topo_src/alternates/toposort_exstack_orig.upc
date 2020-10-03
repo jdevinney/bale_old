@@ -42,10 +42,10 @@
 
 #include "toposort.h"
 
-/* \struct pkg_rowcol_t 
- * \brief the package struct for exstack 
- */
-typedef struct pkg_rowcol_t{
+/* 
+\brief the package struct for exstack
+*/
+typedef struct pkg_rowcol_t{                      //TODO use one package for all exs
   int64_t row;   /*!< local row */
   int64_t col;   /*!< column */
 }pkg_rowcol_t;

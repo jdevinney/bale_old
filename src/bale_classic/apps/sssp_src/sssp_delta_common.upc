@@ -44,10 +44,11 @@
 #include "sssp_delta_common.h"
 
 
-/*! \brief A debugging routine that dumps the contents of a bucket
- * \param ds the data structure that hold or points to everything
- * \param i_m the ith bucket (mod num_buckets)
- */
+/*!
+\brief A debugging routine that dumps the contents of a bucket
+\param ds the data structure that hold or points to everything
+\param i_m the ith bucket (mod num_buckets)
+*/
 void dump_bucket(ds_t *ds, int64_t i_m)
 {
   int64_t v, w ;
@@ -68,14 +69,14 @@ void dump_bucket(ds_t *ds, int64_t i_m)
 }
 
 
+/*!
+\brief Adds a vertex to the ith bucket
+\param ds the data structure that holds or points to everything
+\param v the node
+\param i_m the ith bucket (mod num_buckets)
 
-
-/*! \brief Adds a vertex to the ith bucket
- * \param ds the data structure that holds or points to everything
- * \param v the node
- * \param i_m the ith bucket (mod num_buckets)
- * The prepends v to the list of nodes in the bucket
- */
+The prepends v to the list of nodes in the bucket
+*/
 void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m)
 {
   int64_t w;                   // node on list, given by ds->B[i_m]

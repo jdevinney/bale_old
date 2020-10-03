@@ -43,14 +43,15 @@
 #include "toposort.h"
 
 /*!
- * \brief This routine implements the exstack variant of toposort. It does not use
- * any atomic ops, but rather sends extra data around to construct the permutations.
- * \param *rperm returns the row permutation that is found
- * \param *cperm returns the column permutation that is found
- * \param *mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
- * \param *tmat the transpose of mat
- * \return average run time
- */
+\brief Implements the exstack variant of toposort. It does not use
+       any atomic ops, but rather sends extra data around to construct the permutations.
+\param rperm returns the row permutation that is found
+\param cperm returns the column permutation that is found
+\param mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
+\param tmat the transpose of mat
+\param buf_cnt the number of packages in the exstack buffer
+\return average run time
+*/
 double toposort_matrix_exstack(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat, int64_t buf_cnt) {
   typedef struct pkg_topo_t{
     int64_t row;    

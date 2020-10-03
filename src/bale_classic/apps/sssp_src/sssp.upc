@@ -182,7 +182,8 @@ int main(int argc, char * argv[])
   int64_t bz = args.std.buffer_size;
   int64_t V0 = args.V0;
   double delta = args.deltaStep;
-#define USE_BELLMAN (1L<<8)
+
+#define USE_BELLMAN (1L<<8)               //TODO make this better so the command line works
 #define USE_DELTA   (1L<<9)
   
   for( alg = 1; alg < 3; alg *=2 ){
