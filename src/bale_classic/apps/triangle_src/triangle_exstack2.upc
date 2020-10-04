@@ -41,9 +41,10 @@
  */
 #include "triangle.h"
 
+/*! \brief make it the same */
 typedef struct pkg_tri_t {            // TODO get this from triangle.h
-  int64_t w;    
-  int64_t vj;
+  int64_t w;     //!< w
+  int64_t vj;    //!< vj
 }pkg_tri_t;
 
 /*!

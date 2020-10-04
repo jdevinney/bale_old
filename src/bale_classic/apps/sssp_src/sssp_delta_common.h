@@ -43,7 +43,9 @@
 #ifndef sssp_delta_common_INCLUDED
 #define sssp_delta_common_INCLUDED
 
+/*! \brief set to 1 for debug print statements on all threads */
 #define DPRT 0
+/*! \brief set to 1 for debug print statements on thread 0 */
 #define D0PRT (!MYTHREAD && DPRT)
 
 /*! 
@@ -73,8 +75,8 @@ sparsemat_t *get_light_edges(sparsemat_t *mat, double delta);      /*!< sparse m
 sparsemat_t *get_heavy_edges(sparsemat_t *mat, double delta);      /*!< sparse matrix to hold the "heavy" edges */
 
 
-void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat, double opt_delta); /*!< pick or use the given delta and find the number of buckets needed for that delta */
-void allocate_and_initialize_delta_stepping_struct(ds_t *ds, int64_t lnumrows, int64_t num_buckets, double delta); /*!< all the data needed for the algorithm is in this one struct */
+void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat, double opt_delta); /* pick or use the given delta and find the number of buckets needed for that delta */
+void allocate_and_initialize_delta_stepping_struct(ds_t *ds, int64_t lnumrows, int64_t num_buckets, double delta); /* all the data needed for the algorithm is in this one struct */
 void clear_ds_struct(ds_t *ds); /*!< free the arrays within the struct */
 
 #endif  // sssp_delta_common_INCLUDED

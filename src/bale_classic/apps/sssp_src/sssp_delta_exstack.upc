@@ -63,13 +63,13 @@ static int64_t delta_exstack_relax_process(ds_t *ds, exstack_t *ex, int64_t done
 }
 
 /*!
- * \brief Push the potentially improved weight to the thread handling the head of the edge
- * \param ex the extack buffers
- * \param ds pointer to the delta-stepping struct to be passed thru to delta_convey_relax_process
- * \param gidx the head of the edge, given by it global name
- * \param tent_tw the new tentative weight
- * \return the value from the exstack_push
- */
+\brief Push the potentially improved weight to the thread handling the head of the edge
+\param ex the extack buffers
+\param ds pointer to the delta-stepping struct to be passed thru to delta_convey_relax_process
+\param gidx the head of the edge, given by it global name
+\param tent_wt the new tentative weight
+\return the value from the exstack_push
+*/
 int64_t delta_exstack_push(exstack_t *ex, ds_t *ds, int64_t gidx, double tent_wt)
 {
   int64_t ret, pe; 
@@ -83,7 +83,15 @@ int64_t delta_exstack_push(exstack_t *ex, ds_t *ds, int64_t gidx, double tent_wt
   return(ret);
 }
 
-
+/*!
+\brief The exstack implementation of delta-stepping
+\param dist the array that holds the minimum weight for each vertex
+\param mat the matrix that holds the graph
+\param buf_cnt the number of packages in the exstack2 buffers
+\param r0 the staring node
+\param opt_delta the delta given by the driver program
+\return the average time for this version
+*/
 double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t r0, double opt_delta)
 {
   int64_t i, i_m, k;

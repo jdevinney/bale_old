@@ -42,8 +42,8 @@
 #include <spmat.h>
 #include <exstack.h>
 
+/*! \brief maximum number of sectors across all threads */
 int64_t sector_max;
-
 
 /*! 
 \brief compute the square of the distance between two points
@@ -54,7 +54,6 @@ int64_t sector_max;
 double dist(point_t a, point_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
-
 
 /*! 
 \brief This function computes all edges between two sectors and added them to the edge list

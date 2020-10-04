@@ -154,7 +154,7 @@ bool de_swlrQ(swlrQ_t * sq, int64_t *ret_item ) {
 \param cperm place to return the column permutation that is found
 \param mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
 \param tmat the transpose of mat
-\return average runtime
+\return average run time
 */
 double toposort_matrix_oo(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) {
   //T0_fprintf(stderr,"Running Toposort with UPC ....");

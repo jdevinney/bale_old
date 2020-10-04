@@ -161,12 +161,13 @@ void local_relax(ds_t *ds, int64_t w, double cand_dist)
   }
 }
 
-/*! \brief Allocate all the arrays need to hold pointer and values
- * \param lnumrows the local number of rows on this thread
- * \param num_buckets the number of buckets 
- * \param w the head vertex of the given edge
- * \param delta delta
- */
+/*!
+\brief Allocate all the arrays need to hold pointer and values
+\param ds the data structure that holds or points to everything
+\param lnumrows the local number of rows on this thread
+\param num_buckets the number of buckets 
+\param delta delta
+*/
 void allocate_and_initialize_delta_stepping_struct(ds_t *ds, int64_t lnumrows, int64_t num_buckets, double delta)
 {
   int64_t i;
@@ -194,8 +195,8 @@ void allocate_and_initialize_delta_stepping_struct(ds_t *ds, int64_t lnumrows, i
 }
 
 /*! \brief Clear the memory used by ds
- * \param ds the data structure that holds or points to everything
- */
+\param ds the data structure that holds or points to everything
+*/
 void clear_ds_struct(ds_t *ds)
 {
   free(ds->next);
@@ -206,12 +207,13 @@ void clear_ds_struct(ds_t *ds)
   free(ds->tent);
 }
 
-/*! \brief Determines delta and number of buckets, based on commandline options and the graph
- * \param delta the place to write the computed delta
- * \param num_buckets the place to write the number of buckets 
- * \param mat the sparse matrix that holds the graph
- * \param opt_delta the delta given on the command line, delta=0.0 means compute it here
- */
+/*!
+\brief Determines delta and number of buckets, based on commandline options and the graph
+\param delta the place to write the computed delta
+\param num_buckets the place to write the number of buckets 
+\param mat the sparse matrix that holds the graph
+\param opt_delta the delta given on the command line, delta=0.0 means compute it here
+*/
 void calculate_delta_and_num_buckets(double *delta, int64_t *num_buckets, sparsemat_t *mat, double opt_delta)
 { 
   double del;

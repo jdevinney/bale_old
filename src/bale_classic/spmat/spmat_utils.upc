@@ -43,24 +43,24 @@
 #include <spmat.h>
 #include <exstack.h>
 
-/*! \brief Produce a global array the holds a uniform random permutation.
- * \param N the global length of the permutaion
- * \param seed the seed for the random number generator
- * \param buf_cnt The size of the buffers in any exstack, exstack2, calls
- * \return a pointer to the matrix that has been produced or NULL if the model can't be used
- *
- * This is wrapper for implementations written in the different models.
- * It is interest enough to be its own apps, one should experiment with it
- * within the apps framework. 
- *
- * This is a collective call.
- *
- * this implements the random dart algorithm to generate the permutation.
- * Each thread throws its elements of the perm array randomly at large target array.
- * Each element claims a unique entry in the large array using compare_and_swap.
- * This gives a random permutation with spaces in it, then you squeeze out the spaces.
- * \ingroup spmatgrp
- */
+/*!
+\brief Produce a global array the holds a uniform random permutation.
+\param N the global length of the permutaion
+\param seed the seed for the random number generator
+\return a pointer to the matrix that has been produced or NULL if the model can't be used
+
+This is wrapper for implementations written in the different models.
+It is interest enough to be its own apps, one should experiment with it
+within the apps framework. 
+
+This is a collective call.
+
+this implements the random dart algorithm to generate the permutation.
+Each thread throws its elements of the perm array randomly at large target array.
+Each element claims a unique entry in the large array using compare_and_swap.
+This gives a random permutation with spaces in it, then you squeeze out the spaces.
+\ingroup spmatgrp
+*/
 SHARED int64_t * rand_permp(int64_t N, int seed) {
   SHARED int64_t * p;
   //p = rand_permp_agp(N, seed);
@@ -75,23 +75,23 @@ SHARED int64_t * rand_permp(int64_t N, int seed) {
 }
 
 
-/*! \brief apply row and column permutations to a sparse matrix using straight UPC
- * \param omat pointer to the original matrix
- * \param rperminv pointer to the global array holding the inverse of the row permutation
- * \param cperminv pointer to the global array holding the inverse of the column permutation
- * rperminv[i] = j means that row i of A goes to row j in matrix Ap
- * cperminv[i] = j means that col i of A goes to col j in matrix Ap
- * \param buf_cnt The size of the buffers in any exstack, exstack2, calls
+/*!
+\brief apply row and column permutations to a sparse matrix using straight UPC
+\param omat pointer to the original matrix
+\param rperminv pointer to the global array holding the inverse of the row permutation
+       rperminv[i] = j means that row i of A goes to row j in matrix Ap
+\param cperminv pointer to the global array holding the inverse of the column permutation
+       cperminv[i] = j means that col i of A goes to col j in matrix Ap
 
- * \return a pointer to the matrix that has be computed or NULL on failure
- *
- * This is wrapper for implementations written in the different models.
- * It is interest enough to be its own apps, one should experiment with it
- * within the apps framework. 
- *
- * \ingroup spmatgrp
+\return a pointer to the matrix that has be computed or NULL on failure
+
+This is wrapper for implementations written in the different models.
+It is interest enough to be its own apps, one should experiment with it
+within the apps framework. 
+
+\ingroup spmatgrp
  */
-sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {
+sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {    // TODO should we add buf_cnt here
   //return( permute_matrix_agp(omat, rperminv, cperminv) );
     return( permute_matrix_exstack(omat, rperminv, cperminv, 128) );
   //return( permute_matrix_exstack2(omat, rperminv, cperminv, 1024) );
@@ -172,6 +172,7 @@ int write_matrix_mm(sparsemat_t *A, char * name) {
 //
 // this is new code not ready for release in bale2.0
 //
+
 int64_t read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t * nwriters){
   *nr = *nc = *nnz = 0;
   if(MYTHREAD == 0){
@@ -603,20 +604,21 @@ int is_perm(SHARED int64_t * perm, int64_t N) {
  /*                               RANDOM MATRICES                                     */
  /*************************************************************************************/
 
-/*! \brief A routine to generate the adjacency matrix of a random graph.
-  * If the graph is undirected, this routine only returns a lower-triangular
-  * adjancency matrix (since the adjancency matrix would be symmetric and we don't need
-  * the redundant entries).
-  * 
-  * \param n The number of vertices in the graph.
-  * \param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
-  * \param edge_type See edge_type enum. Directed, or not, Weighted or not.
-  * \param loops see self_loops enum. Does every node have a loop or not.
-  * \param edge_density: d in [0, 1), target fraction of edges present.
-  * \param seed: RNG seed.
-  */
+/*! 
+\brief A routine to generate the adjacency matrix of a random graph.
+\param n The number of vertices in the graph.
+\param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
+\param edgetype See edge_type enum. Directed, or not, Weighted or not.
+\param loops see self_loops enum. Does every node have a loop or not.
+\param edge_density: d in [0, 1), target fraction of edges present.
+\param seed: RNG seed.
 
-sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
+If the graph is undirected, this routine only returns a lower-triangular
+adjancency matrix (since the adjancency matrix would be symmetric and we don't need
+the redundant entries).
+*/
+
+sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,             //TODO edgetype edge_type
                            self_loops loops,
                            double edge_density, int64_t seed){
 
@@ -1611,7 +1613,7 @@ void clear_matrix(sparsemat_t * mat) {
 }
 
 /*! \brief frees the space allocated for a triples_t
- * \param mat pointer to the triples_t
+ * \param T pointer to the triples_t
  * \ingroup spmatgrp
  */
 void clear_triples(triples_t * T) {

@@ -78,21 +78,20 @@ int64_t my_row_iter_next(my_row_iter_t *riter)
 
 /*! \brief COL_CACHE_SZ is the number of column to read at a time */
 #define COL_CACHE_SZ 32
-/*
-\struct
+/*!
 \brief A structure that holds the state required to move across the non-zeros in a row
 
 The idea is that we always reference non_zeros with a (thread, local index) pair
 in the case where we know the row is local we short-curcuit the arith and use a local pointer
 */
 typedef struct col_iter_t {
-  bool using_local; /*!< is the row local to MYTHREAD */
-  sparsemat_t *mat; /*!< the matrix */
-  int64_t pe; /*!< the thread number */
-  int64_t l_row; /*!< the local index for the row */
-  int64_t idx_range[2]; /*!< array to holds index boundaries for the nonzeros in this row */
-  int64_t ntg; /*!< number to get to fill the cached nonzeros */
-  int64_t c_idx; /*!< index into the cache of nonzeros */
+  bool using_local;             /*!< is the row local to MYTHREAD */
+  sparsemat_t *mat;             /*!< the matrix */
+  int64_t pe;                   /*!< the thread number */
+  int64_t l_row;                /*!< the local index for the row */
+  int64_t idx_range[2];         /*!< array to holds index boundaries for the nonzeros in this row */
+  int64_t ntg;                  /*!< number to get to fill the cached nonzeros */
+  int64_t c_idx;                /*!< index into the cache of nonzeros */
   int64_t cached[COL_CACHE_SZ]; /*!<  we get a block of nonzero if we can */
 }col_iter_t;
 
@@ -187,9 +186,10 @@ int64_t col_iter_next( col_iter_t *citer)
 \param sr a place to return the number of shared references
 \param Lmat the tidy lower triangular part of the adjacency matrix    //TODO transpose ???
 \param Umat the tidy lower triangular part of the adjacency matrix    //TODO
-\return average runtime
+\param alg which algorithm push to remote rows or pull from remote rows
+\return average run time
 NB: The matrix must be the tidy lower triangular matrix form of the adjacency matrix
- */
+*/
 double triangle_agp_iter(int64_t *count, int64_t *sr, sparsemat_t * Lmat, sparsemat_t * Umat, int64_t alg){        //TODO remove alg arg
   int64_t cnt=0;
   int64_t numpulled=0;

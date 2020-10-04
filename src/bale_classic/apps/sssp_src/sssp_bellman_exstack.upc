@@ -88,12 +88,13 @@ static int64_t bellman_exstack_push(exstack_t *ex, d_array_t *tent, int64_t J, d
 
 
 /*!
- * \brief This routine implements the Bellman-Ford algorithm using exstack
- * \param dist pointer to the array for return the distances (weights) to each vertex
- * \param mat the input matrix that holds the graph
- * \param v0 is the the staring row (vertex)
- * \return average run time
- */
+\brief This routine implements the Bellman-Ford algorithm using exstack
+\param dist pointer to the array for return the distances (weights) to each vertex
+\param mat the input matrix that holds the graph
+\param buf_cnt the number of packages in an exstack buffer
+\param v0 is the the staring row (vertex)
+\return average run time
+*/
 double sssp_bellman_exstack(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t v0)
 {
   double t1 = wall_seconds();

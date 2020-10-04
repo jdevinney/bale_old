@@ -179,17 +179,18 @@ void lgp_finalize(){
   return;
 }
 
-#define Define_Reducer( NAME, XTYPE, STYPE, RED_FUNC, UPC_FUNC)         \
-  XTYPE NAME (XTYPE myval) {                                            \
-    static shared STYPE *dst=NULL, * src;                            \
-    if (dst==NULL) {                                                 \
-      dst = upc_all_alloc(THREADS, sizeof(STYPE));                   \
-      src = upc_all_alloc(THREADS, sizeof(STYPE));                      \
-    }                                                                   \
-    src[MYTHREAD] = myval;                                              \
-    upc_barrier;                                                        \
+/*! \brief macro magic to generate all the reduction operation of all the types */
+#define Define_Reducer( NAME, XTYPE, STYPE, RED_FUNC, UPC_FUNC)                    \
+  XTYPE NAME (XTYPE myval) {                                                       \
+    static shared STYPE *dst=NULL, * src;                                          \
+    if (dst==NULL) {                                                               \
+      dst = upc_all_alloc(THREADS, sizeof(STYPE));                                 \
+      src = upc_all_alloc(THREADS, sizeof(STYPE));                                 \
+    }                                                                              \
+    src[MYTHREAD] = myval;                                                         \
+    upc_barrier;                                                                   \
     RED_FUNC(dst,src,UPC_FUNC, THREADS, 1, NULL, UPC_IN_NOSYNC || UPC_OUT_NOSYNC); \
-    upc_barrier;                                                        \
+    upc_barrier;                                                                   \
     return dst[0]; }
 
 Define_Reducer(lgp_reduce_add_l, int64_t, int64_t, upc_all_reduceL, UPC_ADD)
@@ -339,11 +340,11 @@ double lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, 
 /******************************************************************************************/
 
 /*!
-  \brief Compute partial sums across threads.  
-  In the formulas below, \a m represents <tt>MYTHREAD</tt>.
-  \note This function must be called on all threads.
-  \param x input value \f$x_m\f$
-  \return \f$\sum_{i<=m} x_i\f$ 
+\brief Compute partial sums across threads.  
+\param x input value \f$x_m\f$
+\return \f$\sum_{i<=m} x_i\f$  where \f$m\f$ is MYTHREAD
+
+NB: This function must be called on all threads.
 * \ingroup libgetputgrp
 */
 int64_t lgp_partial_add_l(int64_t x) {
@@ -365,13 +366,12 @@ int64_t lgp_partial_add_l(int64_t x) {
 }
 
 /*! 
-  \brief Compute prior partial sums (not including this value) across threads.  
-  In the formulas below, \a m represents <tt>MYTHREAD</tt>.
-  \note This function must be called on all threads.
-  \param x input value \f$x_m\f$
-  \return \f$\sum_{i<m} x_i\f$ 
-  * \ingroup libgetputgrp
-  */
+\brief Compute prior partial sums (not including this value) across threads.  
+\param x the value on <tt>MYTHREAD</tt>
+\return \f$\sum_{i<m} x_i\f$, where \f$x_m\f$ is <tt>MYTHREAD</tt>
+NB: This function must be called on all threads.
+\ingroup libgetputgrp
+*/
 int64_t lgp_prior_add_l(int64_t x) {
   return lgp_partial_add_l(x) - x;
 }

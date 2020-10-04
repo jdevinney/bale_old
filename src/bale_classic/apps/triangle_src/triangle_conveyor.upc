@@ -41,10 +41,10 @@
  */
 
 #include "triangle.h"
-
+/*! \brief same as the others */
 typedef struct pkg_tri_t{             // TODO unify all these packages in triangle.h
-  int64_t w;    
-  int64_t vj;
+  int64_t w;   //!< w
+  int64_t vj   //!< vj
 }pkg_tri_t;
 
 /*!
@@ -158,15 +158,16 @@ double triangle_convey_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparse
   return(stat->avg);
 }
 
-/* 
- * \brief This routine implements the conveyor variant of triangle counting,
- * where one pulls the remote row to the local row.
- * \param *count  a place to return the counts from each thread
- * \param *sr a place to return the number of shared references
- * \param *mat lower triangle of the input matrix
- * \return average run time
- * NB. The matrix must be tidy.
- */
+/*!
+\brief This routine implements the conveyor variant of triangle counting,
+       where one pulls the remote row to the local row.
+\param count  a place to return the counts from each thread
+\param sr a place to return the number of shared references
+\param mat lower triangle of the input matrix
+\return average run time
+
+NB. The matrix must be tidy.
+*/
 double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {         //TODO why is this only on the mat
 
   int64_t cnt = 0, row, col, i, ii, j, k, rowcnt, pos, pos2;

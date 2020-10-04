@@ -42,20 +42,22 @@
 
 #include "triangle.h"
 
+/*! \brief same as the others */
 typedef struct pkg_tri_t {           //TODO get this from triangle.h
   //int64_t vi;    
-  int32_t w;
-  int32_t vj;
+  int32_t w; //!< w
+  int32_t vj; //!< vj
 }pkg_tri_t;
 
 /*!
- * \brief routine to handle the exstack push of local rows to remote rows
- * \param *c a place to return the number of hits.
- * \param *ex the extack buffers
- * \param *mat the input sparse matrix 
- * \param done the signal to exstack_proceed that this thread is done
- * \return the return value from exstack_proceed
- * NB. The matrix must be tidy.
+\brief routine to handle the exstack push of local rows to remote rows
+\param *c a place to return the number of hits.
+\param *ex the extack buffers
+\param *mat the input sparse matrix 
+\param done the signal to exstack_proceed that this thread is done
+\return the return value from exstack_proceed
+
+NB. The matrix must be tidy.
  */
 static int64_t tri_exstack_push_process(int64_t *c, exstack_t *ex, sparsemat_t * mat, int64_t done) {
   int64_t k, fromth, cnt = 0;
@@ -170,15 +172,17 @@ double triangle_exstack_push(int64_t *count, int64_t *sr, sparsemat_t * L, spars
 
 
 /*!
- * \brief This routine implements the exstack pull variant of triangle counting,
- * where one pulls the remote row to the local row.
- * \param *count a place to return the number hits
- * \param *sr a place to return the number of pushes 
- * \param *mat the input matrix
- * \param bufsiz the number of packets in the exstack buffers
- * \return average run time
- * NB. The matrix must be tidy
- */
+\brief this routine implements the exstack pull variant of triangle counting,
+       where one pulls the remote row to the local row.
+\param count a place to return the number hits
+\param sr a place to return the number of pushes 
+\param mat the input matrix
+\param alg pull from remote rows or push to remote rows
+\param bufsiz the number of packets in the exstack buffers
+\return average run time
+
+NB. The matrix must be tidy
+*/
 double triangle_exstack_pull(int64_t *count, int64_t *sr, sparsemat_t * mat, int64_t alg, int64_t bufsiz) {
 
   exstack_t * ex_req = exstack_init(bufsiz, sizeof(pkg_tri_t));

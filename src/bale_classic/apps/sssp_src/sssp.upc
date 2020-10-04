@@ -182,9 +182,10 @@ int main(int argc, char * argv[])
   int64_t bz = args.std.buffer_size;
   int64_t V0 = args.V0;
   double delta = args.deltaStep;
-
+/*! \brief do bellman */
 #define USE_BELLMAN (1L<<8)               //TODO make this better so the command line works
-#define USE_DELTA   (1L<<9)
+/*!  \brief do delta */
+#define USE_DELTA   (1L<<9)              //TODO make this better so the command line works
   
   for( alg = 1; alg < 3; alg *=2 ){
     use_alg = (args.alg & alg)<<8;

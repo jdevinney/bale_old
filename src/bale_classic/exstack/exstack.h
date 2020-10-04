@@ -65,9 +65,7 @@
 #include <upc_nb.h>
 #endif
 
-/*! \struct exstack_t 
- * \brief the struct for each of the individual buffers (or stacks)
- */
+/*! \brief the struct for each of the individual buffers (or stacks) */
 typedef struct exstack_buffer_t{
   int64_t count;        /*!< number of things in the buffer */
   char data[];          /*!< bytes to hold the buffer */

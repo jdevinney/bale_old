@@ -50,7 +50,7 @@
 #include "spmat_enums.h"
 
 
-/*! \struct sparsemat_t spmat.h
+/*!
  * \brief A structure to hold a sparse matrix.
  *
  * We use a distributed version of the standard Compressed Sparse Row (CSR) format.  
@@ -91,10 +91,7 @@ typedef struct sparsemat_t {
 }sparsemat_t;
 
 
-/*!
-\brief holds the length and the elements in a SHARED array of doubles
-
-*/
+/*! \brief holds the length and the elements in a SHARED array of doubles */
 typedef struct d_array_t {
   int64_t num;                  //!< the total number of entries in the array
   int64_t lnum;                 //!< the number of entries on this PE. lnum = (num / NPES) + {0 or 1}
@@ -103,15 +100,16 @@ typedef struct d_array_t {
 } d_array_t;
 
 // TODO is this used
+/*! \brief unused */
 typedef struct triples_t {
-  int64_t * row;
-  int64_t * col;
-  double * val;
-  int64_t numrows;
-  int64_t lnumrows;
-  int64_t numcols;
-  int64_t lnnz;
-  int64_t nalloc;
+  int64_t * row;    //!< unused
+  int64_t * col;    //!< unused
+  double * val;    //!< unused
+  int64_t numrows;    //!< unused
+  int64_t lnumrows;    //!< unused
+  int64_t numcols;    //!< unused
+  int64_t lnnz;    //!< unused
+  int64_t nalloc;    //!< unused
 } triples_t;
 
 
@@ -162,10 +160,10 @@ typedef struct point_t{
   double y;             //!< y
 }point_t;
 
-/*! \struct nxnz_t spmat.h
- * \brief A structure to experiment with an iterator that walks across a row of a sparsemat.
- * \ingroup spmatgrp
- */
+/*!
+\brief A structure to experiment with an iterator that walks across a row of a sparsemat.
+\ingroup spmatgrp
+*/
 typedef struct nxnz_t {  //!< next nonzero struct
   sparsemat_t * mat;     //!< the matrix in question
   int64_t row;           //!< the row of the matrix, used to init and to check for consistent usage.
@@ -268,9 +266,9 @@ int64_t tril(sparsemat_t * A, int64_t k);
 int64_t triu(sparsemat_t * A, int64_t k);
 
 
-sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, uint64_t seed);
+sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);         // TODO delete?
+sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);               // TODO delete?
+sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, uint64_t seed);     // TODO delete?
 
 
 int sort_nonzeros( sparsemat_t *mat);
