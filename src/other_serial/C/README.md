@@ -46,8 +46,9 @@ LD_LIBRARY_PATH and LDFLAGS variables.
 
 ## Testing
 For bale 3.0 we have started using pytest for the unit testing.
-One can run the test specified in ``tests/test_all.py`` file /the apps directory and run
-    pytest -s -P=<path/to/bale/binaries> -M <mask>
+One can run the test specified in ``tests/test_all.py`` file with:\n
+\t ``pytest -s``\n
+For more details see pytest.md
 
 ## Documentation
 serial_C is documented using Doxygen. 
