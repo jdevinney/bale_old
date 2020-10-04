@@ -37,25 +37,30 @@ We have been using gcc, but this should run in C environment.
 - mainpage.h - The main documentation page.
 
 ## Build Instructions
-This is meant to be basic C, so hopefully just
-typing 'make' will work. However, we do use the argp library from the
-GNU standard library. This is usually present by default on most linux
-systems. On Mac, you will probably have to install it by hand (one way
-to do this is 'brew install argp-standalone') and then mess with your
+This is meant to be basic C, with a simple Makefile, so hopefully just typing 'make' will work.
+```
+    make  # make the apps
+    make test # run the unit tests
+    make doc # make the doxygen documentation
+```
+However, we do use the argp library from the GNU standard library. 
+This is usually present by default on most linux systems. 
+On Mac, you will probably have to install it by hand 
+(one way to do this is 'brew install argp-standalone') and then mess with your
 LD_LIBRARY_PATH and LDFLAGS variables.
 
 ## Testing
 For bale 3.0 we have started using pytest for the unit testing.
-One can run the test specified in ``tests/test_all.py`` file with:
+One can run the test specifieds in ``tests/test_all.py`` file by hand with the command:
 
 ```
     pytest -s
 ```
-For more details see [pytest](pytest.md)
+For more details on how to modify the tests see [pytest](pytest.md)
 
 ## Documentation
 serial_C is documented using Doxygen. 
-Should be able to type make doc
+If doxygen is installed on your system, you should be able to type ``make doc``.
 
 ## Discussion
 
