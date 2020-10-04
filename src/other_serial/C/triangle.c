@@ -18,7 +18,7 @@
 #include "default_app_sizes.h"
 
 
-/*! \page triangle_page triangle
+/* \page triangle_page triangle
 Count the triangles in a graph simple graph (a lower triangular matrix)
 */
 

@@ -15,7 +15,7 @@
 
 #include "spmat_utils.h"
 
-/*! \page spmat_utils_page spmat_utils
+/* \page spmat_utils_page spmat_utils
 Sparse matrix routines and few utils
 
 The serial version of the sparse matrix library.

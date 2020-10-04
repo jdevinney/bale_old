@@ -780,18 +780,14 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-#INPUT                  = mainpage.h \
 #                         demo_spmat.c \
-#                         histo.c \
-#                         ig.c \
-#                         permute_matrix.c \
-#                         randperm.c \
-#                         spmat_utils.c \
-#                         transpose_matrix.c \
-#                         triangle.c \
-#                         toposort.c \
-#                         sssp.c \
-#                         unionfind.c
+#INPUT = README.md mainpage.h \
+INPUT = README.md \
+  histo.c ig.c randperm.c \
+  permute_matrix.c transpose_matrix.c \
+  toposort.c triangle.c sssp.c unionfind.c \
+  spmat_utils.h spmat_utils.c \
+  std_options.h std_options.c
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
@@ -818,7 +814,7 @@ INPUT_ENCODING         = UTF-8
 
 FILE_PATTERNS          = *.c \
                          *.h \
-                         *.upc
+                         *.md
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.
@@ -942,7 +938,7 @@ FILTER_SOURCE_PATTERNS =
 # (index.html). This can be useful if you have a project on for instance GitHub
 # and want to reuse the introduction page also for the doxygen output.
 
-USE_MDFILE_AS_MAINPAGE =
+USE_MDFILE_AS_MAINPAGE = README.md
 
 #---------------------------------------------------------------------------
 # Configuration options related to source browsing
@@ -1660,7 +1656,7 @@ MAKEINDEX_CMD_NAME     = makeindex
 # The default value is: NO.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 
-COMPACT_LATEX          = NO
+COMPACT_LATEX          = YES
 
 # The PAPER_TYPE tag can be used to set the paper type that is used by the
 # printer.
@@ -1669,7 +1665,7 @@ COMPACT_LATEX          = NO
 # The default value is: a4.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 
-PAPER_TYPE             = a4wide
+PAPER_TYPE             = letter
 
 # The EXTRA_PACKAGES tag can be used to specify one or more LaTeX package names
 # that should be included in the LaTeX output. The package can be specified just
@@ -1770,7 +1766,7 @@ LATEX_HIDE_INDICES     = NO
 # The default value is: NO.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 
-LATEX_SOURCE_CODE      = NO
+LATEX_SOURCE_CODE      = YES
 
 # The LATEX_BIB_STYLE tag can be used to specify the style to use for the
 # bibliography, e.g. plainnat, or ieeetr. See

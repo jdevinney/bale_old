@@ -18,7 +18,7 @@
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*! \page permute_matrix_page permute_matrix
+/* \page permute_matrix_page permute_matrix
 Permute the rows and columns of a sparse matrix 
 */
 

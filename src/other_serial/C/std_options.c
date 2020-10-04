@@ -8,7 +8,7 @@
 /* LICENSE file in the top level dirctory of the distribution.     */
 /*******************************************************************/
 
-/*!  \file std_options.c
+/*! \file std_options.c
 Code to support the use of argp to parse the commandline options
 */
 

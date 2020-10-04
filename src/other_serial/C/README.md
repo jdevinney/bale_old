@@ -23,7 +23,7 @@ We have been using gcc, but this should run in C environment.
    It contains the sparse matrix library and few helpful routines for debugging and timing.
 - demo_spmat.c - essentially a script used to test the development of spat_utils. It might be good way to familiarize onesself we our version of a compressed row format for a sparse matrix.
 - apps:
-  - histo.c            -- creates a large histogram (random stores)
+  - histo.c            -- creates a large histogram (random stores) [raw code](./histo.c)
   - ig.c               -- a large gather (random loads)
   - randperm.c         -- creates a random permutation
   - transpose_matrix.c -- part of spmat_utils, but interesting in it own right.
@@ -45,8 +45,8 @@ to do this is 'brew install argp-standalone') and then mess with your
 LD_LIBRARY_PATH and LDFLAGS variables.
 
 ## Testing
-We are working on a new test script that uses pytest as a harness. To run this test, go to
-the apps directory and run
+For bale 3.0 we have started using pytest for the unit testing.
+One can run the test specified in ``tests/test_all.py`` file /the apps directory and run
     pytest -s -P=<path/to/bale/binaries> -M <mask>
 
 ## Documentation

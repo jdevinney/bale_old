@@ -22,7 +22,7 @@
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*!  \page toposort_page toposort 
+/*  \page toposort_page toposort 
 Find permutations that verify that a given matrix is morally upper triangular
 */ 
 

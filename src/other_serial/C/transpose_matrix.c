@@ -19,7 +19,7 @@ Run transpose_matrix --help or --usage for usage.
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*!  \page transpose_matrix_page transpose_matrix
+/*  \page transpose_matrix_page transpose_matrix
 Transpose a given sparse matrix 
 */
 

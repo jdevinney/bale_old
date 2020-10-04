@@ -19,7 +19,7 @@
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*! \page unionfind_page 
+/* \page unionfind_page 
  Demo that uses the unionfind data structure
 */
 

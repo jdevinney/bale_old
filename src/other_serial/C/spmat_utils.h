@@ -32,38 +32,36 @@
 #include <assert.h>
 
 /*!
-\brief The data structure to hold a sparse matrix 
+\brief data structure to hold a sparse matrix
+
 We use one of the standard Compressed Sparse Row formats.
-The offset array is an array with length numrows + 1. The offset[] array
-holds the indices into the arrays nonzero[] and value[].
-The index offset[i] is where the ith row's data starts in the nonzero[] and value[] arrays. 
-The nonzero[] array holds the columns number for a particular non-zero in the matrix.
-The value[] array holds the non-zero value of the corresponding non-zero in the matrix.
-In case the matrix is a {0,1}-matrix, we don't need values and we set *value=NULL.
+The ``nonzero[]`` array holds the columns number for a particular non-zero in the matrix and
+the ``value[]`` array holds the non-zero value of the corresponding non-zero in the matrix.
+This is just a long array indexed by the counting across rows, one row after another.
+The entry ``offset[i]`` in the ``offset[ ]`` array is where 
+the ``i``th row's data starts in the ``nonzero[ ]`` and ``value[]`` arrays. 
+The ``nonzero[ ]`` and ``value[ ]`` arrays have length ``nnz`` , the number of non-zeros
+and the ``offset[ ]`` array has length ``(numrows + 1)``. Note, ``offset[0]==0`` and ``offset[numrows]==nnz``.
+In case the matrix is a {0,1}-matrix, we don't need values and we set ``*value=NULL``.
 \ingroup spmatgrp
 */
 typedef struct sparsemat_t{
   int64_t numrows;       //!< the total number of rows in the matrix
   int64_t numcols;       //!< the nonzeros have values between 0 and numcols
   int64_t nnz;           //!< total number of nonzeros in the matrix
-  int64_t * offset;      //!< the row offsets into the array of nonzeros
-  int64_t * nonzero;     //!< the global array of column indices for nonzeros
-  double * value;       //!< the global array of nonzero values (optional)
+  int64_t *offset;       //!< the row offsets into the array of nonzeros
+  int64_t *nonzero;      //!< the global array of column indices for nonzeros
+  double *value;         //!< the global array of nonzero values (optional)
 }sparsemat_t;
 
-/*!
-\brief structure to work with weighted edges as a triple.
-*/
+/*! \brief structure to work with weighted edges as a triples */
 typedef struct w_edge_t{
   int64_t row;          //!< row
   int64_t col;          //!< col
   double val;           //!< value of M[row,col]
 }w_edge_t;
 
-/*!
-\brief structure to work with unweighted edges as a tuple.
-We take the value of M[row,col] to be 1.
-*/
+/*! \brief structure to work with unweighted edges as a tuple */
 typedef struct edge_t{
   int64_t row;         //!< row
   int64_t col;         //!< col
@@ -71,7 +69,10 @@ typedef struct edge_t{
 
 /*!
 \brief structure to work the non-zeros as a list of edges.
-This is a convenient format for reading and writing to files
+
+This is a convenient format for reading and writing to files.
+Note, we set either ``edges`` or ``wedges`` to ``NULL`` to indicate
+that we are using the other.
 */
 typedef struct edge_list_t{
   edge_t * edges;       //!< pointer to a array of edges
@@ -86,9 +87,7 @@ typedef struct col_val_t{
   double value;        //!< val
 }col_val_t;
 
-/*!  
-\brief struct to represent a point on the plane. (for geometric graphs)
-*/
+/*!  \brief struct to represent a point on the plane. (for geometric graphs) */
 typedef struct point_t{
   double x;         //!< x
   double y;         //!< y
@@ -159,7 +158,6 @@ sparsemat_t *    permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cper
 int64_t *        rand_perm(int64_t N, int64_t seed);
 
 sparsemat_t *    random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops, double edge_density, int64_t seed);
-//TODO
 //sparsemat_t *    random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed);  // TODO delete
 
 sparsemat_t *    read_matrix_mm(char * name);
@@ -175,9 +173,11 @@ int64_t          write_matrix_mm(sparsemat_t * A, char * name);
 
 
 /*!
-\brief holds the length and the elements in an array of doubles
+\brief holds the length and the elements of an array of doubles
 
-This is used mostly to make the serial code look more like the parallel code.
+This is not really necessary for the serial code, 
+but it makes the serial code look more like the parallel code.
+In the parallel case the ``d_array_t`` struct is more interesting.
 */
 typedef struct d_array_t {
   int64_t num;                 //!< the total number of entries in the array
