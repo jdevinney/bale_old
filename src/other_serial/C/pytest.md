@@ -1,3 +1,3 @@
-# pytest instructions {# pytest_use}
+## pytest instructions
 
 some interesting words

@@ -1,6 +1,6 @@
 # bale / serial_C
 ### In one sentence
-A *textbook*, C, implementation of the apps in bale.
+A textbook, C, implementation of the apps in bale.
 
 ### The elevator pitch
 
@@ -47,8 +47,10 @@ LD_LIBRARY_PATH and LDFLAGS variables.
 ## Testing
 For bale 3.0 we have started using pytest for the unit testing.
 One can run the test specified in ``tests/test_all.py`` file with:
-    ``pytest -s``
 
+```
+    pytest -s
+```
 For more details see [pytest](pytest.md)
 
 ## Documentation
