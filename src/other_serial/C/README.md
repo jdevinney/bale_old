@@ -51,7 +51,7 @@ LD_LIBRARY_PATH and LDFLAGS variables.
 
 ## Testing
 For bale 3.0 we have started using pytest for the unit testing.
-One can run the test specifieds in ``tests/test_all.py`` file by hand with the command:
+One can run the test specified in file ``tests/test_all.py`` by hand with the command:
 
 ```
     pytest -s
