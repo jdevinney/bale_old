@@ -38,7 +38,7 @@ PROJECT_NAME           = C_bale
 # could be handy for archiving the generated documentation or if some version
 # control system is used.
 
-PROJECT_NUMBER         = 0.0.1
+PROJECT_NUMBER         = 3.0.0
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewer a
@@ -785,11 +785,15 @@ WARN_LOGFILE           =
 INPUT = README.md \
   histo.c histo.md \
   ig.c ig.md \ 
-  randperm.c \
-  permute_matrix.c transpose_matrix.c \
-  toposort.c triangle.c sssp.c unionfind.c \
-  spmat_utils.h spmat_utils.c \
-  std_options.h std_options.c \
+  randperm.c randperm.md \
+  permute_matrix.c permute_matrix.md \
+  transpose_matrix.c transpose_matrix.md \
+  toposort.c toposort.md \
+  triangle.c triangle.md \
+  sssp.c sssp.md \
+  unionfind.c unionfind.md \
+  spmat_utils.h spmat_utils.c spmat_utils.md \
+  std_options.h std_options.c std_options.md \
   pytest.md
 
 # This tag can be used to specify the character encoding of the source files

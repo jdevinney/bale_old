@@ -4,37 +4,42 @@ A textbook, C, implementation of the apps in bale.
 
 ### The elevator pitch
 
-The bale effort is, first and foremost, a vehicle for discussion for parallel programming productivity.  We have included a simple C version of the apps as a concrete description of the apps written in a familiar language.
+The bale effort is, first and foremost, 
+a vehicle for discussion for parallel programming productivity.  
+We have included a simple C version of the bale apps 
+as a concrete description of the apps written in a familiar language.
+Some of the apps (like histo and ig) are trivial as serial apps.
+It might be useful to view the serial version of the more complicated apps
+(like toposort and sssp) before dealing with the parallelism and buffer communication 
+of the bale_classic apps. 
 
-This is a self contained directory that does not depend on build process for the rest of bale.
-
-This code is here to help gain a basic understanding of some of the bale apps since the implementations here remove the complexity of parallelism. 
+This is a self contained directory that does not depend 
+on build process for the rest of bale.
 
 ## Nitty Gritty
 
 ### Where does it run?
-We have been using gcc, but this should run in C environment.
+This is written in generic C, hopefully it will run in any C environment.
+It does depend on the ``argp`` library for command line argument parsing,
+doxygen for documentation and ``pytest`` for unit testing.
 
 ### What is included here:
 
-- README.md  - this file
-- Makefile   - simple explicit makefile for all the apps.
-- spmat_utils.c/h - the only library or support code.
-   It contains the sparse matrix library and few helpful routines for debugging and timing.
-- demo_spmat.c - essentially a script used to test the development of spat_utils. It might be good way to familiarize onesself we our version of a compressed row format for a sparse matrix.
-- apps:
-  - histo.c            -- creates a large histogram (random stores) [details](histo.md)
-  - ig.c               -- a large gather (random loads) [details](ig.md)
-  - randperm.c         -- creates a random permutation
-  - transpose_matrix.c -- part of spmat_utils, but interesting in it own right.
-  - permute_matrix.c   -- part of spmat_utils, but interesting in it own right.
-  - triangle.c         -- counts triangles in a graph
-  - toposort.c         -- performs a toposort (matrix) sort on a morally upper triangular matrix
-  - sssp.c             -- single source shortest path in a graph
-  - unionfind.c        -- uses the union-find data structure to find connected components in a graph
-- runall.sh - a test script that runs all applications on default parameters
-- Doxyfile - the main file for building the documentation with doxygen
-- mainpage.h - The main documentation page.
+- README.md - this file
+- Makefile - simple explicit makefile for all the apps.
+- APPS:
+  - histo.c -- creates a large histogram (random stores) [details](histo.md)
+  - ig.c -- a large gather (random loads) [details](ig.md)
+  - randperm.c -- creates a random permutation [details](randperm.md)
+  - transpose_matrix.c -- computes the transpose of a sparse matrix [details](transpose_matrix.md)
+  - permute_matrix.c -- applies row and column permutations to a sparse matrix [details](permute_matrix.md)
+  - triangle.c -- counts the number triangles in a graph [details](triangle.md)
+  - toposort.c -- performs a toposort (matrix) sort of a morally upper triangular matrix [details](toposort.md)
+  - sssp.c -- solves the single source shortest path problem on a graph [details](sssp.md)
+  - unionfind.c -- uses the union-find data structure to find connected components in a graph [details](unionfind.md)
+- Other:
+- spmat_utils.h, spmat_utils.c -- the sparse matrix library and some support functions [details](spmat_utils.md)
+- std_options.h, std_options.c -- the command line parsing routines [details](std_options.md)
 
 ## Build Instructions
 This is meant to be basic C, with a simple Makefile, so hopefully just typing 'make' will work.
@@ -60,7 +65,8 @@ For more details on how to modify the tests see [pytest](pytest.md)
 
 ## Documentation
 serial_C is documented using Doxygen. 
-If doxygen is installed on your system, you should be able to type ``make doc``.
+If doxygen is installed on your system, you should be able to type ``make doc``
+and then load ``html/index.html`` into a browser.
 
 ## Discussion
 
