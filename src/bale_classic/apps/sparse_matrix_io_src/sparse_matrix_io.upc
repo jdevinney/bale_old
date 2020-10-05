@@ -40,42 +40,30 @@
 #include <spmat.h>
 #include <std_options.h>
 
-/*! \file write_sparse_matrix.upc
- * \brief Demo program that runs the variants of write_sparse_matrix kernel. This program
+/*! \file sparse_matrix_io.upc
+ * \brief Demo program that runs the variants of sparse_matrix_io kernel. This program
  * writes a sparsemat_t to disk in a binary format.
  */
 
 /*! 
-\page write_sparse_matrix_page Write Sparse Matrix
+\page sparse_matrix_io_page Write Sparse Matrix
 
-Demo program that runs the variants of write_sparse_matrix kernel. It first generates 
-a random matrix in FLAT mode and then it writes this matrix to disk
-in a directory called 'write_sparse_test'.
+Demo program that runs the variants of sparse_matrix_io kernel. It first generates 
+a random matrix and then it writes this matrix to disk
+in a directory called 'write_sparse_dir'. Finally, it reads the sparse matrix
+dataset back in and compares the resulting matrix with the original matrix.
 
 We define a sparse matrix dataset to be the following:
  - It lives in a directory of its own
- - It contains one ASCII file called 'metadata' which contains the number of rows, columns and nonzeros in the matrix.
- - It contains N binary 'rowcnt' files. These files contain the number of nonzeros in each row for rows 0..A->numrows
- - It contains N binary 'nonzero' files. These files contain the nonzeros in each row and are ordered by row.
+ - It contains one ASCII file called 'metadata' which contains 5 lines of the form key=val. The keys are numrows, numcols,
+   nnz, nwriters, and values. nwriters stands for the number of PEs that were involved in writing the dataset. The values
+   value is 0/1 if the matrix doesn't have / or has values.
+ - It contains nwriters binary 'rowcnt' files. The ith record in the jth file is the the offset in the jth nonzero file for
+ where the ith row's data begins.
+ - It contains nwriters binary 'nonzero' files. These files contain the nonzeros in each row and are ordered by row.
+ - If the matrix has values, it contains nwriters binary 'values' files. These files contain the values for the nonzeros.
 
-This application is interesting because, as implemented, it requires
-us to shuffle the rows of the matrix from cyclic to block. That is,
-the nonzeros for row i is stored on PE (i % THREADS) in the
-sparsemat_t data structure.  However, we wish PE 0 to write out the
-first block of (approx) A->numrows/THREADS rows. One way to do this
-would be to call permute_sparse_matrix to get a copy of the matrix
-whose rows are distributed in the block layout. However, that would
-require 2x the storage space of the matrix. We don't want the
-write_sparse_matrix routine to have this requirement. That is where
-things get interesting. We have a fixed buffer for writing on each PE
-and each PE collects or is sent nonzero data to write in their current
-buffer. In AGP (where the PEs just get the data) or synchronous
-exstack, this is easy. We don't have a nice way of doing this with
-exstack2 or asynchronous conveyors yet. The reason this is a challenge
-for asynchronous methods is that PEs can get into a deadlock waiting
-for the records they need to complete a write buffer.
-
-See files spmat_agp.upc, spmat_exstack.upc
+See files spmat_agp.upc, spmat_exstack.upc and spmat_io.upc
 for the source for the kernels.
 
 * Run with the --help, -?, or --usage flags for run details.
@@ -120,7 +108,7 @@ int main(int argc, char * argv[])
   /* process command line */
   args_t args = {0};
   struct argp argp = {options, parse_opt, 0,
-                      "Parallel write sparse matrix.", children_parsers};
+                      "Parallel write and read sparse matrix.", children_parsers};
 
   args.gstd.l_numrows = 1000000;
   args.num_readers = -1;
@@ -138,7 +126,7 @@ int main(int argc, char * argv[])
 
   // read in a matrix or generate a random graph
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
-  if(!inmat){T0_fprintf(stderr, "ERROR: write_sparse_matrix: inmat is NULL!\n");return(-1);}
+  if(!inmat){T0_fprintf(stderr, "ERROR: sparse_matrix_io: inmat is NULL!\n");return(-1);}
 
   if(args.std.dump_files) write_matrix_mm(inmat, "inmat");
   //print_matrix(inmat);
@@ -171,7 +159,7 @@ int main(int argc, char * argv[])
     case CONVEYOR_Model:
       continue;
       //sprintf(model_str, "Conveyor");
-      //break;    
+      //break;
     case ALTERNATE_Model:
       T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
       continue;
@@ -180,11 +168,11 @@ int main(int argc, char * argv[])
     }
 
     if(readmat == NULL){
-      T0_fprintf(stderr,"ERROR: write_sparse_matrix: read failed!\n");
+      T0_fprintf(stderr,"ERROR: sparse_matrix_io: read failed!\n");
       error = 1;
     }else{
       if(compare_matrix(readmat, inmat)){
-        T0_fprintf(stderr,"ERROR: write_sparse_matrix: read version of written matrix does not match!\n");
+        T0_fprintf(stderr,"ERROR: sparse_matrix_io: read version of written matrix does not match!\n");
         error = 1; 
       }
       clear_matrix(readmat); free(readmat);
