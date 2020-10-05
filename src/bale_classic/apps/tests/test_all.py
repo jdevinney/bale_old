@@ -136,9 +136,9 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
         # for write sparse matrix we split each run into npes-1 runs testing the -r option
         if app == 'write_sparse_matrix' and pes > 1:
           for i in range(1,pes+1):
-            run = "{0} -r {1}".format(run, i)            
-            cmd = launcher.format(pes, launcher_opts, os.path.join(path,app)) +" "+run+" -M "+implementation_mask
-            print(launcher.format(pes, launcher_opts, app)+" "+run+" -M "+implementation_mask)
+            run2 = "{0} -r {1}".format(run, i)            
+            cmd = launcher.format(pes, launcher_opts, os.path.join(path,app)) +" "+run2+" -M "+implementation_mask
+            print(launcher.format(pes, launcher_opts, app)+" "+run2+" -M "+implementation_mask)
             ret = run_command(cmd, 1)
             assert(ret == 0)
 

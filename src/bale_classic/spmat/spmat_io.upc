@@ -188,15 +188,16 @@ spmat_dataset_t * open_sparse_matrix_read(char * dirname, int64_t nreaders){
   spd->global_first_row = -1L;
   spd->global_first_row_to_me = calloc(THREADS, sizeof(int64_t));
   for(i = 0; i < nreaders; i++){
+
     /* figure out this reader's first row they will read. */
-    spd->global_first_row_to_me[d*i] = i*(spd->numrows + nreaders - i - 1)/nreaders;
+    spd->global_first_row_to_me[d*i] = i*((spd->numrows + nreaders - i - 1)/nreaders);
     if(i >= spd->numrows % nreaders)
       spd->global_first_row_to_me[d*i] += spd->numrows % nreaders;
-
     /* incrememnt until I get to the first row this reader will send me. */
-    while(spd->global_first_row_to_me[d*i] % THREADS != MYTHREAD)
+    while((spd->global_first_row_to_me[d*i] % THREADS) != MYTHREAD)
       spd->global_first_row_to_me[d*i]++;
-    
+
+    /* if I am a reader populate io_rank, lnumrows, and global_first_row */
     if(MYTHREAD == d*i){
       spd->io_rank = i;
       spd->lnumrows = (spd->numrows + nreaders - i - 1)/nreaders;
@@ -259,7 +260,7 @@ void read_row_info(spmat_dataset_t * spd){
     spd->current_file = spd->first_file; // this sets us up to start reading nonzeros
 
     //fprintf(stderr,"PE%d: first_file %ld sr %ld gfr %ld\n", MYTHREAD, spd->first_file,
-    // spd->start_row_first_file, spd->global_first_row);
+    //spd->start_row_first_file, spd->global_first_row);
 
     /* figure out how many rows in each file this reader will need to read */
     spd->nrows_in_file      = calloc(spd->nfiles, sizeof(int64_t));
