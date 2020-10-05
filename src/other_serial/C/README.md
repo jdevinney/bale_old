@@ -1,4 +1,4 @@
-# bale / serial_C
+# C_bale: the bale apps written in serial C
 ### In one sentence
 A textbook, C, implementation of the apps in bale.
 
@@ -8,10 +8,13 @@ The bale effort is, first and foremost,
 a vehicle for discussion for parallel programming productivity.  
 We have included a simple C version of the bale apps 
 as a concrete description of the apps written in a familiar language.
-Some of the apps (like histo and ig) are trivial as serial apps.
+Some of the apps (like histo and ig) seem trivial as serial apps.
 It might be useful to view the serial version of the more complicated apps
 (like toposort and sssp) before dealing with the parallelism and buffer communication 
-of the bale_classic apps. 
+of the bale_classic apps.  The C version of the way we implement a 
+compressed row format data structure for a sparse matrix is also simpler than
+the parallel version.  Finally, we also have examples of applications that
+are efficient as serial codes, but have no known parallel implementations.
 
 This is a self contained directory that does not depend 
 on build process for the rest of bale.
@@ -25,7 +28,6 @@ doxygen for documentation and ``pytest`` for unit testing.
 
 ### What is included here:
 
-- README.md - this file
 - Makefile - simple explicit makefile for all the apps.
 - APPS:
   - histo.c -- creates a large histogram (random stores) [details](histo.md)
