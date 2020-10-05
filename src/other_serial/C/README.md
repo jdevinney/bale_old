@@ -1,4 +1,10 @@
-# C_bale: the bale apps written in serial C
+> Copyright (c) 2020, Institute for Defense Analyses
+> 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500\n
+> All rights reserved.\n
+> This file is part of Bale.   For licence information see the
+> LICENSE file in the top level dirctory of the distribution.
+
+# C_bale: the bale apps written in serial C serial [1]
 ### In one sentence
 A textbook, C, implementation of the apps in bale.
 
@@ -71,5 +77,6 @@ If doxygen is installed on your system, you should be able to type ``make doc``
 and then load ``html/index.html`` into a browser.
 
 ## Discussion
+
 
 
