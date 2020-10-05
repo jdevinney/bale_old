@@ -4,7 +4,7 @@
 > This file is part of Bale.   For licence information see the
 > LICENSE file in the top level dirctory of the distribution.
 
-# C_bale: the bale apps written in serial C serial [1]
+# C_bale: the bale apps written in serial C serial
 ### In one sentence
 A textbook, C, implementation of the apps in bale.
 
@@ -36,7 +36,7 @@ doxygen for documentation and ``pytest`` for unit testing.
 
 - Makefile - simple explicit makefile for all the apps.
 - APPS:
-  - histo.c -- creates a large histogram (random stores) [details](histo.md)
+  - [histo](histo.md) -- creates a large histogram (random stores) (see doxygen: histo.c)
   - ig.c -- a large gather (random loads) [details](ig.md)
   - randperm.c -- creates a random permutation [details](randperm.md)
   - transpose_matrix.c -- computes the transpose of a sparse matrix [details](transpose_matrix.md)
