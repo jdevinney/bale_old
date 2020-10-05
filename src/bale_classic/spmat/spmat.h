@@ -142,6 +142,34 @@ typedef struct point_t{
 }point_t;
 
 
+typedef struct spmat_dataset_t{
+  int64_t nwriters;
+  int64_t lnumrows;
+  int64_t numrows;
+  int64_t numcols;
+  int64_t nnz;
+  int values;
+  int64_t io_rank;
+  int64_t global_first_row;
+  char * dirname;
+  FILE * nnzfp;
+  FILE * valfp;
+  
+  // only used when reading
+  int64_t first_file;
+  uint64_t nfiles;
+  int64_t * nrows_in_file;
+  int64_t * nrows_read_in_file;
+  int64_t start_row_first_file;
+  int64_t first_file_offset;
+  int64_t * rowcnt;
+  int file_open;
+  int64_t current_file;
+  int64_t current_row_in_file;
+  int64_t current_row;
+  int64_t * global_first_row_to_me;
+  
+}spmat_dataset_t;
 
 /*! \struct nxnz_t spmat.h
  * \brief A structure to experiment with an iterator that walks across a row of a sparsemat.
@@ -176,6 +204,7 @@ int64_t             append_triple(triples_t * T, int64_t row, int64_t col, doubl
 int64_t             calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num);
 void                clear_edge_list(edge_list_t * el);
 void                clear_matrix(sparsemat_t * mat);
+void                clear_spmat_dataset(spmat_dataset_t * spd);
 void                clear_triples(triples_t * T);
 
 int                 compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
@@ -217,6 +246,7 @@ SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_agp(int64_t N, int seed);
 sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                                  double edge_density, int64_t seed);
+
 void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops);
 
 int                 spmat_compare_doubles(double a, double b);
@@ -228,17 +258,27 @@ sparsemat_t *       transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt);
 sparsemat_t *       transpose_matrix_agp(sparsemat_t * A);
 sparsemat_t *       triples_to_sparsemat(triples_t * T);
 
-int64_t             write_sparse_matrix_agp( char * datadir, sparsemat_t * mat);
-int64_t             write_sparse_matrix_exstack( char * datadir, sparsemat_t * mat, int64_t buf_cnt);
 
-/* misc utility functions */
-//int write_matrix(sparsemat_t * A, int maxrows, char * name);
-int                 write_matrix_mm(sparsemat_t * A, char * name);
+
+
+/* read and write sparse matrix (binary format) routines */
+spmat_dataset_t *   open_sparse_matrix_read(char * dirname, int64_t nreaders);
+spmat_dataset_t *   open_sparse_matrix_write(char * dirname, sparsemat_t * A);
+int64_t             read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
+                                         double * vbuf, int64_t buf_size);
+
+void                read_row_info(spmat_dataset_t * spd);
 sparsemat_t *       read_matrix_mm_to_dist(char * name);
-int64_t             write_sparse_matrix_metadata(char * dirname, sparsemat_t * A);
-int64_t             read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t *nwriters);
-sparsemat_t *       read_sparse_matrix_agp(char * datadir);
+sparsemat_t *       read_sparse_matrix_agp(char * datadir, int64_t nreaders);
+sparsemat_t *       read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64_t buf_cnt);
+spmat_dataset_t *   read_sparse_matrix_metadata(char * dirname);
 
+void                write_row_info(spmat_dataset_t * spd, sparsemat_t * A);
+
+int                 write_matrix_mm(sparsemat_t * A, char * name);
+int                 write_sparse_matrix_agp(char * dirname, sparsemat_t * A);
+int64_t             write_sparse_matrix_exstack( char * datadir, sparsemat_t * mat, int64_t buf_cnt);
+int                 write_sparse_matrix_metadata(spmat_dataset_t * spd);
 
 int64_t tril(sparsemat_t * A, int64_t k);
 int64_t triu(sparsemat_t * A, int64_t k);

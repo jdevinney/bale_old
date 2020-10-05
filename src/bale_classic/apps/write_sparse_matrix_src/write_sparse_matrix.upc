@@ -82,6 +82,7 @@ for the source for the kernels.
  */
 
 typedef struct args_t{
+  int64_t num_readers;
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
@@ -90,6 +91,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
+    case 'r': args->num_readers = atoi(arg); break;
     case ARGP_KEY_INIT:
       state->child_inputs[0] = &args->std;
       state->child_inputs[1] = &args->gstd;
@@ -97,6 +99,13 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
     }
   return(0);
 }
+
+static struct argp_option options[] =
+  {
+    {"num_readers", 'r', "NUM", 0, "Specify the number of PEs to read the written matrix back in."},
+    {0}
+  };
+
 
 static struct argp_child children_parsers[] =
   {
@@ -110,14 +119,18 @@ int main(int argc, char * argv[])
 
   /* process command line */
   args_t args = {0};
-  struct argp argp = {NULL, parse_opt, 0,
-                      "Parallel sparse matrix transpose.", children_parsers};
+  struct argp argp = {options, parse_opt, 0,
+                      "Parallel write sparse matrix.", children_parsers};
 
   args.gstd.l_numrows = 1000000;
+  args.num_readers = -1;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
+  if(args.num_readers == -1)
+    args.num_readers = THREADS;
+  
   if(!MYTHREAD){
     write_std_graph_options(&args.std, &args.gstd);
     write_std_options(&args.std);
@@ -125,28 +138,31 @@ int main(int argc, char * argv[])
 
   // read in a matrix or generate a random graph
   sparsemat_t * inmat = get_input_graph(&args.std, &args.gstd);
-  if(!inmat){T0_fprintf(stderr, "ERROR: transpose: inmat is NULL!\n");return(-1);}
+  if(!inmat){T0_fprintf(stderr, "ERROR: write_sparse_matrix: inmat is NULL!\n");return(-1);}
 
   if(args.std.dump_files) write_matrix_mm(inmat, "inmat");
-  
+  //print_matrix(inmat);
   double t1;
   minavgmaxD_t stat[1];
   char * datadir = calloc(64, sizeof(char));
   char model_str[32];
   int64_t use_model;
+  int error = 0;
+  sparsemat_t * readmat;
+  sprintf(datadir,"%s","write_matrix_dir");
+  
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
     case AGP_Model:
-      sprintf(datadir,"%s","write_matrix_test_agp");
-      write_sparse_matrix_agp(datadir, inmat);
       sprintf(model_str, "AGP");
+      write_sparse_matrix_agp(datadir, inmat);
+      readmat = read_sparse_matrix_agp(datadir, args.num_readers);
       break;
     case EXSTACK_Model:
-      sprintf(datadir,"%s","write_matrix_test_exstack");
-      write_sparse_matrix_exstack(datadir, inmat, args.std.buffer_size);
-      //read_sparse_matrix_agp(datadir);
       sprintf(model_str, "Exstack");
+      write_sparse_matrix_exstack(datadir, inmat, args.std.buffer_size);
+      readmat = read_sparse_matrix_exstack(datadir, args.num_readers, args.std.buffer_size);
       break;
     case EXSTACK2_Model:
       continue;
@@ -154,22 +170,34 @@ int main(int argc, char * argv[])
       //break;
     case CONVEYOR_Model:
       continue;
-      sprintf(model_str, "Conveyor");
+      //sprintf(model_str, "Conveyor");
       //break;    
     case ALTERNATE_Model:
       T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
-      break;
+      continue;
     case 0:
       continue;
     }
+
+    if(readmat == NULL){
+      T0_fprintf(stderr,"ERROR: write_sparse_matrix: read failed!\n");
+      error = 1;
+    }else{
+      if(compare_matrix(readmat, inmat)){
+        T0_fprintf(stderr,"ERROR: write_sparse_matrix: read version of written matrix does not match!\n");
+        error = 1; 
+      }
+      clear_matrix(readmat); free(readmat);
+    }
+    
     t1 = wall_seconds() - t1;
     lgp_min_avg_max_d( stat, t1, THREADS );
     bale_app_write_time(&args.std, model_str, stat->avg);
   }
   
   free(datadir);
-  clear_matrix(inmat);
+  clear_matrix(inmat); free(inmat);
   lgp_barrier();
   bale_app_finish(&args.std);
-  return(0);
+  return(error);
 }
