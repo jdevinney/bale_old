@@ -783,7 +783,9 @@ WARN_LOGFILE           =
 #                         demo_spmat.c \
 #INPUT = README.md mainpage.h \
 INPUT = README.md \
-  histo.c ig.c randperm.c \
+  histo.c histo.md \
+  ig.c ig.md \ 
+  randperm.c \
   permute_matrix.c transpose_matrix.c \
   toposort.c triangle.c sssp.c unionfind.c \
   spmat_utils.h spmat_utils.c \

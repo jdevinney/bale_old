@@ -23,8 +23,8 @@ We have been using gcc, but this should run in C environment.
    It contains the sparse matrix library and few helpful routines for debugging and timing.
 - demo_spmat.c - essentially a script used to test the development of spat_utils. It might be good way to familiarize onesself we our version of a compressed row format for a sparse matrix.
 - apps:
-  - histo.c            -- creates a large histogram (random stores) [raw code](./histo.c)
-  - ig.c               -- a large gather (random loads)
+  - histo.c            -- creates a large histogram (random stores) [details](histo.md)
+  - ig.c               -- a large gather (random loads) [details](ig.md)
   - randperm.c         -- creates a random permutation
   - transpose_matrix.c -- part of spmat_utils, but interesting in it own right.
   - permute_matrix.c   -- part of spmat_utils, but interesting in it own right.
@@ -63,4 +63,5 @@ serial_C is documented using Doxygen.
 If doxygen is installed on your system, you should be able to type ``make doc``.
 
 ## Discussion
+
 
