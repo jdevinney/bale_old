@@ -186,7 +186,17 @@ spmat_dataset_t * open_sparse_matrix_read(char * dirname, int64_t nreaders){
   spd->io_rank = -1;
   spd->lnumrows = 0;
   spd->global_first_row = -1L;
+  spd->global_first_row_to_me = calloc(THREADS, sizeof(int64_t));
   for(i = 0; i < nreaders; i++){
+    /* figure out this reader's first row they will read. */
+    spd->global_first_row_to_me[d*i] = i*(spd->numrows + nreaders - i - 1)/nreaders;
+    if(i >= spd->numrows % nreaders)
+      spd->global_first_row_to_me[d*i] += spd->numrows % nreaders;
+
+    /* incrememnt until I get to the first row this reader will send me. */
+    while(spd->global_first_row_to_me[d*i] % THREADS != MYTHREAD)
+      spd->global_first_row_to_me[d*i]++;
+    
     if(MYTHREAD == d*i){
       spd->io_rank = i;
       spd->lnumrows = (spd->numrows + nreaders - i - 1)/nreaders;
@@ -194,62 +204,12 @@ spmat_dataset_t * open_sparse_matrix_read(char * dirname, int64_t nreaders){
       if(i >= spd->numrows % nreaders)
         spd->global_first_row += spd->numrows % nreaders;
     }
+    
   }
   //fprintf(stderr,"PE %d: nreaders %ld io_rank = %ld globalfr %ld lnumrows = %ld\n", MYTHREAD, nreaders, spd->io_rank, spd->global_first_row, spd->lnumrows);
 
   return(spd);
 }
-
-
-/*! \brief Write row_info files. These files collectively
- * have one line for each row in the matrix. Each writer writes a
- * unique file containing the offsets into the nonzero file for 
- * the rows this PE is responsible for.
- * \param spd An initialized spmat_dataset_t.
- * \param A  A pointer to the matrix
- * \ingroup spmatgrp
- */
-
-void write_row_info(spmat_dataset_t * spd, sparsemat_t * A){
-
-  int64_t i;
-
-  /* get the rowcounts of the matrix into a distributed array */
-  SHARED int64_t * rowcnt = lgp_all_alloc(A->numrows, sizeof(int64_t));
-  int64_t * lrowcnt = lgp_local_part(int64_t, rowcnt);
-
-  for(i = 0; i < A->lnumrows; i++)
-    lrowcnt[i] = A->loffset[i + 1] - A->loffset[i];
-  lgp_barrier();
-
-  int64_t error = 0;  
-  if(spd->lnumrows){
-
-    char fname[128];
-    sprintf(fname, "%s/rowinfo_%d", spd->dirname, MYTHREAD);
-    FILE * fp = fopen(fname, "wb");
-    assert(fp != NULL);
-    
-    int64_t offset = 0;
-    for(i = 0; i < spd->lnumrows; i++){
-      if( fwrite(&offset, sizeof(int64_t), 1,  fp) != 1 ){
-        error = 1;
-        break;
-      }
-      int64_t rc = lgp_get_int64(rowcnt, spd->global_first_row + i);
-      offset += rc;
-      
-    }
-    
-    fclose(fp);
-  }
-  error = lgp_reduce_add_l(error);
-  assert(error == 0);
-
-  lgp_all_free(rowcnt);
-
-}
-
 
 
 /*! \brief This function reads the row_info files for the dataset.
@@ -396,6 +356,58 @@ void read_row_info(spmat_dataset_t * spd){
 }
 
 
+/*! \brief Write row_info files. These files collectively
+ * have one line for each row in the matrix. Each writer writes a
+ * unique file containing the offsets into the nonzero file for 
+ * the rows this PE is responsible for.
+ * \param spd An initialized spmat_dataset_t.
+ * \param A  A pointer to the matrix
+ * \ingroup spmatgrp
+ */
+
+void write_row_info(spmat_dataset_t * spd, sparsemat_t * A){
+
+  int64_t i;
+
+  /* get the rowcounts of the matrix into a distributed array */
+  SHARED int64_t * rowcnt = lgp_all_alloc(A->numrows, sizeof(int64_t));
+  int64_t * lrowcnt = lgp_local_part(int64_t, rowcnt);
+
+  for(i = 0; i < A->lnumrows; i++)
+    lrowcnt[i] = A->loffset[i + 1] - A->loffset[i];
+  lgp_barrier();
+
+  int64_t error = 0;  
+  if(spd->lnumrows){
+
+    char fname[128];
+    sprintf(fname, "%s/rowinfo_%d", spd->dirname, MYTHREAD);
+    FILE * fp = fopen(fname, "wb");
+    assert(fp != NULL);
+    
+    int64_t offset = 0;
+    for(i = 0; i < spd->lnumrows; i++){
+      if( fwrite(&offset, sizeof(int64_t), 1,  fp) != 1 ){
+        error = 1;
+        break;
+      }
+      int64_t rc = lgp_get_int64(rowcnt, spd->global_first_row + i);
+      offset += rc;
+      
+    }
+    
+    fclose(fp);
+  }
+  error = lgp_reduce_add_l(error);
+  assert(error == 0);
+
+  lgp_all_free(rowcnt);
+
+}
+
+
+
+
 /*! \brief This routine reads the next block of nonzeros of complete rows from the current file.
  * 
  * It will read up to buf_size nonzeros. It returns the total number of rows for which the
@@ -468,172 +480,6 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
   }
 
   return(num_rows);
-}
-
-/*! \brief Reads a distributed sparse matrix in parallel using an arbitrary number of 
- * PEs (between 1 and THREADS) to do the actual I/O.
- *
- * \param datadir The directory that holds the dataset.
- * \param nreaders Number of PEs that will actually do the I/O (all other PEs will mostly
- * be idle.
- * \return The sparsemat_t that was read from the matrix dataset.
- */
-sparsemat_t * read_sparse_matrix_agp(char * datadir, int64_t nreaders){
-  int64_t i;
-  
-  spmat_dataset_t * spd = open_sparse_matrix_read(datadir, nreaders);
-
-  // read row_info to get the counts of the rows we will read
-  read_row_info(spd);
-  
-  /* distribute the row counts in CYCLIC fashion */
-  SHARED int64_t * rowcnt = lgp_all_alloc(spd->numrows, sizeof(int64_t));
-  assert(rowcnt != NULL);
-  int64_t * lrowcnt = lgp_local_part(int64_t, rowcnt);
-
-  int64_t nnz_to_read = 0;
-  for(i = 0; i < spd->lnumrows; i++){
-    lgp_put_int64(rowcnt, spd->global_first_row + i, spd->rowcnt[i]);
-    //fprintf(stderr,"copying rc %ld to %ld\n", spd->rowcnt[i], spd->global_first_row + i);
-    nnz_to_read += spd->rowcnt[i];
-  }
-  
-  lgp_barrier();
-  
-  /* calculate nnz that will land on each PE */
-  int64_t lnnz = 0;
-  int64_t lnr = (spd->numrows + THREADS - MYTHREAD - 1)/THREADS;
-  for(i = 0; i < lnr; i++){
-    //fprintf(stderr, "PE %d: rc[%ld] = %ld\n", MYTHREAD, i, lrowcnt[i]);
-    lnnz += lrowcnt[i];
-  }
-  //fprintf(stderr,"PE %d gets %ld nonzeros\n", MYTHREAD, lnnz);fflush(stderr);
-  
-  /* initialize sparse matrix */
-  sparsemat_t * A = init_matrix(spd->numrows, spd->numcols, lnnz, spd->values);
-  if(!A){
-    T0_fprintf(stderr,"ERROR: read_sparse_matrix_agp: init_matrix failed!\n");return(NULL);
-  }
-
-  /* create A->offset array */
-  A->loffset[0] = 0;
-  for(i = 0; i < lnr; i++){
-    A->loffset[i+1] = A->loffset[i] + lrowcnt[i];
-  }
-
-  lgp_barrier();
-  lgp_all_free(rowcnt);
-
-  /* read the nonzeros into the matrix data structure */  
-  int64_t buf_size = 512*512;
-  int64_t * buf = calloc(buf_size, sizeof(int64_t));
-  double * vbuf = calloc(buf_size, sizeof(double));
-  int64_t tot_rows_read = 0;  
-  while(tot_rows_read < spd->lnumrows){
-    /* read a buffer of nonzeros */
-    int64_t pos = 0;
-    int64_t num_rows_read = read_nonzeros_buffer(spd, buf, vbuf, buf_size);
-    //fprintf(stderr, "PE %d: numrowsread = %ld\n", MYTHREAD, num_rows_read);
-    assert(num_rows_read > 0);
-
-    /* place the read nonzeros into the sparse matrix data structure */
-    for(i = 0; i < num_rows_read; i++){
-      int64_t rc = spd->rowcnt[tot_rows_read + i];
-      int64_t global_row = spd->global_first_row + tot_rows_read + i;
-      int64_t rs = lgp_get_int64(A->offset,global_row)*THREADS + global_row%THREADS;
-      //for(int j = 0; j < rc; j++)
-      //fprintf(stderr,"PE %d: putting %ld for row %ld (at pos %ld)\n", MYTHREAD, buf[pos + j], global_row, rs + j*THREADS);
-      lgp_memput(A->nonzero, &buf[pos], rc*sizeof(int64_t), rs);
-      if(spd->values)
-        lgp_memput(A->value, &vbuf[pos], rc*sizeof(double), rs);
-      pos += rc;
-    }
-    tot_rows_read += num_rows_read;
-  }
-
-  free(buf);
-  if(spd->values) free(vbuf);
-  clear_spmat_dataset(spd);
-  lgp_barrier();
-  //print_matrix(A);
-  return(A);
-}
-
-/* \brief Write a sparsemat_t to disk in parallel. 
- * This is different than write_matrix_mm since a) it is done in parallel
- * and b) we are not using matrix market format.
- *
- * Every THREAD just writes a slice of the matrix (in BLOCK fashion).
- * This requires data to be transferred since the matrix is stored
- * in CYCLIC layout in memory. 
- *
- * We write the dataset into PEs*2 files plus an ASCII metadata
- * file. Each PE writes a nonzero file which contains all the nonzeros
- * in their slice and a row_offset file (which says the offsets for
- * each row in the nonzero file). If there are values in the matrix,
- * there will be 3*PEs files.
- *
- * The metadata file just contains some high level info about the matrix
- * dataset.
- * \param dirname The directory to write the matrix to.
- * \param A The matrix to write.
- * \return 0 on SUCCESS 1 on error.
- */
-int write_sparse_matrix_agp(char * dirname, sparsemat_t * A){
-  int64_t i;
-  
-  spmat_dataset_t * spd = open_sparse_matrix_write(dirname, A);
-
-  write_row_info(spd, A);
-  
-  /* allocate write buffer */
-  int64_t buf_size = 512*512;
-  int64_t * buf = calloc(buf_size, sizeof(int64_t));
-  double * vbuf;
-  if(spd->values)
-    vbuf = calloc(buf_size, sizeof(double));
-
-  char fname[128];
-  sprintf(fname, "%s/nonzero_%d", spd->dirname, MYTHREAD);
-  spd->nnzfp = fopen(fname, "wb");
-  if(spd->values){
-    sprintf(fname, "%s/value_%d", spd->dirname, MYTHREAD);
-    spd->valfp = fopen(fname, "wb");
-  }
-  
-  /* write out the nonzeros in your block */
-  int64_t pos = 0;
-  for(i = spd->global_first_row; i < spd->global_first_row + spd->lnumrows; i++){
-    int64_t row_start = lgp_get_int64(A->offset, i);
-    int64_t row_cnt = lgp_get_int64(A->offset, i + THREADS) - row_start;
-    int64_t plc = row_start*THREADS + i%THREADS;
-    if(pos + row_cnt >= buf_size){
-      fwrite(buf, sizeof(int64_t), pos, spd->nnzfp); 
-      if(spd->values) fwrite(vbuf, sizeof(double), pos, spd->valfp);
-      pos = 0;
-    }
-
-    lgp_memget(&buf[pos], A->nonzero, row_cnt*sizeof(int64_t), plc);
-    if(spd->values) lgp_memget(&vbuf[pos], A->value, row_cnt*sizeof(int64_t), plc);
-    pos += row_cnt;
-  }
-  fwrite(buf, sizeof(int64_t), pos, spd->nnzfp);
-  if(spd->values) fwrite(vbuf, sizeof(int64_t), pos, spd->valfp);
-
-  lgp_barrier();
-
-  fclose(spd->nnzfp);  
-  free(buf);
-
-  if(spd->values){
-    fclose(spd->valfp);
-    free(vbuf);
-  }
-
-  clear_spmat_dataset(spd);
-  
-  return(0);
-  
 }
 
 

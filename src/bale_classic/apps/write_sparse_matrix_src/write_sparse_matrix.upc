@@ -148,17 +148,21 @@ int main(int argc, char * argv[])
   char model_str[32];
   int64_t use_model;
   int error = 0;
+  sparsemat_t * readmat;
   sprintf(datadir,"%s","write_matrix_dir");
+  
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
     case AGP_Model:
-      write_sparse_matrix_agp(datadir, inmat);
       sprintf(model_str, "AGP");
+      write_sparse_matrix_agp(datadir, inmat);
+      readmat = read_sparse_matrix_agp(datadir, args.num_readers);
       break;
     case EXSTACK_Model:
-      write_sparse_matrix_exstack(datadir, inmat, args.std.buffer_size);
       sprintf(model_str, "Exstack");
+      write_sparse_matrix_exstack(datadir, inmat, args.std.buffer_size);
+      readmat = read_sparse_matrix_exstack(datadir, args.num_readers, args.std.buffer_size);
       break;
     case EXSTACK2_Model:
       continue;
@@ -175,7 +179,6 @@ int main(int argc, char * argv[])
       continue;
     }
 
-    sparsemat_t * readmat = read_sparse_matrix_agp(datadir, args.num_readers);
     if(readmat == NULL){
       T0_fprintf(stderr,"ERROR: write_sparse_matrix: read failed!\n");
       error = 1;

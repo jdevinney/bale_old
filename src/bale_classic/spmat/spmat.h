@@ -167,6 +167,7 @@ typedef struct spmat_dataset_t{
   int64_t current_file;
   int64_t current_row_in_file;
   int64_t current_row;
+  int64_t * global_first_row_to_me;
   
 }spmat_dataset_t;
 
@@ -269,6 +270,7 @@ int64_t             read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
 void                read_row_info(spmat_dataset_t * spd);
 sparsemat_t *       read_matrix_mm_to_dist(char * name);
 sparsemat_t *       read_sparse_matrix_agp(char * datadir, int64_t nreaders);
+sparsemat_t *       read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64_t buf_cnt);
 spmat_dataset_t *   read_sparse_matrix_metadata(char * dirname);
 
 void                write_row_info(spmat_dataset_t * spd, sparsemat_t * A);

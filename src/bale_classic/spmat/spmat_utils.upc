@@ -1278,6 +1278,7 @@ void clear_spmat_dataset(spmat_dataset_t * spd){
   free(spd->nrows_in_file);
   free(spd->nrows_read_in_file);
   free(spd->rowcnt);
+  free(spd->global_first_row_to_me);
 }
 /*! \brief Append a triple to a triples_t struct and expand the storage if necessary
  *
