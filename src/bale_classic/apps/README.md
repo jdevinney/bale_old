@@ -26,6 +26,6 @@ Each of the applications in bale are implemented in multiple ways to showcase th
 - [permute_matrix](permute_matrix_src/README.md)
 - [triangle counting](triangle_src/README.md)
 - [toposort](topo_src/README.md) 
-- [write_sparse_matrix](write_sparse_matrix_src/README.md)
+- [sparse_matrix_io](sparse_matrix_io_src/README.md)
 - [Single Source Shortest Path (sssp)](sssp_src/README.md)
 

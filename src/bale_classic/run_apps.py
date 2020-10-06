@@ -36,8 +36,8 @@ all_apps.append("transpose_matrix")
 all_apps.append("permute_matrix")
 all_apps.append("topo")
 all_apps.append("triangles")
-#all_apps.append("sssp")
-all_apps.append("write_sparse_matrix")
+all_apps.append("sssp")
+all_apps.append("sparse_matrix_io")
 
 
 def append_to_file(master_file, file_to_add, first):
