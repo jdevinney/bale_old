@@ -12,9 +12,9 @@ A textbook, C, implementation of the apps in bale.
 
 The bale effort is, first and foremost, 
 a vehicle for discussion for parallel programming productivity.  
-We have included a simple C version of the bale apps 
-as a concrete description of the apps written in a familiar language.
-Some of the apps (like histo and ig) seem trivial as serial apps.
+We have included a simple C version of the apps in 
+bale_classic as a concrete description of the apps written in a familiar language.
+Some of the apps (like histo and ig) are trivial as serial apps.
 It might be useful to view the serial version of the more complicated apps
 (like toposort and sssp) before dealing with the parallelism and buffer communication 
 of the bale_classic apps.  The C version of the way we implement a 
@@ -37,13 +37,13 @@ doxygen for documentation and ``pytest`` for unit testing.
 - Makefile - simple explicit makefile for all the apps.
 - APPS:
   - [histo](histo.md) -- creates a large histogram (random stores) (see doxygen: histo.c)
-  - ig.c -- a large gather (random loads) [details](ig.md)
-  - randperm.c -- creates a random permutation [details](randperm.md)
-  - transpose_matrix.c -- computes the transpose of a sparse matrix [details](transpose_matrix.md)
-  - permute_matrix.c -- applies row and column permutations to a sparse matrix [details](permute_matrix.md)
+  - [ig](ig.md) -- a large gather (random loads) (see doxygen: ig.c)
+  - [randperm](randperm.md) -- creates a random permutation (see doxygen: randperm.c)
+  - transpose_matrix.c -- computes the transpose of a sparse matrix [details](transpose_matrix.c)
+  - [permute_matrix](prermute_matrix.md) -- applies row and column permutations to a sparse matrix (see doxygen: permute_matrix.c)
   - triangle.c -- counts the number triangles in a graph [details](triangle.md)
-  - toposort.c -- performs a toposort (matrix) sort of a morally upper triangular matrix [details](toposort.md)
-  - sssp.c -- solves the single source shortest path problem on a graph [details](sssp.md)
+  - [toposort](toposort.md) -- performs a toposort (matrix) sort of a morally upper triangular matrix (see doxygen: toposort.c)
+  - [sssp](sssp.md) -- solves the single source shortest path problem on a graph (see doxygen: sssp.c)
   - unionfind.c -- uses the union-find data structure to find connected components in a graph [details](unionfind.md)
 - Other:
 - spmat_utils.h, spmat_utils.c -- the sparse matrix library and some support functions [details](spmat_utils.md)

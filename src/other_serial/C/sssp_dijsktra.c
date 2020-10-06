@@ -11,26 +11,8 @@
 #include "spmat_utils.h"
 
 /*! \file sssp_dijsktra.c
-\brief These are the function that implement and support two implementations 
-of Dijsktra's Alg.
+\brief These are the function that implement and support two implementations of Dijsktra's Alg.
 */
-
-
-
-// TODO move to README
-/* 
- * It is assumed that the Algorithm is known.
- * Excellent description of the algorithm are easily found.
- * To fix our terminology we say that the algorithm expands 
- * paths to "unvisited" vertices and assigns them tentative weights
- * and once the shortest path is found the vertex is said to be resolved.
- *   We assume:
- *     -- that the graph is weighted with positive weights
- *     -- if the graph is undirected, then mat contains two "directed edges" for
- *        each undirected edge.
- *
- */
-
 
 /*!
 \brief Implementation of naive version of Dijkstra's algorithm
@@ -42,6 +24,7 @@ of Dijsktra's Alg.
 This first implementation uses a simple array to hold the
 tentative weights and uses tricks with the weights to flag
 the transition of vertices from unvisited to tentative to resolved.
+It also does a linear search to find the smallest tentative weight.
  */
 double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)        //TODO fix dist, tent, weights
 {
@@ -90,7 +73,7 @@ double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)     
   return(wall_seconds() - tm);
 }
 
-// TODO move to README
+// TODO move to README   rename node to heap or hidx 
 /* The min-heap implementation of Dijkstra's alg.
  * 
  * In the heap implementation the tentative weights are stored in

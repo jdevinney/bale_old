@@ -18,18 +18,14 @@
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/* \page permute_matrix_page permute_matrix
-Permute the rows and columns of a sparse matrix 
-*/
+/*! \brief A timing wrapper around the permute_matrix call in `spmat_utils.c`
+\param *A  sparsemat_t holding the given matrix
+\param *rp the row permutation
+\param *cp the column permutation
+\return run time
 
-/*!
- * \brief A timing wrapper around the permute_matrix call in `spmat_utils.c`
- * \param *A  sparsemat_t holding the given matrix
- * \param *rp the row permutation
- * \param *cp the column permutation
- * \return run time
- * NB: This does charge for the time to initialize the permuted matrix.
- */
+NB: This does charge for the time to initialize the permuted matrix.
+*/
 double permute_matrix_generic(sparsemat_t *A, int64_t *rp, int64_t *cp)
 {
   double tm;

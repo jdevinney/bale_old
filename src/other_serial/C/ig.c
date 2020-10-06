@@ -9,15 +9,11 @@
 /*******************************************************************/
 
 /*! \file ig.c
- * \brief Program that runs C version of index gather
- *
- * Run ig --help or --usage for insructions on running.
- */
+\brief Program that runs C version of index gather
 
-/*/
-\page ig_page ig
-Gather a large number of entries from a large table
+Run ig --help or --usage for insructions on running.
 */
+
 
 #include "spmat_utils.h"
 #include "std_options.h"
@@ -25,13 +21,13 @@ Gather a large number of entries from a large table
 
 
 /*! \brief check that the indexgather worked. 
- * THIS REQUIRES that the source array, table, is set to just be minus the index
- * \param tgt the target array
- * \param index the indices that drive the gather
- * \param len length
- * \returns the number of disagreements.
- */
+\param tgt the target array
+\param index the indices that drive the gather
+\param len length
+\returns the number of disagreements.
 
+THIS REQUIRES that the source array, table, is set to just be minus the index
+*/
 int64_t ig_check_and_zero(int64_t *tgt, int64_t *index, int64_t len)
 {
   int64_t errors=0;

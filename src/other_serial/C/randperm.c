@@ -9,33 +9,21 @@
 /*******************************************************************/
 
 /*! \file randperm.c
- * \brief Program that generates a random permutation.
- * We implement the well known serial algorithm is from Knuth (Vol FIXME).
- * and the "dart throwing" as a serial demo of the parallel dart throwing alg
- * and the "sorting algorithm" which can also be parallelized.
- *
- * Run randperm --help or --usage for insructions on running.
- */
+\brief Program that generates a random permutation.
+
+Run randperm --help or --usage for insructions on running.
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*
-\page randperm_page randperm
-Generate a uniform random permutation.
-We consider three different algorithm:
-  - the standard array method known at least by the names
-     Fisher-Yates or Knuth shuffle.
-  - the dart board algorithm 
-  - random sort algorithm
-*/
-
 /*! \brief A timing wrapper around the rand_perm routine that is in `spmat_utils.c`
- * \param len length of the permutation array
- * \param s seed for the random number generator.
- * This is the standard serial array version
- */
+\param len length of the permutation array
+\param s seed for the random number generator.
+
+The library uses the standard serial algorithm of Knuth-Yates.
+*/
 double randperm_generic(int64_t len, uint32_t s) 
 {
   double tm;
@@ -53,17 +41,17 @@ double randperm_generic(int64_t len, uint32_t s)
   return(tm);
 }
 
-/*!
- * \brief The "dart board" algorithm
- * \param len length of the permutation array
- * \param s seed for the random number generator.
- * We pick a dart board (an array) that is bigger than the permutation needed,
- * say twice as big. Then randomly throw darts at the  dart board, 
- * re-throwing any dart that hits a entry that is already occupied. 
- * Then we squeeze out the holes.
- * We picked the dartboard to be twice the size of the array 
- * so that even the last dart has a 50/50 of hitting an open entry.
- */
+/*!  \brief The "dart board" algorithm
+\param len length of the permutation array
+\param s seed for the random number generator.
+
+We pick a dart board (an array) that is bigger than the permutation needed,
+say twice as big. Then randomly throw darts at the  dart board, 
+re-throwing any dart that hits a entry that is already occupied. 
+Then we squeeze out the holes.
+We picked the dartboard to be twice the size of the array 
+so that even the last dart has a 50/50 of hitting an open entry.
+*/
 double randperm_dart(int64_t len, uint32_t s) 
 {
   double tm;
@@ -78,8 +66,7 @@ double randperm_dart(int64_t len, uint32_t s)
     dartboard[i] = -1;
  
   // randomly throw darts (entries 0 through len-1) 
-  // at the dartboard until they all stick (land in 
-  // an empty slot)
+  // at the dartboard until they all stick (land in an empty slot)
   rand_seed(s);
   for (i=0; i < len;  ) {
     d = rand_int64(2*len);
@@ -129,13 +116,13 @@ static int rp_comp( const void *a, const void *b) {
   return( (ak->key) - (bk->key) );
 }
 
-/*!
- * \brief The sorting algorithm to produce a random perm
- * \param len length of the permutation array
- * \param seed seed for the random number generator.
- * We form an (index, key) pair. Then we randomly fill the keys
- * and then sort on the key. Then we read the permutation from the indices
- */
+/*!  \brief The sorting algorithm to produce a random perm
+\param len length of the permutation array
+\param seed seed for the random number generator.
+
+We form an array of (index, key) pairs. Then we randomly fill the keys
+and sort on the keys. Then we read the permutation from the indices
+*/
 double randperm_sort(int64_t len, uint32_t seed) 
 {
   double tm;

@@ -791,6 +791,7 @@ INPUT = README.md \
   toposort.c toposort.md \
   triangle.c triangle.md \
   sssp.c sssp.md \
+  sssp_dijsktra.c sssp_bellman.c sssp_delta.c \
   unionfind.c unionfind.md \
   spmat_utils.h spmat_utils.c spmat_utils.md \
   std_options.h std_options.c std_options.md \

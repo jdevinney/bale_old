@@ -3,11 +3,15 @@
  */
 #include "spmat_utils.h"
 
+/*! \file sssp_delta.c
+\brief An implementation of the delta-stepping algorithm
+*/
+
 /*! 
 \brief a struct to hold (pointers to) all the state needed for the Delta-Stepping algorithm
 
-The storage required is 6 times the number of nodes plus a little for B.
-Need a doubly link list because we delete nodes from any where on the list.
+The storage required 6 times the number of nodes plus a little for space for B.
+Note we need a doubly link list because we delete nodes from any where on the list.
 */
 typedef struct ds_t {
   int64_t *next;       //!< array of next "pointers" for the linked list storing a bucket
@@ -21,8 +25,7 @@ typedef struct ds_t {
   double  delta;       //!< the algorithmic parameter delta
 } ds_t;
 
-/*!
-\brief debugging function that dumps a bucket
+/*! \brief debugging function that dumps a bucket
 \param ds points to main struct
 \param i_m the given bucket
 */
@@ -42,8 +45,7 @@ static void dump_bucket(ds_t *ds, int64_t i_m)
   return;
 }
 
-/*!
-\brief Prepend node v into a bucket i_m
+/*! \brief Prepend node v into a bucket i_m
 \param ds the main struct
 \param v the given node
 \param i_m the desired bucket
@@ -76,13 +78,12 @@ void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m)
 }
 
 
-/*!
-\brief Remove node v from its bucket (need not be in any bucket)
+/*! \brief Remove node v from its bucket (need not be in any bucket)
 \param ds the main struct
 \param v the given node
 
-It eases the logic to remove a node from its bucket and find out here
-that it actually is not in a bucket.
+It eases the logic and causes no harm to "remove" a node 
+from its bucket and find out here that it is actually not in a bucket.
 */
 static void remove_node_from_bucket(ds_t *ds, int64_t v)
 {
@@ -111,8 +112,7 @@ static void remove_node_from_bucket(ds_t *ds, int64_t v)
   return;
 }
 
-/*!
-\brief relax the edge (possible change the tentative weight of the head of a edge)
+/*!  \brief relax the edge (possible change the tentative weight of the head of a edge)
 \param ds the main struct
 \param w the head of the given edge
 \param cand_wt the new weight = tent[v] + c(v,w) where v is the tail of the edge
@@ -139,12 +139,7 @@ void relax_edge(ds_t *ds, int64_t w, double cand_wt)
   }
 }
 
-// TODO move to README
-// This is the delta stepping algorithm as it appears in  
-// the paper "Delta-stepping: a parallelizable shortest path algorithm" by
-// U. Meyer and P. Sanders.
-/*!
-\brief the array based implementation of the delta stepping algorithm
+/*!  \brief the array based implementation of the delta stepping algorithm
 \param dist pointer to the array that holds the results
 \param mat the graph (matrix)
 \param r0 the given single source node
@@ -267,7 +262,7 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
       Dprintf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v, i_m);
       remove_node_from_bucket(ds, v);
       
-#if 0
+#if 0             //TODO
       for(k = mat->offset[v]; k < mat->offset[v + 1]; k++){   // relax light edges from v 
         if(mat->value[k] <= delta){	  
           relax_edge(ds, mat->nonzero[k], ds->tent[v] + mat->value[k]);
@@ -287,7 +282,7 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
 
     for(start=0; start<end; start++){ // relax heavy requests edges for everything in R
       v = ds->R[start];
-#if 0
+#if 0             //TODO
       for(k = mat->offset[v]; k < mat->offset[v + 1]; k++){
         if(mat->value[k] > delta){
           relax_edge(ds, mat->nonzero[k], ds->tent[v] + mat->value[k]);

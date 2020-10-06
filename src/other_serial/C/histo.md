@@ -15,7 +15,7 @@ We have the generic algorithm (as written above).
 
 We also have a buffered version where we sort the indices
 into buffers, based on their bits. When a buffer get full
-we write all its contents all at once.  
+we write all the updates from the buffers contents all at once.
 
 A third version first sorts the indices before running the loop.
 This ought to be closer to the streams performance as it 
