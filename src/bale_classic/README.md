@@ -36,7 +36,7 @@ Note: We call this directory bale classic because this collection of code is the
 
 #### Pillars of bale: apps and aggregation
 
-One pillar of bale is a directory of [apps](apps/apps_README.md) that exhibit interesting communication patterns and programming demands. The apps can be written with aggregated communication as opposed to fine-grained point-to-point communication. We think aggregation is and will remain vital to getting top performance on parallel computers, but we don't like how difficult it is to write programs that use aggregation. Each app is written in multiple ways to demonstrate the pros and cons of each. 
+One pillar of bale is a directory of [apps](apps/README.md) that exhibit interesting communication patterns and programming demands. The apps can be written with aggregated communication as opposed to fine-grained point-to-point communication. We think aggregation is and will remain vital to getting top performance on parallel computers, but we don't like how difficult it is to write programs that use aggregation. Each app is written in multiple ways to demonstrate the pros and cons of each. 
 
 The other pillar of bale are three libraries that provide the programmer with an API to aggregate communications within application code. These libraries are: exstack, exstack2, and conveyors. And while their API's are quite similar, they differ in their underlying implementations and behaviors.
 
@@ -53,7 +53,7 @@ The main components are :
 - [convey](convey/README.md) - The conveyor library for aggregating communication. More mature and sophisticated aggregation library than the exstacks.
 - [spmat](spmat/README.md)  -  a sparse matrix library
 - [std_options](std_options/README.md) - options parsing library
-- [apps](apps/apps_README.md)  -  the applications directory.
+- [apps](apps/README.md)  -  the applications directory.
 
 ### System Requirements
 Bale is written in C and can be compiled with UPC or linked against OpenSHMEM 1.4. Bale has been tested on a variety of architectures including Cray XC30, clusters with Infiniband, and SMP Linux. See [INSTALL.md](INSTALL.md) for detailed build instructions and [DEMO.md](DEMO.md) for some quick installation demos.

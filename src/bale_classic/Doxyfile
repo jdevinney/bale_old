@@ -38,7 +38,7 @@ PROJECT_NAME           = bale
 # could be handy for archiving the generated documentation or if some version
 # control system is used.
 
-PROJECT_NUMBER         = 3.0.0
+PROJECT_NUMBER         = 2.1.0
 
 # Using the PROJECT_BRIEF tag one can provide an optional one line description
 # for a project that appears at the top of each page and should give viewer a
@@ -781,14 +781,7 @@ WARN_LOGFILE           =
 # spaces. See also FILE_PATTERNS and EXTENSION_MAPPING
 # Note: If this tag is empty the current directory is searched.
 
-#INPUT                  = mainpage.h \
-#                         libgetput \
-#                         convey \
-#                         exstack \
-#                         spmat \
-#                         apps
-INPUT = README.md \
-        apps/apps_README.md \
+INPUT                  = mainpage.h \
                          libgetput \
                          convey \
                          exstack \
@@ -820,8 +813,7 @@ INPUT_ENCODING         = UTF-8
 
 FILE_PATTERNS          = *.c \
                          *.h \
-                         *.upc \
-                         *.md
+                         *.upc
 
 # The RECURSIVE tag can be used to specify whether or not subdirectories should
 # be searched for input files as well.
@@ -947,8 +939,7 @@ FILTER_SOURCE_PATTERNS =
 # (index.html). This can be useful if you have a project on for instance GitHub
 # and want to reuse the introduction page also for the doxygen output.
 
-#USE_MDFILE_AS_MAINPAGE =
-USE_MDFILE_AS_MAINPAGE = README.md
+USE_MDFILE_AS_MAINPAGE =
 
 #---------------------------------------------------------------------------
 # Configuration options related to source browsing
@@ -1664,8 +1655,7 @@ COMPACT_LATEX          = NO
 # The default value is: a4.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 
-PAPER_TYPE             = letter
-#PAPER_TYPE             = a4wide
+PAPER_TYPE             = a4wide
 
 # The EXTRA_PACKAGES tag can be used to specify one or more LaTeX package names
 # that should be included in the LaTeX output. The package can be specified just
@@ -1766,8 +1756,7 @@ LATEX_HIDE_INDICES     = NO
 # The default value is: NO.
 # This tag requires that the tag GENERATE_LATEX is set to YES.
 
-LATEX_SOURCE_CODE      = YES
-#LATEX_SOURCE_CODE      = NO
+LATEX_SOURCE_CODE      = NO
 
 # The LATEX_BIB_STYLE tag can be used to specify the style to use for the
 # bibliography, e.g. plainnat, or ieeetr. See
@@ -2191,8 +2180,7 @@ DOT_NUM_THREADS        = 0
 # The default value is: Helvetica.
 # This tag requires that the tag HAVE_DOT is set to YES.
 
-DOT_FONTNAME           = Helvetica
-#DOT_FONTNAME           = FreeSans
+DOT_FONTNAME           = FreeSans
 
 # The DOT_FONTSIZE tag can be used to set the size (in points) of the font of
 # dot graphs.
