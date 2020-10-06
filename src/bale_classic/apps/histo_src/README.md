@@ -1,6 +1,6 @@
-## histogram (histo)
+# histogram (histo)
 
-### Definition
+## Definition
 
 In the histogram app, each PE generates a list of uniform random indices into a distributed table and then for each index, increment the table's value at that index. 
 
@@ -13,7 +13,7 @@ for(i = 0; i < N; i++)
 
 where table is a distributed array with M total elements and index is a local array of global indices into the table.
 
-### Discussion
+## Discussion
 
 #### Parallel Considerations
 
