@@ -63,12 +63,12 @@ All of Bale is supported and has been tested on:
 - Cray UPC (cce 8.7.3)
 - GNU UPC (5.2.0.1)
 - Clang UPC (3.9.1-1)
-- OpenMPI (OSHMEM) 3.0.6 with UCX on infiniband
+- OpenMPI (OSHMEM) 4.0.2 with UCX on infiniband
 - Cray SHMEM (7.7.2)
 - Cray openshmemX ?
 
 There are problems with the following...
-- OpenMPI (OSHMEM) 3.0.6 with UCX on an SMP (progress issues)
+- OpenMPI (OSHMEM) 4.0.3 with UCX on an SMP (progress issues)
 
 - Sandia OpenSHMEM (SOS) (1.4.5) without MCA (all but conveyors)
 
@@ -81,6 +81,19 @@ bale also depends on:
   - autoconf (2.69)
 
   - automake (1.13.4)
+
+  - doxygen (optional)
+
+  - python 3.5 (for unit tests and make_bale script, python 3.7 is required for run_apps.py script)
+
+#### Docker files
+bale now comes with some Docker files to assist you in getting a bale-friendly environment on desktop linux. These files are in the *docker* directory. There are 4 sub-directories here:
+- cupc (Clang UPC)
+- gupc (GNU UPC)
+- oshmem (OpenMPI OpenSHMEM)
+- sos (Sandia OpenSHMEM)
+
+Each directory has a file "Dockerfile" that when run will build an evironment that is capable of building all of bale and running bale apps.
 
 ### Documentation
 
@@ -109,16 +122,23 @@ the apps directory and run
 
 ### Version History
 
-* May 2018: Initial Release v 1.0.0 
-* Dec. 2018: bale 2.0.0 
+* May 2018: Initial Release version 1.0.0 
+
+* Dec. 2018: version 2.0.0 
   * New apps: transpose, randperm, permute_matrix, write_sparse_matrix
 
-* Aug. 2018: bale 2.1.0 
+* Aug. 2018: version 2.1.0 
   * update conveyors to version 0.5.0
-* bale 3.0.0
+
+* November 2020: version 3.0.0
   * Added cousins: Rust, Serial C, and Chapel to bale
   * New graph model: Geometric graphs
   * New app: SSSP
+  * replaced write_sparse_matrix with sparse_matrix_io
   * arg_parse replaced getopt
   * unit tests with pytest
+  * new make_bale script
+  * new run_apps script
   * docker files
+  * AGP (Atomics, Gets, and Puts) replaces AGI: simple PGAS style programming
+  * FTB [From the Book](#From-the-Book) replaces As God Intended.

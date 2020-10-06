@@ -454,16 +454,20 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   SHARED int64_t * row_counts = lgp_all_alloc(n, sizeof(int64_t));
   int64_t * lrow_counts = lgp_local_part(int64_t, row_counts);
   for(i = 0; i < ln; i++) lrow_counts[i] = 0;
-  
+
   lgp_barrier();
   
   for(i = 0; i < el->num; i++){
     if(el->edges[i].row < 0) continue;
-    lgp_atomic_add(row_counts, el->edges[i].row, 1L);
+    assert(el->edges[i].row < n);
+    lgp_atomic_add(row_counts, el->edges[i].row, 1L);    
   }
 
   lgp_barrier();
   
+  lgp_barrier();
+  // this second barrier seems to be necessary in OpenMPI's OSHMEM 1.4 on SMP
+  // We were seeing occasional errors without it.
   
   // Step 9. Sum the vertex degrees for the points you will receive
   int64_t lnnz = 0;
@@ -479,14 +483,18 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     T0_printf("ERROR: geometric_random_graph: init_matrix failed.\n");
     return(NULL);
   }
-
+  
   // initialize the offsets for the sparse matrix
   A->loffset[0] = 0;
   for(i = 1; i <= ln; i++){
     A->loffset[i] = A->loffset[i - 1] + lrow_counts[i-1];
-    lrow_counts[i-1] = 0;
   }
+  //if(A->loffset[ln] != lnnz){
+  //fprintf(stderr,"ERROR: PE %d: %ld %ld\n", MYTHREAD, A->loffset[ln], lnnz);
+  //}
   assert(A->loffset[ln] == lnnz);
+  
+  for(i = 0; i < ln; i++) lrow_counts[i] = 0;
 
   // Step 11. Distribute the edges to the proper PEs
   // and populate the matrix struct.

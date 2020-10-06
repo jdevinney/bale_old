@@ -120,6 +120,7 @@ sparsemat_t * transpose_matrix(sparsemat_t *omat) {
 }
 
 
+#if 0
 /*! \brief writes a sparse matrix to a file in Matrix Market format
  * \param A pointer to the sparse matrix
  * \param name the filename to written to
@@ -425,6 +426,7 @@ sparsemat_t * read_matrix_mm_to_dist(char * name) {
   sort_nonzeros(A);
   return(A);
 }
+#endif
 
 /*! \brief checks that the sparse matrix is lower triangluar
  * \param A pointer to the sparse matrix
@@ -1493,7 +1495,8 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   int64_t total = lgp_reduce_add_l(nnz_this_thread);
   mat->nonzero = lgp_all_alloc(max*THREADS, sizeof(int64_t));
   if(mat->nonzero == NULL){
-    T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for nonzero array (max = %"PRId64")\n", max*THREADS*8, max);
+    T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for nonzero array (max = %"PRId64")\n",
+              max*THREADS*8, max);
     return(NULL);
   }
   mat->lnonzero = lgp_local_part(int64_t, mat->nonzero);
@@ -1501,7 +1504,8 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   if(weighted){
     mat->value = lgp_all_alloc(max*THREADS, sizeof(double));
     if(mat->value == NULL){
-      T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for value array (max = %"PRId64")\n", max*THREADS*8, max);
+      T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for value array (max = %"PRId64")\n",
+                max*THREADS*8, max);
       return(NULL);
     }
     mat->lvalue = lgp_local_part(double, mat->value);
@@ -1513,6 +1517,8 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   mat->nnz = total;
   mat->lnnz = nnz_this_thread;
 
+  lgp_barrier();
+  
   return(mat);
 }
 
@@ -1622,8 +1628,15 @@ void clear_triples(triples_t * T) {
   free(T->col);
 }
 
-/*! 
- * \brief Append a triple to a triples_t struct and expand the storage if necessary
+void clear_spmat_dataset(spmat_dataset_t * spd){
+  free(spd->dirname);
+  free(spd->nrows_in_file);
+  free(spd->nrows_read_in_file);
+  free(spd->rowcnt);
+  free(spd->global_first_row_to_me);
+}
+/*! \brief Append a triple to a triples_t struct and expand the storage if necessary
+ *
  * \param T The triples_t struct
  * \param row The row index of the triple
  * \param col The column index of the triples
@@ -1737,14 +1750,17 @@ sparsemat_t * triples_to_sparsemat(triples_t * T){
  */
 void print_matrix(sparsemat_t * A){
   int64_t i, j;
-
+  
   for(i = 0; i < A->numrows; i++){
     T0_printf("row %ld: ",i);
-    for(j = A->offset[i]; j < A->offset[i+THREADS]; j++){
-	    if( A->value != NULL ){
-        T0_printf("(%ld, %lg) ", A->nonzero[j*THREADS + i%THREADS], A->value[j*THREADS + i%THREADS]);
+    int64_t start = lgp_get_int64(A->offset, i);
+    int64_t end = lgp_get_int64(A->offset, i+THREADS);
+    for(j = start; j < end; j++){
+      if( A->value != NULL ){
+        T0_printf("(%ld, %lg) ", lgp_get_int64(A->nonzero, j*THREADS + i%THREADS),
+                  lgp_get_double(A->value, j*THREADS + i%THREADS));
       } else {
-        T0_printf("%ld ", A->nonzero[j*THREADS + i%THREADS]);
+        T0_printf("%ld ", lgp_get_int64(A->nonzero, j*THREADS + i%THREADS));
       }
     }
     T0_printf("\n");

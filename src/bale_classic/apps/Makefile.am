@@ -36,7 +36,7 @@
 # 
 # *****************************************************************/ 
 
-bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix sssp #unionfind
+bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles sparse_matrix_io  sssp #unionfind
 
 #BDEBUG = -g -O0
 BDEBUG =
@@ -194,21 +194,22 @@ triangles_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
-#noinst_HEADERS += write_sparse_matrix_src/write_sparse_matrix.h
-write_sparse_matrix_sources = write_sparse_matrix_src/write_sparse_matrix.upc
+sparse_matrix_io_sources = sparse_matrix_io_src/sparse_matrix_io.upc
 
-write_sparse_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/write_sparse_matrix_src
-write_sparse_matrix_LDADD = @libdeps_LIBS@ -lm
+sparse_matrix_io_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/sparse_matrix_io_src
+sparse_matrix_io_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
-write_sparse_matrix_SOURCES = $(write_sparse_matrix_sources)
-write_sparse_matrix_LINK=$(UPCLINK)
+sparse_matrix_io_SOURCES = $(sparse_matrix_io_sources)
+sparse_matrix_io_LINK=$(UPCLINK)
 endif
 if BUILD_SHMEM
-write_sparse_matrix_SOURCES = $(write_sparse_matrix_sources:.upc=__c.c)
-write_sparse_matrix_CPPFLAGS += -DUSE_SHMEM
-write_sparse_matrix_LINK=$(LINK) $(BDEBUG)
+sparse_matrix_io_SOURCES = $(sparse_matrix_io_sources:.upc=__c.c)
+sparse_matrix_io_CPPFLAGS += -DUSE_SHMEM
+sparse_matrix_io_LINK=$(LINK) $(BDEBUG)
 endif
+
+###################################################################
 
 ###################################################################
 noinst_HEADERS += sssp_src/sssp.h sssp_src/sssp_delta_common.h
