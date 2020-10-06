@@ -63,12 +63,12 @@ All of Bale is supported and has been tested on:
 - Cray UPC (cce 8.7.3)
 - GNU UPC (5.2.0.1)
 - Clang UPC (3.9.1-1)
-- OpenMPI (OSHMEM) 3.0.6 with UCX on infiniband
+- OpenMPI (OSHMEM) 4.0.2 with UCX on infiniband
 - Cray SHMEM (7.7.2)
 - Cray openshmemX ?
 
 There are problems with the following...
-- OpenMPI (OSHMEM) 3.0.6 with UCX on an SMP (progress issues)
+- OpenMPI (OSHMEM) 4.0.3 with UCX on an SMP (progress issues)
 
 - Sandia OpenSHMEM (SOS) (1.4.5) without MCA (all but conveyors)
 
@@ -81,6 +81,15 @@ bale also depends on:
   - autoconf (2.69)
 
   - automake (1.13.4)
+
+#### Docker files
+bale now comes with some Docker files to assist you in getting a bale-friendly environment on desktop linux. These files are in the *docker* directory. There are 4 sub-directories here:
+- cupc (Clang UPC)
+- gupc (GNU UPC)
+- oshmem (OpenMPI OpenSHMEM)
+- sos (Sandia OpenSHMEM)
+
+Each directory has a file "Dockerfile" that when run will build an evironment that is capable of building all of bale and running bale apps.
 
 ### Documentation
 
@@ -123,3 +132,5 @@ the apps directory and run
   * arg_parse replaced getopt
   * unit tests with pytest
   * docker files
+  * AGP (Atomics Gets and Puts) replaces AGI: simple PGAS style programming
+  * FTB [From the Book](#From-the-Book) replaces As God Intended.
