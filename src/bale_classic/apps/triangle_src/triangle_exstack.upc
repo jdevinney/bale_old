@@ -37,26 +37,27 @@
  *****************************************************************/ 
 
 /*! \file triangle_exstack.upc
- * \brief Demo application that does triangle counting
- * that uses the exstack form of buffering
+ * \brief Implementation of triangle counting algorithm using exstack.
  */
 
 #include "triangle.h"
 
-typedef struct pkg_tri_t {
+/*! \brief same as the others */
+typedef struct pkg_tri_t {           //TODO get this from triangle.h
   //int64_t vi;    
-  int32_t w;
-  int32_t vj;
+  int32_t w; //!< w
+  int32_t vj; //!< vj
 }pkg_tri_t;
 
 /*!
- * \brief pop routine to handle the pushes
- * \param *c a place to return the number of hits.
- * \param *ex the extack buffers
- * \param *mat the input sparse matrix 
-     NB. The nonzero within a row must be increasing
- * \param done the signal to exstack_proceed that this thread is done
- * \return the return value from exstack_proceed
+\brief routine to handle the exstack push of local rows to remote rows
+\param *c a place to return the number of hits.
+\param *ex the extack buffers
+\param *mat the input sparse matrix 
+\param done the signal to exstack_proceed that this thread is done
+\return the return value from exstack_proceed
+
+NB. The matrix must be tidy.
  */
 static int64_t tri_exstack_push_process(int64_t *c, exstack_t *ex, sparsemat_t * mat, int64_t done) {
   int64_t k, fromth, cnt = 0;
@@ -82,8 +83,8 @@ static int64_t tri_exstack_push_process(int64_t *c, exstack_t *ex, sparsemat_t *
 }
 
 /*!
- * \brief This routine implements the exstack variant of triangle counting. 
- *   NB. The column indices of the nonzeros must be in increasing order within each row.
+ * \brief This routine implements the exstack variant of triangle counting,
+ * where one pushes the appropriate part of the local row to the remote row. 
  * \param *count a place to return the number hits
  * \param *sr a place to return the number of pushes 
  * \param *L lower triangle of the input matrix
@@ -91,6 +92,7 @@ static int64_t tri_exstack_push_process(int64_t *c, exstack_t *ex, sparsemat_t *
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \param bufsiz the number of packets in the exstack buffers
  * \return average run time
+ * NB. The matrix must be tidy.
  */
 double triangle_exstack_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg, int64_t bufsiz) {
   exstack_t * ex = exstack_init(bufsiz, sizeof(pkg_tri_t));
@@ -170,14 +172,17 @@ double triangle_exstack_push(int64_t *count, int64_t *sr, sparsemat_t * L, spars
 
 
 /*!
- * \brief This routine implements the exstack pull variant of triangle. 
- * \param *count a place to return the number hits
- * \param *sr a place to return the number of pushes 
- * \param *mat the input matrix
- *    NB. The nonzeros must be in increasing order
- * \param bufsiz the number of packets in the exstack buffers
- * \return average run time
- */
+\brief this routine implements the exstack pull variant of triangle counting,
+       where one pulls the remote row to the local row.
+\param count a place to return the number hits
+\param sr a place to return the number of pushes 
+\param mat the input matrix
+\param alg pull from remote rows or push to remote rows
+\param bufsiz the number of packets in the exstack buffers
+\return average run time
+
+NB. The matrix must be tidy
+*/
 double triangle_exstack_pull(int64_t *count, int64_t *sr, sparsemat_t * mat, int64_t alg, int64_t bufsiz) {
 
   exstack_t * ex_req = exstack_init(bufsiz, sizeof(pkg_tri_t));

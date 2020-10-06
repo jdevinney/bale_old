@@ -43,8 +43,8 @@
 
 /*!
  * \brief histo_exstack_service routine handles the popping and updating the lcounts array
- * \param *ex pointer to the exstack2 struct
- * \param *lcount local view of the counts array
+ * \param ex pointer to the exstack2 struct
+ * \param lcounts local view of the counts array
  * \param done_pushing flag to signal the end game
  * \return void
  */
@@ -59,9 +59,9 @@ void histo_exstack_service( exstack_t *ex, int64_t *lcounts, int64_t done_pushin
 
 /*!
  * \brief histo_exstack_request routine pushes the indices 
- * \param *ex pointer to the exstack struct
+ * \param ex pointer to the exstack struct
  * \param pckidx the packed index holding the requested pe and local index 
- * \param *lcount local view of the counts array,  needs to be passed to the service function
+ * \param lcounts local view of the counts array,  needs to be passed to the service function
  * \return void
  */
 void histo_exstack_request(exstack_t *ex, int64_t pckidx,  int64_t *lcounts) {
@@ -78,9 +78,9 @@ void histo_exstack_request(exstack_t *ex, int64_t pckidx,  int64_t *lcounts) {
 
 /*!
  * \brief histo_exstack2_function calls the request and service functions
- * \param *pckindx array of packed indices for the distributed version of the global array of counts.
+ * \param pckindx array of packed indices for the distributed version of the global array of counts.
  * \param l_num_ups number of updates on this thread
- * \param *lcount local view of the counts array
+ * \param lcounts local view of the counts array
  * \param buf_cnt the size of the exstack buffers in packages
  * \return average run time
  *

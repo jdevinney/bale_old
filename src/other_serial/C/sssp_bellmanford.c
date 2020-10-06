@@ -11,28 +11,16 @@
 #include "spmat_utils.h"
 
 /*! \file sssp_bellmanford.c
- * \brief Implementations of several versions of Bellman-Ford Alg
- * 
- * It is assumed that the Algorithm is known.
- * Excellent description of the algorithm are easily found.
- * To fix our terminology we say that the algorithm expands 
- * paths to "unvisited" vertices and assigns them tentative weights
- * and once the shortest path is found the vertex is said to be resolved.
- *   We assume:
- *     -- that the graph is weighted with positive weights
- *     -- if the graph is undirected, then mat contains two "directed edges" for
- *        each undirected edge.
- *
- */
+\brief Implementations of several versions of Bellman-Ford Alg
 
-/*!
- * \brief This routine implements "relax edge" for all the implementation 
- * of Bellman-Ford.
- * \param tent_head pointer to the tent weight of the head vertex
- * \param tent_tail pointer to the tent weight of the tail vertex
- * \param edge_wt the edge weight
- * \return 1 if the tent weight of the head vertex has improved, 0 otherwise
- */
+*/
+
+/*!  * \brief This routine implements "relax edge" for all the implementation of Bellman-Ford.
+\param tent_head pointer to the tent weight of the head vertex
+\param tent_tail pointer to the tent weight of the tail vertex
+\param edge_wt the edge weight
+\return 1 if the tentative weight of the head vertex has improved, 0 otherwise
+*/
 static int relax_edge( double *tent_head, double *tent_tail, double edge_wt )
 {
    if( *tent_head > *tent_tail + edge_wt ){
@@ -44,13 +32,14 @@ static int relax_edge( double *tent_head, double *tent_tail, double edge_wt )
 }
 
 
-/*!
- * \brief This routine implements the most naive version of the Bellman-Ford algorithm
- * \param tent array to hold the tentative distances
- * \param mat sparsemat_t that holds the graph. 
- * \param v0 is the starting vertex
- * \return runtime
- */
+/*! \brief This routine implements the most naive version of the Bellman-Ford algorithm
+\param tent array to hold the tentative distances
+\param mat sparsemat_t that holds the graph. 
+\param v0 is the starting vertex
+\return runtime
+
+NB: One should only run this on very small cases because it takes so long
+*/
 double sssp_bellmanford_simple(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 {
   double tm = wall_seconds();
@@ -73,13 +62,14 @@ double sssp_bellmanford_simple(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 }
 
 
-/*!
- * \brief This routine implements the textbook version of Bellman-Ford algorithm 
- * as a Dynamic Programming algorithm.
- * \param dist array to hold the tentative distances
- * \param mat sparsemat_t that holds the graph. 
- * \param v0 is the starting vertex
- */
+/*! \brief This routine implements the textbook version of the 
+ Bellman-Ford algorithm as a Dynamic Programming algorithm.
+\param dist array to hold the tentative distances
+\param mat sparsemat_t that holds the graph. 
+\param v0 is the starting vertex
+
+NB: Only run this on small problems because storage is also bad.
+*/
 double sssp_bellmanford_dynprog(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 {
   double tm = wall_seconds();
@@ -135,13 +125,12 @@ double sssp_bellmanford_dynprog(d_array_t *dist, sparsemat_t * mat, int64_t v0)
   return(wall_seconds() - tm);
 }
 
-/*!
- * \brief This routine implements a version of Bellman-Ford as a Dynamic Programming algorithm 
- * that tries to not do redundant relaxations.
- * \param dist array to hold the tentative distances
- * \param mat sparsemat_t that holds the graph. 
- * \param v0 is the starting vertex
- */
+/*! \brief This routine implements a version of Bellman-Ford as a Dynamic Programming algorithm 
+that "recycles" storage and tries to do less redundant relaxations.
+\param dist array to hold the tentative distances
+\param mat sparsemat_t that holds the graph. 
+\param v0 is the starting vertex
+*/
 double sssp_bellmanford(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 {
   double tm = wall_seconds();

@@ -56,7 +56,7 @@
 #include <sys/time.h>
 #include <assert.h>
 
-#define BALE_VERSION 3.0
+#define BALE_VERSION 3.0  /*!< define for the global use of version number */
 
 #if HAVE_CONFIG_H
 #include "config.h"
@@ -80,18 +80,14 @@ extern upc_atomicdomain_t * lgp_atomic_domain;
 # define shmem_global_exit exit /*!< old style names for shmem */
 # endif
 
-/*! \struct minavgmaxL_t 
-* \brief A structure to return the global stats computed by lgp_min_avg_max_l
-*/
+/*! \brief A structure to return the global stats computed by lgp_min_avg_max_l */
 typedef struct minavgmaxL_t{  
   int64_t min;    /*!< int64_t to hold the min. */ 
   int64_t avg;    /*!< int64_t to hold the average. */ 
   int64_t max;    /*!< int64_t to hold the max. */ 
 }minavgmaxL_t;
 
-/*! \struct minavgmaxD_t 
- * \brief A structure to return the global stats computed by lgp_min_avg_max_d
- */
+/*! \brief A structure to return the global stats computed by lgp_min_avg_max_d */
 typedef struct minavgmaxD_t{
   double min;    /*!< the min. */ 
   double avg;    /*!< the average. */ 
@@ -256,14 +252,15 @@ double wall_seconds(); /*!< wall time timer using gettimeofday */
 /////////////////////////
 // RNG functions
 /////////////////////////
-double lgp_rand_double();
-int64_t lgp_rand_int64(int64_t N);
-void lgp_rand_seed(int64_t seed);
+double lgp_rand_double();              /*!< wrapper for uniform random number generator for doubles in (0,1] */
+int64_t lgp_rand_int64(int64_t N);     /*!< wrapper for uniform random number generator for int64_t in [0,N) */
+void lgp_rand_seed(int64_t seed);      /*!< wrapper for setting seed for the random number generator */
 
 
 /////////////////////////
 // global-to-local, local-to-global index conversion
 /////////////////////////
+/*! \brief enum to say whether the memory is layout in a block or cyclic distribution */
 typedef enum layout {BLOCK, CYCLIC} layout;
 void global_index_to_pe_and_offset(int64_t *pe, int64_t *lidx, int64_t gidx, int64_t n, layout layout);
 int64_t pe_and_offset_to_global_index(int64_t pe, int64_t lidx, int64_t n, layout layout);

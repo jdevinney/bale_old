@@ -8,21 +8,23 @@
 /* LICENSE file in the top level dirctory of the distribution.     */
 /*******************************************************************/
 
-/*! \file transpose_matrix.c
- * \brief Program that runs the transpose_matrix from the spmat library.
- * 
- * Run transpose_matrix --help or --usage for usage.
- */
+/*!
+\file transpose_matrix.c
+\brief Program that runs the transpose_matrix from the spmat library.
+
+Run transpose_matrix --help or --usage for usage.
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*! \page transpose_matrix_page Transpose a given sparse matrix 
- * \param *A  sparsemat_t holding the given matrix
- * \param dump_files flag to dump files or not
- * \return run time
- */
+/*!
+\brief timing wrapper around the transpose_matrix in `spmat_utils.c`
+\param A  pointer to the given matrix
+\param dump_files flag to output the matrix or not
+\return runtime
+*/
 double transpose_generic(sparsemat_t *A, int64_t dump_files)
 {
   double tm;

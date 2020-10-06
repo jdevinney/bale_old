@@ -46,21 +46,24 @@
 #include <convey.h>
 #include <locale.h>
 
-// We package all the state up into this struct so we can do some error checking.
-typedef struct histo_t{
-  SHARED int64_t * counts;
-  int64_t * index;
-  int64_t * lcounts;
-  int64_t * pckindx;
-  int64_t num_counts;
-  int64_t lnum_counts;
-  int64_t l_num_ups;
+/*!
+\brief A structure to carry all the histogram arrays, counts to different implementations,
+and aids in error checking
+*/ 
+typedef struct histo_t {
+  SHARED int64_t * counts;  /*!< the shared array that holds the histogram counts */
+  int64_t * lcounts;        /*!< the local pointer to the per thread parts of counts */
+  int64_t num_counts;       /*!< the global size of the counts array */
+  int64_t lnum_counts;      /*!< the local size of the counts array */
+  int64_t * index;          /*!< the local index array */
+  int64_t * pckindx;        /*!< the packed index with the divmod calculation already done */
+  int64_t l_num_ups;        /*!< the local number of update to do */
 } histo_t;
 
-double histo_agp(histo_t * data);
-double histo_exstack(histo_t * data, int64_t buf_cnt);
-double histo_exstack2(histo_t * data, int64_t buf_cnt);
-double histo_conveyor(histo_t * data);
+double histo_agp(histo_t * data);                       /*!< The AGP implementation */
+double histo_exstack(histo_t * data, int64_t buf_cnt);  /*!< The EXSTACK implementation */
+double histo_exstack2(histo_t * data, int64_t buf_cnt); /*!< The EXSTACK2 implementation */
+double histo_conveyor(histo_t * data);                  /*!< The CONVEYOR implementation */
 
 #include "alternates/histo_alternates.h"
 

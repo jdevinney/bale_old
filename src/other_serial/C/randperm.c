@@ -9,38 +9,28 @@
 /*******************************************************************/
 
 /*! \file randperm.c
- * \brief Program that generates a random permutation.
- * We implement the well known serial algorithm is from Knuth (Vol FIXME).
- * and the "dart throwing" as a serial demo of the parallel dart throwing alg
- * and the "sorting algorithm" which can also be parallelized.
- *
- * Run randperm --help or --usage for insructions on running.
- */
+\brief Program that generates a random permutation.
+
+Run randperm --help or --usage for insructions on running.
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*! \page randperm_page                                      // TODO move to README
- * Generate a uniform random permutation.  We consider three different algorithm:
-  - the standard array method known at least by the names
-     Fisher-Yates or Knuth shuffle.
-  - the dart board algorithm 
-  - random sort algorithm
-*/
+/*! \brief A timing wrapper around the rand_perm routine that is in `spmat_utils.c`
+\param len length of the permutation array
+\param s seed for the random number generator.
 
-/*! \brief A timing wrapper around the rand_perm routine that is in spmat_utils.
- * \param len length of the permutation array
- * \param s seed for the random number generator.
- * This is the standard serial array version
- */
+The library uses the standard serial algorithm of Knuth-Yates.
+*/
 double randperm_generic(int64_t len, uint32_t s) 
 {
   double tm;
   int64_t *p;
   tm = wall_seconds();
  
-  p = rand_perm(len, s);          // from the sparsemat library
+  p = rand_perm(len, s);
  
   tm = wall_seconds() - tm;
   if(!is_perm(p, len)){
@@ -51,17 +41,17 @@ double randperm_generic(int64_t len, uint32_t s)
   return(tm);
 }
 
-/*!
- * \brief The "dart board" algorithm
- * \param len length of the permutation array
- * \param s seed for the random number generator.
- * We pick a dart board (an array) that is bigger than the permutation needed,
- * say twice as big. Then randomly throw darts at the  dart board, 
- * re-throwing any dart that hits a entry that is already occupied. 
- * Then we squeeze out the holes.
- * We picked the dartboard to be twice the size of the array 
- * so that even the last dart has a 50/50 of hitting an open entry.
- */
+/*!  \brief The "dart board" algorithm
+\param len length of the permutation array
+\param s seed for the random number generator.
+
+We pick a dart board (an array) that is bigger than the permutation needed,
+say twice as big. Then randomly throw darts at the  dart board, 
+re-throwing any dart that hits a entry that is already occupied. 
+Then we squeeze out the holes.
+We picked the dartboard to be twice the size of the array 
+so that even the last dart has a 50/50 of hitting an open entry.
+*/
 double randperm_dart(int64_t len, uint32_t s) 
 {
   double tm;
@@ -76,8 +66,7 @@ double randperm_dart(int64_t len, uint32_t s)
     dartboard[i] = -1;
  
   // randomly throw darts (entries 0 through len-1) 
-  // at the dartboard until they all stick (land in 
-  // an empty slot)
+  // at the dartboard until they all stick (land in an empty slot)
   rand_seed(s);
   for (i=0; i < len;  ) {
     d = rand_int64(2*len);
@@ -108,34 +97,32 @@ double randperm_dart(int64_t len, uint32_t s)
   return(tm);
 }
 
-/*! \struct idxkey_t 
- * \brief structure used by the randperm_sort routine
- * NB. Repeated key are bad, but tolerated. 
- * They would be ok if ties were broken randomly or if doubles were
- * real numbers. 
- */
+/*! 
+\brief structure used by the randperm_sort routine
+
+NB. Repeated key are bad, but tolerated. 
+They would be ok if ties were broken randomly or if doubles were real numbers. 
+*/
 typedef struct idxkey_t {
   int64_t idx; //!< sequential index 0,...,len-1 
-  double  key; //!< random key
+  double  key; //!< random key 
 } idxkey_t;
 
 
-/*! \brief the compare function for qsort called in the 
- * randperm_sort routine
- */
+/*! \brief the compare function for qsort called in the randperm_sort routine */
 static int rp_comp( const void *a, const void *b) {
   idxkey_t * ak = (idxkey_t *)a;
   idxkey_t * bk = (idxkey_t *)b;
   return( (ak->key) - (bk->key) );
 }
 
-/*!
- * \brief The sorting algorithm to produce a random perm
- * \param len length of the permutation array
- * \param s seed for the random number generator.
- * We form an (index, key) pair. Then we randomly fill the keys
- * and then sort on the key. Then we read the permutation from the indices
- */
+/*!  \brief The sorting algorithm to produce a random perm
+\param len length of the permutation array
+\param seed seed for the random number generator.
+
+We form an array of (index, key) pairs. Then we randomly fill the keys
+and sort on the keys. Then we read the permutation from the indices
+*/
 double randperm_sort(int64_t len, uint32_t seed) 
 {
   double tm;

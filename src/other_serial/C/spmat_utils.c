@@ -15,13 +15,19 @@
 
 #include "spmat_utils.h"
 
-/*! \page spmat_utils_page Sparse matrix routines and few utils */
+/* \page spmat_utils_page spmat_utils
+Sparse matrix routines and few utils
 
-/*! \brief  A routine to give access to the wall clock timer on most UNIX-like systems.
- * Uses gettimeofday.
- * \return the number of seconds since the beginning of time on UNIX machines.
- */
+The serial version of the sparse matrix library.
+There are a few routines in the libgetput library at are also useful
+in the serial case.  We have combined into this one file.
+*/
 
+/*! \brief  
+A routine to give access to the wall clock timer on most UNIX-like systems.
+\return the number of seconds since the beginning of time on UNIX machines.
+Uses gettimeofday.
+*/
 double wall_seconds() 
 {
   struct timeval tp;
@@ -33,9 +39,10 @@ double wall_seconds()
 
 
 
-/*! \brief set the seed for the random number generator
- * \param seed
- */
+/*! 
+\brief set the seed for the random number generator
+\param seed the seed
+*/
 void rand_seed(int64_t seed){
 #ifdef USE_KNUTH
   ranf_start(seed);
@@ -44,10 +51,11 @@ void rand_seed(int64_t seed){
 #endif
 }
 
-/*! \brief return the next random integer mod N
- * \param N the modulus
- * \return a random number from 0 to N-1
- */
+/*!
+\brief return the next random integer mod N
+\param N the modulus
+\return a random number from 0 to N-1
+*/
 int64_t rand_int64(int64_t N){
   assert(N < CBALE_RAND_MAX);
 #ifdef USE_KNUTH
@@ -58,6 +66,10 @@ int64_t rand_int64(int64_t N){
 }
 
 
+/*!
+\brief return the next random double
+\return a random number from 0 to N-1
+*/
 double rand_double(){
 #ifdef USE_KNUTH
   return(ranf_arr_next());
@@ -67,19 +79,21 @@ double rand_double(){
 }
 
 
-/*! \brief create an int64_t array which holds a uniform random permutation
- * \param N the length of the global array
- * \param seed seed for the random number generator
- * \return the permutation (return identity perm if seed is 0)
- * 
- * This implements the standard serial algorithm, known at least as
- * Fisher-Yates or Knuth shuffle, to generate the uniform permutation.
- * Start with an array holding the identity permutation,
- *   swap he last entry with a random entry in the array,
- *   this determines the last entry,
- *   shorten the array to be all but the last entry 
- *   and repeat
- */
+/*!
+\brief create an int64_t array which holds a uniform random permutation
+\param N the length of the global array
+\param seed seed for the random number generator
+\return the permutation (return identity perm if seed is 0)
+
+This implements the standard serial algorithm, known at least as
+Fisher-Yates or Knuth shuffle, to generate the uniform permutation.
+
+Start with an array holding the identity permutation,
+  - swap the last entry with a random entry in the array,
+  - this determines the last entry,
+  - shorten the array to be all but the last entry 
+  -  and repeat
+*/
 int64_t * rand_perm(int64_t N, int64_t seed) 
 {
   int64_t r, i, L, s;
@@ -129,13 +143,15 @@ int64_t is_perm(int64_t * perm, int64_t N)
   return(err == 0L);
 }
 
-/*! \brief writes the first and last part of an array of int64_t's to the specified file
- * \param A pointer to the array
- * \param maxdisp the number of entries that are written, 0 means everything, 
-     otherwise write the first and last maxdisplay/2 entries
- * \param name the filename to written to
- * \return 0 on success, non-0 on error.
- */
+/*!
+\brief writes the first and last part of an array of int64_t's to the specified file
+\param A pointer to the array
+\param len the length of the array
+\param maxdisp the number of entries that are written, 0 means everything, 
+  otherwise write the first and last maxdisplay/2 entries
+\param name the filename to written to
+\return 0 on success, non-0 on error.
+*/
 int64_t dump_array(int64_t *A, int64_t len, int64_t maxdisp, char * name) 
 {
   int64_t i, stoprow, startrow;
@@ -155,13 +171,14 @@ int64_t dump_array(int64_t *A, int64_t len, int64_t maxdisp, char * name)
 }
 
 
-/*! \brief dumps a sparse matrix to a file in a ASCII format
- * \param A pointer to the sparse matrix
- * \param maxrows the number of rows that are written, 0 means everything, 
-     otherwise write the first and last maxrows/2 rows
- * \param name the filename to written to
- * \return 0 on success, non-0 on error.
- */
+/*!
+\brief dumps a sparse matrix to a file in a ASCII format
+\param A pointer to the sparse matrix
+\param maxrows the number of rows that are written, 0 means everything, 
+  otherwise write the first and last maxrows/2 rows
+\param name the filename to written to
+\return 0 on success, non-0 on error.
+*/
 int64_t dump_matrix(sparsemat_t *A, int64_t maxrows, char * name) 
 {
   int64_t i,j, off, nxtoff;
@@ -445,13 +462,15 @@ sparsemat_t * permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cpermin
   return(Ap);
 }
 
-/*! \brief produce the transpose of a sparse matrix
- * Since this is serial, we don't have to worry about sorting the nonzero column
- * indicies (the get populated in the correct order).
- * 
- * \param A  pointer to the original matrix
- * \return a pointer to the matrix that has been produced or NULL if error.
- */
+/*! 
+\brief produce the transpose of a sparse matrix
+\param A  pointer to the original matrix
+\return a pointer to the matrix that has been produced or NULL on error.
+ 
+Note: Given a tidy matrix, this will produce a tidy matrix because we
+process the rows of the given matrix in order. Thus, we fill the 
+columns of the transpose in order.
+*/
 sparsemat_t * transpose_matrix(sparsemat_t *A) 
 {
   int64_t i, j, row, col;
@@ -832,6 +851,7 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
   return(mat);
 }
 
+//TODO move to README
  /*************************************************************************************/
  /*                               RANDOM MATRICES                                     */
  /*************************************************************************************/
@@ -853,27 +873,32 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
  // triangle: kron_graph (special lower triangular), or any random lower triangular, or read in
  // SSSP: random non-symmetric square with values
 
-/*! \brief A routine to generate the adjacency matrix of a random graph.
-  * If the graph is undirected, this routine only returns a lower-triangular
-  * adjancency matrix (since the adjancency matrix would be symmetric and we don't need
-  * the redundant entries).
-  * 
-  * \param n The number of vertices in the graph.
-  * \param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
-  * \param edge_type See edge_type enum. Directed, or not, Weighted or not.
-  * \param loops see self_loops enum. Does every node have a loop or not.
-  * \param edge_density: d in [0, 1), target fraction of edges present.
-  * \param seed: RNG seed.
-  */
+/*! \brief DPRT whether or not to do debug printing */
 #define DPRT 1
+
+/*!
+\brief routine to generate the adjacency matrix of a random graph.
+\param n the number of vertices in the graph.
+\param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
+\param edge_type See edge_type enum. directed, or not, weighted or not.
+\param loops see self_loops enum. Does every node have a loop or not.
+\param edge_density: d in [0, 1), target fraction of edges present.
+\param seed: RNG seed.
+
+If the graph is undirected, this routine only returns a lower-triangular
+adjancency matrix (since the adjancency matrix would be symmetric and we don't need
+the redundant entries).
+*/
 sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                             double edge_density, int64_t seed)
 {
-   
+//TODO delete   
 char *graphmodelstr[] = {"FLAT","GEOMETRIC","KRONECKER"};
 char *edgetypestr[] = {"DIRECTED", "UNDIRECTED", "DIRECTED_WEIGHTED", "UNDIRECTED_WEIGHTED"};
 char *loopstr[] = {"LOOPS", "NOLOOPS"};
-   if(DPRT){
+//TODO delete   
+//TODO do this with tracing
+   if(DPRT){ 
      printf("making a random graph:\n");
      printf("n = %ld, model = %s, edges = %s, loops = %s, prob = %lf, seed %ld\n",
             n, graphmodelstr[model], edgetypestr[edge_type], loopstr[loops], edge_density, seed);
@@ -946,7 +971,7 @@ sparsemat_t * gen_star_graph(int64_t m, int mode)
 /*! \brief Produce the Kronecker matrix product of two square {0,1}-matrices
  * \param A sparse matrix, A is A_n x A_n
  * \param B sparse matrix, B is B_n x B_n
- * \return $C =  A \bigotimes B$
+ * \return \f$C =  A \otimes B\f$
  * 
  * Key fact is that element wise, using the notation C[row,col], A[r,s] and B[u,v],
  * 
@@ -1004,11 +1029,13 @@ sparsemat_t * kronecker_mat_product(sparsemat_t * A, sparsemat_t * B)
 
 
 /*! \brief Generate the kroncker product of a collection of star graphs.
- * \param K is a struct that holds all the parameters for the construction
  * \param mode 
  *  - mode == 0: default, no self loops
  *  - mode == 1: add a self loop to center vertex of each star 
  *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
+ * \param spec an array the holds the sizes of the stars
+ * \param num number of stars
+ * \param weighted whether or not to apply weights to the edges
  * \return the adjacency matrix for graph
 */
 sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num, int weighted)
@@ -1066,6 +1093,15 @@ sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num, 
   return(G);
 }
 
+/*! \brief compute the number of triangles in the the Kroncker Product graph
+ * \param mode 
+ *  - mode == 0: default, no self loops
+ *  - mode == 1: add a self loop to center vertex of each star 
+ *  - mode == 2: add a self loop to an outer vertex (the last vertex) of each star
+ * \param spec an array the holds the sizes of the stars
+ * \param num number of stars
+ * \return the number of triangles
+*/
 int64_t tri_count_kron_graph(int mode, int * spec, int num)
 {
    double approx, ns, nr;
@@ -1096,6 +1132,14 @@ int64_t tri_count_kron_graph(int mode, int * spec, int num)
 // (z-1)*n = e*(n*(n-1)/2) (for UNDIRECTED*) or (z-1)*n = e*(n(n-1)) for DIRECTED
 //
 
+/*! 
+ * \brief computes the number of non-zeros per row from the edge probability or vice-versa.
+ * \param edge_prob given edge probability (or place to put the computed edge_prob)
+ * \param nz_per_row  given number of nonzeros per row (or place to put the computed nz_per_row)
+ * \param numrows = numcols global order of the matrix 
+ * \param edge_type weighted or unweighted
+ * \param loops whether the diagonal is all zeros or all ones
+ */
 void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows,
                                       edge_type edge_type, self_loops loops){
   if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
@@ -1118,22 +1162,37 @@ void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, i
 }
 
 //****************************** Geometric Graphs *********************************************/
- typedef struct points_t{
-   double x;
-   double y;
-   int64_t index;
+/*!
+\brief struct to hold a point in the unit square and index (name) for the point
+*/
+typedef struct points_t{
+   double x;           //!< x coordinate
+   double y;           //!< y coordinate
+   int64_t index;      //!< index for the point
  }points_t;
  
- typedef struct sector_t{
-   points_t * points;
-   int64_t numpoints;
- }sector_t;
+/*!
+\brief array of points in a sector
+*/
+typedef struct sector_t{
+  points_t * points;     //!< array of points
+  int64_t numpoints;     //!< number of points in the sector
+}sector_t;
 
-// returns the square of the L2 distance
+/*! 
+\brief compute the square of the distance between two points
+\param a the first point
+\param b the other point
+\return the square 
+*/
 double dist(points_t a, points_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
+/*!
+\brief initialize an edge list
+\param nalloc the number of edges the list will initially hold
+*/
 edge_list_t * init_edge_list(int64_t nalloc){
   edge_list_t * el = calloc(1, sizeof(edge_list_t));
   el->num = 0;
@@ -1142,11 +1201,15 @@ edge_list_t * init_edge_list(int64_t nalloc){
   return(el);
 }
 
-void clear_edge_list(edge_list_t * el){
-  free(el->edges);
-  free(el);
-}
 
+/*!
+\brief add an edge to an edge list
+\param el the list
+\param row the row (tail) of the edge
+\param col the column (head) of the edge
+
+NB: note additional space is allocated when needed
+*/
 int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
   if(el->nalloc == el->num){
     //printf("out of space! nalloc = %ld\n", el->nalloc);
@@ -1165,19 +1228,31 @@ int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
   return(el->num);
 }
 
- /*! \brief Generates the adjacency matrix for a random geometric graph. 
-  * 
-  * See https://en.wikipedia.org/wiki/Random_geometric_graph
-  * Each vertex corresponds to a point randomly placed in the unit square. Two vertices
-  * are adjancent if their corresponding points are within distance r of each other.
-  * 
-  * \param n The number of vertices
-  * \param r The size of the neighborhoods that determine edges.
-  * \param type See edge_type. If undirected, this routine returns a lower triangular matrix.
-  * \param loops See self_loops. Are there self loops?
-  * \param seed A seed for the RNG.
-  * \return An adjacency matrix (or lower portion of in the undirected case).
-  */
+/*!
+\brief clear the memory used by the edge list
+\param el the list
+*/
+void clear_edge_list(edge_list_t * el){
+  free(el->edges);
+  free(el);
+}
+
+  
+//****************************** Geometric Graphs *********************************************/
+
+/*!
+\brief Generates the adjacency matrix for a random geometric graph. 
+\param n the number of vertices
+\param r the size of the neighborhoods that determine edges.
+\param edge_type if undirected, this routine returns a lower triangular matrix
+\param loops whether or not the diagonal is all 1's or all 0's
+\param seed A seed for the RNG.
+\return An adjacency matrix (or lower portion of in the undirected case).
+
+See https://en.wikipedia.org/wiki/Random_geometric_graph
+Each vertex corresponds to a point randomly placed in the unit square. Two vertices
+are adjancent if their corresponding points are within distance r of each other.
+*/
 sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed){
   int64_t i, j, k, l;
   double r2 = r*r;
@@ -1380,19 +1455,22 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 
  
 //****************************** Erdos Renyi Graphs *******************************************/
-/*! \brief Generates the lower half of the adjacency matrix for an Erdos-Renyi random graph. 
+
+/*!
+\brief generate the adjacency matrix for an Erdos-Renyi random graph. 
+\param n The total number of vertices in the graph (rows in the matrix).
+\param p The probability that each non-loop edge is present.
+\param edge_type See edge_type. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
+\param loops See self_loops.
+\param seed A random seed.
+\return A sparsemat_t
+
+// TODO move to README
  * This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
  * by Batageli and Brandes appearing in Physical Review 2005. Instead of flipping a coin for each potential edge
  * this algorithm generates a sequence of "gaps" between 1s in the upper or lower triangular portion of the 
  * adjancecy matrix using a geometric random variable.
- *
- * \param n The total number of vertices in the graph (rows in the matrix).
- * \param p The probability that each non-loop edge is present.
- * \param edge_type See edge_type. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
- * \param loops See self_loops.
- * \param seed A random seed.
- * \return A sparsemat_t
- */
+*/
 sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed)
 {
   int64_t row, col;
@@ -1466,17 +1544,19 @@ sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type,
   return(mat);
 }
 
-/*! \brief Generates the upper or lower half of the adjacency matrix for an Erdos-Renyi random graph. 
- * This is here mostly for illustration because it is so slow.
- * It flips a coin for each possible edge.
- * \param n The total number of vertices in the graph (rows in the matrix).
- * \param p The probability that each non-loop edge is present.
- * \param edge_type See edge_type.
- * \param loops See self_loops.
- * \param seed A random seed.
- * \return A sparsemat_t
- */
+/*!
+\brief generates the adjacency matrix for an Erdos-Renyi random graph by flipping a coin for each possible edge.
+\param n The total number of vertices in the graph (rows in the matrix).
+\param p The probability that each non-loop edge is present.
+\param edge_type See edge_type.
+\param loops See self_loops.
+\param seed A random seed.
+\return A sparsemat_t
 
+This is here mostly as an illustration. 
+It is the definition of the graph, but computing it this way
+is so slow that it can only be used for small examples.
+*/
 sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed)
 {
   int64_t row, col;
@@ -1559,9 +1639,10 @@ void spmat_stats(sparsemat_t *mat)
 }
 
 
-/*! \brief frees the space allocated for a sparse matrix
- * \param mat pointer to the sparse matrix
- */
+/*!
+\brief frees the space allocated for a sparse matrix
+\param mat pointer to the sparse matrix
+*/
 void clear_matrix(sparsemat_t * mat)
 {
   free(mat->nonzero);
@@ -1570,11 +1651,12 @@ void clear_matrix(sparsemat_t * mat)
 }
 
 
-/*! \brief initializes the struct that holds an array of doubles
- * \param num total number of entries
- * \return an allocated d_array_t or NULL on error
- * \ingroup spmatgrp
- */
+/*!
+\brief initializes the struct that holds an array of doubles
+\param num total number of entries
+\return an allocated d_array_t or NULL on error
+//TODO ?  \ingroup spmatgrp
+*/
 d_array_t * init_d_array(int64_t num) 
 {
   d_array_t * array = calloc(1, sizeof(d_array_t));
@@ -1583,11 +1665,12 @@ d_array_t * init_d_array(int64_t num)
   return(array);
 }
 
-/*! \brief sets all the entries of d_array_t to a value
- * \param A the array
- * \param v the value
- * \ingroup spmatgrp
- */
+/*!
+\brief sets all the entries of d_array_t to a value
+\param A the array
+\param v the value
+//TODO ? \ingroup spmatgrp
+*/
 void set_d_array(d_array_t * A, double v) 
 {
   int64_t i;
@@ -1596,10 +1679,11 @@ void set_d_array(d_array_t * A, double v)
   }
 }
 
-/*! \brief produces a copy of a source array
- * \param src the sourcearray
- * \ingroup spmatgrp
- */
+/*!
+\brief produces a copy of a source array
+\param src the sourcearray
+//TODO ? \ingroup spmatgrp
+*/
 d_array_t *copy_d_array(d_array_t * src) 
 {
   int64_t i;
@@ -1610,12 +1694,14 @@ d_array_t *copy_d_array(d_array_t * src)
   return(ret);
 }
 
-/*! \brief replaces the destination array by overwriting the source array
- * \param dest the destination array
- * \param src the source array
- * \ingroup spmatgrp
- * Note: The destination must be allocated and of the right size.
- */
+/*!
+\brief replaces the destination array by overwriting the source array
+\param dest the destination array
+\param src the source array
+\return 0 or 1  on an error  //TODO
+//TODO ? \ingroup spmatgrp
+NB: The destination must be allocated and of the right size.
+*/
 int64_t replace_d_array(d_array_t *dest, d_array_t *src) 
 {
   int64_t i;
@@ -1630,12 +1716,16 @@ int64_t replace_d_array(d_array_t *dest, d_array_t *src)
 }
 
 
-/*! \brief read a double array from a file.
- * \param name the filename to be read
- * \return a pointer to the double array or NULL on failure
- * Note: file format is: first line is the num of entries in the array,
- * then one entry per line after that.
- */
+/*!
+\brief read a double array from a file
+\param name the filename to be read
+\return a pointer to the double array or NULL on failure
+
+Note: file format is: 
+ - first line is the num of entries in the array,
+ - that many lines of one double per line in the format "%lf"
+ - lines that begin with  # a comments /TODO 
+*/
 d_array_t * read_d_array(char *name)
 {
 
@@ -1658,11 +1748,13 @@ d_array_t * read_d_array(char *name)
   return(retarr);
 }
 
-/*! \brief writes a double array to a file
- * \param A pointer to the double array
- * \param name the filename to be written to
- * \return 0 on success, non-0 on error.
- */
+/*!
+\brief writes a double array to a file
+\param A pointer to the double array
+\param name the filename to be written to
+//TODO figure out about comments
+\return 0 on success, non-0 on error.
+*/
 int64_t write_d_array(d_array_t *A, char * name)      // TODO add comment lines in output file
 {
   int64_t i;
@@ -1683,10 +1775,11 @@ int64_t write_d_array(d_array_t *A, char * name)      // TODO add comment lines 
 }
 
 
-/*! \brief clears the d_array_t struct
- * \param A the d_array
- * \ingroup spmatgrp
- */
+/*!
+\brief clears the space for d_array_t
+\param A the d_array
+//TODO ? \ingroup spmatgrp
+*/
 void clear_d_array(d_array_t * A)
 {
   free(A->entry);

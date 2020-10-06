@@ -95,8 +95,8 @@ int64_t ig_check_and_zero(int64_t use_model, int64_t *tgt, int64_t *index, int64
 
 
 typedef struct args_t{
-  int64_t l_num_req;
-  int64_t l_tbl_size;
+  int64_t l_num_req;    /*!< number of requests made by each thread */
+  int64_t l_tbl_size;   /*!< per thread size of the counts table */
   std_args_t std;
 }args_t;
 

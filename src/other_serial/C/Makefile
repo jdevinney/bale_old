@@ -35,7 +35,7 @@ OBJ= spmat_utils.o std_options.o
 
 GRAPHS= demo.mm 10_ring.mm 2comps.mm
 
-all: std_options.o spmat_utils.o ${EXE}
+all: docs std_options.o spmat_utils.o ${EXE}
 
 std_options.o: std_options.c std_options.h
 	${CC} -g -c std_options.c
@@ -73,19 +73,9 @@ transpose_matrix: transpose_matrix.c std_options.o spmat_utils.o
 sssp: sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o
 	${CC} sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o sssp
 
-doc:
+docs:
 	doxygen
-
-ci:
-	ci Makefile  ${SRC} ${GRAPHS} ${DOC} runall.sh
-co: 
-	co ${SRC} ${GRAPHS} ${DOC} runall.sh
-
-tar: 
-	mkdir -p Bale_C
-	cp Makefile ${SRC} ${GRAPHS} ${DOC} runall.sh Bale_C
-	tar cfv Bale_C.tar Bale_C
-	rm -r Bale_C
 
 clean:
 	rm -f *.out ${EXE} ${OBJ}
+	rm -rf latex html

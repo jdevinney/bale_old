@@ -37,26 +37,24 @@
  *****************************************************************/ 
 
 /*! \file triangle_exstack2.upc
- * \brief Demo application that does a triangle on a permuted upper triangular matrix
- * using the exstack2 buffering model. The implementation of triangle_exstack2_push
- * and its helper routine tri_exstack2_push_process are nearly identical to 
- * triangle_exstack_push and tri_exstack_push_process.
+ * \brief Implementation of triangle counting algorithm using exstack2.
  */
 #include "triangle.h"
 
-typedef struct pkg_tri_t {
-  int64_t w;    
-  int64_t vj;
+/*! \brief make it the same */
+typedef struct pkg_tri_t {            // TODO get this from triangle.h
+  int64_t w;     //!< w
+  int64_t vj;    //!< vj
 }pkg_tri_t;
 
 /*!
- * \brief pop routine to handle the pushes
+ * \brief routine to handle the exstack2 push of local rows to remote rows
  * \param *c a place to return the number of hits.
  * \param *ex2 the extack2 buffers
  * \param *mat the input sparse matrix 
-     NB. The nonzero within a row must be increasing
  * \param done the signal to exstack2_proceed that this thread is done
  * \return the return value from exstack2_proceed
+ * NB. The matrix must be tidy.
  */
 static int64_t 
 tri_exstack2_push_process(int64_t *c, exstack2_t *ex2, sparsemat_t *mat, int64_t done) {
@@ -81,8 +79,7 @@ tri_exstack2_push_process(int64_t *c, exstack2_t *ex2, sparsemat_t *mat, int64_t
 
 /*!
  * \brief This routine implements the exstack2 variant of triangle counting.
- * NB The column indices of the nonzeros in each row must be in increasing order.
- * 
+ * where one pushes the appropriate part of the local row to the remote row. 
  * \param *count a place to return the number hits
  * \param *sr a place to return the number of pushes 
  * \param *L lower triangle of the input matrix
@@ -90,6 +87,7 @@ tri_exstack2_push_process(int64_t *c, exstack2_t *ex2, sparsemat_t *mat, int64_t
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \param buf_cnt the size of the exstack2 buffers
  * \return average run time
+ * NB. The matrix must be tidy.
  */
 double triangle_exstack2_push(int64_t * count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg, int64_t buf_cnt) {
 
@@ -165,118 +163,5 @@ double triangle_exstack2_push(int64_t * count, int64_t *sr, sparsemat_t * L, spa
   return(stat->avg);
 }
 
-#if 0
-static int64_t tri_exstack2_pull_resp_drain(exstack2_t * ex_resp, sparsemat_t * mat, int64_t done){
-  while(exstack_pop(ex_resp, &pkg, &fromth)){
-    for(ii = mat->loffset[pkg.w]; ii < mat->loffset[pkg.w+1]; ii++){
-      if(mat->lnonzero[ii] == pkg.vj)
-        cnt++;
-      else if(mat->lnonzero[ii] > pkg.vj)
-        break;
-    }
-  }
-  exstack2_proceed(ex_req, done)
-}
+//TODO do we need double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {         //TODO why is this only on the mat
 
-static int64_t tri_exstack2_pull_req_drain(exstack2_t * ex_req, exstack2_t * ex_resp, sparsemat_t * mat, int64_t done){
-  int mid_request = 0;
-  int done_popping = 0;
-  int64_t row, label, requstr;
-    
-  while(!done_popping){
-    if(!mid_request){
-      ret = exstack_pop(ex_req, &pkg, &fromth);
-      if(ret == 0){
-        done_popping = 1;
-      }
-      else{
-        //PE 'fromth' wants me to send him all columns in row 'pkg.vj' each with label 'pkg.w'
-        row = pkg.vj;
-        label = pkg.w;
-        requstr = fromth;
-        kk = mat->loffset[row];
-      }
-    }
-      
-    if(!done_popping && kk < mat->loffset[row+1]){
-      pkg.w = label;
-      pkg.vj = mat->lnonzero[kk++];
-      mid_request = (kk == mat->loffset[row + 1]) ? 0 : 1;
-      exstack_pushes++;
-      if(exstack_push(ex_resp, &pkg, requstr) == 1)
-        tri_exstack2_pull_resp_drain(ex_resp, mat, 0);
-    }
-  }
-  
-  return(exstack2_proceed(ex_resp, done));
-  
-}
-
-/*!
- * \brief This routine implements the exstack2 variant of triangle counting.
- * NB The column indices of the nonzeros in each row must be in increasing order.
- * 
- * \param *count a place to return the number hits
- * \param *sr a place to return the number of pushes 
- * \param *mat lower triangle of the input matrix
- * \param buf_cnt the size of the exstack2 buffers
- * \return average run time
- */
-double triangle_exstack2_pull(int64_t *count, int64_t *sr, sparsemat_t *mat, int64_t buf_cnt){
-
-  exstack_t * ex_req = exstack2_init(buf_cnt, sizeof(pkg_tri_t));
-  exstack_t * ex_resp = exstack2_init(buf_cnt, sizeof(pkg_tri_t));
-  if( !ex_req || !ex_resp ){return(-1.0);}
-
-  int64_t exstack_pushes = 0;
-  int64_t l_i, L_i, L_j, k, kk, ii, pe, fromth;
-  pkg_tri_t pkg;
-  int64_t cnt = 0;
-  double t1 = wall_seconds();
-  int ret;
-  
-  // foreach nonzero in L
-  l_i = 0;
-  L_i = MYTHREAD;
-  k = 0;
-  while(k == mat->loffset[l_i + 1]){
-    l_i++;
-    L_i += THREADS;
-  }
-  
-  //while(exstack2_proceed(ex_req, (k == mat->lnnz)) ){
-
-  while(k < mat->lnnz){
-    L_j = mat->lnonzero[k];       // shared name for col j
-    assert( L_i > L_j );
-    pkg.w = l_i;
-    pkg.vj = L_j/THREADS;      
-    pe = L_j % THREADS;
-    ret = exstack_push(ex_req, &pkg, pe);
-    exstack_pushes++;
-      
-    k++;
-    while(k == mat->loffset[l_i + 1]){
-      l_i++;
-      L_i += THREADS;
-    }
-
-    if(ret == 1)
-      break;
-
-    tri_exstack2_pull_req_drain(ex_req, ex_resp, mat, 0);
-  }
-
-  while(tri_exstack2_req_drain(ex_req, ex_resp, mat, 1));
-  
-  
-
-  minavgmaxD_t stat[1];
-  t1 = wall_seconds() - t1;
-  lgp_min_avg_max_d( stat, t1, THREADS );
-  *sr = exstack_pushes;
-  *count = cnt;
-  return(stat->avg);
-  
-}
-#endif

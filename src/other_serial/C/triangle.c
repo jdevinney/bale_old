@@ -9,26 +9,22 @@
 /*******************************************************************/
 
 /*! \file triangle.c
- * \brief Program that counts the number of triangles in a graph 
- * given by its adjacency matrix
- */
+\brief Program that counts the number of triangles in a graph given by its adjacency matrix
+
+Run triangle --help or --usage for insructions on running
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-
-/*! \page triangle_page 
-  Count the triangles in a graph presented by a lower triangular matrix 
-*/
-
 /*!
- * \brief This routine counts the number of triangles in a graph
- *   given the lower triangular piece of the adjacency matrix
- * \param *triangles a place to write the number of triangles found
- * \param *mat the sparse matrix that holds the graph
- * \return run time
- */
+\brief This routine counts the number of triangles in a graph
+  given by the lower triangular piece of the adjacency matrix
+\param *triangles a place to write the number of triangles found
+\param *mat the sparse matrix that holds the graph
+\return run time
+*/
 double triangles_matrix(int64_t *triangles, sparsemat_t *mat) 
 {
   int64_t j, k, l, numtriangles;

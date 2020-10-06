@@ -43,14 +43,9 @@
 
 /*!
  * \brief This routine implements histogram using conveyors
- * \param *pckindx array of packed indices for the distributed version of the global array of counts.
- * \param T the length of the pcindx array
- * \param *lcounts localized pointer to the count array.
+ * \param data the histo_t struct that carries all the parameters for the implementations
  * \return average run time
- *
  */
-
-//double histo_conveyor(int64_t *pckindx, int64_t T,  int64_t *lcounts) {
 double histo_conveyor(histo_t * data){
   int ret;
   int64_t i;
@@ -79,7 +74,6 @@ double histo_conveyor(histo_t * data){
 	    break;
     }
     while( convey_pull(conveyor, &pop_col, NULL) == convey_OK){
-    //while( (pop_col = convey_pull(conveyor, NULL)) != NULL)
       assert(pop_col < data->lnum_counts);
       data->lcounts[pop_col] += 1;
     }

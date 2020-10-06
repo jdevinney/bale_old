@@ -3,19 +3,32 @@
  */
 #include "spmat_utils.h"
 
-typedef struct ds_t{
-  int64_t *next;      // next in linked list
-  int64_t *prev;      // prev in linked list
-  int64_t *in_bucket; // which bucket it is in, else -1
-  int64_t *B;         // array of Buckets: B[i] is the index of the first node on the list, or -1 if empty
-  int64_t num_buckets;
-  double  *tent;      // the tentative weight for the vertex
-  int64_t *deleted;   // deleted means resolved?
-  int64_t *R;         // queue to hold tail vertices that need to relax their heavy edges
-  double  delta;
-}ds_t;
+/*! \file sssp_delta.c
+\brief An implementation of the delta-stepping algorithm
+*/
 
-// debugging function
+/*! 
+\brief a struct to hold (pointers to) all the state needed for the Delta-Stepping algorithm
+
+The storage required 6 times the number of nodes plus a little for space for B.
+Note we need a doubly link list because we delete nodes from any where on the list.
+*/
+typedef struct ds_t {
+  int64_t *next;       //!< array of next "pointers" for the linked list storing a bucket
+  int64_t *prev;       //!< array of prev "pointers" for the linked list storing a bucket
+  int64_t *in_bucket;  //!< record which bucket a node is in, -1 if it is in no bucket
+  int64_t *B;          //!< array of Buckets: B[i] is the index of the first node on the list, or -1 if empty
+  int64_t num_buckets; //!< number of buckets needed to cover all possible live buckets
+  double  *tent;       //!< the tentative weight for the vertex
+  int64_t *deleted;    //!< deleted means resolved?
+  int64_t *R;          //!< queue to hold tail vertices that need to relax their heavy edges
+  double  delta;       //!< the algorithmic parameter delta
+} ds_t;
+
+/*! \brief debugging function that dumps a bucket
+\param ds points to main struct
+\param i_m the given bucket
+*/
 static void dump_bucket(ds_t *ds, int64_t i_m)
 {
   int64_t v, w ;
@@ -32,7 +45,11 @@ static void dump_bucket(ds_t *ds, int64_t i_m)
   return;
 }
 
-// Prepend node v into a bucket i
+/*! \brief Prepend node v into a bucket i_m
+\param ds the main struct
+\param v the given node
+\param i_m the desired bucket
+*/
 void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m)
 {
   int64_t w;                   // node on list, given by ds->B[i_m]
@@ -61,7 +78,13 @@ void insert_node_in_bucket(ds_t *ds, int64_t v, int64_t i_m)
 }
 
 
-// Remove node v from its bucket (need not be in any bucket)
+/*! \brief Remove node v from its bucket (need not be in any bucket)
+\param ds the main struct
+\param v the given node
+
+It eases the logic and causes no harm to "remove" a node 
+from its bucket and find out here that it is actually not in a bucket.
+*/
 static void remove_node_from_bucket(ds_t *ds, int64_t v)
 {
   int64_t i_m, w;
@@ -89,9 +112,13 @@ static void remove_node_from_bucket(ds_t *ds, int64_t v)
   return;
 }
 
-// relax an edge to the head vertex, given the new tentative distance
-// (= the tentative distance to the tail plus the weight of the edge).
-// the candidate weight of the path to w is cand_wt.
+/*!  \brief relax the edge (possible change the tentative weight of the head of a edge)
+\param ds the main struct
+\param w the head of the given edge
+\param cand_wt the new weight = tent[v] + c(v,w) where v is the tail of the edge
+
+We don't actually care who is the tail of the edge.
+*/
 void relax_edge(ds_t *ds, int64_t w, double cand_wt)
 {
   int64_t iold, inew;
@@ -112,10 +139,12 @@ void relax_edge(ds_t *ds, int64_t w, double cand_wt)
   }
 }
 
-// This is the delta stepping algorithm as it appears in
-// the paper "Delta-stepping: a parallelizable shortest path algorithm" by
-// U. Meyer and P. Sanders.
-
+/*!  \brief the array based implementation of the delta stepping algorithm
+\param dist pointer to the array that holds the results
+\param mat the graph (matrix)
+\param r0 the given single source node
+\param del the algorithm parameter delta
+*/
 double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, double del)
 {
   int64_t i, i_m, k;
@@ -233,7 +262,7 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
       Dprintf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v, i_m);
       remove_node_from_bucket(ds, v);
       
-#if 0
+#if 0             //TODO
       for(k = mat->offset[v]; k < mat->offset[v + 1]; k++){   // relax light edges from v 
         if(mat->value[k] <= delta){	  
           relax_edge(ds, mat->nonzero[k], ds->tent[v] + mat->value[k]);
@@ -253,7 +282,7 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
 
     for(start=0; start<end; start++){ // relax heavy requests edges for everything in R
       v = ds->R[start];
-#if 0
+#if 0             //TODO
       for(k = mat->offset[v]; k < mat->offset[v + 1]; k++){
         if(mat->value[k] > delta){
           relax_edge(ds, mat->nonzero[k], ds->tent[v] + mat->value[k]);

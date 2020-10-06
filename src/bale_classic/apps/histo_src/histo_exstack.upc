@@ -42,10 +42,8 @@
 
 /*!
  * \brief This routine implements the exstack classic variant of histogram.
- * \param *pckindx array of packed indices for the distributed version of the global array of counts.
- * \param T the length of the pcindx array
- * \param *lcounts localized pointer to the count array.
- * \param buf_cnt the size of the exstack buffers in packages
+ * \param data the histo_t struct that carries all the parameters for the implementations
+ * \param buf_cnt the number of packages in the exstack buffers
  * \return average run time
  *
  */
