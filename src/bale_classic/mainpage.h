@@ -98,7 +98,7 @@
   - \subpage permute_matrix_page sparse matrix manipulation that is interesting in it own right
   - \subpage randperm_page a parallel algorithm to find a large permutation in parallel
   - \subpage triangles_page counting triangles in a graph
-  - \subpage write_sparse_matrix_page Write a sparse matrix in a binary form.
+  - \subpage sparse_matrix_io_page Write a sparse matrix in a binary form.
 
   Libraries
   - \ref libgetputgrp a set of macros and functions that can be built on UPC or SHMEM
@@ -149,7 +149,7 @@
   performance can be quite good in some applications but there are
   some applications (especially in SHMEM) where it performs terribly
   and we have not put the energy into finding out why yet. There are
-  also applications (such as randperm and write_sparse_matrix) which
+  also applications (such as randperm and sparse_matrix_io) which
   are hard to implement in exstack2. Features like steady-mode and
   giant-messages in coveyors makes some applications easier to program
   in conveyors than exstack/2.

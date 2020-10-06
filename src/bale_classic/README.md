@@ -119,6 +119,7 @@ the apps directory and run
   * Added cousins: Rust, Serial C, and Chapel to bale
   * New graph model: Geometric graphs
   * New app: SSSP
+  * replaced write_sparse_matrix with sparse_matrix_io
   * arg_parse replaced getopt
   * unit tests with pytest
   * docker files
