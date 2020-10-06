@@ -11,7 +11,7 @@
 //   LICENSE file in the top level directory of the distribution.
 //  
 // 
- ********************************************************g483*********/ 
+ *****************************************************************/
 /*! \file libgetput.upc
  * \brief some standard parallel programming support functions
  */
