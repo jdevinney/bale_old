@@ -1,9 +1,14 @@
 #!/usr/bin/env python
 #-*- mode: python -*-
+
+import sys
+if sys.version_info[0] < 3 or sys.version_info[1] < 5:
+  print("This script requires at least Python version 3.5")
+  sys.exit(1)
+
 import subprocess
 import os
 import argparse
-import sys
 
 
 PACKAGES = ["libgetput", "exstack", "convey", "spmat", "std_options", "apps"]

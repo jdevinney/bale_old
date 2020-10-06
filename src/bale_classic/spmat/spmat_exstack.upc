@@ -494,6 +494,172 @@ sparsemat_t * transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt) {
 }
 
 
+/*! \brief Reads a distributed sparse matrix in parallel using an arbitrary number of 
+ * PEs (between 1 and THREADS) to do the actual I/O.
+ *
+ * \param datadir The directory that holds the dataset.
+ * \param nreaders Number of PEs that will actually do the I/O (all other PEs will mostly
+ * be idle.
+ * \return The sparsemat_t that was read from the matrix dataset.
+ */
+sparsemat_t * read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64_t buf_cnt){
+  int64_t i;
+  exstack_t * ex, * vex;
+  spmat_dataset_t * spd = open_sparse_matrix_read(datadir, nreaders);
+
+  // Read row_info to get the counts of the rows we will read.
+  // These land in the spd->rowcnt array.
+  read_row_info(spd);
+
+  /*****************************************************************/
+  /* Distribute the row counts from spd->rowcnt (in BLOCK layout)  */  
+  /* to rowcount array (in CYCLIC layout)                          */
+  /*****************************************************************/
+  SHARED int64_t * rowcnt = lgp_all_alloc(spd->numrows, sizeof(int64_t));
+  assert(rowcnt != NULL);
+  int64_t * lrowcnt = lgp_local_part(int64_t, rowcnt);
+
+  /* offset has the first row (local index) I will see from each reader */
+  int64_t * offset = calloc(THREADS, sizeof(int64_t));
+  for(i = 0; i < THREADS; i++)
+    offset[i] = spd->global_first_row_to_me[i]/THREADS; 
+  
+  ex = exstack_init(buf_cnt, sizeof(int64_t));
+  assert(ex != NULL);
+  
+  i = 0;
+  int64_t lnnz = 0, count, from_pe;  
+  while(exstack_proceed(ex, (i==spd->lnumrows))){
+    for(; i < spd->lnumrows; i++){
+      if(exstack_push(ex, &spd->rowcnt[i], (spd->global_first_row + i) % THREADS) == 0)
+        break;
+    }
+
+    exstack_exchange(ex);
+    
+    while(exstack_pop(ex, &count, &from_pe)){
+      assert(offset[from_pe] < (spd->numrows + THREADS - MYTHREAD - 1)/THREADS);
+      lrowcnt[offset[from_pe]] = count;
+      lnnz += count;
+      offset[from_pe]++;      
+    }
+  }
+  
+  //exstack_clear(ex);
+  exstack_reset(ex);
+  lgp_barrier();
+  
+  //fprintf(stderr,"PE %d gets %ld nonzeros\n", MYTHREAD, lnnz);fflush(stderr);
+
+  /****************************/
+  /* initialize sparse matrix */
+  /****************************/
+  sparsemat_t * A = init_matrix(spd->numrows, spd->numcols, lnnz, spd->values);
+  if(!A){
+    T0_fprintf(stderr,"ERROR: read_sparse_matrix_exstack: init_matrix failed!\n");return(NULL);
+  }
+
+  /* create A->offset array */
+  A->loffset[0] = 0;
+  for(i = 0; i < A->lnumrows; i++){
+    A->loffset[i+1] = A->loffset[i] + lrowcnt[i];
+  }
+
+  /* set up a pointer for each reader (this is where you will be putting nonzeros you receive from them) */
+  for(i = 0; i < THREADS; i++){
+    offset[i] = A->loffset[spd->global_first_row_to_me[i]/THREADS];
+  }
+  //ex = exstack_init(buf_cnt, sizeof(int64_t));
+  if(spd->values)
+    vex = exstack_init(buf_cnt, sizeof(double));
+  
+  lgp_barrier();
+  lgp_all_free(rowcnt);
+  
+  /****************************************************/
+  /* read the nonzeros, send via exstack, and stick   */
+  /* them into the sparse matrix data structure.      */
+  /****************************************************/
+  int64_t buf_size = 512*512;
+  int64_t * buf = calloc(buf_size, sizeof(int64_t));
+  double * vbuf = calloc(buf_size, sizeof(double));
+  int64_t tot_rows_read = 0;
+  int64_t global_row = spd->global_first_row;
+  int64_t pos = 0;
+  int64_t j = 0;
+  int64_t row = 0;
+  int64_t num_rows_read = 0;
+  int64_t nnz_read = 0;
+  int64_t rc = 0;
+  int imdone = 0;
+  
+  while(exstack_proceed(ex, (tot_rows_read == spd->lnumrows))){
+    int64_t pe, col;
+    double val;
+    int loop_break = (tot_rows_read == spd->lnumrows);
+    
+    while(!loop_break){
+
+      if(row == num_rows_read){
+        /* read a buffer of nonzeros if needed */
+        pos = 0;
+        num_rows_read = read_nonzeros_buffer(spd, buf, vbuf, buf_size);
+        assert(num_rows_read > 0);
+        row = 0;
+        nnz_read = 0;
+        for(i = 0; i < num_rows_read; i++) nnz_read += spd->rowcnt[tot_rows_read + i];
+        pe = global_row % THREADS;
+        //fprintf(stderr,"PE %d: read %ld rows %ld %ld %ld\n", MYTHREAD, num_rows_read, tot_rows_read, pos, nnz_read);
+      }
+
+      /* push the nonzero data for the row you are working on */
+      for(; j < spd->rowcnt[tot_rows_read]; j++){
+        if(spd->values) exstack_push(vex, &vbuf[pos], pe);
+        if(exstack_push(ex, &buf[pos], pe) == 0){
+          loop_break = 1;
+          break;
+        }
+        pos++;
+      }
+
+      /* if you are done pushing the nonzeros of this row, tee up the next one. */
+      if(j == spd->rowcnt[tot_rows_read]){
+        tot_rows_read++;
+        if(tot_rows_read < spd->lnumrows){
+          global_row++;
+          row++;
+          j = 0;
+          pe = (pe == (THREADS - 1)) ? 0 : pe+1;
+        }else
+          loop_break = 1;
+      }
+    }
+    
+    exstack_exchange(ex);
+    if(spd->values) exstack_exchange(vex);
+
+    // pop the nonzeros that were sent to you
+    while(exstack_pop(ex, &col, &from_pe)){
+      A->lnonzero[offset[from_pe]] = col;
+      if(spd->values){
+        exstack_pop(vex, &val, &from_pe);
+        A->lvalue[offset[from_pe]] = val;
+      }
+      offset[from_pe]++;
+    }
+  }
+  
+  free(buf);
+  if(spd->values) free(vbuf);
+
+  exstack_clear(ex);
+  if(spd->values) exstack_clear(vex);
+  clear_spmat_dataset(spd);
+  
+  lgp_barrier();
+  return(A);
+}
+
 
 
 
@@ -522,17 +688,10 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
   int64_t ret, error;
   exstack_t * ex;
 
-  //T0_fprintf(stderr,"\n***** Begining to write sparse matrix %s *****\n", dirname);
+  spmat_dataset_t * spd = open_sparse_matrix_write(dirname, mat);
 
-  //T0_fprintf(stderr,"Writing out a sparsemat_t with ");  
-  //T0_fprintf(stderr,"%lu rows %lu columns and %lu nonzeros\n",
-  //         mat->numrows, mat->numcols, mat->nnz);
-  if(mat->value){
-    T0_fprintf(stderr,"WARNING: write_sparse_matrix_exstack: writing a matrix with values not supported.\n");
-    T0_fprintf(stderr,"Only, nonzero positions will be written.\n");
-  }
-  lgp_barrier();
-
+  write_row_info(spd, mat);
+  
   /* get max row density */
   max = 0;
   for(row = 0; row < mat->lnumrows; row++){
@@ -583,20 +742,10 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
     //T0_fprintf("%d first_pe = %"PRId64" last_row[%d]= %"PRId64" current_row_to_th[%"PRId64"] = %"PRId64"\n", MYTHREAD, first_pe, i, last_row[i], i, current_row_to_th[i]);
   
   
-  /* make the directory */  
-  mkdir(dirname, 0770);
-
-  /* write the metadata file */
-  write_sparse_matrix_metadata(dirname, mat);
-  
-  /* open rowcnt file */
-  char filename[64];
-  sprintf(filename, "%s/rowcnt_%d", dirname, MYTHREAD);
-  FILE * rcfp = fopen(filename, "wb");
-  
   /* open nonzero file */
-  sprintf(filename, "%s/nonzero_%d", dirname, MYTHREAD);
-  FILE * nzfp = fopen(filename, "wb");
+  char fname[128];
+  sprintf(fname, "%s/nonzero_%d", spd->dirname, MYTHREAD);
+  FILE * nzfp = fopen(fname, "wb");
   
   /*********************************/
   /*        WRITE OUT DATASET      */
@@ -659,16 +808,6 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
         }
       }
 
-      /*******************************/
-      /*   FIRST WRITE ROW COUNTS    */
-      /*******************************/
-      /* write row counts */
-      recs_written = fwrite(rowcnt_buf, sizeof(int64_t), rc_pos, rcfp);
-      if(recs_written != rc_pos){
-        error = 1;
-        fprintf(stderr, "write_sparse_matrix_exstack: recs_written != numrows %"PRId64" %"PRId64" on PE %d\n", recs_written, rc_pos, MYTHREAD);
-      }
-        
       /* count up the number of nonzeros to be written */
       nnz = 0;
       for(i = 0; i < rc_pos; i++)
@@ -683,7 +822,8 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
     }
     lgp_barrier();
   }
-
+  
+  fclose(nzfp);
   
   /* make sure all threads wrote cleanly */
   ret = lgp_reduce_add_l(error);

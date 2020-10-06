@@ -15,6 +15,7 @@ common_sources  = spmat_agp.upc
 common_sources += spmat_exstack.upc
 common_sources += spmat_exstack2.upc 
 common_sources += spmat_conveyor.upc
+common_sources += spmat_io.upc
 common_sources += spmat_utils.upc
 common_sources += geometric.upc
 pkconfigdir=@libdir@/pkgconfig

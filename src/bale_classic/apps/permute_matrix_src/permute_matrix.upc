@@ -153,8 +153,10 @@ int main(int argc, char * argv[]) {
       clear_matrix(outmat);
     }
   }
-
-  write_matrix_mm(refmat, "permute_matrix_outmat");
+  
+  if(args.std.dump_files){
+    write_matrix_mm(refmat, "permute_matrix_outmat");
+  }
   
   clear_matrix(inmat);
   clear_matrix(refmat);

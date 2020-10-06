@@ -110,7 +110,7 @@ int main(int argc, char * argv[]) {
   /* process command line */
   args_t args = {0};  // initialize args struct to all zero
   struct argp argp = {options, parse_opt, 0,
-                      "Parallel sparse matrix transpose.", children_parsers};  
+                      "Parallel triangle counting.", children_parsers};  
 
   args.gstd.l_numrows = 500000;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
