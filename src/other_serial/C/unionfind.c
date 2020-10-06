@@ -19,10 +19,6 @@
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/* \page unionfind_page 
- Demo that uses the unionfind data structure
-*/
-
 //TODO Fix this to use new graph generators
 /*! \brief Generate a matrix for the lower triangular section of the adjacency matrix of a Erdös–Renyi random graph.
  * \param numrows the number of rows (and columns) in the produced matrix
@@ -48,9 +44,7 @@ sparsemat_t * generate_concomp_input(int64_t numrows, double edge_prob,  uint32_
   return( mat );
 }
 
-/*! 
-\brief the nodes of the disjoint union trees
-*/
+/*! \brief the nodes of the disjoint union trees */
 typedef struct comp_tree_t {
   int64_t parent;  //!< pointer to the nodes parent in the tree
   int64_t rank;    //!< if the node is the root, size of the component

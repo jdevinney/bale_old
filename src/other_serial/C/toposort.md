@@ -1,20 +1,29 @@
 ## toposort
 ### Definition
 We are given a matrix that is a random row and column permutation 
-of a an upper triangular matrix (with ones on the diagonal).
+of an upper triangular matrix (with ones on the diagonal).
 Such a matrix has been called a morally upper triangular matrix.
 This algorithm finds a row and column permutation that, when applied,
 returns it to an upper triangular form.
 
 ### Algorithms
 First we generate the problem by reading in or generating 
-an upper triangular matrix with one on the diagonal 
+an upper triangular matrix with ones on the diagonal 
 and then applying random row and column permutations.
+This is the input to the toposort algorithm.
+The output of toposort is a row and a column permutation that, 
+if applied, would result in an upper triangular matrix.
 
+We find these permutations by finding pivot and removing 
+elements from the matrix.  A pivot element is the (row,col) pair 
+for the nonzero in a row that has only one nonzero.
+We put the row and col indices in the next available entries
+in the row and column permutations and "delete" the row and column
+from the matrix. We then repeat the process.
+ 
 #### enqueuing pivots
-   
-   The output of toposort is a row and a column permutation that, if applied,
-   would result in an upper triangular matrix.
+In the process of "deleting" a row and column we will make rows that
+only have a single non-zero.
 
    We set the row and column permutations,  rperm and cperm, one pivot at a time.
 

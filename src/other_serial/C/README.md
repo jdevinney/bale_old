@@ -35,19 +35,21 @@ doxygen for documentation and ``pytest`` for unit testing.
 ### What is included here:
 
 - Makefile - simple explicit makefile for all the apps.
+
 - APPS:
   - [histo](histo.md) -- creates a large histogram (random stores) (see doxygen: histo.c)
   - [ig](ig.md) -- a large gather (random loads) (see doxygen: ig.c)
   - [randperm](randperm.md) -- creates a random permutation (see doxygen: randperm.c)
-  - transpose_matrix.c -- computes the transpose of a sparse matrix [details](transpose_matrix.c)
-  - [permute_matrix](prermute_matrix.md) -- applies row and column permutations to a sparse matrix (see doxygen: permute_matrix.c)
-  - triangle.c -- counts the number triangles in a graph [details](triangle.md)
+  - [transpose_matrix](transpose_matrix.md) -- computes the transpose of a sparse matrix (see doxygen: transpose_matrix.c)
+  - [permute_matrix](permute_matrix.md) -- applies row and column permutations to a sparse matrix (see doxygen: permute_matrix.c)
+  - [triangle](triangle.md) -- counts the number triangles in a graph (see doxygen: triangle.c)
   - [toposort](toposort.md) -- performs a toposort (matrix) sort of a morally upper triangular matrix (see doxygen: toposort.c)
   - [sssp](sssp.md) -- solves the single source shortest path problem on a graph (see doxygen: sssp.c)
-  - unionfind.c -- uses the union-find data structure to find connected components in a graph [details](unionfind.md)
+  - [unionfind](unionfind.md) -- uses the union-find data structure to find connected components in a graph (see doxygen: unionfind.c)
+
 - Other:
-- spmat_utils.h, spmat_utils.c -- the sparse matrix library and some support functions [details](spmat_utils.md)
-- std_options.h, std_options.c -- the command line parsing routines [details](std_options.md)
+- [spmat_utils](spmat_utils.md) -- the sparse matrix library and some support functions (see doxygen: spmat_utils.h, spmat_utils.c)
+- [std_options](std_options.md)  -- the command line parsing routines (see doxygen: std_options.h, std_options.c)
 
 ## Build Instructions
 This is meant to be basic C, with a simple Makefile, so hopefully just typing 'make' will work.
