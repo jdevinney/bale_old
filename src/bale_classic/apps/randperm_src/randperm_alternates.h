@@ -16,4 +16,4 @@
 /*! \file randperm_alternates.h
  * \brief header file for the alternate models for randperm
  */
-SHARED int64_t * rand_permp_agp_opt(int64_t N, int seed);
+SHARED int64_t * rand_permp_agp_opt(int64_t N, int seed);  /*!< optimized alternate implementation */

@@ -13,18 +13,18 @@
 // 
  *****************************************************************/ 
 
-/*! \file sssp_exstack2.upc
- * \brief Maybe we don't need this????
+/*! \file sssp_bellman_exstack2.upc
+ * \brief Application that implements Bellman-Ford with exstack2
  */
 #include "sssp.h"
 
 /*!
- * \brief Relax the head of the edges delivered by an exstack2 buffer
- * \param tent pointer to the tentative distances array
- * \param ex2 the extack buffers
- * \param done the signal to exstack_proceed that this thread is done
- * \return the return value from exstack2_proceed
- */
+\brief Relax the head of the edges delivered by an exstack2 buffer
+\param tent pointer to the tentative distances array
+\param ex2 the extack buffers
+\param done the signal to exstack_proceed that this thread is done
+\return the return value from exstack2_proceed
+*/
 static int64_t bellman_exstack2_relax_process(d_array_t *tent, exstack2_t *ex2, int64_t done) 
 {
   int64_t fromth;
@@ -40,13 +40,13 @@ static int64_t bellman_exstack2_relax_process(d_array_t *tent, exstack2_t *ex2, 
 }
 
 /*!
- * \brief Push the potentially improved weight to the thread handling the head of the edge
- * \param *ex2 the extack2 buffers
- * \param tent pointer to the tentative distances array to be passed thru to bellman_exstack2_relax_process
- * \param J the head of the edge, given by it global name
- * \param tw the new weight
- * \return the value from the push
- */
+\brief Push the potentially improved weight to the thread handling the head of the edge
+\param ex2 the extack2 buffers
+\param tent pointer to the tentative distances array to be passed thru to bellman_exstack2_relax_process
+\param J the head of the edge, given by it global name
+\param tw the new weight
+\return the value from the push
+*/
 static int64_t bellman_exstack2_push(exstack2_t *ex2, d_array_t *tent, int64_t J, double tw)
 {
   int64_t ret, pe;
@@ -61,13 +61,14 @@ static int64_t bellman_exstack2_push(exstack2_t *ex2, d_array_t *tent, int64_t J
 }
 
 /*!
- * \brief This routine implements the Bellman-Ford algorithm using exstack
- * \param *tent the SHARED array that holds the tentative distances
- * \param *mat the input matrix
- * \param v0 is the the staring row (vertex)
- * \return average run time
+\brief This routine implements the Bellman-Ford algorithm using exstack
+\param dist pointer to the array for return the distances (weights) to each vertex
+\param mat the input matrix that holds the graph
+\param buf_cnt the number of packages in an exstack buffer
+\param v0 is the given staring row (vertex)
+\return average run time
  */
-double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t v0)
+double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t v0)    // TODO consisent check
 {
   double t1 = wall_seconds();
 

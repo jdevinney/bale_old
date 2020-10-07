@@ -25,7 +25,7 @@
 #include "spmat_enums.h"
 
 
-/*! \struct sparsemat_t spmat.h
+/*!
  * \brief A structure to hold a sparse matrix.
  *
  * We use a distributed version of the standard Compressed Sparse Row (CSR) format.  
@@ -66,6 +66,7 @@ typedef struct sparsemat_t {
 }sparsemat_t;
 
 
+/*! \brief holds the length and the elements in a SHARED array of doubles */
 typedef struct d_array_t {
   int64_t num;                  //!< the total number of entries in the array
   int64_t lnum;                 //!< the number of entries on this PE. lnum = (num / NPES) + {0 or 1}
@@ -73,47 +74,65 @@ typedef struct d_array_t {
   double * lentry;              //!< the localized part of the shared array
 } d_array_t;
 
+// TODO is this used
+/*! \brief unused */
 typedef struct triples_t {
-  int64_t * row;
-  int64_t * col;
-  double * val;
-  int64_t numrows;
-  int64_t lnumrows;
-  int64_t numcols;
-  int64_t lnnz;
-  int64_t nalloc;
+  int64_t * row;    //!< unused
+  int64_t * col;    //!< unused
+  double * val;    //!< unused
+  int64_t numrows;    //!< unused
+  int64_t lnumrows;    //!< unused
+  int64_t numcols;    //!< unused
+  int64_t lnnz;    //!< unused
+  int64_t nalloc;    //!< unused
 } triples_t;
 
 
+/*!
+\brief structure to work with weighted edges as a triple.
+*/
 typedef struct w_edge_t{
-  int64_t row;
-  int64_t col;
-  double val;
+  int64_t row;          //!< row
+  int64_t col;          //!< col
+  double val;           //!< value of M[row,col]
 }w_edge_t;
 
 
+
+/*!
+\brief structure to work with unweighted edges as a tuple.
+We take the value of M[row,col] to be 1.
+*/
 typedef struct edge_t{
-  int64_t row;
-  int64_t col;
+  int64_t row;          //!< row
+  int64_t col;          //!< col
 }edge_t;
 
+/*!
+\brief structure to work the non-zeros as a list of edges.
+This is a convenient format for reading and writing to files
+*/
 typedef struct edge_list_t{
-  edge_t * edges;
-  w_edge_t * wedges;
-  int64_t nalloc;
-  int64_t num;
+  edge_t * edges;       //!< pointer to a array of edges
+  w_edge_t *wedges;     //!< pointer to a array of weighted edges
+  int64_t nalloc;       //!< number of elements allocated for the array
+  int64_t num;          //!< number of elements in the array
 }edge_list_t;
 
-// struct to sort rows in a matrix with values
+/*!
+\brief struct use while sorting a row in a matrix with values
+*/
 typedef struct col_val_t{
-   int64_t col;
-   double value;
+   int64_t col;         //!< col
+   double value;        //!< val
 }col_val_t;
 
-// struct to represent a point on the plane. (for geometric graphs)
+/*!  
+\brief struct to represent a point on the plane. (for geometric graphs)
+*/
 typedef struct point_t{
-  double x;
-  double y;
+  double x;             //!< x
+  double y;             //!< y
 }point_t;
 
 
@@ -174,11 +193,14 @@ int64_t rowcount_S( sparsemat_t *mat, int64_t S_row );
 
 int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
 int64_t             append_weighted_edge(edge_list_t * el, int64_t row, int64_t col, double val);
+// TODO is this used
 int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
 
 int64_t             calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num);
 void                clear_edge_list(edge_list_t * el);
 void                clear_matrix(sparsemat_t * mat);
+
+// TODO is this used
 void                clear_spmat_dataset(spmat_dataset_t * spd);
 void                clear_triples(triples_t * T);
 
@@ -195,6 +217,7 @@ sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_t
 
 edge_list_t *       init_edge_list(int64_t nalloc, int weighted);
 sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted);
+// TODO is this used
 triples_t *         init_triples(int64_t numrows, int64_t numcols, int64_t lnnz, int weighted);
 sparsemat_t *       init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz);
 
@@ -231,6 +254,7 @@ sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);
 sparsemat_t *       transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt);
 sparsemat_t *       transpose_matrix_agp(sparsemat_t * A);
+// TODO is this used
 sparsemat_t *       triples_to_sparsemat(triples_t * T);
 
 
@@ -259,9 +283,9 @@ int64_t tril(sparsemat_t * A, int64_t k);
 int64_t triu(sparsemat_t * A, int64_t k);
 
 
-sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, uint64_t seed);
+sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);         // TODO delete?
+sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);               // TODO delete?
+sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, uint64_t seed);     // TODO delete?
 
 
 int sort_nonzeros( sparsemat_t *mat);

@@ -1,19 +1,8 @@
-  Copyright(C) 2020, Institute for Defense Analyses
-  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
- 
-  All rights reserved.
-  
+## unionfind
 
-  
+### Definition
 
-  
- This file is a part of Bale.  For license information see the
-   LICENSE file in the top level directory of the distribution.
-
-***************************************************************************
-***************************************************************************
-
-This is a directory for a future application called union_find. Here
+This is a directory for a future application called unionfind. Here
 is a description of that application. It takes in a very sparse graph
 (represented as a symmetrix adjacency matrix) and finds the components
 of the graph. What counts as "finding the components" is up for
@@ -24,3 +13,13 @@ updated. Whether these edges are added synchronously or asynchronously
 is also up for discussion. We imagine it would be easier to consider
 them coming in synchronous waves -- a batch of edges arrives, the
 components are updated before the next batch arrives.
+
+### Discussion
+
+#### Parallel Considerations
+
+#### Why it is in bale?
+
+#### From the Book?
+
+

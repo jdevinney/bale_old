@@ -9,61 +9,25 @@
 /*******************************************************************/
 
 /*! \file toposort.c
- * \brief Demo application that finds an upper triangular form for a matrix.  
- * That is, we are given a matrix that is a random row and column permutation 
- * of a an upper triangular matrix (with ones on the diagonal).
- * This algorithm finds a row and column permutation that would return it
- * to an upper triangular form.
- * 
- * Run topo --help or --usage for insructions on running.
- */
+\brief Find permutations that verify that a given matrix is morally upper triangular
+
+Run topo --help or --usage for insructions on running.
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*! \page toposort_page Topologically sort a morally upper triangular matrix. 
- 
-   First we generate the problem by generating an upper triangular matrix
-   and applying row and column permutations.
-   
-   The output of toposort is a row and a column permutation that, if applied,
-   would result in an upper triangular matrix.
-
-   We set the row and column permutations,  rperm and cperm, one pivot at a time.
-
-   N = number of rows
-   for( pos=N-1; pos > 0; pos-- ) {
-     pick a row, r, with a single nonzero, c.
-     say (r,c) is the pivot and set rperm[pos] = r and cprem[pos] = c
-     Note: a pivot always exists because the matrix is morally upper tri.
-
-     cross out that row r and col c 
-   }
-
-   Meaning of cross out:
-   Rather than changing the matrix by deleting rows and column and then searching the 
-   new matrix for the next pivot.  We do the obvious thing of keeping row counts, where
-   rowcnt[i] is the number of non-zeros in row i and we use a really cool trick 
-   of keeping the sum of the live column indices for the non-zeros in each row.
-   That is, rowsum[i] is the sum of the column indices, not the sum of the non-zero elements,
-   for the non-zeros in row i.  To "delete a column" one decrements the rowcnt by one and 
-   the rowsum by the corrsponding column index. 
-   The cool trick is that, when the rowcnt gets to one, the rowsum is the column that is left.
-*/
-
-
-
 /*! \brief check the result toposort 
- *
- * check that the permutations are in fact permutations and the check that applying
- * them to the original matrix yields an upper triangular matrix
- * \param mat the original matrix
- * \param rperminv the row permutation
- * \param cperminv the column permutation
- * \param dump_files debugging flag
- * \return 0 on success, 1 otherwise
- */
+\param mat the original matrix
+\param rperminv the row permutation
+\param cperminv the column permutation
+\param dump_files debugging flag
+\return 0 on success, 1 otherwise
+
+Check that the permutations are in fact permutations and check that applying
+them to the original matrix yields an upper triangular matrix.
+*/
 int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int64_t dump_files) 
 {
   sparsemat_t * mat2;
@@ -86,19 +50,13 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
 }
 
 /*! \brief Generate a matrix that is the a random permutation of a sparse uppper triangular matrix.
- * \param numrows the number of rows (and columns) in the produced matrix
- * \param edge_probability the probability that an entry in the matrix is non-zero
- * \param seed the seed for random number generator that determines the original matrix and the permutations
- * \param dump_files is a debugging flag
- * \return the permuted upper triangular matrix
- * 
- * Make the upper triangular matrix. We do this by getting the lower-triangular portion of the adjacency matrix of a random
- * graph. We force the diagonal entries. We then transpose this matrix to get U.
- * Finally, we randomly permute the rows and the columns.
- * The toposort algorithm takes this matrix and finds one of the possibly many row and column permutations 
- *  that would bring the matrix back to an upper triangular form.
- */
-  // read in a matrix or generate a random graph
+\param sargs the standard command line arguments
+\param gargs the graph arguments line arguments
+\return a pointer to the permuted upper triangular matrix
+
+Either read in a matrix and force to have the right form and generate a matrix with the sparse matrix library.
+Then generate and apply row and column permutations.
+*/
 sparsemat_t *generate_toposort_input(std_args_t *sargs, std_graph_args_t *gargs)
 {
   int64_t nr = gargs->numrows;
@@ -141,13 +99,12 @@ sparsemat_t *generate_toposort_input(std_args_t *sargs, std_graph_args_t *gargs)
 }
 
 
-/*!
- * \brief This routine implements the agi variant of toposort
- * \param *rperm returns the row permutation that is found
- * \param *cperm returns the column permutation that is found
- * \param *mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
- * \param *tmat the transpose of mat
- * \return average run time
+/*! \brief This routine implements a variant of toposort that enqueues that pivot position as they are discovered
+\param *rperm a place to return the row permutation that is found
+\param *cperm a place to return the column permutation that is found
+\param *mat the input sparse matrix
+\param *tmat the transpose of mat
+\return average run time
  */
 double toposort_matrix_queue(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) 
 {
@@ -212,13 +169,12 @@ double toposort_matrix_queue(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, s
   return(t1);
 }
 
-/*!
- * \brief This routine implements the agi variant of toposort
- * \param *rperm returns the row permutation that is found
- * \param *cperm returns the column permutation that is found
- * \param *mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
- * \param *tmat the transpose of mat
- * \return average run time
+/*! \brief This routine implements toposort by continually looping over rows looking for a pivot.
+\param *rperm a place to return the row permutation that is found
+\param *cperm a place to return the column permutation that is found
+\param *mat the input sparse matrix
+\param *tmat the transpose of mat
+\return average run time
  */
 double toposort_matrix_loop(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) 
 {

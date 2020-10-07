@@ -1,3 +1,41 @@
+/******************************************************************
+//
+//
+//  Copyright(C) 2020, Institute for Defense Analyses
+//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
+//  This material may be reproduced by or for the US Government
+//  pursuant to the copyright license under the clauses at DFARS
+//  252.227-7013 and 252.227-7014.
+// 
+//
+//  All rights reserved.
+//  
+//  Redistribution and use in source and binary forms, with or without
+//  modification, are permitted provided that the following conditions are met:
+//    * Redistributions of source code must retain the above copyright
+//      notice, this list of conditions and the following disclaimer.
+//    * Redistributions in binary form must reproduce the above copyright
+//      notice, this list of conditions and the following disclaimer in the
+//      documentation and/or other materials provided with the distribution.
+//    * Neither the name of the copyright holder nor the
+//      names of its contributors may be used to endorse or promote products
+//      derived from this software without specific prior written permission.
+// 
+//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
+//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
+//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
+//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+//  OF THE POSSIBILITY OF SUCH DAMAGE.
+// 
+ *****************************************************************/
+
 /*! \file sssp_delta_exstack.upc
  * \brief Implementation of delta stepping using exstack
  */
@@ -5,13 +43,12 @@
 #include "sssp.h"
 #include "sssp_delta_common.h"
 
-
 /*!
  * \brief Forwards the relax requests from the exstack buffers to the local relax routine
  * \param ds the delta-stepping struct 
  * \param ex the exstack
- * \param done the signal to convey_advance that this thread is done
- * \return the return value from convey_advance
+ * \param done the signal to exstack_proceed that this thread is done
+ * \return the return value from exstack_proceed
  */
 static int64_t delta_exstack_relax_process(ds_t *ds, exstack_t *ex, int64_t done) 
 {
@@ -26,13 +63,13 @@ static int64_t delta_exstack_relax_process(ds_t *ds, exstack_t *ex, int64_t done
 }
 
 /*!
- * \brief Push the potentially improved weight to the thread handling the head of the edge
- * \param ex the extack buffers
- * \param ds pointer to the delta-stepping struct to be passed thru to delta_convey_relax_process
- * \param J the head of the edge, given by it global name
- * \param tw the new weight
- * \return the value from the push
- */
+\brief Push the potentially improved weight to the thread handling the head of the edge
+\param ex the extack buffers
+\param ds pointer to the delta-stepping struct to be passed thru to delta_convey_relax_process
+\param gidx the head of the edge, given by it global name
+\param tent_wt the new tentative weight
+\return the value from the exstack_push
+*/
 int64_t delta_exstack_push(exstack_t *ex, ds_t *ds, int64_t gidx, double tent_wt)
 {
   int64_t ret, pe; 
@@ -46,7 +83,15 @@ int64_t delta_exstack_push(exstack_t *ex, ds_t *ds, int64_t gidx, double tent_wt
   return(ret);
 }
 
-
+/*!
+\brief The exstack implementation of delta-stepping
+\param dist the array that holds the minimum weight for each vertex
+\param mat the matrix that holds the graph
+\param buf_cnt the number of packages in the exstack2 buffers
+\param r0 the staring node
+\param opt_delta the delta given by the driver program
+\return the average time for this version
+*/
 double sssp_delta_exstack(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t r0, double opt_delta)
 {
   int64_t i, i_m, k;

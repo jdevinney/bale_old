@@ -13,7 +13,7 @@
 // 
  *****************************************************************/ 
 
-/*! \file sssp_conveyor.upc
+/*! \file sssp_bellman_conveyor.upc
  * \brief Application that implements Bellman-Ford with conveyors
  */
 
@@ -63,8 +63,8 @@ static int64_t bellman_convey_push(convey_t *conv, d_array_t *tent, int64_t J, d
 
 /*!
 * \brief This routine implements the conveyor variant of Bellman-Ford algorithm
- * \param *ltent locat pointer to the array of the tentative weights to each vertex
- * \param *mat the sparse matrix that holds the graph
+ * \param dist pointer to the array for return the distances (weights) to each vertex
+ * \param mat the sparse matrix that holds the graph
  * \param v0 is the starting vertex
  * \return average run time
  */

@@ -9,29 +9,27 @@
 /*******************************************************************/
 
 /*! \file sssp.c
- * \brief The application that calls different Single Source Shortest Path alogrithms.
- *
- * It calls several versions of Dijsktra's algorithm, the Bellman Ford algorithm, and
- * the Delta-stepping algorithm.
- */
+\brief The application that calls different Single Source Shortest Path alogrithms.
+
+Run sssp --help or --usage for insructions on running
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);
-double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);
-double sssp_bellmanford_simple(d_array_t * tent, sparsemat_t *mat, int64_t r0);
-double sssp_bellmanford_dynprog(d_array_t * tent, sparsemat_t *mat, int64_t r0);
-double sssp_bellmanford(d_array_t * tent, sparsemat_t *mat, int64_t r0);
-double sssp_delta_stepping(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);
+double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);            //!< Dijsktra's alg with linear search for smallest tent[v]
+double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);              //!< Dijsktra's alg with heap to track the smallest tent[v]
+double sssp_bellmanford_simple(d_array_t * tent, sparsemat_t *mat, int64_t r0);          //!< Bellman-Ford simple with one tentative array
+double sssp_bellmanford_dynprog(d_array_t * tent, sparsemat_t *mat, int64_t r0);         //!< Bellman-Ford dynamic program with n squared storage
+double sssp_bellmanford(d_array_t * tent, sparsemat_t *mat, int64_t r0);                 //!< Bellman-Ford recycling tentative arrays from dynamic program
+double sssp_delta_stepping(d_array_t * tent, sparsemat_t *mat, int64_t r0, double del);  //!< Delta-Stepping algorithm
 
-/*!
- * \brief Compare two arrays
- * \param *A one array (vector)
- * \param *B the other
- * \return the l_2 norm of the given arrays
- */
+/*! \brief Compare two arrays of doubles
+\param *A one array (vector)
+\param *B the other
+\return the l_2 norm of the given arrays
+*/
 static double sssp_answer_diff(d_array_t *A, d_array_t *B)
 {
   int64_t i;

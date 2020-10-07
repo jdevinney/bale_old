@@ -46,6 +46,7 @@ for the source for the kernels.
 * Run with the --help, -?, or --usage flags for run details.
  */
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   int64_t num_readers;
   std_args_t std;

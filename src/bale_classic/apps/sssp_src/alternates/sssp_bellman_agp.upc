@@ -92,11 +92,12 @@ static void relax_bellman_agp(d_array_t *tent, int64_t J, double new_tw)
   lgp_put_double(tent->entry, J, new_tw);
 }
 #endif
+
 /*!
  * \brief This routine implements the Bellman-Ford algorithm with the AGP model
- *
- * \param *dist a place to return the distance to the source
- * \param *mat the input matrix
+ * \param dist a place to return the distance to the source
+ * \param mat the input matrix
+ * \param v0 the given source vertex
  * \return average run time
  */
 double sssp_bellman_agp(d_array_t *dist, sparsemat_t * mat, int64_t v0)

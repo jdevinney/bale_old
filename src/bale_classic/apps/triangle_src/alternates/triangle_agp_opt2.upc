@@ -40,6 +40,7 @@ double triangle_agp_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat
   int64_t numpulled=0;
   int64_t l_i, ii, k, kk, kt, num2pull, L_i, L_j;
 
+/*! \brief pull remote gets in a buffer of this size */
 #define PULL_BUF_SIZE 64
   int64_t w[PULL_BUF_SIZE];
 

@@ -9,31 +9,26 @@
 /*******************************************************************/
 
 /*! \file histo.c
- * \brief A program that computes a histogram of uint64_t's
- *  The intent is to histogram a large number of words into 
- *  a large number of bins.
- * 
- * Run histo --help or --usage for insructions on running
- */
+\brief A program that computes a histogram of uint64_t's
+The intent is to histogram a large number of words into a large number of bins.
+
+Run histo --help or --usage for insructions on running
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"
 #include "default_app_sizes.h"
 
-/*! \page histo_page 
- * Statements about why histo is not as lame as it seems.       // TODO move to README
- */
 
-/*! \brief This routine is a generic histogram of a large number of 
- * items (int64_t's) into a large table
- * \param *index array of indices into the array of counts
- * \param num_ups the length of the index array (number of updates)
- * \param *counts pointer to the count array
- * \param v the amount to add to the counts array for each update.
- *         we can use v = (-1) to check against other implementations.
- * \return run time
- */
-double histo_generic(int64_t *index, int64_t num_ups,  int64_t *counts, int64_t v) 
+/*! \brief This routine is a generic histogram loop
+\param *index array of indices into the array of counts
+\param num_ups the length of the index array (number of updates)
+\param *counts pointer to the count array
+\param v the amount to add to the counts array for each update.
+        we can use v = (-1) to check against other implementations.
+\return run time
+*/
+double histo_generic(int64_t *index, int64_t num_ups, int64_t *counts, int64_t v) 
 {
   double tm;
   int64_t i;
@@ -47,23 +42,22 @@ double histo_generic(int64_t *index, int64_t num_ups,  int64_t *counts, int64_t 
   return( tm );
 }
 
-/*!
- * \brief This routine does a buffered version of histogram.
- * \param *index array of indices into the array of counts
- * \param num_ups the length of the index array (number of updates)
- * \param *counts pointer to the count array
- * \param table_size size of the histogram table
- * \return run time
- */
-double histo_buffered(int64_t *index, int64_t num_ups,  int64_t *counts, int64_t table_size) 
+#define LOG_NUM_BUFFERS 6                 /*!< parameters to play with buffering histo */
+#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS) /*!< number of buffers */
+#define BUFFER_SIZE 128                   /*!< size of the buffers */
+/*! \brief This routine does a buffered version of histogram.
+\param *index array of indices into the array of counts
+\param num_ups the length of the index array (number of updates)
+\param *counts pointer to the count array
+\param table_size size of the histogram table
+\return run time
+*/
+double histo_buffered(int64_t *index, int64_t num_ups, int64_t *counts, int64_t table_size) 
 {
   double tm;
   int64_t i,j;
   int64_t nbits;
   int64_t sort_shift;
-#define LOG_NUM_BUFFERS 6  
-#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS)
-#define BUFFER_SIZE 128
   int64_t s, cnts[NUM_BUFFERS]; 
   int64_t counts_idx[NUM_BUFFERS][BUFFER_SIZE];
   
@@ -101,23 +95,22 @@ double histo_buffered(int64_t *index, int64_t num_ups,  int64_t *counts, int64_t
   return( tm );
 }
 
-/*! \brief comparison function to support histo_sorted
- *  */
+/*! \brief comparison function to support histo_sorted */
 static int comp(const void *a, const void *b) 
 {
   return( *(uint64_t *)a - *(uint64_t *)b );
 }
 
-/*!
- * \brief This routine does a sorting version of histogram.
- * Given the random index array, we first sort it so that the 
- * updates to the counts array occur in index order.
- * NB: we don't charge for the sorting.                          // TODO move to README
- * \param *index array of indices into the array of counts
- * \param num_ups the length of the index array (number of updates)
- * \param *counts pointer to the count array
- * \return run time of just the updates NOT the sorting
- */
+/*! \brief This routine does a sorting version of histogram.
+\param *index array of indices into the array of counts
+\param num_ups the length of the index array (number of updates)
+\param *counts pointer to the count array
+\return run time of just the updates NOT the sorting
+
+Given the random index array, we first sort it so that the 
+updates to the counts array occur in index order.
+NB: we don't charge for the sorting.                          // TODO move to README
+*/
 double histo_sorted(int64_t *index, int64_t num_ups,  int64_t *counts) 
 {
   double tm;

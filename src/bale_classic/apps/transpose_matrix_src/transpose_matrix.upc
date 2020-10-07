@@ -20,7 +20,7 @@
 //#include "alternates/transpose_matrix_alternates.h"
 
 /*! \file transpose_matrix.upc
- * \brief Demo program that runs the variants of transpose_matrix kernel.
+ * \brief Driver program that runs the variants of transpose_matrix kernel.
  */
 
 /*! 
@@ -36,6 +36,7 @@
  * Run with the --help, -?, or --usage flags for run details.
  */
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   std_args_t std;
   std_graph_args_t gstd;

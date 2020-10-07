@@ -21,14 +21,15 @@
 
 /*!
  * \brief This routine implements the exstack2 variant of toposort
- * \param *rperm returns the row permutation that is found
- * \param *cperm returns the column permutation that is found
+ * \param *rperm place to return the row permutation that is found
+ * \param *cperm place to return the column permutation that is found
  * \param *mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
  * \param *tmat the transpose of mat
+ * \param buf_cnt number of package in the exstack2 buffers
  * \return average run time
  */
 double toposort_matrix_exstack2(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat, int64_t buf_cnt) {
-  typedef struct pkg_rowcol_t{
+  typedef struct pkg_rowcol_t{                                               // TODO do we need this here
     int64_t row;    
     int64_t col;
   }pkg_rowcol_t;
@@ -47,7 +48,7 @@ double toposort_matrix_exstack2(SHARED int64_t *rperm, SHARED int64_t *cperm, sp
   
   int64_t i,j, start, end;
 
-//X#if __UPC_ATOMIC__
+//X#if __UPC_ATOMIC__                                                         // TODO delete?
 //X  upc_atomicdomain_t * domain = upc_all_atomicdomain_alloc(UPC_INT64, UPC_INC, 0);
 //X#else
 //X  void * domain;
@@ -82,7 +83,7 @@ double toposort_matrix_exstack2(SHARED int64_t *rperm, SHARED int64_t *cperm, sp
   int64_t perm_pos = nr - 1 - lgp_prior_add_l(lrows_this_level);
   int64_t rows_per_level = 0L;
 
-  exstack2_t * ex3 =  exstack2_init(buf_cnt, sizeof(int64_t));
+  exstack2_t * ex3 =  exstack2_init(buf_cnt, sizeof(int64_t));               //TODO ex3, ex4 ?
   pkg_rowcol_t pkg_nz;
   exstack2_t * ex4 = exstack2_init(buf_cnt, sizeof(pkg_rowcol_t));
 

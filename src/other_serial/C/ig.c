@@ -9,11 +9,11 @@
 /*******************************************************************/
 
 /*! \file ig.c
- * \brief Program that runs C version of index gather
- *
- * Run ig --help or --usage for insructions on running.
- */
-/*! \page ig_page Indexgather */
+\brief Program that runs C version of index gather
+
+Run ig --help or --usage for insructions on running.
+*/
+
 
 #include "spmat_utils.h"
 #include "std_options.h"
@@ -21,13 +21,13 @@
 
 
 /*! \brief check that the indexgather worked. 
- * THIS REQUIRES that the source array, table, is set to just be minus the index
- * \param tgt the target array
- * \param index the indices that drive the gather
- * \param len length
- * \returns the number of disagreements.
- */
+\param tgt the target array
+\param index the indices that drive the gather
+\param len length
+\returns the number of disagreements.
 
+THIS REQUIRES that the source array, table, is set to just be minus the index
+*/
 int64_t ig_check_and_zero(int64_t *tgt, int64_t *index, int64_t len)
 {
   int64_t errors=0;
@@ -70,27 +70,30 @@ double ig_generic(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *table
   return( tm );
 }
 
+
+#define LOG_NUM_BUFFERS 6                     /*!< parameters to play with buffering */
+#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS)     /*!< the number of buffers */
+#define BUFFER_SIZE 128                       /*!< the size of the buffers */
 /*!
- * \brief This routine implements a buffered version of indexgather
- * \param *tgt array of target locations for the gathered values
- * \param *index array of indices into the source array of counts
- * \param num_req the length of the index array (number of updates)
- * \param *table the array from which the values are gathered
- * \param log_tab_size the log of size of the table (number of bits in an index)
- * \return run time
+\brief This routine implements a buffered version of indexgather
+\param tgt array of target locations for the gathered values
+\param index array of indices into the source array of counts
+\param num_req the length of the index array (number of updates)
+\param table the array from which the values are gathered
+\param table_size the size of the table 
+\return runtime
+
+//TODO move to README
  * The idea is to buffer up the indices based on their high bits.
  * Hopefully there will be a difference between doing full random loads and
  * doing loads that are close to each another. 
- */
+*/
 double ig_buffered(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *table, int64_t table_size) 
 {
   double tm;
   int64_t i, j;
   int64_t nbits;
   int64_t sort_shift;
-#define LOG_NUM_BUFFERS 6  
-#define NUM_BUFFERS (1L<<LOG_NUM_BUFFERS)
-#define BUFFER_SIZE 128
 
   int64_t s, cnts[NUM_BUFFERS]; 
   int64_t table_idx[NUM_BUFFERS][BUFFER_SIZE];

@@ -13,25 +13,25 @@
 // 
  *****************************************************************/ 
 
-/*! \file toposort_conveyor.upc
- * \brief Demo application that does a toposort on a permuted upper triangular matrix
+/*! \file triangle_conveyor.upc
+ * \brief Implementations of triangle counting algorithm using conveyors.
  */
 
 #include "triangle.h"
-
-typedef struct pkg_tri_t{
-  int64_t w;    
-  int64_t vj;
+/*! \brief same as the others */
+typedef struct pkg_tri_t{             // TODO unify all these packages in triangle.h
+  int64_t w;   //!< w
+  int64_t vj   //!< vj
 }pkg_tri_t;
 
 /*!
- * \brief pop routine to handle the pushes
+ * \brief routine to handle the conveyor pushes to the remote thread
  * \param *c a place to return the number of hits.
  * \param *conv the conveyor
  * \param *mat the input sparse matrix 
-     NB. The nonzero within a row must be increasing
  * \param done the signal to convey_advance that this thread is done
  * \return the return value from convey_advance
+ * NB. The matrix must be tidy.
  */
 static int64_t tri_convey_push_process(int64_t *c, convey_t *conv, sparsemat_t *mat, int64_t done) {
   int64_t k, cnt = 0;
@@ -54,14 +54,15 @@ static int64_t tri_convey_push_process(int64_t *c, convey_t *conv, sparsemat_t *
 }
 
 /*!
-* \brief This routine implements the exstack variant of triangle counting. 
- *   NB. The column indices of the nonzeros must be in increasing order within each row.
+ * \brief This routine implements the conveyor variant of triangle counting,
+ * where one pushes the appropriate part of the local row to the remote row. 
  * \param *count  a place to return the counts from each thread
  * \param *sr a place to return the number of shared references
- * \param *L lower triangle of the input matrix
+ * \param *L lower triangle of the input matrix     //TODO explain this
  * \param *U upper triangle of the input matrix
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \return average run time
+ * NB. The matrix must be tidy.
  */
 double triangle_convey_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg) {
   
@@ -134,8 +135,17 @@ double triangle_convey_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparse
   return(stat->avg);
 }
 
-/* the pull version of triangle counting */
-double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {
+/*!
+\brief This routine implements the conveyor variant of triangle counting,
+       where one pulls the remote row to the local row.
+\param count  a place to return the counts from each thread
+\param sr a place to return the number of shared references
+\param mat lower triangle of the input matrix
+\return average run time
+
+NB. The matrix must be tidy.
+*/
+double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {         //TODO why is this only on the mat
 
   int64_t cnt = 0, row, col, i, ii, j, k, rowcnt, pos, pos2;
   int64_t L_i, l_i, L_j, pe, frompe;
@@ -255,5 +265,4 @@ double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {
   convey_free(conv_resp);
   
   return(stat->avg);
-  
 }
