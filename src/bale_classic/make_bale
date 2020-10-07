@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+#-*- mode: python -*-
+
 #/******************************************************************
 #
 #
@@ -12,8 +15,6 @@
 #  
 # 
 # *****************************************************************/ 
-#!/usr/bin/env python
-#-*- mode: python -*-
 
 import sys
 if sys.version_info[0] < 3 or sys.version_info[1] < 5:
@@ -50,9 +51,6 @@ if __name__ == '__main__':
                       default=None)
   parser.add_argument('-j', '--jobs', action="store", dest="jobs", nargs='?',
                       help="Pass this option onto make for parallel make.", const="", default=None)
-  #parser.add_argument('-m', '--make_only', action="store_true", dest="make_only",
-  #                    help="Do not re-run configure on each package, just run make "
-  #                    "and install on any directory that needs rebuilt", default=False)
   parser.add_argument('-s', '--shmem', action="store_true", dest="shmem",
                       help="Specify that this is a shmem build.", default=False)
   parser.add_argument('-u', '--upc', action="store_true", dest="upc",
@@ -71,15 +69,17 @@ if __name__ == '__main__':
   print("install_dir = {0}".format(install_dir))
   if(args.shmem):
     print("Shmem build")
-  else:
+  elif (args.upc):
     print("UPC build")
   print("********************************************************")
+  
   if not os.path.isdir(build_dir):
     os.mkdir(build_dir)
 
   if not os.path.isdir(install_dir):
     os.mkdir(install_dir)
 
+  # add install dir to PKG_CONFIG_PATH
   sys_pkg_config_path = os.environ.get("PKG_CONFIG_PATH")
   pkp = "{0}/lib/pkgconfig".format(install_dir)
   if sys_pkg_config_path is not None:

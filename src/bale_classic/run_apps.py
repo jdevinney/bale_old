@@ -13,6 +13,7 @@
 # 
 # *****************************************************************/ 
 # script to run a suite of bale apps for experimentation or testing
+
 import sys
 if sys.version_info[0] < 3 or sys.version_info[1] < 7:
   print("This script requires at least Python version 3.7")
