@@ -3,7 +3,6 @@
 ### Table of contents
 
 * [What is bale?](#What-is-bale)
-* [From the Book (formerly known as AGI)](#From-the-Book)
 * [What is in bale?](#What-is-in-bale)
 * [System Requirements](#System-Requirements)
 * [Documentation](#Documentation)
@@ -11,15 +10,15 @@
 * [Run Instructions](#Running)
 * [Testing](#Testing)
 * [Version History](#Version-History)
+* [Contact](#Contact)
 
 ### What is bale?
 
 #### In one sentence
-A collection of buffered communication libraries and some mini-applications.
-
-#### The elevator pitch
 
 The bale effort is, first and foremost, *a vehicle for discussion* for parallel programming productivity.  
+
+#### Some more detail
 
 The bale effort attempts to:
 
@@ -29,26 +28,31 @@ The bale effort attempts to:
 
 - explore concepts that make it easier to write, maintain, and get top performance from such applications
 
+bale doesn’t claim to have the answers to better parallel programming.
 
-bale doesn’t claim to have the answers to better parallel programming. We use bale to evolve our thinking on parallel programming in the effort to make parallel programming easier and more productive and… fun! Yes, we think making it fun is a worthy goal. 
+bale is not a collection of benchmarks.
+
+We use bale to evolve our thinking on parallel programming in the effort to make parallel programming easier, more productive, and more fun. Yes, we think making it fun is a worthy goal!
 
 Note: We call this directory bale classic because this collection of code is the evolution of the original bale release. bale as a repository now contains other "cousins" of bale that are inspired by bale classic.
 
-#### Pillars of bale: apps and aggregation
+#### The two pillars of bale: aggregation and apps
 
-One pillar of bale is a directory of [apps](apps/README.md) that exhibit interesting communication patterns and programming demands. The apps can be written with aggregated communication as opposed to fine-grained point-to-point communication. We think aggregation is and will remain vital to getting top performance on parallel computers, but we don't like how difficult it is to write programs that use aggregation. Each app is written in multiple ways to demonstrate the pros and cons of each. 
+**Aggregation**
 
-The other pillar of bale are three libraries that provide the programmer with an API to aggregate communications within application code. These libraries are: exstack, exstack2, and conveyors. And while their API's are quite similar, they differ in their underlying implementations and behaviors.
+bale contains three libraries that provide the programmer with an API to aggregate communications within application code. These libraries are: exstack, exstack2, and conveyors. And while their API's are quite similar, they differ in their underlying implementations and behaviors. We think aggregation is and will remain vital to getting top performance on parallel computers, but we don't like how difficult it is to write programs that use aggregation
 
-### From the Book
+**Apps**
 
-One of the questions we ask ourselves in bale is what is the "best" version of an app? Obviously subjective, we consider ease of reading, ease of understanding what is happening when the code runs, ease of writing, and performance. We call this elusive version, "From the Book" or FTB in honor of [Paul Erdos](https://en.wikipedia.org/wiki/Proofs_from_THE_BOOK).
+bale also contains a directory of [apps](apps/README.md) that exhibit interesting communication patterns and programming demands. The apps can be written with aggregated communication as opposed to fine-grained point-to-point communication. Each app is written in multiple ways to demonstrate the pros and cons of each. 
+
+One of the questions we ask ourselves in bale is what is the "best" version of an app? Obviously subjective, we consider ease of reading, ease of understanding what is happening when the code runs, ease of writing, and performance. We call this elusive version, "**From the Book**" or FTB in honor of [Paul Erdos](https://en.wikipedia.org/wiki/Proofs_from_THE_BOOK).
 
 ### What is in bale?
 
 The main components are :
 
-- [libgetput](libgetput/README.md)  - parallel programming allowing simple remote gets, puts, and atomics. libgetput is a library that can be compiled on top of UPC or SHMEM. Everything in bale except conveyors is built on top of libgetput.
+- [libgetput](libgetput/README.md)  - parallel programming library allowing simple remote gets, puts, and atomics. libgetput can be compiled on top of UPC or SHMEM. Everything in bale except conveyors is built on top of libgetput.
 - [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
 - [convey](convey/README.md) - The conveyor library for aggregating communication. More mature and sophisticated aggregation library than the exstacks.
 - [spmat](spmat/README.md)  -  a sparse matrix library
@@ -115,8 +119,7 @@ We have included a python script (run_apps.py) to make it easier to run a suite 
 We have also included a Jupyter notebook to enable visualization and analysis of the results of bale runs. This notebook is in plot_results.ipynb.
 
 ### Testing
-We have a unit test script that uses pytest as a harness. To run this test, go to
-the apps directory and run
+We have a unit test script that uses pytest as a harness. To run this test, first build bale, then navigate to the apps directory and run
 
     pytest -s -P=<path/to/bale/binaries> --node_range=0,10,2 -M 15
 
@@ -130,7 +133,7 @@ the apps directory and run
 * Aug. 2018: version 2.1.0 
   * update conveyors to version 0.5.0
 
-* November 2020: version 3.0.0
+* Nov. 2020: version 3.0.0
   * Added cousins: Rust, Serial C, and Chapel to bale
   * New graph model: Geometric graphs
   * New app: SSSP
@@ -141,4 +144,8 @@ the apps directory and run
   * new run_apps script
   * docker files
   * AGP (Atomics, Gets, and Puts) replaces AGI: simple PGAS style programming
-  * FTB [From the Book](#From-the-Book) replaces As God Intended.
+  * FTB (From the Book) replaces As God Intended.
+
+### Contact
+
+bale@super.org

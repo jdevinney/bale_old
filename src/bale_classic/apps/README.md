@@ -2,15 +2,12 @@
 
 The applications in bale are meant to showcase:
 
-- the challenges to writing interesting, distributed, parallel applications that are efficient and high performing at scale
-
-- the challenges of getting these codes to use aggregated communications
-
-- - getting the code right the first time
+- the challenges in writing interesting, distributed, parallel applications that are efficient and high performing at scale
+- the challenges of getting these codes to use aggregated communications. Including:
+  - getting the code right the first time
   - rapidly experimenting at scale during algorithm development
   - reading and understanding the code
   - implementing algorithms with different tolerances for latency
-
 - our quest for the From the Book (FTB) implementation of each app
 
 ### Implementations
