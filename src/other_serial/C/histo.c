@@ -109,7 +109,7 @@ static int comp(const void *a, const void *b)
 
 Given the random index array, we first sort it so that the 
 updates to the counts array occur in index order.
-NB: we don't charge for the sorting.                          // TODO move to README
+NB: we don't charge for the sorting.
 */
 double histo_sorted(int64_t *index, int64_t num_ups,  int64_t *counts) 
 {
@@ -174,16 +174,14 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-  
+
+  write_std_options(&args.std);
+  bale_app_write_int(&args.std, "num_updates", args.num_ups);
+  bale_app_write_int(&args.std, "tbl_size", args.tbl_size);
     
   // index is an array of indices into the counts array.
   int64_t * index  = calloc(args.num_ups, sizeof(int64_t)); assert(index != NULL);
   int64_t * counts = calloc(args.tbl_size, sizeof(int64_t)); assert(counts != NULL);  
-
-    printf("Histogram Serial C\n");                         // TODO delete
-    printf("num_updates: %ld\n", args.num_ups);
-    printf("table size:  %ld\n", args.tbl_size);
-    printf("----------------------\n");
 
   rand_seed( args.std.seed );
   int64_t i;
@@ -192,28 +190,29 @@ int main(int argc, char * argv[])
   
   uint32_t use_model;
   double laptime = 0.0;
+  char model_str[64];
   int32_t num_runs = 0;
   for(use_model=1; use_model < ALL_Models; use_model *=2 ){
     switch( use_model & args.std.models_mask ) {
     case GENERIC_Model:
-      printf("Generic  histo: ");                                      //TODO model_str
+      sprintf(model_str, "Generic  histo: ");                                      //TODO model_str
       laptime = histo_generic(index, args.num_ups, counts, 1);
       num_runs++;
       break;
     case BUF_Model:
-      printf("Buffered histo: ");                                      //TODO model_str
+      sprintf(model_str, "Buffered histo: ");                                      //TODO model_str
       laptime = histo_buffered(index, args.num_ups, counts, args.tbl_size);
       num_runs++;
       break;
     case SORT_Model:
-      printf("Sorted   histo: ");                                      //TODO model_str
+      sprintf(model_str, "Sorted   histo: ");                                      //TODO model_str
       laptime = histo_sorted(index, args.num_ups, counts);
       num_runs++;
       break;
     default:
       continue;
     }
-    printf("  %8.3lf seconds \n", laptime);                                      //TODO model_str
+    bale_app_write_time(&args.std, model_str, laptime);
   }
   
   // Check the buffered and sorted against the generic again
@@ -231,5 +230,6 @@ int main(int argc, char * argv[])
   
   free(index);
   free(counts);
+  bale_app_finish(&args.std);
   return(errors);
 }
