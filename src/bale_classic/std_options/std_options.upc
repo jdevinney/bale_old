@@ -425,3 +425,13 @@ void bale_app_write_int(std_args_t * sargs, char * key, int64_t val){
     T0_fprintf(stderr, "%10s: %"PRId64"\n", key, val);
   }
 }
+
+void bale_app_write_double(std_args_t * sargs, char * key, double val){
+  if(sargs->json && !MYTHREAD){    
+    FILE * jp = fopen(sargs->json_output, "a");
+    fprintf(jp,"\"%s\": \"%lf\",\n", key, val);
+    fclose(jp);
+  }else{
+    T0_fprintf(stderr, "%10s: %lf\n", key, val);
+  }
+}
