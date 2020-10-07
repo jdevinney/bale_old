@@ -16,5 +16,13 @@ do all the gathers for the indices in that buffer before continuing.
 ### Discussion
 This is surprising complicated in the parallel case. 
 
+This exercises a streaming load of index, then random loads from table
+and a streaming store to tgt.
+
+In the buffered version
+//TODO move to README
+ * The idea is to buffer up the indices based on their high bits.
+ * Hopefully there will be a difference between doing full random loads and
+ * doing loads that are close to each another. 
 
 ### References
