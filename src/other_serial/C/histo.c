@@ -195,17 +195,17 @@ int main(int argc, char * argv[])
   for(use_model=1; use_model < ALL_Models; use_model *=2 ){
     switch( use_model & args.std.models_mask ) {
     case GENERIC_Model:
-      sprintf(model_str, "Generic  histo: ");                                      //TODO model_str
+      sprintf(model_str, "Generic  histo: ");
       laptime = histo_generic(index, args.num_ups, counts, 1);
       num_runs++;
       break;
     case BUF_Model:
-      sprintf(model_str, "Buffered histo: ");                                      //TODO model_str
+      sprintf(model_str, "Buffered histo: ");
       laptime = histo_buffered(index, args.num_ups, counts, args.tbl_size);
       num_runs++;
       break;
     case SORT_Model:
-      sprintf(model_str, "Sorted   histo: ");                                      //TODO model_str
+      sprintf(model_str, "Sorted   histo: ");
       laptime = histo_sorted(index, args.num_ups, counts);
       num_runs++;
       break;
