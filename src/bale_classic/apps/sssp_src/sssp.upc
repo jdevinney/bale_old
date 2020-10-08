@@ -19,6 +19,11 @@
 #include "sssp.h"
 #include <std_options.h>
 
+/*!
+  \page sssp_page Single Source Shortest Path
+  Demo Program that runs single source shortest path algoriths. See README for more info.
+*/
+
 /*! \brief debugging rountine to dump the d_array holding the tentative weights
  * \param str a string to prefix the line of weights
  * \param tent the d_array of tentative weights
