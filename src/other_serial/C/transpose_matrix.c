@@ -27,15 +27,13 @@ Run transpose_matrix --help or --usage for usage.
 double transpose_generic(sparsemat_t *A, int64_t dump_files)
 {
   double tm;
-  if(dump_files)                                // TODO: should this be in spmat checker?
-    write_matrix_mm(A, "er_orig.mm");
+  //write_matrix_mm(A, "trans_orig.mm");
 
   tm = wall_seconds();
   sparsemat_t * At = transpose_matrix(A);
   tm = wall_seconds() - tm;
 
-  if(dump_files)
-    write_matrix_mm(At, "er_tran.mm");
+  //write_matrix_mm(At, "trans_tran.mm");
   clear_matrix(At);
   return(tm);
 }

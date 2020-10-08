@@ -12,10 +12,9 @@
 
 /*! \file sssp_bellmanford.c
 \brief Implementations of several versions of Bellman-Ford Alg
-
 */
 
-/*!  * \brief This routine implements "relax edge" for all the implementation of Bellman-Ford.
+/*!  \brief This routine implements "relax edge" for all the implementation of Bellman-Ford.
 \param tent_head pointer to the tent weight of the head vertex
 \param tent_tail pointer to the tent weight of the tail vertex
 \param edge_wt the edge weight
@@ -24,7 +23,7 @@
 static int relax_edge( double *tent_head, double *tent_tail, double edge_wt )
 {
    if( *tent_head > *tent_tail + edge_wt ){
-     //printf("relaxing %lg to %lg\n", *tent_head, (*tent_tail + edge_wt));
+     if(0)printf("relaxing %lg to %lg\n", *tent_head, (*tent_tail + edge_wt)); 
      *tent_head = *tent_tail + edge_wt;
      return(1);
    }
@@ -33,27 +32,27 @@ static int relax_edge( double *tent_head, double *tent_tail, double edge_wt )
 
 
 /*! \brief This routine implements the most naive version of the Bellman-Ford algorithm
-\param tent array to hold the tentative distances
+\param weight array report the weight of the lightest path to the node
 \param mat sparsemat_t that holds the graph. 
 \param v0 is the starting vertex
 \return runtime
 
 NB: One should only run this on very small cases because it takes so long
 */
-double sssp_bellmanford_simple(d_array_t *tent, sparsemat_t * mat, int64_t v0)
+double sssp_bellmanford_simple(d_array_t *weight, sparsemat_t * mat, int64_t v0)
 {
   double tm = wall_seconds();
   int64_t i, k, loop;
   int64_t numrows = mat->numrows;
   
   for(i=0; i<numrows; i++)
-    tent->entry[i] = INFINITY;
-  tent->entry[v0] = 0.0;
+    weight->entry[i] = INFINITY;
+  weight->entry[v0] = 0.0;
 
   for(loop=0; loop<numrows; loop++){
     for(i=0; i<numrows; i++){ 
       for(k = mat->offset[i]; k < mat->offset[i+1]; k++){
-        relax_edge( &(tent->entry[ mat->nonzero[k] ]), &(tent->entry[i]), mat->value[k]);
+        relax_edge( &(weight->entry[ mat->nonzero[k] ]), &(weight->entry[i]), mat->value[k]);
       }
     }
   }
@@ -64,13 +63,13 @@ double sssp_bellmanford_simple(d_array_t *tent, sparsemat_t * mat, int64_t v0)
 
 /*! \brief This routine implements the textbook version of the 
  Bellman-Ford algorithm as a Dynamic Programming algorithm.
-\param dist array to hold the tentative distances
+\param weight array report the weight of the lightest path to the node
 \param mat sparsemat_t that holds the graph. 
 \param v0 is the starting vertex
 
 NB: Only run this on small problems because storage is also bad.
 */
-double sssp_bellmanford_dynprog(d_array_t *dist, sparsemat_t * mat, int64_t v0)
+double sssp_bellmanford_dynprog(d_array_t *weight, sparsemat_t * mat, int64_t v0)
 {
   double tm = wall_seconds();
   int64_t i,j,k, loop;
@@ -116,7 +115,7 @@ double sssp_bellmanford_dynprog(d_array_t *dist, sparsemat_t * mat, int64_t v0)
   }
   assert( loop <= numrows );
 	for(i=0; i<numrows; i++)
-	  dist->entry[i] = tent[loop][i];
+	  weight->entry[i] = tent[loop][i];
 
   for(i=0; i<numrows; i++)
     free(tent[i]);
@@ -127,11 +126,11 @@ double sssp_bellmanford_dynprog(d_array_t *dist, sparsemat_t * mat, int64_t v0)
 
 /*! \brief This routine implements a version of Bellman-Ford as a Dynamic Programming algorithm 
 that "recycles" storage and tries to do less redundant relaxations.
-\param dist array to hold the tentative distances
+\param weight array report the weight of the lightest path to the node
 \param mat sparsemat_t that holds the graph. 
 \param v0 is the starting vertex
 */
-double sssp_bellmanford(d_array_t *dist, sparsemat_t * mat, int64_t v0)
+double sssp_bellmanford(d_array_t *weight, sparsemat_t * mat, int64_t v0)
 {
   double tm = wall_seconds();
   int64_t i,k, loop;
@@ -145,16 +144,14 @@ double sssp_bellmanford(d_array_t *dist, sparsemat_t * mat, int64_t v0)
   if( tent0 == NULL || tent1 == NULL || tent2 == NULL) return(-1.0);
 
   loop = 0;
-	for(i=0; i<numrows; i++){
+	for(i=0; i<numrows; i++)
 		tent0[i] = INFINITY;
-  }
   tent0[v0] = 0.0;
   if(0){printf("Bell %02ld : ",loop); for(i=0; i<numrows; i++) printf("%lg ",tent0[i]); printf("\n");}
 
   loop = 1;
-	for(i=0; i<numrows; i++){
+	for(i=0; i<numrows; i++)
 		tent1[i] = tent0[i];
-  }
   for(k = mat->offset[v0]; k < mat->offset[v0+1]; k++){
     tent1[mat->nonzero[k]] = mat->value[k];
   }
@@ -185,7 +182,7 @@ double sssp_bellmanford(d_array_t *dist, sparsemat_t * mat, int64_t v0)
   }
   assert( loop <= numrows );
 	for(i=0; i<numrows; i++)
-	  dist->entry[i] = tent_new[i];
+	  weight->entry[i] = tent_new[i];
 
   free(tent0);
   free(tent1);

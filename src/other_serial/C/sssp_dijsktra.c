@@ -16,17 +16,17 @@
 
 /*!
 \brief Implementation of naive version of Dijkstra's algorithm
-\param tent pointer to an array that holds the tentative weights. 
+\param weight array report the weight of the lightest path to the node
 \param mat sparsemat_t that holds the graph. 
 \param v0 is the starting vertex
 \return runtime
 
-This first implementation uses a simple array to hold the
+This implementation uses a simple array to hold the
 tentative weights and uses tricks with the weights to flag
 the transition of vertices from unvisited to tentative to resolved.
 It also does a linear search to find the smallest tentative weight.
  */
-double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)        //TODO fix dist, tent, weights
+double sssp_dijsktra_linear(d_array_t *weight, sparsemat_t * mat, int64_t v0)
 {
   double tm = wall_seconds();
   int64_t i, k, rn;
@@ -34,19 +34,19 @@ double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)     
   double minwt, curwt;
   int64_t minidx;
 
-  set_d_array(tent, INFINITY);
-  double *dist = tent->entry;
+  set_d_array(weight, INFINITY);
+  double *tent = weight->entry;
   for(k = mat->offset[v0];  k < mat->offset[v0+1]; k++)
-    dist[ mat->nonzero[k] ] = mat->value[k];
-  dist[v0] = -0.0;                          // trick: -0.0 is different than 0.0
-  //printf("dist[v0] = %lg\n", dist[v0]);
+    tent[ mat->nonzero[k] ] = mat->value[k];
+  tent[v0] = -0.0;                          // trick: -0.0 is different than 0.0
+  //printf("tent[v0] = %lg\n", tent[v0]);
 
   while( 1 ) { // find the smallest tentative distance
     minwt = INFINITY;
     minidx = numrows;
     for(i=0; i<numrows; i++){
-      if(dist[i] > 0 && dist[i] < minwt){
-        minwt = dist[i];
+      if(tent[i] > 0 && tent[i] < minwt){
+        minwt = tent[i];
         minidx = i;
       }
     }
@@ -55,21 +55,20 @@ double sssp_dijsktra_linear(d_array_t *tent, sparsemat_t * mat, int64_t v0)     
       break;
 
     // update tentative distance from the current vertex
-    curwt = dist[minidx];
+    curwt = tent[minidx];
     for(k = mat->offset[minidx];  k < mat->offset[minidx+1]; k++){
       rn = mat->nonzero[k];
-      if(dist[rn] > curwt + mat->value[k])
-        dist[rn] = curwt + mat->value[k];
+      if(tent[rn] > curwt + mat->value[k])
+        tent[rn] = curwt + mat->value[k];
     }
-    //printf("dist[%"PRId64"] = %lg\n", minidx, curwt);
-    dist[minidx] = -dist[minidx];
+    //printf("tent[%"PRId64"] = %lg\n", minidx, curwt);
+    tent[minidx] = -tent[minidx];
   }
 
   for(i=0; i<numrows; i++){
-    if(dist[i] != INFINITY)
-      dist[i] = -dist[i];
+    if(tent[i] != INFINITY)
+      tent[i] = -tent[i];
   }
-
   return(wall_seconds() - tm);
 }
 
@@ -227,18 +226,18 @@ void delete_root(PQ_t * pq)
 #define DPRT 0
 /*!
 \brief The implementation of Dijkstra's algorithm that uses a heap to prioritize the tentative vertices.
-\param tent the tentative weights
+\param weight array report the weight of the lightest path to the node
 \param mat sparsemat_t that holds the graph. 
 \param r0 is the starting row (vertex)
 \return runtime
 */
-double sssp_dijsktra_heap(d_array_t *tent, sparsemat_t * mat, int64_t r0)
+double sssp_dijsktra_heap(d_array_t *weight, sparsemat_t * mat, int64_t r0)
 {
   double tm = wall_seconds();
   int64_t i, k;
   int64_t numrows = mat->numrows;
 
-  double *dist = tent->entry;
+  double *tent = weight->entry;
 
   // initialize the heap 
   PQ_t * pq = init_pqueue(numrows);
@@ -251,8 +250,8 @@ double sssp_dijsktra_heap(d_array_t *tent, sparsemat_t * mat, int64_t r0)
   pq->row[0] = r0;
   pq->node[r0] = 0;
 
-  dist[r0] = 0.0;
-  if(DPRT){printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", r0, dist[r0]);}
+  tent[r0] = 0.0;
+  if(DPRT){printf(">>>>>>>>>>>>> tent[%"PRId64"] = %lg\n", r0, tent[r0]);}
 
   int64_t rn, row, nd;
   double e_wt, vn_wt;
@@ -274,8 +273,8 @@ double sssp_dijsktra_heap(d_array_t *tent, sparsemat_t * mat, int64_t r0)
   while(pq->tail > 1){       // pq-tail == 1 means the queue is empty
     rn     = pq->row[1];
     vn_wt  = pq->wt[1];
-    dist[rn] = vn_wt;
-    if(DPRT){printf(">>>>>>>>>>>>> dist[%"PRId64"] = %lg\n", rn, vn_wt);}
+    tent[rn] = vn_wt;
+    if(DPRT){printf(">>>>>>>>>>>>> tent[%"PRId64"] = %lg\n", rn, vn_wt);}
     for(k = mat->offset[rn];  k < mat->offset[rn+1]; k++){
       row = mat->nonzero[k];
       e_wt  = mat->value[k];
