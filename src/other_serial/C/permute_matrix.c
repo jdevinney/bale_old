@@ -37,10 +37,10 @@ double permute_matrix_generic(sparsemat_t *A, int64_t *rp, int64_t *cp)
 }
 
 /********************************  argp setup  ************************************/
-typedef struct args_t{
+typedef struct args_t {
   std_args_t std;
   std_graph_args_t gstd;
-}args_t;
+} args_t;
 
 static int parse_opt(int key, char * arg, struct argp_state * state)
 {
