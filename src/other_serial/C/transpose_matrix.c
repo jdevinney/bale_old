@@ -8,9 +8,8 @@
 /* LICENSE file in the top level dirctory of the distribution.     */
 /*******************************************************************/
 
-/*!
-\file transpose_matrix.c
-\brief Program that runs the transpose_matrix from the spmat library.
+/*!  \file transpose_matrix.c
+\brief Program that runs the transpose_matrix routine from the spmat library.
 
 Run transpose_matrix --help or --usage for usage.
 */
@@ -20,7 +19,7 @@ Run transpose_matrix --help or --usage for usage.
 #include "default_app_sizes.h"
 
 /*!
-\brief timing wrapper around the transpose_matrix in `spmat_utils.c`
+\brief timing wrapper around the transpose_matrix routine in `spmat_utils.c`
 \param A  pointer to the given matrix
 \param dump_files flag to output the matrix or not
 \return runtime
@@ -28,7 +27,7 @@ Run transpose_matrix --help or --usage for usage.
 double transpose_generic(sparsemat_t *A, int64_t dump_files)
 {
   double tm;
-  if(dump_files)
+  if(dump_files)                                // TODO: should this be in spmat checker?
     write_matrix_mm(A, "er_orig.mm");
 
   tm = wall_seconds();
@@ -42,35 +41,33 @@ double transpose_generic(sparsemat_t *A, int64_t dump_files)
 }
 
 /********************************  argp setup  ************************************/
-typedef struct args_t{
+typedef struct args_t {
   std_args_t std;
   std_graph_args_t gstd;
-}args_t;
+} args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
   switch(key)
-    {
-    case ARGP_KEY_INIT:
-      state->child_inputs[0] = &args->std;
-      state->child_inputs[1] = &args->gstd;
-      break;
-    }
+  {
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    state->child_inputs[1] = &args->gstd;
+    break;
+  }
   return(0);
 }
 
-static struct argp_option options[] =
-  {
-    {0}
-  };
+static struct argp_option options[] = {
+  {0}
+};
 
-static struct argp_child children_parsers[] =
-  {
-    {&std_options_argp, 0, "Standard Options", -2},
-    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
-    {0}
-  };
-
+static struct argp_child children_parsers[] = {
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
+};
 
 int main(int argc, char * argv[])
 {
@@ -95,19 +92,18 @@ int main(int argc, char * argv[])
 
   uint32_t use_model;
   double laptime = 0.0;
+  char model_str[64];
   for (use_model=1; use_model < 2; use_model *=2) {
     switch (use_model & args.std.models_mask) {
     case GENERIC:
-      printf("transpose matrix : ");
+      sprintf(model_str, "transpose matrix : ");
       laptime = transpose_generic(mat, args.std.dump_files);
     break;
     default:
       continue;
     }
-    printf("  %8.3lf seconds \n", laptime);
+    bale_app_write_time(&args.std, model_str, laptime);
   }
-
-  // TODO check the result for transpose
+  // TODO: Should we test the result here or separate unit test on spmat_utils?
   return(0);
 }
-

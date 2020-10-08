@@ -9,10 +9,10 @@
 /*******************************************************************/
 
 /*! \file permute_matrix.c
- * \brief Program that runs the permute_matrix routine from the spmat library
- *
- * Run permute_matrix --help or --usage for insructions on running.
- */
+\brief Program that runs the permute_matrix routine from the spmat library
+
+Run permute_matrix --help or --usage for insructions on running.
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"
@@ -108,4 +108,3 @@ int main(int argc, char * argv[])
   bale_app_finish(&args.std);
   return(0);
 }
-
