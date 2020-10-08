@@ -1,4 +1,4 @@
-/******************************************************************
+/*****************************************************************
 //
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
@@ -275,7 +275,7 @@ void read_row_info(spmat_dataset_t * spd){
 
     /* open the first rowcnt file you will read from */
     char fname[128];
-    sprintf(fname, "%s/rowinfo_%d", spd->dirname, current_file);
+    sprintf(fname, "%s/rowinfo_%" PRId64, spd->dirname, current_file);
 
     FILE * fp = fopen(fname, "rb");
     assert(fp != NULL);
@@ -313,7 +313,7 @@ void read_row_info(spmat_dataset_t * spd){
       fclose(fp);
     }else{
       // else... we need to know the size of the nonzero file to get last rowcount
-      sprintf(fname, "%s/nonzero_%d", spd->dirname, current_file);
+      sprintf(fname, "%s/nonzero_%" PRId64, spd->dirname, current_file);
       int fd = open(fname, O_RDONLY);
       struct stat buf;
       fstat(fd, &buf);
@@ -406,10 +406,10 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
   if(spd->file_open == 0){
     // we need to open the current file
     char fname[128];
-    sprintf(fname, "%s/nonzero_%d", spd->dirname, spd->current_file);
+    sprintf(fname, "%s/nonzero_%" PRId64, spd->dirname, spd->current_file);
     spd->nnzfp = fopen(fname,"rb");
     if(spd->values){
-      sprintf(fname, "%s/value_%d", spd->dirname, spd->current_file);
+      sprintf(fname, "%s/value_%" PRId64, spd->dirname, spd->current_file);
       spd->valfp = fopen(fname,"rb");
     }
     spd->file_open = 1;
@@ -440,7 +440,7 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
   int64_t num = fread(buf, sizeof(int64_t), current_buf_cnt, spd->nnzfp);
   assert(num == current_buf_cnt);
   if(spd->values){
-    fread(vbuf, sizeof(double), current_buf_cnt, spd->valfp);
+    num = fread(vbuf, sizeof(double), current_buf_cnt, spd->valfp);
     assert(num == current_buf_cnt);
   }
 
