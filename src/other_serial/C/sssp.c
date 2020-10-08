@@ -154,7 +154,7 @@ int main(int argc, char * argv[])
   }
 
   if(args.std.dump_files){
-    write_d_array(comp_weight, "ssspout.wts");
+    write_d_array(comp_weight, "SSSP weights to each node", "ssspout.wts");
   }
   
   clear_matrix(mat); free(mat);
