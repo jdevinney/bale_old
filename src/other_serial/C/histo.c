@@ -128,39 +128,38 @@ double histo_sorted(int64_t *index, int64_t num_ups,  int64_t *counts)
 
 
 /********************************  argp setup  ************************************/
-typedef struct args_t{
+typedef struct args_t {
   int64_t num_ups;
   int64_t tbl_size;
   std_args_t std;
-}args_t;
+} args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
   switch(key)
-    {
-    case 'n':
-      args->num_ups = atol(arg); break;
-    case 'T':
-      args->tbl_size = atol(arg); break;
-    case ARGP_KEY_INIT:
-      state->child_inputs[0] = &args->std;
-      break;
-    }
+  {
+  case 'n':
+    args->num_ups = atol(arg); break;
+  case 'T':
+    args->tbl_size = atol(arg); break;
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    break;
+  }
   return(0);
 }
 
-static struct argp_option options[] =
-{
-  {"num_updates",'n', "NUM", 0, "Number of updates to the histogram table"},
+static struct argp_option options[] = {
+  {"num_updates",'N', "NUM", 0, "Number of updates to the histogram table"},
   {"table_size", 'T', "SIZE", 0, "Number of entries in the histogram table"},
   {0}
 };
 
-static struct argp_child children_parsers[] =
-  {
-    {&std_options_argp, 0, "Standard Options", -2},
-    {0}
-  };
+static struct argp_child children_parsers[] = {
+  {&std_options_argp, 0, "Standard Options", -2},
+  {0}
+};
 
 int main(int argc, char * argv[]) 
 {

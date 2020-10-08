@@ -105,6 +105,7 @@ int main(int argc, char * argv[])
     bale_app_write_time(&args.std, model_str, laptime);
   }
   // TODO: Should we test the result here or separate unit test on spmat_utils?
+  bale_app_finish(&args.std);
   return(0);
 }
 
