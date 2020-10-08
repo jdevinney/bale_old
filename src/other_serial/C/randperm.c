@@ -157,7 +157,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
 }
 
 static struct argp_option options[] = {
-  {"perm_size", 'N', "NUM",  0, "Size of permutation to create."},
+  {"perm_size", 'n', "NUM",  0, "Size of permutation to create."},
   {0}
 };
 
