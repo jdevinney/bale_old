@@ -405,6 +405,7 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
   
   if(spd->file_open == 0){
     // we need to open the current file
+    spd->current_row_in_file = 0;
     char fname[128];
     sprintf(fname, "%s/nonzero_%" PRId64, spd->dirname, spd->current_file);
     spd->nnzfp = fopen(fname,"rb");
@@ -415,7 +416,6 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
     spd->file_open = 1;
     if(spd->current_file == spd->first_file){
       spd->current_row = 0;
-      spd->current_row_in_file = spd->start_row_first_file;
       fseek(spd->nnzfp, spd->first_file_offset*sizeof(int64_t), SEEK_SET);
       //fprintf(stderr,"PE %d: seeking to %ld in nonzero file %ld\n", MYTHREAD, spd->first_file_offset, spd->current_file);
       if(spd->values) fseek(spd->valfp, spd->first_file_offset*sizeof(double), SEEK_SET);
@@ -427,14 +427,14 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
   int64_t num_rows = 0;
   int64_t row;
   //fprintf(stderr,"PE %d: current_row = %ld rows in file %ld\n", MYTHREAD, spd->current_row_in_file, spd->nrows_in_file[spd->current_file - spd->first_file]);  
-  for(row = 0; row < spd->nrows_in_file[spd->current_file - spd->first_file]; row++){
+  for(; spd->current_row_in_file < spd->nrows_in_file[spd->current_file - spd->first_file]; spd->current_row_in_file++){
     if(spd->rowcnt[spd->current_row] + current_buf_cnt > buf_size)
       break;
     current_buf_cnt += spd->rowcnt[spd->current_row];
     spd->current_row++;
     num_rows++;
   }
-  //fprintf(stderr,"PE %d: numrows to read %ld current_buf_cnt = %ld current row = %ld current_file %ld\n", MYTHREAD, num_rows, current_buf_cnt, spd->current_row, spd->current_file);
+  //fprintf(stderr,"PE %d: numrows to read %ld current_buf_cnt = %ld current row = %ld crif %ld current_file %ld\n", MYTHREAD, num_rows, current_buf_cnt, spd->current_row, spd->current_row_in_file, spd->current_file);
   
   /* read nonzero and value data into buffers */
   int64_t num = fread(buf, sizeof(int64_t), current_buf_cnt, spd->nnzfp);
@@ -444,15 +444,12 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
     assert(num == current_buf_cnt);
   }
 
-  if(row == spd->nrows_in_file[spd->current_file - spd->first_file]){
+  if(spd->current_row_in_file == spd->nrows_in_file[spd->current_file - spd->first_file]){
     // we just finished this file
     fclose(spd->nnzfp);
     if(spd->values) fclose(spd->valfp);
     spd->file_open = 0;
     spd->current_file++;
-    spd->current_row_in_file = 0;
-  }else{
-    spd->current_row_in_file = row;
   }
 
   return(num_rows);
