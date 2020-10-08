@@ -9,7 +9,7 @@
 /*******************************************************************/
 
 /*! \file toposort.c
-\brief Find permutations that verify that a given matrix is morally upper triangular
+\brief Find permutations to verify that a given matrix is morally upper triangular
 
 Run topo --help or --usage for insructions on running.
 */
@@ -54,13 +54,12 @@ int check_result(sparsemat_t * mat, int64_t * rperminv, int64_t * cperminv, int6
 \param gargs the graph arguments line arguments
 \return a pointer to the permuted upper triangular matrix
 
-Either read in a matrix and force to have the right form and generate a matrix with the sparse matrix library.
+Either read in a matrix and force to have the right form or generate a matrix with the sparse matrix library.
 Then generate and apply row and column permutations.
 */
 sparsemat_t *generate_toposort_input(std_args_t *sargs, std_graph_args_t *gargs)
 {
   int64_t nr = gargs->numrows;
-  printf("%ld \n",nr); 
   sparsemat_t * L = get_input_graph(sargs, gargs);
   if (!L) { fprintf(stderr, "ERROR: topo: L is NULL!\n");return(NULL); }
   sparsemat_t * U = transpose_matrix(L);
@@ -99,13 +98,13 @@ sparsemat_t *generate_toposort_input(std_args_t *sargs, std_graph_args_t *gargs)
 }
 
 
-/*! \brief This routine implements a variant of toposort that enqueues that pivot position as they are discovered
+/*! \brief This routine implements a variant of toposort that enqueues the pivot positions as they are discovered
 \param *rperm a place to return the row permutation that is found
 \param *cperm a place to return the column permutation that is found
 \param *mat the input sparse matrix
 \param *tmat the transpose of mat
 \return average run time
- */
+*/
 double toposort_matrix_queue(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat) 
 {
   int64_t nr = mat->numrows;
@@ -115,15 +114,14 @@ double toposort_matrix_queue(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, s
   int64_t * rowtrck = calloc(nr, sizeof(int64_t));
   
   int64_t start, end;
-  
-  int64_t i, j, row, col, t_row;
+  int64_t i, k, row, col, t_row;
    
   /* initialize rowsum, rowcnt, and queue (queue holds degree one rows) */
   start = end = 0;
   for(i = 0; i < mat->numrows; i++){
     rowtrck[i] = 0L;
-    for(j = mat->offset[i]; j < mat->offset[i+1]; j++)
-      rowtrck[i] += (1L<<32) + mat->nonzero[j];
+    for(k = mat->offset[i]; k < mat->offset[i+1]; k++)
+      rowtrck[i] += (1L<<32) + mat->nonzero[k];
     if((rowtrck[i] >> 32) ==  1)
       queue[end++] = i;    
   }
@@ -148,8 +146,8 @@ double toposort_matrix_queue(int64_t *rperm, int64_t *cperm, sparsemat_t *mat, s
     n_pivots++;
   
     // look at this column (tmat's row) to find all the rows that hit it
-    for(j=tmat->offset[col]; j < tmat->offset[col+1]; j++) {
-      t_row = tmat->nonzero[j];
+    for(k=tmat->offset[col]; k < tmat->offset[col+1]; k++) {
+      t_row = tmat->nonzero[k];
       assert((t_row) < mat->numrows);
       rowtrck[t_row] -= (1L<<32) + col;
       if( (rowtrck[t_row] >> 32) == 1L ) {
@@ -253,14 +251,12 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
   return(0);
 }
 
-static struct argp_option options[] =
-{
+static struct argp_option options[] = {
   {"toposort", 'a', "ALG", 0, "Algorithm: 0 means loops, 1 means queue"},  
   {0}
 };
 
-static struct argp_child children_parsers[] =
-{
+static struct argp_child children_parsers[] = {
   {&std_options_argp, 0, "Standard Options", -2},
   {&std_graph_options_argp, 0, "Standard Graph Options", -3},
   {0}
@@ -302,21 +298,22 @@ int main(int argc, char * argv[])
     dump_matrix(tmat,20, "trans.out");
   }
 
+  uint32_t use_model;
   double laptime = 0.0;
   enum FLAVOR {GENERIC=1, LOOP=2, ALL=4};
-  uint32_t use_model;
   // arrays to hold the row and col permutations
   int64_t *rperminv2 = calloc(mat->numrows, sizeof(int64_t));
   int64_t *cperminv2 = calloc(mat->numrows, sizeof(int64_t));
+  char model_str[64];
   int models_mask = (args.std.models_mask) ? args.std.models_mask : 3;
   for( use_model=1; use_model < ALL; use_model *=2 ) {
     switch( use_model & models_mask ) {
     case GENERIC:
-      printf("   using generic toposort: ");                                 // TODO model_str thing
+      sprintf(model_str,"queue toposort");
       laptime = toposort_matrix_queue(rperminv2, cperminv2, mat, tmat);
       break;
     case LOOP:
-      printf("   using loop    toposort: ");                                 // TODO model_str thing
+      sprintf(model_str,"loop  toposort");
       laptime = toposort_matrix_loop(rperminv2, cperminv2, mat, tmat);
       break;
     }
@@ -324,8 +321,9 @@ int main(int argc, char * argv[])
       fprintf(stderr,"\nERROR: After toposort_matrix_queue: mat2 is not upper-triangular!\n");
       exit(1);
     }
-    printf("  %8.3lf seconds \n", laptime);
+    bale_app_write_time(&args.std, model_str, laptime);
   }
+  bale_app_finish(&args.std);
   return(0);
 }
 
