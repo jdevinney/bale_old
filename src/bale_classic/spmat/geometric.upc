@@ -1,4 +1,4 @@
-/******************************************************************
+/*****************************************************************
 //
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
@@ -9,7 +9,7 @@
 //  This file is a part of Bale.  For license information see the
 //  LICENSE file in the top level directory of the distribution.
 //
-/*****************************************************************/
+ *****************************************************************/
 
 /*! \file geometric.upc
  * \brief Functions to support generating random geometric graphs.
