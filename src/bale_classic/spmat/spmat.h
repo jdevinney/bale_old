@@ -136,32 +136,36 @@ typedef struct point_t{
 }point_t;
 
 
+/*!
+  \brief A struct to help faciliate reading and writing sparse matrices.
+*/
+
 typedef struct spmat_dataset_t{
-  int64_t nwriters;
-  int64_t lnumrows;
-  int64_t numrows;
-  int64_t numcols;
-  int64_t nnz;
-  int values;
-  int64_t io_rank;
-  int64_t global_first_row;
-  char * dirname;
-  FILE * nnzfp;
-  FILE * valfp;
+  int64_t nwriters; //!< Number of PEs that are or did write the dataset
+  int64_t lnumrows; //!< Number of rows this PE is reading or writing.
+  int64_t numrows;  //!< Number of rows in the matrix.
+  int64_t numcols;  //!< Number of columns in the matrix.
+  int64_t nnz;      //!< Number of nonzeros in the matrix.
+  int values;       //!< 0/1 flag is the matrix has values.
+  int64_t io_rank;  //!< the rank of this PE amongst the writers or readers.
+  int64_t global_first_row; //!< The first row in the matrix this PE will read or write.
+  char * dirname;   //!< The directory where the dataset will be written / read.
+  FILE * nnzfp;     //!< File pointer for the nonzeros files.  
+  FILE * valfp;     //!< File pointer for the values files.
   
   // only used when reading
-  int64_t first_file;
-  uint64_t nfiles;
-  int64_t * nrows_in_file;
-  int64_t * nrows_read_in_file;
-  int64_t start_row_first_file;
-  int64_t first_file_offset;
-  int64_t * rowcnt;
-  int file_open;
-  int64_t current_file;
-  int64_t current_row_in_file;
-  int64_t current_row;
-  int64_t * global_first_row_to_me;
+  int64_t first_file; //!< The index of the first file this PE will read.
+  uint64_t nfiles;    //!< The number of row_info files this PE will touch during reading.
+  int64_t * nrows_in_file; //!< The number of rows in each row_info file this PE will read.
+  int64_t * nrows_read_in_file; //!< Keep track of the number of rows we read in each of our files.
+  int64_t start_row_first_file; //!< The first row in our first file.
+  int64_t first_file_offset;    //!< The first record in our file nonzero file.
+  int64_t * rowcnt;             //!< The row counts of all rows we are reading.
+  int file_open;                //!< 0/1 if we have a file open currently.
+  int64_t current_file;         //!< The index of the current file we are reading.
+  int64_t current_row_in_file;  //!< The row we are in in our current file.  
+  int64_t current_row;          //!< The global row index of our current row.
+  int64_t * global_first_row_to_me; //!< An array for the first row that will be sent to me from all other PEs.
   
 }spmat_dataset_t;
 
