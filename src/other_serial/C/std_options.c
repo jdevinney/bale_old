@@ -30,6 +30,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state)
   case 's': args->seed = atol(arg); break;
   case ARGP_KEY_INIT:
     args->seed = 122222;
+    args->models_mask = (1<<15)-1;
     args->dump_files = 0;
     args->json = 0;
     break;
@@ -42,12 +43,11 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state)
 
 TODO
 */
-static struct argp_option std_options[] =
-{
-  {"dump_files", 'D', 0, 0, "Dump files for debugging"},
-  {"models_mask", 'M', "MASK", 0, "Which flavors to run."},
-  {"seed", 's', "SEED", 0, "Seed for RNG"},
-  {"quiet", 'q', 0, 0, "No output during program execution"},
+static struct argp_option std_options[] = {
+  {"seed",        's', "SEED", 0, "Seed for RNG"},
+  {"models_mask", 'M', "MASK", 0, "Which implementation/alg to run."},
+  {"dump_files",  'D', 0, 0, "Dump files for debugging"},
+  {"json_output", 'j', "FILE",0, "Output results to a json file, rather than to stderr"},
   {0}
 };
 
@@ -56,8 +56,7 @@ static struct argp_option std_options[] =
 
 TODO
 */
-struct argp std_options_argp =  // TODO:doxygen 
-{
+struct argp std_options_argp = { // TODO:doxygen 
   std_options, std_parse_opt, 0, 0, 0
 };
 
@@ -78,14 +77,11 @@ void write_std_options(std_args_t * sargs){
   }
 }
 
-
 /*!
-\brief parse the graph options
-
-TODO
-*/
-static int graph_parse_opt(int key, char * arg, struct argp_state * state){
-  std_graph_args_t * args = (std_graph_args_t *)state->input;
+\brief parse the graph options */        // TODO doxygen
+static int graph_parse_opt(int key, char *arg, struct argp_state *state)
+{
+  std_graph_args_t *args = (std_graph_args_t *)state->input;
   switch(key){
   case 'd': args->directed = 1; break;
   case 'e': args->edge_prob = atof(arg); break;
@@ -96,20 +92,20 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
     args->model = KRONECKER;
     strcpy(args->kron_string,arg);
     char * ptr = arg;
-    //fprintf(stderr, "%s\n", arg);
-    sscanf(ptr, "%d:", &args->kron_mode);
-    //printf("mode %d\n", args->kron_mode);
+    fprintf(stderr, "%s\n", arg);
+    sscanf(ptr, "%d:", &args->kron_mode);                  //TODO 
+    printf("mode %d\n", args->kron_mode);
     int i = 0;
     ptr+=2;
     while(i < 63 && sscanf(ptr, "%d", &args->kron_spec[i])){
-      //fprintf(stderr,"%d\n", args->kron_spec[i]);
+      fprintf(stderr,"%d\n", args->kron_spec[i]);
       i++;
       ptr++; 
       if(*ptr != 'x'){
         break;
       }
       ptr++; 
-    }
+    }                                                     //TOHERE
     args->kron_num = i;
     break;
   case 'l': args->loops = 1; break;
@@ -144,11 +140,10 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
 
 TODO
 */
-static struct argp_option graph_options[] =
-{
-  {0, 0, 0, 0, "Input (as file):", 5},
+static struct argp_option graph_options[] = {
+  {0,             0,  0,       0, "Input (as file):", 5},
   {"readfile",   'f', "FILE",  0, "Read input from a file"},
-  {0, 0, 0, 0, "Input (as random graph):", 6},
+  {0,             0,  0,       0, "Input (as random graph):", 6},
   {"numrows",    'n', "NUM",   0, "Number of rows in a matrix"},
   {"directed",   'd', 0,       0, "Specify a directed graph"},
   {"edge_prob",  'e', "EDGEP", 0, "Probability that an edge appears. Use this or -z option to control the density of the graph."},
@@ -166,8 +161,7 @@ static struct argp_option graph_options[] =
 
 TODO
 */
-struct argp std_graph_options_argp =
-{
+struct argp std_graph_options_argp = {
   graph_options, graph_parse_opt, 0, 0, 0
 };
 
