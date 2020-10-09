@@ -84,7 +84,10 @@ int  bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp
 /*! \ingroup service_functions */
 void bale_app_finish(std_args_t * sargs); /*<! clean up after run */
 /*! \ingroup service_functions */
-void bale_app_write_int(std_args_t * sargs, char * key, int64_t val); /*!< write out a key, val pair */
+/*! write out a key, val pair */
+void bale_app_write_int(std_args_t * sargs, char * key, int64_t val);
+/*! write out a key, val pair */
+void bale_app_write_double(std_args_t * sargs, char * key, double val);
 /*! \ingroup service_functions */
 void bale_app_write_time(std_args_t * sargs, char * model_str, double time); /*!< write out a simple wall clock timer */
 

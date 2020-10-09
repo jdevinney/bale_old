@@ -111,7 +111,7 @@ if __name__ == '__main__':
       else:
         lang="--with-upc"
 
-      cmd = "{0}/{1}/configure --prefix={2} {3} {4}".format(SRCDIR, pkg, install_dir, lang, args.config_opts)
+      cmd = "{0}/{1}/configure --enable-dependency-tracking --prefix={2} {3} {4}".format(SRCDIR, pkg, install_dir, lang, args.config_opts)
       print(cmd)
       ret = subprocess.run(cmd, shell=True)
       if ret.returncode:

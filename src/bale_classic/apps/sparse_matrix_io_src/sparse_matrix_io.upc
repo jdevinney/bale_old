@@ -23,7 +23,7 @@
  */
 
 /*! 
-\page sparse_matrix_io_page Write Sparse Matrix
+\page sparse_matrix_io_page Sparse Matrix I/O
 
 Demo program that runs the variants of sparse_matrix_io kernel. It first generates 
 a random matrix and then it writes this matrix to disk

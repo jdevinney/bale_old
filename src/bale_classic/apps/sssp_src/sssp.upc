@@ -19,6 +19,11 @@
 #include "sssp.h"
 #include <std_options.h>
 
+/*!
+  \page sssp_page Single Source Shortest Path
+  Demo Program that runs single source shortest path algoriths. See README for more info.
+*/
+
 /*! \brief debugging rountine to dump the d_array holding the tentative weights
  * \param str a string to prefix the line of weights
  * \param tent the d_array of tentative weights
@@ -109,18 +114,21 @@ int main(int argc, char * argv[])
   args_t args = {0};  // initialize args struct to all zero
   struct argp argp = {options, parse_opt, 0,
                       "Parallel Single Source Shortest Path (SSSP).", children_parsers};  
-  args.gstd.l_numrows = 50;
+
+  // set reasonable default for lnumrows and required defaults for graph params
+  args.gstd.l_numrows = 100000;  
+  args.gstd.directed = 1;
+  args.gstd.weighted = 1;
+
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
-  //override default for other apps
-  // SSSP only applies to weighted directed graphs 
-  args.gstd.loops = 0;
-  args.gstd.directed = 1;
-  args.gstd.weighted = 1;
-  //args.gstd.l_numrows = 100;
-
+  // SSSP only applies to weighted directed graphs with no loops
+  if(args.gstd.loops){
+    T0_fprintf(stderr,"WARNING: SSSP requires no self loops. overriding -l flag\n");
+    args.gstd.loops = 0;
+  }
 
   if(!MYTHREAD){
     write_std_graph_options(&args.std, &args.gstd);
@@ -151,8 +159,9 @@ int main(int argc, char * argv[])
   double laptime = 0.0;
   char model_str[32];
 
-  T0_printf("delta step = %lf\n", args.deltaStep);
-
+  //T0_printf("delta step = %lf\n", args.deltaStep);
+  bale_app_write_double(&args.std, "delta", args.deltaStep);
+  
   // To our understanding, the AGP model requires an atomic min of a double.
   // Until we get it, we haven't taken the AGP model out of the models_mask.
   args.std.models_mask &=0xFE;
@@ -232,6 +241,15 @@ int main(int argc, char * argv[])
   
   lgp_barrier();
 
+  if(args.std.dump_files && !MYTHREAD){
+    FILE * fp = fopen("sssp_dist", "w");
+    for(i = 0; i < tent->num; i++)
+      fprintf(fp, "%lf\n", lgp_get_double(tent->entry, i));
+    fclose(fp);
+  }
+  
+  lgp_barrier();
+    
   clear_d_array(tent); free(tent);
   clear_d_array(comp_tent); free(comp_tent);
 
