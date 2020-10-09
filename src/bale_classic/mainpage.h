@@ -75,7 +75,8 @@
   - \subpage permute_matrix_page sparse matrix manipulation that is interesting in it own right
   - \subpage randperm_page a parallel algorithm to find a large permutation in parallel
   - \subpage triangles_page counting triangles in a graph
-  - \subpage sparse_matrix_io_page Write a sparse matrix in a binary form.
+  - \subpage sssp_page Single Source Shortest Path in a graph.
+  - \subpage sparse_matrix_io_page Write and Read a sparse matrix in a binary form.
 
   Libraries
   - \ref libgetputgrp a set of macros and functions that can be built on UPC or SHMEM
@@ -92,7 +93,8 @@
   
   Also
   - INSTALL: Instructions on how to get bale up and running.
-  - runall.sh: A bash script that runs all the applications with "standard" options.
+  - make_bale: A python script to make compiling bale easier.
+  - run_apps.py: A python script to run tests on applications.
 
   \subsection History History
 

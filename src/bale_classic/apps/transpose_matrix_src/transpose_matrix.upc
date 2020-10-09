@@ -64,8 +64,6 @@ static struct argp_child children_parsers[] =
 int main(int argc, char * argv[])
 {
 
-  int64_t check = 1;
-
   /* process command line */
   args_t args = {0}; // initialize args struct to all zero
   struct argp argp = {NULL, parse_opt, 0,
@@ -86,7 +84,8 @@ int main(int argc, char * argv[])
   if(!inmat){T0_fprintf(stderr, "ERROR: transpose: inmat is NULL!\n");return(-1);}
 
   if(args.std.dump_files) write_matrix_mm(inmat, "transpose_inmat");
-    
+
+  int write_out = 0;
   double t1;
   minavgmaxD_t stat[1];
   int64_t error = 0;
@@ -122,15 +121,21 @@ int main(int argc, char * argv[])
     bale_app_write_time(&args.std, model_str, stat->avg);
     
     /* correctness check */
-    if(check){
-      sparsemat_t * outmatT = transpose_matrix(outmat);
-      if(compare_matrix(outmatT, inmat)){
-        T0_fprintf(stderr,"ERROR: transpose of transpose does not match!\n");
-        error = 1;
-      }
-      clear_matrix(outmatT);
+    sparsemat_t * outmatT = transpose_matrix(outmat);
+    if(compare_matrix(outmatT, inmat)){
+      T0_fprintf(stderr,"ERROR: transpose of transpose does not match!\n");
+      error = 1;
     }
-    clear_matrix(outmat);
+    
+    if((write_out == 0) && (error == 0)){
+      if(args.std.dump_files) write_matrix_mm(outmat, "transpose_outmat");
+      write_out = 1;
+    }
+
+    lgp_barrier();
+    
+    clear_matrix(outmatT);    
+    clear_matrix(outmat);    
   }
   
   clear_matrix(inmat);

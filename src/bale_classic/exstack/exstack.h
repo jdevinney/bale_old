@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-//#include <malloc.h>
 #include <string.h>
 #include <math.h>
 #include <float.h>
@@ -54,13 +53,9 @@ typedef struct exstack_buffer_t{
 \ingroup exstackgrp
 */
 typedef struct exstack_t {
-  //SHARED char *snd_buf;        /*!< Shared THREADS*THREADS*buf_len_alloc buffer for items to be sent */   //TODO
-  //SHARED char *rcv_buf;        /*!< Shared THREADS*THREADS*buf_len_alloc buffer for recieved items */
   int64_t bytes_per_stack;       /*!< bytes version of buf_cnt */
   SHARED char * snd_buf;         /*!< SHARED send buffers */
   SHARED char * rcv_buf;         /*!< SHARED receive buffers */
-  //char **l_snd_buf;            /*!< local pointers to each of the send buffers */              // TODO delete
-  //char **l_rcv_buf;            /*!< local pointers to each of the receive buffers */ 
   exstack_buffer_t ** l_snd_buf; /*!< local pointer to a threads part of the send buffer */
   exstack_buffer_t ** l_rcv_buf; /*!< local pointer to a threads part of the receive buffer */
   char **fifo_ptr;               /*!< (internal) pointer to oldest work item in each rcv buffer */
@@ -112,8 +107,6 @@ void exstack_reset(exstack_t *q);
 #define msg_pe(msg)     ( ((msg) & MSG_pe_mask) >> 1 )                                          /*!< returns who sent it */
 #define msg_islast(msg) ((msg) & 0x1)                                                           /*!< returns whether or not they are done */
 
-//#define TRUE          1
-//#define FALSE         0
 
 /*!
 \brief A structure to hold the buffers and the flags used to control them  along with flags for the endgame.
