@@ -82,6 +82,8 @@ void write_std_options(std_args_t * sargs){
 // the arg_parse function for std_graph_args_t.
 static int graph_parse_opt(int key, char * arg, struct argp_state * state){
   std_graph_args_t * args = (std_graph_args_t *)state->input;
+  char * ptr;
+  int i = 0;
   switch(key){
   case 'd': args->directed = 1; break;
   case 'e': args->edge_prob = atof(arg); break;
@@ -91,11 +93,11 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
   case 'K':
     args->model = KRONECKER;
     strcpy(args->kron_string,arg);
-    char * ptr = arg;
+    ptr = arg;
     //T0_fprintf(stderr, "%s\n", arg);
     sscanf(ptr, "%d:", &args->kron_mode);
     //printf("mode %d\n", args->kron_mode);
-    int i = 0;
+    i = 0;
     int tmp;
     ptr+=2;
     while(i < 63 && sscanf(ptr, "%d", &args->kron_spec[i])){
