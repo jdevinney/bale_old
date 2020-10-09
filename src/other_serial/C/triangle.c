@@ -97,7 +97,7 @@ static struct argp_child children_parsers[] = {
 
 int main(int argc, char * argv[]) 
 {
-  args_t args = {0};
+  args_t args = {{0}};
   struct argp argp = {options, parse_opt, 0, "Triangle counting", children_parsers};  
   args.gstd.numrows = TRIANGLE_NUM_ROWS;
   argp_parse(&argp, argc, argv, 0, 0, &args);
