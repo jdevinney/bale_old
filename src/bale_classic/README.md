@@ -123,6 +123,9 @@ We have a unit test script that uses pytest as a harness. To run this test, firs
 
     pytest -s -P=<path/to/bale/binaries> --node_range=0,10,2 -M 15
 
+If you get an error that claims that pytest cannot load the conftest.py file, I have found that deleting the
+__pycache__ directories from the apps and apps/tests directories fixes this.
+
 ### Version History
 
 * May 2018: Initial Release version 1.0.0 

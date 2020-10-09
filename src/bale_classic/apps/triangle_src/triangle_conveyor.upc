@@ -20,7 +20,7 @@
 #include "triangle.h"
 /*! \brief same as the others */
 typedef struct pkg_tri_t{             // TODO unify all these packages in triangle.h
-  int64_t w;   //!< w
+  int64_t w;    //!< w
   int64_t vj;   //!< vj
 }pkg_tri_t;
 

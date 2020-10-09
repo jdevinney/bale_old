@@ -208,7 +208,9 @@ int main(int argc, char * argv[]) {
   // Check the results
   // Assume that the atomic add version will correctly zero out the counts array
   for(i = 0; i < data.l_num_ups; i++) {
-#pragma pgas defer_sync
+    #if __cray__ || _CRAYC
+      #pragma pgas defer_sync
+    #endif
     lgp_atomic_add(data.counts, data.index[i], -num_models);
   }
   lgp_barrier();

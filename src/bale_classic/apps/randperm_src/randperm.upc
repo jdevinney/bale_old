@@ -128,7 +128,6 @@ int main(int argc, char * argv[]) {
       break;
 
     case ALTERNATE_Model:
-      //T0_fprintf(stderr,"There is no alternate model here!\n"); continue;
       sprintf(model_str, "rand_permp_agp_opt");
       out = rand_permp_agp_opt(numrows, seed);
       break;
