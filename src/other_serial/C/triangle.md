@@ -3,14 +3,18 @@
 Find the number of triangles in a given simple unweighted graph. 
 
 A triangle is a set of three vertices {u,w,v} where edges {u,w}, {w,v} and {u,v} are in the graph.
-
 ### Algorithm
 This uses matrix algebra approach to counting triangles in a graph.
-The simple graph is presented as a lower triangular {0,1}-matrix.
+Given, L,  the (strictly) lower triangular matrix that holds the undirected graph,
+we compute \sum_ij{L .& (L * L)} and \sum_ij{L .& (L * U)}.
+Where U is the upper triangular matrix from the full adjacency matrix.
+Recall that  U = L transpose. 
 
-We preform the matrix computation that counts the number of nonzeros in the matrix (LL^t .& L).
 ### Discussion
-This is here to shadow the algorithms in bale_classic.
+This is here to shadow the algorithms in bale_classic. 
+The amount of work done in these two products depends on the matrix.
+It is important to us that communication pattern in the parallel app
+differs between these product (and still depends on the row densities in the matrix).
 
 ### References
 See the book, "Graph Algorithms in the Language of Linear Algebra",

@@ -2,36 +2,43 @@
 ### Definition
 We fill an array of int64_t's with a flat random permutation.
 
-### Algorithms(s)
+### Algorithms
 #### the Fisher-Yates algorithm
 ```
    fill the array, rand[ ], with indices 0 thru n-1. 
    for l=n-1, n-2, ... ,1
      swap rand[l] with a random entry in 0,1,...,l
 ```
-By definition this picks "n balls from a urn without replacement".
+By definition this picks "n balls from an urn without replacement".
 This is a standard serial algorithm that is in fact a serial algorithm.
 You have to process the entries from right to left one at a time.
 
 #### the "dart throwing" algorithm
-This is here to shadow the version in bale_classic. It is in 
-bale_classic because it is fun.
+We pick a dart board (an array) that is bigger than the desired permutation,
+say twice as big and fill the entries with -1. 
+Then randomly throw darts (numbers from 0 to `len-1`) 
+at the dart board, re-throwing any dart that hits an entry that is already occupied (!= -1). 
+Then we squeeze out the holes.
 
-Pick a dart board (the array) that is bigger than the permutation needed.
-Then randomly throw darts at the dart board, 
-re-throwing any dart that hits a entry that is already occupied. 
-Then we squeeze out the holes.  
-Note we pick the dartboard to be twice the size of the array 
+We picked the dartboard to be twice the size of the array 
 so that even the last dart has a 50/50 chance of hitting an open entry.
 
 ### the sorting algorithm
 We form an array of (index, key) pairs. Then we randomly fill the keys
-and sort on the keys. Then we read the permutation from the indices.
+and sort the array on the keys. Then we read the permutation from the indices.
+
+NB. Repeated key are bad, but tolerated. 
+They would be ok if ties were broken randomly or if doubles were real numbers. 
 
 ### Discussion
-This app is also only interesting in bale_classic and only because
-the dart throwing algorithm is fun and exercises 
-our parallel programming models in interesting ways.
+The Fisher-Yates algorithm must do one thing at a time, so it doesn't parallelize.
+
+The dart throwing algorithm is here because it shadows the algorithm
+in bale_classic.  It is in bale_classic because it is fun.
+And because the AGP version is essentially the same as this serial version.
+
+The sorting version seems like a reasonable parallel algorithm, but it 
+not in bale_classic because its not that interesting or fun.
 
 ### References
-ref for fisher-yates (Knuth probably)
+https://en.wikipedia.org/wiki/Fisher-Yates_shuffle

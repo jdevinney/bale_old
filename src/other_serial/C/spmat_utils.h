@@ -33,7 +33,6 @@
 
 /*!
 \brief data structure to hold a sparse matrix
-
 We use one of the standard Compressed Sparse Row formats.
 The ``nonzero[]`` array holds the columns number for a particular non-zero in the matrix and
 the ``value[]`` array holds the non-zero value of the corresponding non-zero in the matrix.
@@ -43,7 +42,6 @@ the ``i``th row's data starts in the ``nonzero[ ]`` and ``value[]`` arrays.
 The ``nonzero[ ]`` and ``value[ ]`` arrays have length ``nnz`` , the number of non-zeros
 and the ``offset[ ]`` array has length ``(numrows + 1)``. Note, ``offset[0]==0`` and ``offset[numrows]==nnz``.
 In case the matrix is a {0,1}-matrix, we don't need values and we set ``*value=NULL``.
-\ingroup spmatgrp
 */
 typedef struct sparsemat_t{
   int64_t numrows;       //!< the total number of rows in the matrix
@@ -93,34 +91,12 @@ typedef struct point_t{
   double y;         //!< y
 }point_t;
 
-#if 0  // TODO delete
-typedef struct triple_t{
-  int64_t row;
-  int64_t col;
-  double val;
-}triple_t;
-
-typedef struct kron_args_t{
-  char str[256];
-  int mode;
-  int num_stars;      // 
-  int star_size[64];  // can't be too many stars, else the graph would be huge
-  int64_t numrows;
-} kron_args_t;
-void             clear_kron_args(kron_args_t * kron_args);
-kron_args_t *    kron_args_init(char *str);
-#endif
-
 /*! \brief graph_model is Flat (Erdos-Renyi), Geometric, or Kronecker product (of stars) */
 typedef enum graph_model {FLAT, GEOMETRIC, KRONECKER} graph_model;
 /*! \brief edge_type flag directed, undirected and weighted or unweighted */
 typedef enum edge_type {DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED} edge_type;
 /*! \brief self_loop is whether or not the diagonal is all zeros or all ones */
 typedef enum self_loops {LOOPS, NOLOOPS} self_loops;
-//char *graphmodelstr[] = {"FLAT","GEOMETRIC","KRONECKER"};
-//char *edgetypestr[] = {"DIRECTED", "UNDIRECTED", "DIRECTED_WEIGHTED", "UNDIRECTED_WEIGHTED"};
-//char *loopstr[] = {"LOOPS", "NOLOOPS"};
-
 
 void             clear_matrix(sparsemat_t * mat);
 int64_t          compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
@@ -135,13 +111,7 @@ sparsemat_t *    erdos_renyi_random_graph_naive(int64_t n, double p, edge_type e
 sparsemat_t *    geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
 
 sparsemat_t *    generate_kronecker_graph_from_spec(int mode, int * spec, int num, int weighted);
-//sparsemat_t *    kronecker_product_graph(kron_args_t * K);
-//sparsemat_t *    kronecker_product_of_stars(int64_t M, int64_t * m, int mode);
-//sparsemat_t *    kronecker_product_graph_local(sparsemat_t * B, sparsemat_t * C);
-//sparsemat_t *    kronecker_product_graph_dist(sparsemat_t * B, sparsemat_t * C);
 int64_t          tri_count_kron_graph(int kron_mode, int * kron_spec, int kron_num);
-
-//sparsemat_t *    get_input_graph(std_args_t * sargs, std_graph_args_t * gargs);
 
 sparsemat_t *    init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values);
 
@@ -158,7 +128,6 @@ sparsemat_t *    permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cper
 int64_t *        rand_perm(int64_t N, int64_t seed);
 
 sparsemat_t *    random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops, double edge_density, int64_t seed);
-//sparsemat_t *    random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed);  // TODO delete
 
 sparsemat_t *    read_matrix_mm(char * name);
 void             resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row,
@@ -186,7 +155,7 @@ typedef struct d_array_t {
 
 d_array_t * init_d_array(int64_t num);  
 d_array_t * read_d_array(char *name);
-int64_t     write_d_array(d_array_t *A, char * name);
+int64_t     write_d_array(d_array_t *A, char *comment, char * name);
 void        set_d_array(d_array_t * A, double v);
 void        clear_d_array(d_array_t *A);
 d_array_t  *copy_d_array(d_array_t *src);

@@ -9,7 +9,8 @@
 /*******************************************************************/
 
 /*! \file ig.c
-\brief Program that runs C version of index gather
+\brief A program that computes the gather of a large number of things
+from a large table.
 
 Run ig --help or --usage for insructions on running.
 */
@@ -46,16 +47,13 @@ int64_t ig_check_and_zero(int64_t *tgt, int64_t *index, int64_t len)
 }
 
 
-/*!
- * \brief This is the generic serial version of indexgather
- * \param *tgt array of target locations for the gathered values
- * \param *index array of indices into the source array of counts
- * \param num_req the length of the index array (number of updates)
- * \param *table the array from which the values are gathered
- * \return run time
- * This exercises a streaming load of index, then random loads from table       // TODO move to README
- * and a streaming store to tgt.
- */
+/*! \brief This is the generic serial version of indexgather
+\param *tgt array of target locations for the gathered values
+\param *index array of indices into the source array of counts
+\param num_req the length of the index array (number of updates)
+\param *table the array from which the values are gathered
+\return run time
+*/
 double ig_generic(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *table) 
 {
   int64_t i;
@@ -82,11 +80,6 @@ double ig_generic(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *table
 \param table the array from which the values are gathered
 \param table_size the size of the table 
 \return runtime
-
-//TODO move to README
- * The idea is to buffer up the indices based on their high bits.
- * Hopefully there will be a difference between doing full random loads and
- * doing loads that are close to each another. 
 */
 double ig_buffered(int64_t *tgt, int64_t *index, int64_t num_req,  int64_t *table, int64_t table_size) 
 {
@@ -186,57 +179,52 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-  int64_t *table, *tgt;
-  int64_t *index;
+  write_std_options(&args.std);
+  bale_app_write_int(&args.std, "num_updates", args.num_req);
+  bale_app_write_int(&args.std, "tbl_size", args.tbl_size);
 
-  table   = calloc(args.tbl_size, sizeof(int64_t));
-  tgt     = calloc(args.num_req, sizeof(int64_t));
-  index   = calloc(args.num_req, sizeof(int64_t));
-
-  printf("Index Gather Serial C\n");             // TODO delete
-  printf("num_requests: %ld\n", args.num_req);
-  printf("table size:  %ld\n", args.tbl_size);
-  printf("----------------------\n");
+  int64_t *table   = calloc(args.tbl_size, sizeof(int64_t));
+  int64_t *tgt     = calloc(args.num_req, sizeof(int64_t));
+  int64_t *index   = calloc(args.num_req, sizeof(int64_t));
 
   //populate table array and the index array
-  // just fill the table with minus the index, so we check it easily
   int64_t i;
   for(i=0; i<args.tbl_size; i++)
-    table[i] = -i;
+    table[i] = -i;   // fill the table with minus the index, so we can check it easily
 
   rand_seed(args.std.seed);
   for(i = 0; i < args.num_req; i++)
     index[i] = rand_int64(args.tbl_size);
 
   uint32_t use_model;
-  int64_t errors = 0L;
   double laptime = 0.0;
+  char model_str[64];
+  int64_t errors = 0L;
   for(use_model=1; use_model < ALL_Models; use_model *=2 ){
     switch( use_model & args.std.models_mask ){
     case GENERIC_Model:
-      printf("Generic  IG: ");                                // TODO model_str
+      sprintf(model_str, "Generic  IG: ");
       laptime = ig_generic(tgt, index, args.num_req, table);
       errors += ig_check_and_zero(tgt, index, args.num_req);
       break;
     case BUF_Model:
-      printf("Buffered IG: ");                                // TODO model_str
+      sprintf(model_str, "Buffered IG: ");
       laptime =ig_buffered(tgt, index, args.num_req,  table,  args.tbl_size); 
       errors += ig_check_and_zero(tgt, index, args.num_req);
       break;
     default:
       continue;
     }
-    printf("  %8.3lf seconds\n", laptime);
+    bale_app_write_time(&args.std, model_str, laptime);
   }
 
   free(table);
   free(tgt);
   free(index);
 
-  if( errors ) {
-    fprintf(stderr,"YOU FAILED!!!!\n"); 
-  } 
-
+  if( errors ) 
+    fprintf(stderr,"FAILED!!!!\n"); 
+  bale_app_finish(&args.std);
   return(errors);
 }
 

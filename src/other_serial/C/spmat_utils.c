@@ -15,13 +15,6 @@
 
 #include "spmat_utils.h"
 
-/* \page spmat_utils_page spmat_utils
-Sparse matrix routines and few utils
-
-The serial version of the sparse matrix library.
-There are a few routines in the libgetput library at are also useful
-in the serial case.  We have combined into this one file.
-*/
 
 /*! \brief  
 A routine to give access to the wall clock timer on most UNIX-like systems.
@@ -851,7 +844,6 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int val
   return(mat);
 }
 
-//TODO move to README
  /*************************************************************************************/
  /*                               RANDOM MATRICES                                     */
  /*************************************************************************************/
@@ -892,16 +884,9 @@ the redundant entries).
 sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
                             double edge_density, int64_t seed)
 {
-//TODO delete   
-char *graphmodelstr[] = {"FLAT","GEOMETRIC","KRONECKER"};
-char *edgetypestr[] = {"DIRECTED", "UNDIRECTED", "DIRECTED_WEIGHTED", "UNDIRECTED_WEIGHTED"};
-char *loopstr[] = {"LOOPS", "NOLOOPS"};
-//TODO delete   
-//TODO do this with tracing
-   if(DPRT){ 
+   if(DPRT){
      printf("making a random graph:\n");
-     printf("n = %ld, model = %s, edges = %s, loops = %s, prob = %lf, seed %ld\n",
-            n, graphmodelstr[model], edgetypestr[edge_type], loopstr[loops], edge_density, seed);
+     printf("n = %ld, prob = %lf, seed %ld\n", n, edge_density, seed);
    }
    if(model == FLAT){
      return(erdos_renyi_random_graph(n, edge_density, edge_type, loops, seed));
@@ -1465,7 +1450,6 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 \param seed A random seed.
 \return A sparsemat_t
 
-// TODO move to README
  * This subroutine uses ALG1 from the paper "Efficient Generation of Large Random Networks" 
  * by Batageli and Brandes appearing in Physical Review 2005. Instead of flipping a coin for each potential edge
  * this algorithm generates a sequence of "gaps" between 1s in the upper or lower triangular portion of the 
@@ -1655,7 +1639,6 @@ void clear_matrix(sparsemat_t * mat)
 \brief initializes the struct that holds an array of doubles
 \param num total number of entries
 \return an allocated d_array_t or NULL on error
-//TODO ?  \ingroup spmatgrp
 */
 d_array_t * init_d_array(int64_t num) 
 {
@@ -1669,7 +1652,6 @@ d_array_t * init_d_array(int64_t num)
 \brief sets all the entries of d_array_t to a value
 \param A the array
 \param v the value
-//TODO ? \ingroup spmatgrp
 */
 void set_d_array(d_array_t * A, double v) 
 {
@@ -1682,7 +1664,6 @@ void set_d_array(d_array_t * A, double v)
 /*!
 \brief produces a copy of a source array
 \param src the sourcearray
-//TODO ? \ingroup spmatgrp
 */
 d_array_t *copy_d_array(d_array_t * src) 
 {
@@ -1698,8 +1679,7 @@ d_array_t *copy_d_array(d_array_t * src)
 \brief replaces the destination array by overwriting the source array
 \param dest the destination array
 \param src the source array
-\return 0 or 1  on an error  //TODO
-//TODO ? \ingroup spmatgrp
+\return 0 or 1  on an error
 NB: The destination must be allocated and of the right size.
 */
 int64_t replace_d_array(d_array_t *dest, d_array_t *src) 
@@ -1724,7 +1704,7 @@ int64_t replace_d_array(d_array_t *dest, d_array_t *src)
 Note: file format is: 
  - first line is the num of entries in the array,
  - that many lines of one double per line in the format "%lf"
- - lines that begin with  # a comments /TODO 
+ - lines that begin with  # a comments /TODO  make this match bale classic and Rust
 */
 d_array_t * read_d_array(char *name)
 {
@@ -1752,10 +1732,9 @@ d_array_t * read_d_array(char *name)
 \brief writes a double array to a file
 \param A pointer to the double array
 \param name the filename to be written to
-//TODO figure out about comments
 \return 0 on success, non-0 on error.
 */
-int64_t write_d_array(d_array_t *A, char * name)      // TODO add comment lines in output file
+int64_t write_d_array(d_array_t *A, char *comment,  char * name)
 {
   int64_t i;
 
@@ -1765,6 +1744,7 @@ int64_t write_d_array(d_array_t *A, char * name)      // TODO add comment lines 
     exit(1);
   }
 
+  fprintf(fp, "#%s\n", comment);
   fprintf(fp, "%"PRId64"\n", A->num);
 
   for(i=0; i<A->num; i++){
@@ -1778,7 +1758,6 @@ int64_t write_d_array(d_array_t *A, char * name)      // TODO add comment lines 
 /*!
 \brief clears the space for d_array_t
 \param A the d_array
-//TODO ? \ingroup spmatgrp
 */
 void clear_d_array(d_array_t * A)
 {

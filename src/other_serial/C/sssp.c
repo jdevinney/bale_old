@@ -47,7 +47,6 @@ static double sssp_answer_diff(d_array_t *A, d_array_t *B)
 typedef struct args_t{
   double deltaStep; 
   int64_t V0;
-  int64_t alg;
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
@@ -57,13 +56,11 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
   args_t * args = (args_t *)state->input;
   switch(key)
     {
-    case 'a': args->alg = atoi(arg); break;
     case 'S': args->deltaStep = atof(arg); break;     
     case 'V': args->V0 = atoi(arg); break;
     case ARGP_KEY_INIT:
       args->deltaStep = 0.0;
       args->V0 = 0;
-      args->alg = 3;
       state->child_inputs[0] = &args->std;
       state->child_inputs[1] = &args->gstd;
       break;
@@ -73,7 +70,6 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
 
 static struct argp_option options[] =
 {
-    {"alg", 'a', "flag", 0, "alg: 1==bellman | 2==delta"},
     {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
     {"V0", 'V', "NUM", 0, "initial vertex"},  
     {0}
@@ -89,22 +85,21 @@ static struct argp_child children_parsers[] =
 
 int main(int argc, char * argv[]) 
 {
-  enum MODEL {GENERIC_Model=1, DIJSKTRA_HEAP=2, DELTA_STEPPING=4, BELLMAN_SIMPLE=8, BELLMAN=16, ALL_Models=32};
   args_t args={0};  
+  enum MODEL {DIJSKTRA_HEAP=1, DELTA_STEPPING=2, BELLMAN=4, ALTERNATE=8, ALL_Models=8};
   args.std.models_mask = ALL_Models - 1;
+  args.gstd.numrows = SSSP_NUM_ROWS;
   struct argp argp = {options, parse_opt, 0, "SSSP for a weighted graph.", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
-  args.gstd.numrows = SSSP_NUM_ROWS;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
 
   //override command line 
-  if ((args.gstd.loops == LOOPS) || (args.gstd.directed == 0) || (args.gstd.weighted == 0)) {
-    args.gstd.loops = NOLOOPS;
-    args.gstd.directed = 1;
-    args.gstd.weighted = 1;
-  }
+  args.gstd.loops = 0;
+  args.gstd.directed = 1;
+  args.gstd.weighted = 1;
+  args.gstd.numrows = 20;
 
   write_std_graph_options(&args.std, &args.gstd);
   write_std_options(&args.std);
@@ -115,65 +110,56 @@ int main(int argc, char * argv[])
 
   if(args.std.dump_files) write_matrix_mm(mat, "sssp_inmat");
 
+  d_array_t *comp_weight=NULL;
+  d_array_t *weight = init_d_array(mat->numrows);
   uint32_t use_model;
- 
   double laptime = 0.0;
-  char model_str[32];
-
-  d_array_t *comp_tent=NULL;
-  d_array_t *tent = init_d_array(mat->numrows);
-
+  char model_str[64];
   for(use_model=1; use_model < ALL_Models; use_model *=2 ){
     model_str[0] = '\0';
     switch( use_model & args.std.models_mask ){
-    case GENERIC_Model:
-      sprintf(model_str, "Dijsktra Linear");
-      set_d_array(tent, INFINITY);
-      laptime = sssp_dijsktra_linear(tent, mat, 0);
-      break;
-
     case DIJSKTRA_HEAP:
-      sprintf(model_str, "Dijsktra Heap");
-      set_d_array(tent, INFINITY);
-      laptime = sssp_dijsktra_heap(tent, mat, 0);
+      strcat(model_str, "Dijsktra Heap");
+      laptime = sssp_dijsktra_heap(weight, mat, args.V0);
       break;
-
     case DELTA_STEPPING:
-      sprintf(model_str, "Delta Stepping");
-      set_d_array(tent, INFINITY);
-      laptime = sssp_delta_stepping(tent, mat, 0, 0.0);
+      strcat(model_str, "Delta Stepping");
+      laptime = sssp_delta_stepping(weight, mat, args.V0, 0.0);
       break;
-
-    case BELLMAN_SIMPLE:
-      sprintf(model_str, "Bellman Ford Simple");
-      set_d_array(tent, INFINITY);
-      laptime = sssp_bellmanford_simple(tent, mat, 0);
-      break;
-
     case BELLMAN:
-      sprintf(model_str, "Bellman Ford DP");
-      set_d_array(tent, INFINITY);
-      laptime = sssp_bellmanford(tent, mat, 0);
+      strcat(model_str, "Bellman Ford");
+      laptime = sssp_bellmanford(weight, mat, args.V0);
+      break;
+    case ALTERNATE:
+      strcat(model_str, "Alernate");
+      //set_d_array(weight, INFINITY);
+      //strcat(model_str, "Dijsktra Linear");
+      //laptime = sssp_dijsktra_linear(weight, mat, args.V0);
+      //strcat(model_str, "Simple Bellman");
+      //laptime = sssp_bellmanford_simple(weight, mat, args.V0);
+      //strcat(model_str, "Bellman Dynprog");
+      //laptime = sssp_bellmanford_dynprog(weight, mat, args.V0);
       break;
     }
     if(model_str[0]) {
-      if(comp_tent == NULL){
-        comp_tent = copy_d_array(tent);
-        sprintf(model_str, "%s ()", model_str);
+      if(comp_weight == NULL){
+        comp_weight = copy_d_array(weight);
+        strcat(model_str, " ()");
       }else{
-        if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-          sprintf(model_str, "%s (compares)", model_str);
+        if( sssp_answer_diff(comp_weight, weight) < 1.0e-8)
+          strcat(model_str, " (compares)");
       }
-      fprintf(stderr, "%30s: %8.3lf\n", model_str, laptime);
+      bale_app_write_time(&args.std, model_str, laptime);
     }
   }
 
   if(args.std.dump_files){
-    write_d_array(comp_tent, "ssspout.wts");
+    write_d_array(comp_weight, "SSSP weights to each node", "ssspout.wts");
   }
   
   clear_matrix(mat); free(mat);
-  clear_d_array(tent); free(tent);
-  clear_d_array(comp_tent); free(comp_tent);
+  clear_d_array(weight); free(weight);
+  clear_d_array(comp_weight); free(comp_weight);
+  bale_app_finish(&args.std);
   return(0);
 }
