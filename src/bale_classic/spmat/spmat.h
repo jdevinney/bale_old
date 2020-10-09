@@ -164,7 +164,7 @@ typedef struct spmat_dataset_t{
   int file_open;                //!< 0/1 if we have a file open currently.
   int64_t current_file;         //!< The index of the current file we are reading.
   int64_t current_row_in_file;  //!< The row we are in in our current file.  
-  int64_t current_row;          //!< The global row index of our current row.
+  int64_t current_global_row;   //!< The global row index of our current row.
   int64_t * global_first_row_to_me; //!< An array for the first row that will be sent to me from all other PEs.
   
 }spmat_dataset_t;

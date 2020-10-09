@@ -399,7 +399,8 @@ void write_row_info(spmat_dataset_t * spd, sparsemat_t * A){
 int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
                              double * vbuf, int64_t buf_size){
 
-  //fprintf(stderr,"PE %d: cf %ld first %ld nfiles %ld\n", MYTHREAD, spd->current_file, spd->first_file, spd->nfiles);
+  //fprintf(stderr,"PE %d: cf %ld first %ld nfiles %ld\n",
+  // MYTHREAD, spd->current_file, spd->first_file, spd->nfiles);
   if(spd->current_file >= spd->first_file + spd->nfiles)
     return(-1);
   
@@ -415,7 +416,7 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
     }
     spd->file_open = 1;
     if(spd->current_file == spd->first_file){
-      spd->current_row = 0;
+      spd->current_global_row = 0;
       fseek(spd->nnzfp, spd->first_file_offset*sizeof(int64_t), SEEK_SET);
       //fprintf(stderr,"PE %d: seeking to %ld in nonzero file %ld\n", MYTHREAD, spd->first_file_offset, spd->current_file);
       if(spd->values) fseek(spd->valfp, spd->first_file_offset*sizeof(double), SEEK_SET);
@@ -428,13 +429,13 @@ int64_t read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
   int64_t row;
   //fprintf(stderr,"PE %d: current_row = %ld rows in file %ld\n", MYTHREAD, spd->current_row_in_file, spd->nrows_in_file[spd->current_file - spd->first_file]);  
   for(; spd->current_row_in_file < spd->nrows_in_file[spd->current_file - spd->first_file]; spd->current_row_in_file++){
-    if(spd->rowcnt[spd->current_row] + current_buf_cnt > buf_size)
+    if(spd->rowcnt[spd->current_global_row] + current_buf_cnt > buf_size)
       break;
-    current_buf_cnt += spd->rowcnt[spd->current_row];
-    spd->current_row++;
+    current_buf_cnt += spd->rowcnt[spd->current_global_row];
+    spd->current_global_row++;
     num_rows++;
   }
-  //fprintf(stderr,"PE %d: numrows to read %ld current_buf_cnt = %ld current row = %ld crif %ld current_file %ld\n", MYTHREAD, num_rows, current_buf_cnt, spd->current_row, spd->current_row_in_file, spd->current_file);
+  //fprintf(stderr,"PE %d: numrows to read %ld current_buf_cnt = %ld current row = %ld crif %ld current_file %ld\n", MYTHREAD, num_rows, current_buf_cnt, spd->current_global_row, spd->current_row_in_file, spd->current_file);
   
   /* read nonzero and value data into buffers */
   int64_t num = fread(buf, sizeof(int64_t), current_buf_cnt, spd->nnzfp);
