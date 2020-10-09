@@ -119,35 +119,35 @@ int main(int argc, char * argv[])
     model_str[0] = '\0';
     switch( use_model & args.std.models_mask ){
     case DIJSKTRA_HEAP:
-      sprintf(model_str, "Dijsktra Heap");
+      strcat(model_str, "Dijsktra Heap");
       laptime = sssp_dijsktra_heap(weight, mat, args.V0);
       break;
     case DELTA_STEPPING:
-      sprintf(model_str, "Delta Stepping");
+      strcat(model_str, "Delta Stepping");
       laptime = sssp_delta_stepping(weight, mat, args.V0, 0.0);
       break;
     case BELLMAN:
-      sprintf(model_str, "Bellman Ford");
+      strcat(model_str, "Bellman Ford");
       laptime = sssp_bellmanford(weight, mat, args.V0);
       break;
     case ALTERNATE:
-      sprintf(model_str, "Alernate");
+      strcat(model_str, "Alernate");
       //set_d_array(weight, INFINITY);
-      //sprintf(model_str, "Dijsktra Linear");
+      //strcat(model_str, "Dijsktra Linear");
       //laptime = sssp_dijsktra_linear(weight, mat, args.V0);
-      //sprintf(model_str, "Simple Bellman");
+      //strcat(model_str, "Simple Bellman");
       //laptime = sssp_bellmanford_simple(weight, mat, args.V0);
-      //sprintf(model_str, "Bellman Dynprog");
+      //strcat(model_str, "Bellman Dynprog");
       //laptime = sssp_bellmanford_dynprog(weight, mat, args.V0);
       break;
     }
     if(model_str[0]) {
       if(comp_weight == NULL){
         comp_weight = copy_d_array(weight);
-        sprintf(model_str, "%s ()", model_str);
+        strcat(model_str, " ()");
       }else{
         if( sssp_answer_diff(comp_weight, weight) < 1.0e-8)
-          sprintf(model_str, "%s (compares)", model_str);
+          strcat(model_str, " (compares)");
       }
       bale_app_write_time(&args.std, model_str, laptime);
     }
