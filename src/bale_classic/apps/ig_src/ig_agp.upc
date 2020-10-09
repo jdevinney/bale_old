@@ -36,7 +36,9 @@ double ig_agp(int64_t *tgt, int64_t *index, int64_t l_num_req,  SHARED int64_t *
   tm = wall_seconds();
 
   for(i = 0; i < l_num_req; i++){
+    #if __cray__ || _CRAYC
     #pragma pgas defer_sync
+    #endif
     tgt[i] = lgp_get_int64(table, index[i]);
   }
 

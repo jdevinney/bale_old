@@ -1,4 +1,4 @@
-/******************************************************************
+/*****************************************************************
 //
 //
 //  Copyright(C) 2019-2020, Institute for Defense Analyses
@@ -8,7 +8,7 @@
 //  
 //  This file is a part of Bale.  For license information see the
 //  LICENSE file in the top level directory of the distribution.
-*****************************************************************/ 
+ *****************************************************************/
 #include <spmat.h>
 
 /*! \file spmat_conveyor.upc

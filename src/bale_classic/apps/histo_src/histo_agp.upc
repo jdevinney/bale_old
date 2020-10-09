@@ -31,7 +31,9 @@ double histo_agp(histo_t * data){
   tm = wall_seconds();
 
   for(i = 0; i < data->l_num_ups; i++) {
-#pragma pgas defer_sync
+    #if __cray__ || _CRAYC
+      #pragma pgas defer_sync
+    #endif
     //_amo_aadd(&counts[index[i]], 1);
     //counts[index[i]] += 1;
     assert(data->index[i] < data->num_counts);

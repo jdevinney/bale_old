@@ -195,6 +195,7 @@ void lgp_init(int argc, char *argv[]) {
 void lgp_finalize(){
   shmem_finalize();
 }
+
 static void *setup_shmem_reduce_workdata(long **psync, size_t xsize) {
   int *work;
   int i;
@@ -208,11 +209,11 @@ static void *setup_shmem_reduce_workdata(long **psync, size_t xsize) {
   return work;
 }
 
-
 /* Macro to define wrapper around shmem reduce functions */
-#define Define_Reducer( NAME, XTYPE, STYPE, SHMEM_FUNC)             \
+#define Define_Reducer( NAME, XTYPE, STYPE, CTYPE, SHMEM_FUNC)      \
   XTYPE NAME (XTYPE myval) {                                        \
     static STYPE *buff=NULL, *work; static long *sync;              \
+    assert(sizeof(STYPE) == sizeof(CTYPE));                         \
     if (buff==NULL) {                                               \
       buff=shmem_malloc(2*sizeof(STYPE));                           \
       work=setup_shmem_reduce_workdata(&sync,sizeof(STYPE));        \
@@ -222,28 +223,15 @@ static void *setup_shmem_reduce_workdata(long **psync, size_t xsize) {
     shmem_barrier_all();                                            \
     return buff[1]; }
 
-/*
-long lgp_reduce_add_l(long myval){
-  static long *buff=NULL, *work; static long *sync;
-  if (buff==NULL) {
-    buff=shmem_malloc(2*sizeof(long));
-    work=setup_shmem_reduce_workdata(&sync,sizeof(long));
-  }
-  buff[0]=myval;
-  shmem_long_sum_to_all(&buff[1],buff,1,0,0,shmem_n_pes(),work,sync);
-  shmem_barrier_all();
-  return buff[1];
-}
-*/
-Define_Reducer(lgp_reduce_add_l, int64_t, int64_t, shmem_longlong_sum_to_all)
-Define_Reducer(lgp_reduce_min_l, int64_t, int64_t, shmem_longlong_min_to_all)
-Define_Reducer(lgp_reduce_max_l, int64_t, int64_t, shmem_longlong_max_to_all)
+Define_Reducer(lgp_reduce_add_l, int64_t, int64_t, long, shmem_long_sum_to_all)
+Define_Reducer(lgp_reduce_min_l, int64_t, int64_t, long, shmem_long_min_to_all)
+Define_Reducer(lgp_reduce_max_l, int64_t, int64_t, long, shmem_long_max_to_all)
 
-Define_Reducer(lgp_reduce_add_d, double, double, shmem_double_sum_to_all)
-Define_Reducer(lgp_reduce_min_d, double, double, shmem_double_min_to_all)
-Define_Reducer(lgp_reduce_max_d, double, double, shmem_double_max_to_all)
+Define_Reducer(lgp_reduce_add_d, double, double, double, shmem_double_sum_to_all)
+Define_Reducer(lgp_reduce_min_d, double, double, double, shmem_double_min_to_all)
+Define_Reducer(lgp_reduce_max_d, double, double, double, shmem_double_max_to_all)
 
-Define_Reducer(lgp_reduce_or_int, int, int, shmem_int_or_to_all)
+Define_Reducer(lgp_reduce_or_int, int, int, int, shmem_int_or_to_all)
 
 /*!
 * \ingroup libgetputgrp

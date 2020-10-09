@@ -179,48 +179,48 @@ int main(int argc, char * argv[])
       model_str[0] = '\0';
       switch( (use_model & args.std.models_mask) | use_alg ) {
       //case (AGP_Model | USE_BELLMAN):
-      //  sprintf(model_str, "No AGP versions");
+      //  strcpy(model_str, "No AGP versions");
       //  laptime = 0.0;
       //  break;
 
       case (EXSTACK_Model | USE_BELLMAN):
-        sprintf(model_str, "Bellman-Ford Exstack");
+        strcpy(model_str, "Bellman-Ford Exstack");
         set_d_array(tent, INFINITY);
         laptime = sssp_bellman_exstack(tent, mat, bz, V0);
         break;
 
       case (EXSTACK_Model | USE_DELTA):
-        sprintf(model_str, "Delta Exstack");
+        strcpy(model_str, "Delta Exstack");
         set_d_array(tent, INFINITY);
         laptime = sssp_delta_exstack(tent, mat, bz, V0, delta);
         break;
 
       case (EXSTACK2_Model | USE_BELLMAN):
-        sprintf(model_str, "Bellman-Ford Exstack2");
+        strcpy(model_str, "Bellman-Ford Exstack2");
         set_d_array(tent, INFINITY);
         laptime = sssp_bellman_exstack2(tent, mat, bz, V0);
         break;
 
       case (EXSTACK2_Model | USE_DELTA):
-        sprintf(model_str, "Delta Exstack2");
+        strcpy(model_str, "Delta Exstack2");
         set_d_array(tent, INFINITY);
         laptime = sssp_delta_exstack2(tent, mat, bz, V0, delta);
         break;
         
       case (CONVEYOR_Model | USE_BELLMAN):
-        sprintf(model_str, "Bellman-Ford Conveyor");
+        strcpy(model_str, "Bellman-Ford Conveyor");
         set_d_array(tent, INFINITY);
         laptime = sssp_bellman_convey(tent, mat, V0);
         break;
 
       case (CONVEYOR_Model | USE_DELTA):
-        sprintf(model_str, "Delta Conveyor");
+        strcpy(model_str, "Delta Conveyor");
         set_d_array(tent, INFINITY);
         laptime = sssp_delta_convey(tent, mat, V0, delta);
         break;
 
       case ALTERNATE_Model:
-        sprintf(model_str, "Bellman-Ford AGP");
+        strcpy(model_str, "Bellman-Ford AGP");
         set_d_array(tent, INFINITY);
         laptime = sssp_bellman_agp(tent, mat, V0); 
         break;
@@ -228,10 +228,10 @@ int main(int argc, char * argv[])
       if(model_str[0]) {
         if(comp_tent == NULL){
           comp_tent = copy_d_array(tent);
-          sprintf(model_str, "%s ()", model_str);
+          strcat(model_str, " ()");
         }else{
           if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            sprintf(model_str, "%s (compares)", model_str);
+            strcat(model_str, " (compares)");
         }
         lgp_barrier();
         bale_app_write_time(&args.std, model_str, laptime);
