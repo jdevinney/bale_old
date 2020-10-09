@@ -9,7 +9,7 @@
 /*******************************************************************/
 
 /*! \file randperm.c
-\brief Program that generates a random permutation.
+\brief Program that fills an array with a random permutation.
 
 Run randperm --help or --usage for insructions on running.
 */
@@ -22,7 +22,7 @@ Run randperm --help or --usage for insructions on running.
 \param len length of the permutation array
 \param s seed for the random number generator.
 
-The library uses the standard serial algorithm of Knuth-Yates.
+The serial library uses the standard Fisher-Yates algorithm.
 */
 double randperm_generic(int64_t len, uint32_t s) 
 {
@@ -44,13 +44,6 @@ double randperm_generic(int64_t len, uint32_t s)
 /*!  \brief The "dart board" algorithm
 \param len length of the permutation array
 \param s seed for the random number generator.
-
-We pick a dart board (an array) that is bigger than the permutation needed,
-say twice as big. Then randomly throw darts at the  dart board, 
-re-throwing any dart that hits a entry that is already occupied. 
-Then we squeeze out the holes.
-We picked the dartboard to be twice the size of the array 
-so that even the last dart has a 50/50 of hitting an open entry.
 */
 double randperm_dart(int64_t len, uint32_t s) 
 {
@@ -97,17 +90,11 @@ double randperm_dart(int64_t len, uint32_t s)
   return(tm);
 }
 
-/*! 
-\brief structure used by the randperm_sort routine
-
-NB. Repeated key are bad, but tolerated. 
-They would be ok if ties were broken randomly or if doubles were real numbers. 
-*/
+/*!  \brief structure used by the randperm_sort routine */
 typedef struct idxkey_t {
   int64_t idx; //!< sequential index 0,...,len-1 
   double  key; //!< random key 
 } idxkey_t;
-
 
 /*! \brief the compare function for qsort called in the randperm_sort routine */
 static int rp_comp( const void *a, const void *b) {
@@ -119,15 +106,11 @@ static int rp_comp( const void *a, const void *b) {
 /*!  \brief The sorting algorithm to produce a random perm
 \param len length of the permutation array
 \param seed seed for the random number generator.
-
-We form an array of (index, key) pairs. Then we randomly fill the keys
-and sort on the keys. Then we read the permutation from the indices
 */
 double randperm_sort(int64_t len, uint32_t seed) 
 {
   double tm;
   int64_t i;
-  
   
   idxkey_t *idxkey = calloc(len, sizeof(idxkey_t));
   int64_t *p = calloc(len, sizeof(int64_t));
@@ -154,35 +137,34 @@ double randperm_sort(int64_t len, uint32_t seed)
 }
 
 /********************************  argp setup  ************************************/
-typedef struct args_t{
+typedef struct args_t {
   int64_t perm_size;
   std_args_t std;
-}args_t;
+} args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
   switch(key)
-    {
-    case 'n':
-      args->perm_size = atol(arg); break;
-    case ARGP_KEY_INIT:
-      state->child_inputs[0] = &args->std;
-      break;
-    }
+  {
+  case 'n':
+    args->perm_size = atol(arg); break;
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    break;
+  }
   return(0);
 }
 
-static struct argp_option options[] =
-  {
-    {"perm_size", 'n', "NUM",  0, "Size of permutation to create."},
-    {0}
-  };
+static struct argp_option options[] = {
+  {"perm_size", 'n', "NUM",  0, "Size of permutation to create."},
+  {0}
+};
 
-static struct argp_child children_parsers[] =
-  {
-    {&std_options_argp, 0, "Standard Options", -2},
-    {0}
-  };
+static struct argp_child children_parsers[] = {
+  {&std_options_argp, 0, "Standard Options", -2},
+  {0}
+};
 
 
 int main(int argc, char * argv[])
@@ -197,30 +179,30 @@ int main(int argc, char * argv[])
   if (ret < 0) return(ret);
   else if (ret) return(0);
 
-  printf("Randperm Serial C\n");                            //TODO 
-  printf("permuatation size: %ld\n", args.perm_size);
-  printf("----------------------\n");
+  write_std_options(&args.std);
+  bale_app_write_int(&args.std, "perm_size", args.perm_size);
 
   uint32_t use_model;
   double laptime = 0.0;
+  char model_str[64];
   for( use_model=1; use_model < ALL_Models; use_model *=2 ) {
     switch( use_model & args.std.models_mask ) {
     case GENERIC_Model:
-      printf("Generic  perm: ");                 // TODO model_str
+      sprintf(model_str, "Generic  perm: ");
       laptime = randperm_generic(args.perm_size, args.std.seed);
       break;
     case DART_Model:
-      printf("Dart     perm: ");                 // TODO model_str
+      sprintf(model_str, "Dart     perm: ");
       laptime = randperm_dart(args.perm_size, args.std.seed);
       break;
     case SORT_Model:
-      printf("Sort     perm: ");                 // TODO model_str
+      sprintf(model_str, "Sort     perm: ");
       laptime = randperm_sort(args.perm_size, args.std.seed);
       break;
     default:
       continue;
     }
-    printf("  %8.3lf seconds \n", laptime);
+    bale_app_write_time(&args.std, model_str, laptime);
   }
 	return(0);
 }

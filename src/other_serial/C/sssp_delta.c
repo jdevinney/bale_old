@@ -21,8 +21,7 @@
 \brief An implementation of the delta-stepping algorithm
 */
 
-/*! 
-\brief a struct to hold (pointers to) all the state needed for the Delta-Stepping algorithm
+/*!  \brief a struct to hold (pointers to) all the state needed for the Delta-Stepping algorithm
 
 The storage required 6 times the number of nodes plus a little for space for B.
 Note we need a doubly link list because we delete nodes from any where on the list.
@@ -154,12 +153,12 @@ void relax_edge(ds_t *ds, int64_t w, double cand_wt)
 }
 
 /*!  \brief the array based implementation of the delta stepping algorithm
-\param dist pointer to the array that holds the results
+\param weight pointer to the array that holds the results
 \param mat the graph (matrix)
 \param r0 the given single source node
 \param del the algorithm parameter delta
 */
-double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, double del)
+double sssp_delta_stepping(d_array_t *weight, sparsemat_t * mat, int64_t r0, double del)
 {
   int64_t i, i_m, k;
   int64_t v;
@@ -275,14 +274,6 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
       v = ds->B[i_m];
       Dprintf("Processing Node %"PRId64" in Bucket %"PRId64"\n", v, i_m);
       remove_node_from_bucket(ds, v);
-      
-#if 0             //TODO
-      for(k = mat->offset[v]; k < mat->offset[v + 1]; k++){   // relax light edges from v 
-        if(mat->value[k] <= delta){	  
-          relax_edge(ds, mat->nonzero[k], ds->tent[v] + mat->value[k]);
-        }
-      } 
-#endif
       for(k = light->offset[v]; k < light->offset[v + 1]; k++){   // relax light edges from v 
           relax_edge(ds, light->nonzero[k], ds->tent[v] + light->value[k]);
       } 
@@ -296,13 +287,6 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
 
     for(start=0; start<end; start++){ // relax heavy requests edges for everything in R
       v = ds->R[start];
-#if 0             //TODO
-      for(k = mat->offset[v]; k < mat->offset[v + 1]; k++){
-        if(mat->value[k] > delta){
-          relax_edge(ds, mat->nonzero[k], ds->tent[v] + mat->value[k]);
-        }
-      }      
-#endif
       for(k = heavy->offset[v]; k < heavy->offset[v + 1]; k++){
           relax_edge(ds, heavy->nonzero[k], ds->tent[v] + heavy->value[k]);
       }
@@ -310,7 +294,7 @@ double sssp_delta_stepping(d_array_t *dist, sparsemat_t * mat, int64_t r0, doubl
   }
 
   for(v = 0; v < mat->numrows; v++){          // Copy the answers to dist array
-    dist->entry[v] = ds->tent[v];
+    weight->entry[v] = ds->tent[v];
   }
 
   free(ds->next);

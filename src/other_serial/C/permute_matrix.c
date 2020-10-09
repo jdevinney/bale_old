@@ -9,10 +9,10 @@
 /*******************************************************************/
 
 /*! \file permute_matrix.c
- * \brief Program that runs the permute_matrix routine from the spmat library
- *
- * Run permute_matrix --help or --usage for insructions on running.
- */
+\brief Program that runs the permute_matrix routine from the spmat library
+
+Run permute_matrix --help or --usage for insructions on running.
+*/
 
 #include "spmat_utils.h"
 #include "std_options.h"
@@ -37,34 +37,33 @@ double permute_matrix_generic(sparsemat_t *A, int64_t *rp, int64_t *cp)
 }
 
 /********************************  argp setup  ************************************/
-typedef struct args_t{
+typedef struct args_t {
   std_args_t std;
   std_graph_args_t gstd;
-}args_t;
+} args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
   switch(key)
-    {
-    case ARGP_KEY_INIT:
-      state->child_inputs[0] = &args->std;
-      state->child_inputs[1] = &args->gstd;
-      break;
-    }
+  {
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    state->child_inputs[1] = &args->gstd;
+    break;
+  }
   return(0);
 }
 
-static struct argp_option options[] =
-  {
-    {0}
-  };
+static struct argp_option options[] = {
+  {0}
+};
 
-static struct argp_child children_parsers[] =
-  {
-    {&std_options_argp, 0, "Standard Options", -2},
-    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
-    {0}
-  };
+static struct argp_child children_parsers[] = {
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
+};
 
 
 int main(int argc, char * argv[]) 
@@ -82,7 +81,7 @@ int main(int argc, char * argv[])
   write_std_graph_options(&args.std, &args.gstd);
   write_std_options(&args.std);
   
-  // read in a matrix or generate a random graph
+  // read in or generate a random graph (matrix)
   sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);
   if(!mat){fprintf(stderr, "ERROR: triangle: L is NULL!\n");return(-1);}
 
@@ -93,19 +92,19 @@ int main(int argc, char * argv[])
 
   uint32_t use_model;
   double laptime = 0.0;
+  char model_str[64];
   for (use_model=1; use_model < ALL_Models; use_model *=2) {
     switch (use_model & args.std.models_mask) {
     case GENERIC:
-      printf("generic permute matrix: ");     //TODO model_str
+      sprintf(model_str, "generic permute matrix: ");
       laptime = permute_matrix_generic(mat, rperm, cperm);
     break;
     default:
        continue;
     }
-    printf("  %8.3lf seconds \n", laptime);
+    bale_app_write_time(&args.std, model_str, laptime);
   }
-// TODO check the result
-
+  // TODO: Should we test the result here or separate unit test on spmat_utils?
+  bale_app_finish(&args.std);
   return(0);
 }
-

@@ -7,46 +7,29 @@ This algorithm finds a row and column permutation that, when applied,
 returns it to an upper triangular form.
 
 ### Algorithms
-First we generate the problem by reading in or generating 
-an upper triangular matrix with ones on the diagonal 
-and then applying random row and column permutations.
-This is the input to the toposort algorithm.
-The output of toposort is a row and a column permutation that, 
-if applied, would result in an upper triangular matrix.
+We generate the morally upper triangular matrix by 
+randomly permuting the rows and columns of a triangular matrix.
 
-We find these permutations by finding pivot and removing 
-elements from the matrix.  A pivot element is the (row,col) pair 
-for the nonzero in a row that has only one nonzero.
-We put the row and col indices in the next available entries
-in the row and column permutations and "delete" the row and column
-from the matrix. We then repeat the process.
- 
+To find row and column permutations that would return the matrix 
+to upper triangular form, we recursively find pivot position.
+A pivot is a nonzero (really a (row,col) pair) that is the single
+nonzero in a row. If we permute this row and column to the last
+row and column of our new matrix and delete the row and column
+from the original matrix, we can recursively construct the new
+matrix from the bottom right corner to the top left corner.
+
+A more detailed description of the algorithm is given in 
+bale_classic toposort documentation.
+
 #### enqueuing pivots
-In the process of "deleting" a row and column we will make rows that
-only have a single non-zero.
+In this version when the pivots are found they are placed in a queue.
+The algorithm runs until the queue is empty.
 
-   We set the row and column permutations,  rperm and cperm, one pivot at a time.
-
-   N = number of rows
-   for( pos=N-1; pos > 0; pos-- ) {
-     pick a row, r, with a single nonzero, c.
-     say (r,c) is the pivot and set rperm[pos] = r and cprem[pos] = c
-     Note: a pivot always exists because the matrix is morally upper tri.
-
-     cross out that row r and col c 
-   }
-
-   Meaning of cross out:
-   Rather than changing the matrix by deleting rows and column and then searching the 
-   new matrix for the next pivot.  We do the obvious thing of keeping row counts, where
-   rowcnt[i] is the number of non-zeros in row i and we use a really cool trick 
-   of keeping the sum of the live column indices for the non-zeros in each row.
-   That is, rowsum[i] is the sum of the column indices, not the sum of the non-zero elements,
-   for the non-zeros in row i.  To "delete a column" one decrements the rowcnt by one and 
-   the rowsum by the corrsponding column index. 
-   The cool trick is that, when the rowcnt gets to one, the rowsum is the column that is left.
 #### loop to find pivots
-
+In the loop version we simply continue to loop over the rows 
+until we have found all the pivots.  This simplifies the 
+flow of the algorithm but does redundant checking of 
+rows which have already been processed. 
 
 ### Discussion
 
