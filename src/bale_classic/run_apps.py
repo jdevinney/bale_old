@@ -66,7 +66,7 @@ def append_to_file(master_file, file_to_add, first):
     fout.close()        
 
 
-def run_apps(app_dict, node_range, launcher_opts, option_str, impl_mask, json_file):
+def run_apps(app_dict, pes_list, cores_per_node, launcher_opts, option_str, impl_mask, json_file):
   
   # add user options
   base_cmd = "{0} ".format(option_str)
@@ -74,7 +74,9 @@ def run_apps(app_dict, node_range, launcher_opts, option_str, impl_mask, json_fi
   # add implementation mask to the base_cmd
   if impl_mask is not None:
     base_cmd = "{0} -M {1}".format(base_cmd, impl_mask)
-
+  if cores_per_node is not None:
+    base_cmd = "{0} -c {1}".format(base_cmd, cores_per_node)
+    
   # if the user wants the output to go to json, add that option
   # and write the initial opening brace in the json file
   if json_file is not None:
@@ -88,7 +90,7 @@ def run_apps(app_dict, node_range, launcher_opts, option_str, impl_mask, json_fi
     
   for app in app_dict:
     first = True
-    for pes in node_range:
+    for pes in pes_list:
       cmd = launcher.format(pes, launcher_opts, app_dict[app]) +" "+base_cmd
       print(cmd)
       ret = run_command(cmd)
@@ -117,6 +119,8 @@ if __name__ == '__main__':
   parser.add_argument('-a','--app',  action="append", dest='app_list',  help="Specify an app to run. "
                       " Adding multiple -a options will create a list of apps to run. "
                       " Apps must be in {0}".format(all_apps), default=[])
+  parser.add_argument('-c','--cores_per_node', action="store", dest="cores_per_node",
+                      help="Specify the number of cores per node.", default=None)
   parser.add_argument('-j','--json_file', action="store", dest='json_file',
                       help="Pass -j option to all apps. The final json file will have a record"
                       " for each run and will be written to filename which is the argument of this option",
@@ -127,16 +131,21 @@ if __name__ == '__main__':
                       "there are cases where we will fail (for instance if you "
                       "have a UPC build but you have oshrun in your PATH).",default=None)
   parser.add_argument(   '--launcher_opts', action="store", dest='launcher_opts',
-                      help="Pass these options onto the launcher, these could be srun options for example."
-                      " The -n (num_tasks) option to launchers is handled separately"
-                      " (using the --node_range option)."
+                         help="Pass these options onto the launcher, these could be srun options for example."
+                         " The -n (num_tasks) option to launchers is handled separately"
+                         " (using the --pes_list or --nodes_list options)."
                       " Do not specify the -n option for the launcher here.", default="")
   parser.add_argument('-M','--impl_mask', action="store", dest='impl_mask',
                       help="Pass \"-M IMPL_MASK\" to all apps", default=None)
-  parser.add_argument(     '--node_range', action="store", dest='node_range',
-                           help="Specify the node range to run on as a range <start>,<end>,<stride>. "
-                           "The job will run each app with x PEs where x is in range(node_range) PEs",
-                           default="1,4,1")
+  #parser.add_argument(     '--pe_range', action="store", dest='pe_range',
+  #                         help="Specify the number of PEs to run on as a range <start>,<end>,<stride>. "
+  #                         "The job will run each app with x PEs where x is in range(pe_range) PEs",
+  #                         default=None)
+  parser.add_argument(    '--pes_list', action="store", dest='pes_list',
+                          help="Specify a comma separated list of PE sizes to run on.", default=None)
+  parser.add_argument(    '--nodes_list', action="store", dest="nodes_list",
+                          help="Specify a comma separated list of number of nodes to run on. "
+                          "Overrides pes_list. Requires -c option to be specified.", default=None)
   parser.add_argument('-o',"--option_str", action="store", dest='option_str',
                       help="Specify a string to pass to all apps. Must be valid for all apps!", default="")
   parser.add_argument('-P','--path',      action="store", dest='path',
@@ -186,16 +195,32 @@ if __name__ == '__main__':
   for app in app_dict:
     print("Using path {0} for {1}".format(app_dict[app], app))
   print()
-    
-  #print(type(args.node_range))
-  node_range = args.node_range
-  l = [int(i) for i in node_range.split(',')]
-  if len(l) == 2:
-    node_range = range(l[0],l[1])
-  if len(l) == 3:
-    node_range = range(l[0],l[1],l[2])
+
+  # figure out the sizes of the jobs to be run
+  pes_list = []
+  if args.nodes_list is not None:
+    if args.cores_per_node is None:
+      print("You must use the -c option with the --nodes_list option")
+      exit(1)
+    pes_list = [int(i)*int(args.cores_per_node) for i in args.nodes_list.split(',')]
+  elif args.pes_list is not None:
+    pes_list = [int(i) for i in args.pes_list.split(',')]
+    if args.cores_per_node:
+      print("WARNING: The cores_per_node option is not meant to be used with the pes_list option because "\
+            "it assumes you are running on full nodes. If you are doing this, used the --nodes_list option.")
   else:
-    print("Error: illegal node_range")
+    print("You must specify a list of job sizes with --nodes_list or --pes_list")
     exit(1)
-  
-  run_apps(app_dict, node_range, args.launcher_opts, args.option_str, args.impl_mask, args.json_file)
+
+  # remove the run_all.log
+  if os.path.exists('run_all.log'):
+    os.remove('run_all.log')
+
+  # call run_apps!
+  run_apps(app_dict=app_dict,
+           pes_list=pes_list,
+           cores_per_node=args.cores_per_node,
+           launcher_opts=args.launcher_opts,
+           option_str=args.option_str,
+           impl_mask=args.impl_mask,
+           json_file=args.json_file)
