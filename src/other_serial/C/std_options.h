@@ -9,7 +9,8 @@
 /*******************************************************************/
 
 /*!  \file std_options.h
-Header file to support the use of argp to parse the commandline options
+\brief Header file for std_options library. 
+The std_options library is a support library for parsing command line options.
 */
 
 #ifndef STD_OPTIONS_H
@@ -60,20 +61,14 @@ typedef struct std_graph_args_t{
 extern struct argp std_graph_options_argp;
 
 // TODO should this be in spmat_utils
-/*! \ingroup service_functions */
 sparsemat_t *  get_input_graph(std_args_t * sargs, std_graph_args_t * gargs); //!< parses the args and calls the appropriate generator
-/*! \ingroup service_functions */
+
 void           write_std_options(std_args_t * sargs); //!< displays the args before the run 
-/*! \ingroup service_functions */
 void           write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs); //!< displays the args before the run
 
-/*! \ingroup service_functions */
 int  bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp * argp, std_args_t * sargs); //!< init service structs and print args
-/*! \ingroup service_functions */
 void bale_app_finish(std_args_t * sargs); //<! clean up after run 
-/*! \ingroup service_functions */
 void bale_app_write_int(std_args_t * sargs, char * key, int64_t val); //!< write out a key, val pair
-/*! \ingroup service_functions */
 void bale_app_write_time(std_args_t * sargs, char * model_str, double time); //!< write out a simple wall clock timer 
 
 #endif
