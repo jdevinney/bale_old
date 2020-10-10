@@ -65,7 +65,6 @@ double triangles_matrix(int64_t *triangles, sparsemat_t *A, sparsemat_t *B)
   return(t1);
 }
 
-
 /********************************  argp setup  ************************************/
 typedef struct args_t {
   std_args_t std;
@@ -98,22 +97,18 @@ static struct argp_child children_parsers[] = {
 int main(int argc, char * argv[]) 
 {
   args_t args = {{0}};
+  enum FLAVOR {L_LxL=1, L_LxU=2, ALL_Models=4};
+  args.std.models_mask = ALL_Models-1;
   struct argp argp = {options, parse_opt, 0, "Triangle counting", children_parsers};  
   args.gstd.numrows = TRIANGLE_NUM_ROWS;
   argp_parse(&argp, argc, argv, 0, 0, &args);
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-
-  //override command line (these will lead to matrices with not quite the right number of nonzeros
-  // if the user also used the -z flag.
-  if ( (args.gstd.loops == 1) || (args.gstd.directed == 1) ) {
-    fprintf(stderr,"WARNING: triangles counting requires undirected no-loops graph\n");
-    args.gstd.loops = 0;
-    args.gstd.directed = 0;
-  }
-  write_std_graph_options(&args.std, &args.gstd);
+  args.gstd.loops = 0;   //overwrite these: the algorithm requires no loops, and undirected 
+  args.gstd.directed = 0;
   write_std_options(&args.std);
+  write_std_graph_options(&args.std, &args.gstd);
   
   // read in a matrix or generate a random graph
   sparsemat_t * L = get_input_graph(&args.std, &args.gstd);
@@ -141,7 +136,6 @@ int main(int argc, char * argv[])
     bale_app_write_int(&args.std, "known_num_triangles", correct_answer);
   }
 
-  enum FLAVOR {L_LxL=1, L_LxU=2, ALL_Models=4};
   uint32_t use_model;
   double laptime = 0.0;
   int64_t tri_cnt;

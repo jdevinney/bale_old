@@ -12,13 +12,10 @@
 Code to support the use of argp to parse the commandline options
 */
 
-
 #include "std_options.h"
 
 /*!
 \brief parse the std options
-
-TODO
 */
 static int std_parse_opt(int key, char * arg, struct argp_state * state) 
 {
@@ -29,8 +26,8 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state)
   case 'M': args->models_mask = atol(arg); break;
   case 's': args->seed = atol(arg); break;
   case ARGP_KEY_INIT:
-    args->seed = 122222;
-    args->models_mask = (1<<15)-1;
+    args->seed = 18181;
+    //args->models_mask = 1;
     args->dump_files = 0;
     args->json = 0;
     break;
@@ -38,11 +35,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state)
   return(0);
 }
 
-/*!
-\brief fill in the struct for standard options
-
-TODO
-*/
+/*! \brief fill in the struct for standard options */
 static struct argp_option std_options[] = {
   {"seed",        's', "SEED", 0, "Seed for RNG"},
   {"models_mask", 'M', "MASK", 0, "Which implementation/alg to run."},
@@ -51,14 +44,8 @@ static struct argp_option std_options[] = {
   {0}
 };
 
-/*!
-\brief sets up std_options_argp with its parser
-
-TODO
-*/
-struct argp std_options_argp = { // TODO:doxygen 
-  std_options, std_parse_opt, 0, 0, 0
-};
+/*! \brief sets up std_options_argp with its parser */
+struct argp std_options_argp = {std_options, std_parse_opt, 0, 0, 0};
 
 /*!
 \brief echo the standard options being used in a particular run
@@ -116,7 +103,7 @@ static int graph_parse_opt(int key, char *arg, struct argp_state *state)
     args->edge_prob = 0.0;
     args->readfile = 0;
     args->model = FLAT;
-    args->numrows = 100;
+    //args->numrows = 100;
     args->nz_per_row = 10.0;
     break;
   case ARGP_KEY_END:
@@ -135,16 +122,12 @@ static int graph_parse_opt(int key, char *arg, struct argp_state *state)
   }
   return(0);
 }
-/*!
-\brief struct for the graph options
-
-TODO
-*/
+/*! \brief struct for the graph options */
 static struct argp_option graph_options[] = {
   {0,             0,  0,       0, "Input (as file):", 5},
   {"readfile",   'f', "FILE",  0, "Read input from a file"},
   {0,             0,  0,       0, "Input (as random graph):", 6},
-  {"numrows",    'n', "NUM",   0, "Number of rows in a matrix"},
+  {"numrows",    'N', "NUM",   0, "Number of rows in a matrix"},
   {"directed",   'd', 0,       0, "Specify a directed graph"},
   {"edge_prob",  'e', "EDGEP", 0, "Probability that an edge appears. Use this or -z option to control the density of the graph."},
   {"flat",       'F', 0,       0, "Specify flat random graph model"},

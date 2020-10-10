@@ -138,34 +138,32 @@ typedef struct args_t{
   std_args_t std;
 }args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
   switch(key)
-    {
-    case 'n':
-      args->num_req = atol(arg); break;
-    case 'T':
-      args->tbl_size = atol(arg); break;
-    case ARGP_KEY_INIT:
-      state->child_inputs[0] = &args->std;
-      break;
-    }
+  {
+  case 'N':
+    args->num_req = atol(arg); break;
+  case 'T':
+    args->tbl_size = atol(arg); break;
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    break;
+  }
   return(0);
 }
 
-static struct argp_option options[] =
-  {
-    {"num_requests", 'n', "NUM",  0, "Number of requests to the table"},
-    {"table_size",   'T', "SIZE", 0, "Number of entries in look-up table"},
-    {0}
-  };
+static struct argp_option options[] = {
+  {"num_requests", 'N', "NUM",  0, "Number of requests to the table"},
+  {"table_size",   'T', "SIZE", 0, "Number of entries in look-up table"},
+  {0}
+};
 
-static struct argp_child children_parsers[] =
-  {
-    {&std_options_argp, 0, "Standard Options", -2},
-    {0}
-  };
-
+static struct argp_child children_parsers[] = {
+  {&std_options_argp, 0, "Standard Options", -2},
+  {0}
+};
 
 int main(int argc, char * argv[])
 {
@@ -182,6 +180,7 @@ int main(int argc, char * argv[])
   write_std_options(&args.std);
   bale_app_write_int(&args.std, "num_updates", args.num_req);
   bale_app_write_int(&args.std, "tbl_size", args.tbl_size);
+
 
   int64_t *table   = calloc(args.tbl_size, sizeof(int64_t));
   int64_t *tgt     = calloc(args.num_req, sizeof(int64_t));

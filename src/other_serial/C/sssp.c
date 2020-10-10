@@ -56,7 +56,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
   args_t * args = (args_t *)state->input;
   switch(key)
     {
-    case 'S': args->deltaStep = atof(arg); break;     
+    case 'S': args->deltaStep = atof(arg); break; 
     case 'V': args->V0 = atoi(arg); break;
     case ARGP_KEY_INIT:
       args->deltaStep = 0.0;
@@ -71,7 +71,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
 static struct argp_option options[] =
 {
     {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
-    {"V0", 'V', "NUM", 0, "initial vertex"},  
+    {"V0",        'V',      "NUM", 0, "initial vertex"},  
     {0}
 };
 
@@ -94,15 +94,11 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-
-  //override command line 
-  args.gstd.loops = 0;
+  args.gstd.loops = 0;    //override command line: the user can't pick these
   args.gstd.directed = 1;
   args.gstd.weighted = 1;
-  args.gstd.numrows = 20;
-
-  write_std_graph_options(&args.std, &args.gstd);
   write_std_options(&args.std);
+  write_std_graph_options(&args.std, &args.gstd);
   
   // read in a matrix or generate a random graph
   sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);

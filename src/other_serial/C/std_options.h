@@ -20,6 +20,7 @@ The std_options library is a support library for parsing command line options.
 #include <stdint.h>
 #include "spmat_utils.h"
 #include <argp.h>
+#include "default_app_opts.h"
 
 /*! \brief the version (equals the version of bale_classic) */
 #define C_BALE_VERSION 3.0

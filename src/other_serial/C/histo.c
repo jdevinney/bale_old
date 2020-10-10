@@ -139,7 +139,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
   args_t * args = (args_t *)state->input;
   switch(key)
   {
-  case 'n':
+  case 'N':
     args->num_ups = atol(arg); break;
   case 'T':
     args->tbl_size = atol(arg); break;
@@ -151,7 +151,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
 }
 
 static struct argp_option options[] = {
-  {"num_updates",'n', "NUM", 0, "Number of updates to the histogram table"},
+  {"num_updates",'N', "NUM", 0, "Number of updates to the histogram table"},
   {"table_size", 'T', "SIZE", 0, "Number of entries in the histogram table"},
   {0}
 };
@@ -173,7 +173,6 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-
   write_std_options(&args.std);
   bale_app_write_int(&args.std, "num_updates", args.num_ups);
   bale_app_write_int(&args.std, "tbl_size", args.tbl_size);

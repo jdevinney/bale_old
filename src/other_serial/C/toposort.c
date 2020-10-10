@@ -272,18 +272,10 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-  
-  //override command line 
-  //(note:these will lead to matrices with not quite the right number of nonzeros 
-  // if the user also used the -z flag.)
-  if ( (args.gstd.loops == 0) || (args.gstd.directed == 1) ) {
-    fprintf(stderr,"WARNING: toposort starts with a undirected graph with loops.\n");
-    args.gstd.loops = 1;
-    args.gstd.directed = 0;
-  }
-
-  write_std_graph_options(&args.std, &args.gstd);
+  args.gstd.loops = 1;      //override command line: user cant' pick these
+  args.gstd.directed = 0;
   write_std_options(&args.std);
+  write_std_graph_options(&args.std, &args.gstd);
   
   sparsemat_t * mat = generate_toposort_input(&args.std, &args.gstd);
   if(!mat){printf("ERROR: topo: generate_toposort_input failed\n"); exit(1);}

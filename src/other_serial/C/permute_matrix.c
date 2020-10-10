@@ -77,9 +77,8 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-
-  write_std_graph_options(&args.std, &args.gstd);
   write_std_options(&args.std);
+  write_std_graph_options(&args.std, &args.gstd);
   
   // read in or generate a random graph (matrix)
   sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);
