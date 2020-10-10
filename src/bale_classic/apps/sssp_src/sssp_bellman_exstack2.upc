@@ -151,8 +151,11 @@ double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt
 
   //dump_tent("EXSTACK2: ", dist);
   lgp_barrier();
-  minavgmaxD_t stat[1];
+  clear_d_array(tent0); free(tent0);
+  clear_d_array(tent1); free(tent1);
+  clear_d_array(tent2); free(tent2);
   t1 = wall_seconds() - t1;
+  minavgmaxD_t stat[1];
   lgp_min_avg_max_d( stat, t1, THREADS );
 
   return(stat->avg);
