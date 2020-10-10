@@ -1,4 +1,4 @@
-<---
+<!---
 /* Copyright (c) 2020, Institute for Defense Analyses              */
 /* 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500 */
 /*                                                                 */
