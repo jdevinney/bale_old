@@ -16,7 +16,7 @@ Run permute_matrix --help or --usage for insructions on running.
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 /*! \brief A timing wrapper around the permute_matrix call in `spmat_utils.c`
 \param *A  sparsemat_t holding the given matrix

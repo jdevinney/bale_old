@@ -16,7 +16,7 @@ Run sssp --help or --usage for insructions on running
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);            //!< Dijsktra's alg with linear search for smallest tent[v]
 double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);              //!< Dijsktra's alg with heap to track the smallest tent[v]

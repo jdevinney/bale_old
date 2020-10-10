@@ -16,7 +16,7 @@ Run triangle --help or --usage for insructions on running
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 /*!
 \brief This routine counts the number of triangles in a graph

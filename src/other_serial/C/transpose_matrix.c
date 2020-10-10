@@ -16,7 +16,7 @@ Run transpose_matrix --help or --usage for usage.
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 /*!
 \brief timing wrapper around the transpose_matrix routine in `spmat_utils.c`

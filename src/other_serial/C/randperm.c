@@ -16,7 +16,7 @@ Run randperm --help or --usage for insructions on running.
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 /*! \brief A timing wrapper around the rand_perm routine that is in `spmat_utils.c`
 \param len length of the permutation array
