@@ -27,7 +27,6 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state)
   case 's': args->seed = atol(arg); break;
   case ARGP_KEY_INIT:
     args->seed = 18181;
-    //args->models_mask = 1;
     args->dump_files = 0;
     args->json = 0;
     break;
@@ -68,6 +67,7 @@ void write_std_options(std_args_t * sargs){
 \brief parse the graph options */        // TODO doxygen
 static int graph_parse_opt(int key, char *arg, struct argp_state *state)
 {
+  int i, ptrshf;
   std_graph_args_t *args = (std_graph_args_t *)state->input;
   switch(key){
   case 'd': args->directed = 1; break;
@@ -80,20 +80,17 @@ static int graph_parse_opt(int key, char *arg, struct argp_state *state)
     strcpy(args->kron_string,arg);
     char * ptr = arg;
     fprintf(stderr, "%s\n", arg);
-    sscanf(ptr, "%d:", &args->kron_mode);                  //TODO 
-    printf("mode %d\n", args->kron_mode);
-    int i = 0;
-    ptr+=2;
-    while(i < 63 && sscanf(ptr, "%d", &args->kron_spec[i])){
-      fprintf(stderr,"%d\n", args->kron_spec[i]);
-      i++;
-      ptr++; 
-      if(*ptr != 'x'){
+    sscanf(ptr, "%d:", &args->kron_mode);
+    assert( args->kron_mode == 0 || args->kron_mode == 1 || args->kron_mode == 2);
+    ptr+=2;  // move pass the ':'
+    for(i=0; i<63; i++) {
+      sscanf(ptr, "%d%n", &args->kron_spec[i], &ptrshf);
+      ptr += ptrshf;  // move pass the digits
+      if(*ptr != 'x')
         break;
-      }
-      ptr++; 
-    }                                                     //TOHERE
-    args->kron_num = i;
+      ptr++;          // move pass the digits
+    }
+    args->kron_num = i+1;
     break;
   case 'l': args->loops = 1; break;
   case 'N': args->numrows = atol(arg); break;
