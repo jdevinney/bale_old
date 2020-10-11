@@ -44,42 +44,39 @@ static double sssp_answer_diff(d_array_t *A, d_array_t *B)
 }
 
 /********************************  argp setup  ************************************/
-typedef struct args_t{
+typedef struct args_t {
   double deltaStep; 
   int64_t V0;
   std_args_t std;
   std_graph_args_t gstd;
-}args_t;
+} args_t;
 
 static int parse_opt(int key, char * arg, struct argp_state * state)
 {
   args_t * args = (args_t *)state->input;
-  switch(key)
-    {
-    case 'S': args->deltaStep = atof(arg); break; 
-    case 'V': args->V0 = atoi(arg); break;
-    case ARGP_KEY_INIT:
-      args->deltaStep = 0.0;
-      args->V0 = 0;
-      state->child_inputs[0] = &args->std;
-      state->child_inputs[1] = &args->gstd;
-      break;
-    }
+  switch(key) {
+  case 'S': args->deltaStep = atof(arg); break; 
+  case 'V': args->V0 = atoi(arg); break;
+  case ARGP_KEY_INIT:
+    args->deltaStep = 0.0;
+    args->V0 = 0;
+    state->child_inputs[0] = &args->std;
+    state->child_inputs[1] = &args->gstd;
+    break;
+  }
   return(0);
 }
 
-static struct argp_option options[] =
-{
-    {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
-    {"V0",        'V',      "NUM", 0, "initial vertex"},  
-    {0}
+static struct argp_option options[] = {
+  {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
+  {"V0",        'V',      "NUM", 0, "initial vertex"},  
+  {0}
 };
 
-static struct argp_child children_parsers[] =
-{    
-    {&std_options_argp, 0, "Standard Options", -2},
-    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
-    {0}
+static struct argp_child children_parsers[] = {    
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
 };
 
 

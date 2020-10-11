@@ -50,16 +50,17 @@ struct argp std_options_argp = {std_options, std_parse_opt, 0, 0, 0};
 \brief echo the standard options being used in a particular run
 \param sargs the standard options
 */
-void write_std_options(std_args_t * sargs){
-  if(sargs->json == 0){
+void write_std_options(std_args_t * sargs)
+{
+  if (sargs->json) {
+    FILE * jp = fopen(sargs->json_output, "a");
+    fprintf(jp, "\"rng_seed\": \"%"PRId64"\",\n", sargs->seed);
+    fclose(jp);
+  } else {
     fprintf(stderr,"Standard options:\n");
     fprintf(stderr,"----------------------------------------------------\n");
     fprintf(stderr,"seed                     (-s): %"PRId64"\n", sargs->seed);
     fprintf(stderr,"Models Mask              (-M): %d\n\n", sargs->models_mask);
-  }else{
-    FILE * jp = fopen(sargs->json_output, "a");
-    fprintf(jp, "\"rng_seed\": \"%"PRId64"\",\n", sargs->seed);
-    fclose(jp);
   }
 }
 
@@ -136,19 +137,13 @@ static struct argp_option graph_options[] = {
   {0}
 };
 
-/*!
-\brief sets up std_options_argp with its parser
-
-TODO
-*/
-struct argp std_graph_options_argp = {
-  graph_options, graph_parse_opt, 0, 0, 0
-};
+/*! \brief sets up std_graph_options_argp with its parser */
+struct argp std_graph_options_argp = {graph_options, graph_parse_opt, 0, 0, 0};
 
 /*!
 \brief considers the std and graph options and determine how to generated the required matrix
 
-this function looks at the std_args_t and std_graph_args_t structs to decide
+This function looks at the std_args_t and std_graph_args_t structs to decide
 whether to read a matrix or generate a random matrix. The function returns
 the read or generated matrix. 
 
@@ -207,7 +202,15 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs) //TO
 */
 void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs)
 {
-  if (!gargs->readfile) {
+  if (gargs->readfile) {
+    if (sargs->json) {
+      FILE * jp = fopen(sargs->json_output, "a");
+      fprintf(jp,"\"input_file\": \"%s\",\n", gargs->filename);
+      fclose(jp);
+    }else{
+      fprintf(stderr,"Reading input from %s\n\n", gargs->filename);
+    }
+  } else {
     char model[32];
     if (gargs->model == FLAT)
       sprintf(model, "FLAT        (-F)");
@@ -219,6 +222,11 @@ void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs)
     if (sargs->json) {
       FILE * jp = fopen(sargs->json_output, "a");
       fprintf(jp,"\"graph_model\": \"%.*s\",\n", 9, model);
+      fprintf(jp,"\"directed\": \"%s\",\n", (gargs->directed)?"yes":"no");
+      fprintf(jp,"\"weighted\": \"%s\",\n", (gargs->weighted)?"yes":"no");
+      fprintf(jp,"\"loops\": \"%s\",\n", (gargs->loops)?"yes":"no");
+      fprintf(jp,"\"numrows\": \"%ld\",\n", gargs->numrows);
+      fprintf(jp,"\"eprob\": \"%lf\",\n", gargs->edge_prob);
       fclose(jp);
     } else {
       fprintf(stderr,"Input Graph/Matrix parameters:\n");
@@ -231,14 +239,6 @@ void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs)
       fprintf(stderr,"Number of rows           (-N): %"PRId64"\n", gargs->numrows);
       fprintf(stderr,"Avg # nnz per row        (-z): %2.2lf\n", gargs->nz_per_row);
       fprintf(stderr,"Edge probability         (-e): %lf\n\n", gargs->edge_prob);
-    }
-  } else {
-    if (sargs->json) {
-      FILE * jp = fopen(sargs->json_output, "a");
-      fprintf(jp,"\"input_file\": \"%s\",\n", gargs->filename);
-      fclose(jp);
-    }else{
-      fprintf(stderr,"Reading input from %s\n\n", gargs->filename);
     }
   }
 }
@@ -278,7 +278,7 @@ some basic app data to stderr or json.
 */
 int bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp * argp, std_args_t * sargs)
 {
-  argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, args);
+  int ret = argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, args);
 
   // print header 
   time_t now = time(NULL);
@@ -303,7 +303,7 @@ int bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp 
     }
     fprintf(stderr,"\n***************************************************************\n\n");
   }
-  return(0);
+  return(ret);
 }
 
 
