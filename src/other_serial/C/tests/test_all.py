@@ -55,6 +55,7 @@ def test_all(path, implementation_mask):
       runs.append('-K "0:3x4x5" ')
       runs.append('-K "1:3x4x5" ')
       runs.append('-K "2:3x4x5" ')
+      runs.append('-K "0:13x17" ')
     if app == 'sssp':
       runs.append("-N 719 -F -e 0.05 ")
       runs.append("-N 601 -F -e 0.5 ")
