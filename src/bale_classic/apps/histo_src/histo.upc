@@ -48,6 +48,7 @@ Run with the --help, -?, or --usage flags for run details.
 
 
 typedef struct args_t{
+  int64_t num_ups;      /*!< number of updates for all threads */
   int64_t l_num_ups;    /*!< number of updates for each thread */
   int64_t l_tbl_size;   /*!< per thread size of the counts table */
   std_args_t std;
@@ -57,6 +58,8 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
+    case 'N':
+      args->num_ups = atol(arg); break;
     case 'n':
       args->l_num_ups = atol(arg); break;
     case 'T':
@@ -70,7 +73,8 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
-    {"num_updates",'n', "NUM", 0, "Number of updates per PE to the histogram table"},
+    {"num_updates",'N', "NUM", 0, "Number of updates for all PE to the histogram table"},
+    {"l_num_updates",'n', "NUM", 0, "Number of updates per PE to the histogram table"},
     {"table_size", 'T', "SIZE", 0, "Number of entries per PE in the histogram table"},
     {0}
   };
@@ -88,6 +92,7 @@ int main(int argc, char * argv[]) {
   /* process command line */
   args_t args;
   args.l_tbl_size = 10000;
+  args.num_ups = 0;
   args.l_num_ups = 5000000;
   struct argp argp = {options, parse_opt, 0,
                       "Accumulate updates into a table.", children_parsers};
@@ -96,7 +101,13 @@ int main(int argc, char * argv[]) {
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
+  if(args.num_ups == 0) 
+    args.num_ups = args.l_num_ups * THREADS;
+  else
+    args.l_num_ups = (args.num_ups + THREADS - MYTHREAD - 1)/THREADS;
+
   if(!MYTHREAD){
+    bale_app_write_int(&args.std, "num_updates_total", args.num_ups);
     bale_app_write_int(&args.std, "num_updates_per_pe", args.l_num_ups);
     bale_app_write_int(&args.std, "table_size_per_pe", args.l_tbl_size);
     write_std_options(&args.std);
