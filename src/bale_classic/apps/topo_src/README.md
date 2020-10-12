@@ -9,13 +9,13 @@ if there are square permutation matrices **P** and **Q** and a unit-upper-triang
 
 ## Definition
 
-The input to toposort is a morally unit-upper-triangular sparse matrix M.
+The input to toposort is a morally unit-upper-triangular sparse matrix **M**.
 To obtain **M** we create a unit-upper-triangular matrix
 and apply random permutations to the rows and columns of that matrix.
 Note that we don't care about the values of the non-zeros
 in any matrix in toposort, only their position.
 The goal of toposort is to create row and column permutations such
-that when these permutations are applied to *M*,
+that when these permutations are applied to **M**,
 the result is an unit-upper triangular matrix.
 The answer need not be unique.
 A solution always exists since **M** is a row and column permutation of **T**.
@@ -34,7 +34,7 @@ proof of its correctness).
 
 The outline of an algorithm is as follows:
 
-Let M be an N by N morally unit-upper-triangular matrix. 
+Let **M** be an N by N morally unit-upper-triangular matrix. 
 ```
    For all rows r with a single non-zero in a column c, put the pair (r,c) onto a queue.
    pos = N-1
@@ -48,7 +48,7 @@ Rather than changing the matrix by deleting rows and column and then searching t
 new matrix for the next row.  We do the obvious thing of keeping an array of row counts.
 `rowcnt[i]` is the number of undeleted non-zeros in *row i*. 
 We use a cool trick to find the last surviving column of a row. 
-We initialize an array, ``rowsum[i]`, to be the sum of the column indices in *row i*.
+We initialize an array, `rowsum[i]`, to be the sum of the column indices in *row i*.
 When we "delete" a column we decrement `rowcnt[i]` by 1 and `rowsum[i]` by that column index.
 Hence, when the `rowcnt[i]` = 1, `rowsum[i]` contains the column that is left. 
 

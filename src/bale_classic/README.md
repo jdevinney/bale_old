@@ -69,12 +69,12 @@ All of Bale is supported and has been tested on:
 - Clang UPC (3.9.1-1)
 - OpenMPI (OSHMEM) 4.0.2 with UCX on infiniband
 - Cray SHMEM (7.7.2)
-- Cray openshmemX ?
+- Cray openshmemX (8.0.1)
 
 There are problems with the following...
-- OpenMPI (OSHMEM) 4.0.3 with UCX on an SMP (progress issues)
+- OpenMPI (OSHMEM) 4.0.3 with UCX on an SMP (progress issues with exstack2 and conveyors)
 
-- Sandia OpenSHMEM (SOS) (1.4.5) without MCA (all but conveyors)
+- Sandia OpenSHMEM (SOS) (1.4.5) with CMA on an SMP (conveyors)
 
 #### Other Dependencies
 
@@ -98,6 +98,10 @@ bale now comes with some Docker files to assist you in getting a bale-friendly e
 - sos (Sandia OpenSHMEM)
 
 Each directory has a file "Dockerfile" that when run will build an evironment that is capable of building all of bale and running bale apps.
+
+We also have public images of the GUPC and oshmem environments on Dockerhub.
+- https://hub.docker.com/r/npmolino/bale_public_gupc
+- https://hub.docker.com/r/npmolino/bale_public_oshmem4.0.3
 
 ### Documentation
 
