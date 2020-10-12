@@ -16,7 +16,7 @@ Run sssp --help or --usage for insructions on running
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 double sssp_dijsktra_linear(d_array_t * tent, sparsemat_t * mat, int64_t v0);            //!< Dijsktra's alg with linear search for smallest tent[v]
 double sssp_dijsktra_heap(d_array_t * tent, sparsemat_t * mat, int64_t r0);              //!< Dijsktra's alg with heap to track the smallest tent[v]
@@ -44,42 +44,39 @@ static double sssp_answer_diff(d_array_t *A, d_array_t *B)
 }
 
 /********************************  argp setup  ************************************/
-typedef struct args_t{
+typedef struct args_t {
   double deltaStep; 
   int64_t V0;
   std_args_t std;
   std_graph_args_t gstd;
-}args_t;
+} args_t;
 
 static int parse_opt(int key, char * arg, struct argp_state * state)
 {
   args_t * args = (args_t *)state->input;
-  switch(key)
-    {
-    case 'S': args->deltaStep = atof(arg); break;     
-    case 'V': args->V0 = atoi(arg); break;
-    case ARGP_KEY_INIT:
-      args->deltaStep = 0.0;
-      args->V0 = 0;
-      state->child_inputs[0] = &args->std;
-      state->child_inputs[1] = &args->gstd;
-      break;
-    }
+  switch(key) {
+  case 'S': args->deltaStep = atof(arg); break; 
+  case 'V': args->V0 = atoi(arg); break;
+  case ARGP_KEY_INIT:
+    args->deltaStep = 0.0;
+    args->V0 = 0;
+    state->child_inputs[0] = &args->std;
+    state->child_inputs[1] = &args->gstd;
+    break;
+  }
   return(0);
 }
 
-static struct argp_option options[] =
-{
-    {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
-    {"V0", 'V', "NUM", 0, "initial vertex"},  
-    {0}
+static struct argp_option options[] = {
+  {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
+  {"V0",        'V',      "NUM", 0, "initial vertex"},  
+  {0}
 };
 
-static struct argp_child children_parsers[] =
-{    
-    {&std_options_argp, 0, "Standard Options", -2},
-    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
-    {0}
+static struct argp_child children_parsers[] = {    
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
 };
 
 
@@ -94,15 +91,11 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-
-  //override command line 
-  args.gstd.loops = 0;
+  args.gstd.loops = 0;    //override command line: the user can't pick these
   args.gstd.directed = 1;
   args.gstd.weighted = 1;
-  args.gstd.numrows = 20;
-
-  write_std_graph_options(&args.std, &args.gstd);
   write_std_options(&args.std);
+  write_std_graph_options(&args.std, &args.gstd);
   
   // read in a matrix or generate a random graph
   sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);

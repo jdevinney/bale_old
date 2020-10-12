@@ -72,6 +72,7 @@ int64_t ig_check_and_zero(int64_t use_model, int64_t *tgt, int64_t *index, int64
 
 
 typedef struct args_t{
+  int64_t num_req;      /*!< number of requests for all threads */
   int64_t l_num_req;    /*!< number of requests made by each thread */
   int64_t l_tbl_size;   /*!< per thread size of the counts table */
   std_args_t std;
@@ -81,6 +82,8 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
+    case 'N':
+      args->num_req = atol(arg); break;
     case 'n':
       args->l_num_req = atol(arg); break;
     case 'T':
@@ -94,8 +97,9 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
-    {"num_requests",'n', "NUM", 0, "Number of reads per PE from the table"},
-    {"table_size", 'T', "SIZE", 0, "Number of entries per PE in the table"},
+    {"l_num_req",  'n', "NUM", 0, "Number of reads per PE from the table"},
+    {"num_req",    'N', "NUM", 0, "Number of requests for all PEs from the table"},
+    {"l_tbl_size", 'T', "SIZE", 0, "Number of entries per PE in the table"},
     {0}
   };
 
@@ -107,8 +111,6 @@ static struct argp_child children_parsers[] =
 
 
 int main(int argc, char * argv[]) {
-
-  
   int64_t i;
   int64_t num_errors = 0L, total_errors = 0L;
   int64_t printhelp = 0;
@@ -117,6 +119,7 @@ int main(int argc, char * argv[]) {
   int ret = 0;
   args_t args;
   args.l_tbl_size = 10000;
+  args.num_req = 0;
   args.l_num_req = 5000000;
   struct argp argp = {options, parse_opt, 0,
                       "Many remote reads from a distributed table.", children_parsers};
@@ -125,7 +128,13 @@ int main(int argc, char * argv[]) {
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
+  if(args.num_req == 0) 
+    args.num_req = args.l_num_req * THREADS;
+  else
+    args.l_num_req = (args.num_req + THREADS - MYTHREAD - 1)/THREADS;
+
   if(!MYTHREAD){
+    bale_app_write_int(&args.std, "num_requests_total", args.num_req);
     bale_app_write_int(&args.std, "num_requests_per_pe", args.l_num_req);
     bale_app_write_int(&args.std, "table_size_per_pe", args.l_tbl_size);
     write_std_options(&args.std);

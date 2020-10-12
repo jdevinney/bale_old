@@ -79,9 +79,11 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
       runs.append("-b 16 -n 1000 ")
       runs.append("-b 35 -n 813 ")
       runs.append("-b 24 -n 2509 ")
+      runs.append("-b 24 -N 2509 ")
     if app == 'histo' or app == 'ig':
       runs.append("-b 35 -n 2344 -T 10 ")
       runs.append("-b 120 -n 1998 -T 10000 ")
+      runs.append("-b 35 -N 10000 -T 10 ")
     if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles' or app == 'sssp'\
        or app == 'sparse_matrix_io':
       runs.append("-b 120 -n 1000 -F -z 2 ")
@@ -118,6 +120,8 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
       runs.append("-b 345 -K 0:2x4x7 ")
       runs.append("-b 345 -K 1:2x4x7 ")
       runs.append("-b 345 -K 2:2x4x7 ")    
+      runs.append("-b 128 -K 0:2x11x13")
+      runs.append("-b 128 -K 0:2x11x2")
       if os.path.exists("../../../example_matrices/"):
         runs.append("-b 44 -f ../../../example_matrices/undirected_flat_100.mm")
         runs.append("-b 44 -f ../../../example_matrices/undirected_geometric_100.mm")

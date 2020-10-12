@@ -17,7 +17,7 @@ Run unionfind --help or --usage for insructions on running.
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 
 /*! \brief the nodes of the disjoint union trees */
@@ -204,15 +204,16 @@ static struct argp_child children_parsers[] = {
 int main(int argc, char * argv[])
 {  
   args_t args = {{0}};
+  enum FLAVOR {BAD_UNION=1, OPT_UNION=2, ALL_Models=4};
+  args.std.models_mask = ALL_Models-1;
   struct argp argp = {options, parse_opt, 0, "Union Find for connected components", children_parsers};
   args.gstd.numrows = UNIONFIND_NUM_ROWS;
   argp_parse(&argp, argc, argv, 0, 0, &args);
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-
-  write_std_graph_options(&args.std, &args.gstd);
   write_std_options(&args.std);
+  write_std_graph_options(&args.std, &args.gstd);
   
   //override command line (these will lead to matrices with not quite the right number of nonzeros
   // if the user also used the -z flag.
@@ -231,7 +232,6 @@ int main(int argc, char * argv[])
   if(args.std.dump_files) write_matrix_mm(mat, "unionfind_inmat");
   int verbose=0;
 
-  enum FLAVOR {BAD_UNION=1, OPT_UNION=2, ALL_Models=4};
   uint32_t use_model;  
   double laptime;
   int64_t num_components = 0;

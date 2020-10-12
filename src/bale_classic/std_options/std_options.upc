@@ -83,7 +83,7 @@ void write_std_options(std_args_t * sargs){
 static int graph_parse_opt(int key, char * arg, struct argp_state * state){
   std_graph_args_t * args = (std_graph_args_t *)state->input;
   char * ptr;
-  int i = 0;
+  int i, ptrshf;
   switch(key){
   case 'd': args->directed = 1; break;
   case 'e': args->edge_prob = atof(arg); break;
@@ -96,21 +96,16 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
     ptr = arg;
     //T0_fprintf(stderr, "%s\n", arg);
     sscanf(ptr, "%d:", &args->kron_mode);
-    //printf("mode %d\n", args->kron_mode);
-    i = 0;
-    int tmp;
-    ptr+=2;
-    while(i < 63 && sscanf(ptr, "%d", &args->kron_spec[i])){
-      //fprintf(stderr,"%d\n", args->kron_spec[i]);
-      i++;
-      ptr++; 
-      if(*ptr != 'x'){
+    assert( args->kron_mode == 0 || args->kron_mode == 1 || args->kron_mode == 2);
+    ptr+=2;  // move pass the ':'
+    for(i=0; i<63; i++) {
+      sscanf(ptr, "%d%n", &args->kron_spec[i], &ptrshf);
+      ptr += ptrshf;  // move pass the digits
+      if(*ptr != 'x') // better be 'x' or NULL
         break;
-      }
-      ptr++; 
+      ptr++;          // move pass the digits
     }
-
-    args->kron_num = i;
+    args->kron_num = i+1;
     break;
   case 'l': args->loops = 1; break;
   case 'n': args->l_numrows = atol(arg); break;

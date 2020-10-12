@@ -31,6 +31,7 @@ SRC= spmat_utils.h spmat_utils.c
   SRC+=sssp_dijsktra.c
   SRC+=sssp_bellmanford.c
   SRC+=demo_spmat.c
+  SRC+=opts_demo.c
 
 EXE= histo 
   EXE+=ig 
@@ -42,6 +43,7 @@ EXE= histo
   EXE+=permute_matrix
   EXE+=sssp
   EXE+=demo_spmat
+  EXE+=opts_demo
 
 DOC= mainpage.h Doxyfile
 
@@ -49,7 +51,7 @@ OBJ= spmat_utils.o std_options.o
 
 GRAPHS= demo.mm 10_ring.mm 2comps.mm
 
-all: docs std_options.o spmat_utils.o ${EXE}
+all: html/index.html std_options.o spmat_utils.o ${EXE}
 
 std_options.o: std_options.c std_options.h
 	${CC} -g -c std_options.c
@@ -59,6 +61,9 @@ spmat_utils.o: spmat_utils.c spmat_utils.h
 
 demo_spmat: demo_spmat.c spmat_utils.o 
 	${CC} demo_spmat.c spmat_utils.o ${LFLAGS} -o demo_spmat
+
+opts_demo: opts_demo.c spmat_utils.o std_options.o
+	${CC} opts_demo.c spmat_utils.o std_options.o ${LFLAGS} -o opts_demo
 
 histo: histo.c std_options.o spmat_utils.o 
 	${CC} -g histo.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o histo
@@ -87,7 +92,7 @@ transpose_matrix: transpose_matrix.c std_options.o spmat_utils.o
 sssp: sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o
 	${CC} sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o sssp
 
-docs:
+html/index.html:
 	doxygen
 
 clean:
