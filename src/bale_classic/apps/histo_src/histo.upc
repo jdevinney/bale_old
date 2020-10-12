@@ -73,9 +73,9 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
-    {"num_updates",'N', "NUM", 0, "Number of updates for all PE to the histogram table"},
     {"l_num_updates",'n', "NUM", 0, "Number of updates per PE to the histogram table"},
-    {"table_size", 'T', "SIZE", 0, "Number of entries per PE in the histogram table"},
+    {"num_updates",  'N', "NUM", 0, "Number of updates for all PE to the histogram table"},
+    {"table_size",   'T', "SIZE", 0, "Number of entries per PE in the histogram table"},
     {0}
   };
 
