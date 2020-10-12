@@ -12,13 +12,10 @@
 Code to support the use of argp to parse the commandline options
 */
 
-
 #include "std_options.h"
 
 /*!
 \brief parse the std options
-
-TODO
 */
 static int std_parse_opt(int key, char * arg, struct argp_state * state) 
 {
@@ -29,8 +26,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state)
   case 'M': args->models_mask = atol(arg); break;
   case 's': args->seed = atol(arg); break;
   case ARGP_KEY_INIT:
-    args->seed = 122222;
-    args->models_mask = (1<<15)-1;
+    args->seed = 18181;
     args->dump_files = 0;
     args->json = 0;
     break;
@@ -38,11 +34,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state)
   return(0);
 }
 
-/*!
-\brief fill in the struct for standard options
-
-TODO
-*/
+/*! \brief fill in the struct for standard options */
 static struct argp_option std_options[] = {
   {"seed",        's', "SEED", 0, "Seed for RNG"},
   {"models_mask", 'M', "MASK", 0, "Which implementation/alg to run."},
@@ -51,29 +43,24 @@ static struct argp_option std_options[] = {
   {0}
 };
 
-/*!
-\brief sets up std_options_argp with its parser
-
-TODO
-*/
-struct argp std_options_argp = { // TODO:doxygen 
-  std_options, std_parse_opt, 0, 0, 0
-};
+/*! \brief sets up std_options_argp with its parser */
+struct argp std_options_argp = {std_options, std_parse_opt, 0, 0, 0};
 
 /*!
 \brief echo the standard options being used in a particular run
 \param sargs the standard options
 */
-void write_std_options(std_args_t * sargs){
-  if(sargs->json == 0){
+void write_std_options(std_args_t * sargs)
+{
+  if (sargs->json) {
+    FILE * jp = fopen(sargs->json_output, "a");
+    fprintf(jp, "\"rng_seed\": \"%"PRId64"\",\n", sargs->seed);
+    fclose(jp);
+  } else {
     fprintf(stderr,"Standard options:\n");
     fprintf(stderr,"----------------------------------------------------\n");
     fprintf(stderr,"seed                     (-s): %"PRId64"\n", sargs->seed);
     fprintf(stderr,"Models Mask              (-M): %d\n\n", sargs->models_mask);
-  }else{
-    FILE * jp = fopen(sargs->json_output, "a");
-    fprintf(jp, "\"rng_seed\": \"%"PRId64"\",\n", sargs->seed);
-    fclose(jp);
   }
 }
 
@@ -81,6 +68,7 @@ void write_std_options(std_args_t * sargs){
 \brief parse the graph options */        // TODO doxygen
 static int graph_parse_opt(int key, char *arg, struct argp_state *state)
 {
+  int i, ptrshf;
   std_graph_args_t *args = (std_graph_args_t *)state->input;
   switch(key){
   case 'd': args->directed = 1; break;
@@ -93,20 +81,17 @@ static int graph_parse_opt(int key, char *arg, struct argp_state *state)
     strcpy(args->kron_string,arg);
     char * ptr = arg;
     fprintf(stderr, "%s\n", arg);
-    sscanf(ptr, "%d:", &args->kron_mode);                  //TODO 
-    printf("mode %d\n", args->kron_mode);
-    int i = 0;
-    ptr+=2;
-    while(i < 63 && sscanf(ptr, "%d", &args->kron_spec[i])){
-      fprintf(stderr,"%d\n", args->kron_spec[i]);
-      i++;
-      ptr++; 
-      if(*ptr != 'x'){
+    sscanf(ptr, "%d:", &args->kron_mode);
+    assert( args->kron_mode == 0 || args->kron_mode == 1 || args->kron_mode == 2);
+    ptr+=2;  // move pass the ':'
+    for(i=0; i<63; i++) {
+      sscanf(ptr, "%d%n", &args->kron_spec[i], &ptrshf);
+      ptr += ptrshf;  // move pass the digits
+      if(*ptr != 'x')
         break;
-      }
-      ptr++; 
-    }                                                     //TOHERE
-    args->kron_num = i;
+      ptr++;          // move pass the digits
+    }
+    args->kron_num = i+1;
     break;
   case 'l': args->loops = 1; break;
   case 'N': args->numrows = atol(arg); break;
@@ -116,7 +101,7 @@ static int graph_parse_opt(int key, char *arg, struct argp_state *state)
     args->edge_prob = 0.0;
     args->readfile = 0;
     args->model = FLAT;
-    args->numrows = 100;
+    //args->numrows = 100;
     args->nz_per_row = 10.0;
     break;
   case ARGP_KEY_END:
@@ -135,16 +120,12 @@ static int graph_parse_opt(int key, char *arg, struct argp_state *state)
   }
   return(0);
 }
-/*!
-\brief struct for the graph options
-
-TODO
-*/
+/*! \brief struct for the graph options */
 static struct argp_option graph_options[] = {
   {0,             0,  0,       0, "Input (as file):", 5},
   {"readfile",   'f', "FILE",  0, "Read input from a file"},
   {0,             0,  0,       0, "Input (as random graph):", 6},
-  {"numrows",    'n', "NUM",   0, "Number of rows in a matrix"},
+  {"numrows",    'N', "NUM",   0, "Number of rows in a matrix"},
   {"directed",   'd', 0,       0, "Specify a directed graph"},
   {"edge_prob",  'e', "EDGEP", 0, "Probability that an edge appears. Use this or -z option to control the density of the graph."},
   {"flat",       'F', 0,       0, "Specify flat random graph model"},
@@ -156,19 +137,13 @@ static struct argp_option graph_options[] = {
   {0}
 };
 
-/*!
-\brief sets up std_options_argp with its parser
-
-TODO
-*/
-struct argp std_graph_options_argp = {
-  graph_options, graph_parse_opt, 0, 0, 0
-};
+/*! \brief sets up std_graph_options_argp with its parser */
+struct argp std_graph_options_argp = {graph_options, graph_parse_opt, 0, 0, 0};
 
 /*!
 \brief considers the std and graph options and determine how to generated the required matrix
 
-this function looks at the std_args_t and std_graph_args_t structs to decide
+This function looks at the std_args_t and std_graph_args_t structs to decide
 whether to read a matrix or generate a random matrix. The function returns
 the read or generated matrix. 
 
@@ -227,7 +202,15 @@ sparsemat_t * get_input_graph(std_args_t * sargs, std_graph_args_t * gargs) //TO
 */
 void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs)
 {
-  if (!gargs->readfile) {
+  if (gargs->readfile) {
+    if (sargs->json) {
+      FILE * jp = fopen(sargs->json_output, "a");
+      fprintf(jp,"\"input_file\": \"%s\",\n", gargs->filename);
+      fclose(jp);
+    }else{
+      fprintf(stderr,"Reading input from %s\n\n", gargs->filename);
+    }
+  } else {
     char model[32];
     if (gargs->model == FLAT)
       sprintf(model, "FLAT        (-F)");
@@ -239,6 +222,11 @@ void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs)
     if (sargs->json) {
       FILE * jp = fopen(sargs->json_output, "a");
       fprintf(jp,"\"graph_model\": \"%.*s\",\n", 9, model);
+      fprintf(jp,"\"directed\": \"%s\",\n", (gargs->directed)?"yes":"no");
+      fprintf(jp,"\"weighted\": \"%s\",\n", (gargs->weighted)?"yes":"no");
+      fprintf(jp,"\"loops\": \"%s\",\n", (gargs->loops)?"yes":"no");
+      fprintf(jp,"\"numrows\": \"%ld\",\n", gargs->numrows);
+      fprintf(jp,"\"eprob\": \"%lf\",\n", gargs->edge_prob);
       fclose(jp);
     } else {
       fprintf(stderr,"Input Graph/Matrix parameters:\n");
@@ -251,14 +239,6 @@ void write_std_graph_options(std_args_t * sargs, std_graph_args_t * gargs)
       fprintf(stderr,"Number of rows           (-N): %"PRId64"\n", gargs->numrows);
       fprintf(stderr,"Avg # nnz per row        (-z): %2.2lf\n", gargs->nz_per_row);
       fprintf(stderr,"Edge probability         (-e): %lf\n\n", gargs->edge_prob);
-    }
-  } else {
-    if (sargs->json) {
-      FILE * jp = fopen(sargs->json_output, "a");
-      fprintf(jp,"\"input_file\": \"%s\",\n", gargs->filename);
-      fclose(jp);
-    }else{
-      fprintf(stderr,"Reading input from %s\n\n", gargs->filename);
     }
   }
 }
@@ -298,7 +278,7 @@ some basic app data to stderr or json.
 */
 int bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp * argp, std_args_t * sargs)
 {
-  argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, args);
+  int ret = argp_parse(argp, argc, argv, ARGP_NO_EXIT, 0, args);
 
   // print header 
   time_t now = time(NULL);
@@ -323,7 +303,7 @@ int bale_app_init(int argc, char ** argv, void * args, int arg_len, struct argp 
     }
     fprintf(stderr,"\n***************************************************************\n\n");
   }
-  return(0);
+  return(ret);
 }
 
 

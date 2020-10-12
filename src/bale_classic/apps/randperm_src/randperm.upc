@@ -44,6 +44,7 @@ Run with the --help, -?, or --usage flags for run details.
 #include <unistd.h>
 
 typedef struct args_t{
+  int64_t num_rows;       /*!< total number of elements in the shared permutation */
   int64_t l_num_rows;     /*!< per thread number of elements in the shared permutation */
   std_args_t std;
 }args_t;
@@ -52,6 +53,8 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
+    case 'N':
+      args->num_rows = atol(arg); break;
     case 'n':
       args->l_num_rows = atol(arg); break;
     case ARGP_KEY_INIT:
@@ -63,6 +66,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
+    {"perm_size",'N', "NUM", 0, "Total length of permutation"},
     {"l_perm_size",'n', "NUM", 0, "Per PE length of permutation"},
     {0}
   };
@@ -81,6 +85,7 @@ int main(int argc, char * argv[]) {
   /* process command line */
   int ret = 0;
   args_t args;
+  args.num_rows = 0;
   args.l_num_rows = 1000000;
   struct argp argp = {options, parse_opt, 0,
                       "Create a random permutation in parallel.", children_parsers};
@@ -88,13 +93,17 @@ int main(int argc, char * argv[]) {
   ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
+
+  if(args.num_rows == 0) 
+    args.num_rows = args.l_num_rows * THREADS;
+  else
+    args.l_num_rows = (args.num_rows + THREADS - MYTHREAD - 1)/THREADS;
   
   if(!MYTHREAD){
+    bale_app_write_int(&args.std, "num_rows_total", args.num_rows);
     bale_app_write_int(&args.std, "num_rows_per_pe", args.l_num_rows);
     write_std_options(&args.std);
   }
-
-  int64_t numrows = args.l_num_rows * THREADS;
 
   double t1;
   minavgmaxD_t stat[1];
@@ -109,27 +118,27 @@ int main(int argc, char * argv[]) {
 
     case AGP_Model:
       sprintf(model_str, "AGP");
-      out = rand_permp_agp(numrows, seed);
+      out = rand_permp_agp(args.num_rows, seed);
       break;
 
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      out = rand_permp_exstack(numrows, seed, args.std.buffer_size);
+      out = rand_permp_exstack(args.num_rows, seed, args.std.buffer_size);
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      out = rand_permp_exstack2(numrows, seed, args.std.buffer_size);
+      out = rand_permp_exstack2(args.num_rows, seed, args.std.buffer_size);
       break;
 
     case CONVEYOR_Model:
       sprintf(model_str, "Conveyor");
-      out = rand_permp_conveyor(numrows, seed);
+      out = rand_permp_conveyor(args.num_rows, seed);
       break;
 
     case ALTERNATE_Model:
       sprintf(model_str, "rand_permp_agp_opt");
-      out = rand_permp_agp_opt(numrows, seed);
+      out = rand_permp_agp_opt(args.num_rows, seed);
       break;
 
     case 0:
@@ -141,7 +150,7 @@ int main(int argc, char * argv[]) {
     bale_app_write_time(&args.std, model_str, stat->avg);
     
     
-    if(!is_perm(out, numrows)){
+    if(!is_perm(out, args.num_rows)){
       error++;
       T0_printf("\nERROR: rand_permp_%"PRId64" failed!\n\n", use_model & args.std.models_mask);
     }

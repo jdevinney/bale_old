@@ -16,7 +16,7 @@ Run transpose_matrix --help or --usage for usage.
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 /*!
 \brief timing wrapper around the transpose_matrix routine in `spmat_utils.c`
@@ -72,15 +72,14 @@ int main(int argc, char * argv[])
   args_t args = {{0}};
   enum FLAVOR {GENERIC=1, ALL_Models=2};
   args.std.models_mask = ALL_Models-1;
-  args.gstd.numrows = PERMUTE_NUM_ROWS;
+  args.gstd.numrows = TRANSPOSE_NUM_ROWS;
   struct argp argp = {options, parse_opt, 0, "Permute rows and columns of a sparse matrix", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-
-  write_std_graph_options(&args.std, &args.gstd);
   write_std_options(&args.std);
+  write_std_graph_options(&args.std, &args.gstd);
 
   // read in a matrix or generate a random graph
   sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);

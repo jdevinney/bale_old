@@ -16,7 +16,7 @@ Run permute_matrix --help or --usage for insructions on running.
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 /*! \brief A timing wrapper around the permute_matrix call in `spmat_utils.c`
 \param *A  sparsemat_t holding the given matrix
@@ -77,9 +77,8 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-
-  write_std_graph_options(&args.std, &args.gstd);
   write_std_options(&args.std);
+  write_std_graph_options(&args.std, &args.gstd);
   
   // read in or generate a random graph (matrix)
   sparsemat_t * mat = get_input_graph(&args.std, &args.gstd);

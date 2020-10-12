@@ -27,19 +27,21 @@
 void dump_bucket(ds_t *ds, int64_t i_m)
 {
   int64_t v, w ;
-  char lineout[2048];
+  char lineout[2048], wordout[32];
 
   lineout[0] = '\0';
-  sprintf(lineout+strlen(lineout), "%02d: Bucket[%ld] =", MYTHREAD, i_m);
+  sprintf(lineout, "%02d: Bucket[%ld] =", MYTHREAD, i_m);
   if( ds->B[i_m] == -1 ){
-    printf("%s empty \n",lineout);
+    strncat(lineout, " empty", 2047);
+    puts(lineout);
     return;
   }
   v = w = ds->B[i_m];
   do {
-    sprintf(lineout+strlen(lineout), "%ld ", w);
+    sprintf(wordout, "%3ld ", w);
+    strncat(lineout, wordout, 2047);
   } while( (w = ds->next[w]) != v );
-  printf("%s\n",lineout);
+  puts(lineout);
   return;
 }
 
