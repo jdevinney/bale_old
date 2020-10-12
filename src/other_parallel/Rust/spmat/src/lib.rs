@@ -16,19 +16,18 @@
 /// LICENSE file in the top level dirctory of the distribution.
 ///
 use crate::perm::Perm;
-use convey_hpc::collect::{IVal, PType, ValueCollect};
-use convey_hpc::session::ConveySession;
+use convey_hpc::collect::CollectValues;
 use convey_hpc::Convey;
 use rand::Rng;
 use regex::Regex;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::fs::File;
-use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
 use std::io::{Error, ErrorKind};
+use std::rc::Rc;
 
 use std::path::Path;
 
@@ -100,7 +99,7 @@ impl SparseMat {
     /// current rank
     pub fn new(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         let convey = Convey::new().expect("fixme");
-        let total_nnz = convey.reduce_sum(nnz_this_rank);
+        let total_nnz = nnz_this_rank.reduce_sum();
         SparseMat {
             numrows: numrows,
             numrows_this_rank: convey.per_my_rank(numrows),
@@ -117,7 +116,7 @@ impl SparseMat {
     /// new_with_values creates a distributed sparse matrix intialized with zero values
     pub fn new_with_values(numrows: usize, numcols: usize, nnz_this_rank: usize) -> Self {
         let convey = Convey::new().expect("fixme");
-        let total_nnz = convey.reduce_sum(nnz_this_rank);
+        let total_nnz = nnz_this_rank.reduce_sum();
         SparseMat {
             numrows: numrows,
             numrows_this_rank: convey.per_my_rank(numrows),
@@ -199,8 +198,8 @@ impl SparseMat {
 
     /// convenience function to return my rank
     pub fn my_rank(&self) -> usize {
-        if let Some(convey) = &self.convey {
-            convey.my_rank
+        if self.convey.is_some() {
+            self.convey.as_ref().unwrap().my_rank()
         } else {
             0
         }
@@ -208,8 +207,8 @@ impl SparseMat {
 
     /// Convenience function returning num_ranks
     pub fn num_ranks(&self) -> usize {
-        if let Some(convey) = &self.convey {
-            convey.num_ranks
+        if self.convey.is_some() {
+            self.convey.as_ref().unwrap().num_ranks()
         } else {
             1
         }
@@ -273,59 +272,6 @@ impl SparseMat {
     pub fn barrier(&self) {
         if let Some(convey) = &self.convey {
             convey.barrier()
-        }
-    }
-
-    /// create a session with a pull_fn
-    pub fn begin<'a, T: Copy + Serialize + DeserializeOwned>(
-        &'a self,
-        pull_fn: impl FnMut(T, usize) + 'a,
-    ) -> ConveySession<'a, T> {
-        if let Some(convey) = &self.convey {
-            convey.begin(pull_fn)
-        } else {
-            unimplemented!("Conveyors not implemented for local SparseMat");
-        }
-    }
-
-    /// convenience function to create a session
-    pub fn session<'a, T: Copy + Serialize + DeserializeOwned>(&'a self) -> ConveySession<'a, T> {
-        if let Some(convey) = &self.convey {
-            convey.session()
-        } else {
-            unimplemented!("Conveyors not implemented for local SparseMat");
-        }
-    }
-
-    /// execute a simple function
-    pub fn simple<T, I>(&self, map: I, pull_fn: impl FnMut(T, usize)) -> ()
-    where
-        T: Copy + Serialize + DeserializeOwned,
-        I: Iterator<Item = (T, usize)>,
-    {
-        if let Some(convey) = &self.convey {
-            convey.simple(map, pull_fn)
-        } else {
-            unimplemented!("Conveyors not implemented for local SparseMat");
-        }
-    }
-
-    /// execute a simple function with return
-    pub fn simple_return<T1, T2, I>(
-        &self,
-        map: I,
-        pull_fn: impl FnMut(T1) -> T2,
-        ret_fn: impl FnMut(usize, T2),
-    ) -> ()
-    where
-        T1: Copy + Serialize + DeserializeOwned,
-        T2: Copy + Serialize + DeserializeOwned,
-        I: Iterator<Item = ((usize, T1), usize)>,
-    {
-        if let Some(convey) = &self.convey {
-            convey.simple_return(map, pull_fn, ret_fn)
-        } else {
-            unimplemented!("Conveyors not implemented for local SparseMat");
         }
     }
 
@@ -493,7 +439,7 @@ impl SparseMat {
             }
         }
         matrix.nnz_this_rank = elts.len();
-        matrix.nnz = matrix.reduce_sum(matrix.nnz_this_rank);
+        matrix.nnz = matrix.nnz_this_rank.reduce_sum();
         if matrix.nnz != nnz {
             panic!(format!(
                 "incorrect number of nonzeros {} != {}",
@@ -536,32 +482,35 @@ impl SparseMat {
     /// # Arguments
     /// * filename the filename to written to
     pub fn write_mm_file(&self, filename: &str) -> Result<(), Error> {
-        let path = Path::new("/dev/null");
-        let mut file = OpenOptions::new().write(true).open(path)?;
         // use a new conveyor, not the one in the SparseMat, to avoid borrow issues
-        let convey = Convey::new().expect("conveyor initialization failed");
-        let my_rank = convey.my_rank;
-        if my_rank == 0 {
+        let my_rank = self.my_rank();
+        let file = if my_rank > 0 {
+            Rc::new(RefCell::new(None))
+        } else {
             let path = Path::new(&filename);
-            file = OpenOptions::new().write(true).create(true).open(path)?;
+            Rc::new(RefCell::new(Some(File::create(path)?)))
+        };
+        if let Some(mut f) = file.borrow().as_ref() {
             if let Some(_) = &self.value {
-                writeln!(file, "%%MatrixMarket matrix coordinate real general")
+                writeln!(f, "%%MatrixMarket matrix coordinate real general")
                     .expect("can't write .mm file");
             } else {
-                writeln!(file, "%%MatrixMarket matrix coordinate pattern general")
+                writeln!(f, "%%MatrixMarket matrix coordinate pattern general")
                     .expect("can't write .mm file");
             }
-            writeln!(file, "{} {} {}", self.numrows, self.numcols, self.nnz)
+            writeln!(f, "{} {} {}", self.numrows, self.numcols, self.nnz)
                 .expect("can't write .mm file");
         }
         {
-            let mut session = convey.begin(|entry: Entry, _from_rank| {
+            let mut session = Convey::begin(|entry: Entry, _from_rank| {
                 // only rank 0 will ever get asked to do this
-                if let Some(_) = &self.value {
-                    writeln!(file, "{} {} {}", entry.row, entry.col, entry.val)
-                        .expect("can't write .mm file");
-                } else {
-                    writeln!(file, "{} {}", entry.row, entry.col).expect("can't write .mm file");
+                if let Some(mut f) = file.borrow().as_ref() {
+                    if let Some(_) = &self.value {
+                        writeln!(f, "{} {} {}", entry.row, entry.col, entry.val)
+                            .expect("can't write .mm file");
+                    } else {
+                        writeln!(f, "{} {}", entry.row, entry.col).expect("can't write .mm file");
+                    }
                 }
             });
             for i in 0..self.numrows_this_rank {
@@ -604,9 +553,9 @@ impl SparseMat {
                 diag_missing_cnt += 1;
             }
         }
-        let total_lower = self.reduce_sum(lower_cnt);
+        let total_lower = lower_cnt.reduce_sum();
         let total_diag_missing = if unit_diagonal {
-            self.reduce_sum(diag_missing_cnt)
+            diag_missing_cnt.reduce_sum()
         } else {
             0
         };
@@ -631,9 +580,9 @@ impl SparseMat {
                 diag_missing_cnt += 1;
             }
         }
-        let total_lower = self.reduce_sum(lower_cnt);
+        let total_lower = lower_cnt.reduce_sum();
         let total_diag_missing = if unit_diagonal {
-            self.reduce_sum(diag_missing_cnt)
+            diag_missing_cnt.reduce_sum()
         } else {
             0
         };
@@ -652,7 +601,7 @@ impl SparseMat {
         assert!(rperminv.is_perm());
         assert!(cperminv.is_perm());
         let mut nnz = 0_usize;
-        self.simple(
+        Convey::simple(
             (0..rperminv.len()).map(|idx| {
                 let (offset, rank) = self.offset_rank(rperminv.entry(idx));
                 let cnt = self.offset[idx + 1] - self.offset[idx];
@@ -664,7 +613,7 @@ impl SparseMat {
             },
         );
 
-        assert_eq!(self.nnz, self.reduce_sum(nnz));
+        assert_eq!(self.nnz, nnz.reduce_sum());
         let mut permuted = SparseMat::new(self.numrows, self.numcols, nnz);
         permuted.offset[0] = 0;
 
@@ -680,7 +629,7 @@ impl SparseMat {
         // step 3: distrbute nonzeros
         let mut wrkoff = vec![0_usize; self.numrows_this_rank];
         {
-            let mut session = self.begin(|item: (usize, usize), _from_rank| {
+            let mut session = Convey::begin(|item: (usize, usize), _from_rank| {
                 let index = permuted.offset[item.0] + wrkoff[item.0];
                 permuted.nonzero[index] = item.1;
                 wrkoff[item.0] += 1;
@@ -700,7 +649,7 @@ impl SparseMat {
         {
             let my_nnz = permuted.nnz_this_rank;
             let cloned_nonzero = permuted.nonzero.clone();
-            self.simple_return(
+            Convey::simple_return(
                 (0..my_nnz).map(|i| {
                     let (offset, rank) = self.offset_rank(cloned_nonzero[i]);
                     ((i, offset), rank)
@@ -723,7 +672,7 @@ impl SparseMat {
         let mut nnz = 0_usize;
 
         // distributed calculation of column counts, with resulting local nonzeros
-        self.simple(
+        Convey::simple(
             self.nonzero.iter().map(|nz| self.offset_rank(*nz)),
             |item: usize, _from_rank| {
                 colcnt[item] += 1;
@@ -744,7 +693,7 @@ impl SparseMat {
 
         let mut wrkoff = vec![0_usize; trans.numrows];
         {
-            let mut session = self.begin(|item: (usize, usize), _from_rank| {
+            let mut session = Convey::begin(|item: (usize, usize), _from_rank| {
                 let index = trans.offset[item.0] + wrkoff[item.0];
                 trans.nonzero[index] = item.1;
                 wrkoff[item.0] += 1;
@@ -849,7 +798,7 @@ impl SparseMat {
     pub fn truncate_nonzeros(&mut self, last: usize) {
         self.nonzero.truncate(last);
         self.nnz_this_rank = last;
-        self.nnz = self.reduce_sum(last);
+        self.nnz = last.reduce_sum();
     }
 
     /// Generate an erdos_renyi random sparse matrix
@@ -931,50 +880,10 @@ impl SparseMat {
         }
         tri.offset[row / num_ranks] = tri.nonzero.len();
         tri.nnz_this_rank = tri.nonzero.len();
-        tri.nnz = tri.reduce_sum(tri.nnz_this_rank);
+        tri.nnz = tri.nnz_this_rank.reduce_sum();
         tri
     }
 }
-
-/// implement value colectives accessed through the Sparse matrix
-macro_rules! decl {
-    ($ty: ident) => {
-        impl ValueCollect<$ty> for SparseMat {
-            type T = $ty;
-            fn reduce(
-                &self,
-                value: $ty,
-                combine_fn: impl Fn($ty, $ty) -> Self::T,
-                style: PType,
-                init: IVal,
-            ) -> Self::T {
-                if let Some(convey) = &self.convey {
-                    convey.reduce(value, combine_fn, style, init)
-                } else {
-                    value
-                }
-            }
-        }
-    };
-}
-
-// For all standard types
-decl!(u128);
-decl!(u64);
-decl!(u32);
-decl!(u16);
-decl!(u8);
-decl!(usize);
-
-decl!(i128);
-decl!(i64);
-decl!(i32);
-decl!(i16);
-decl!(i8);
-decl!(isize);
-
-decl!(f32);
-decl!(f64);
 
 /// Bring in the permutation library
 pub mod perm;
@@ -990,7 +899,7 @@ mod tests {
         let mat = SparseMat::erdos_renyi_tri(100, 0.05, false, false, 0);
         assert_eq!(mat.is_lower_triangular(false), false);
         assert_eq!(mat.is_upper_triangular(false), true);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn rand_mat_tri_lower() {
@@ -998,7 +907,7 @@ mod tests {
         let mat = SparseMat::erdos_renyi_tri(100, 0.05, false, true, 0);
         assert_eq!(mat.is_lower_triangular(false), true);
         assert_eq!(mat.is_upper_triangular(false), false);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn rand_mat_tri_upper_unit() {
@@ -1006,7 +915,7 @@ mod tests {
         let mat = SparseMat::erdos_renyi_tri(100, 0.05, true, false, 0);
         assert_eq!(mat.is_lower_triangular(true), false);
         assert_eq!(mat.is_upper_triangular(true), true);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn rand_mat_tri_lower_unit() {
@@ -1014,7 +923,7 @@ mod tests {
         let mat = SparseMat::erdos_renyi_tri(100, 0.05, true, true, 0);
         assert_eq!(mat.is_lower_triangular(true), true);
         assert_eq!(mat.is_upper_triangular(true), false);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn rand_mat_perm1() {
@@ -1027,7 +936,7 @@ mod tests {
         assert_eq!(mat.is_upper_triangular(true), true);
         //assert_eq!(permuted.is_lower_triangular(true), false);
         //assert_eq!(permuted.is_upper_triangular(true), false);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     /*
         #[test]
@@ -1053,7 +962,7 @@ mod tests {
         println!("ttmat:{:?}", ttmat);
         assert_eq!(mat.compare(&tmat), false);
         assert_eq!(mat.compare(&ttmat), true);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     /*
         #[test]
@@ -1070,8 +979,7 @@ mod tests {
     fn write_read_mm1() {
         let mutex = TestingMutex::new();
         assert!(SparseMat::read_mm_file("not_there.mm").is_err());
-        let mat = SparseMat::new(10, 10, 10);
-        assert_eq!(mat.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn write_read_mm2() {
@@ -1083,7 +991,7 @@ mod tests {
         let mat_b = SparseMat::read_mm_file("test_write_read_mm2.mm").expect("failed read");
         assert!(mat_b.value == None);
         assert_eq!(mat_a.compare(&mat_b), true);
-        assert_eq!(mat_a.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
     #[test]
     fn write_read_mm3() {
@@ -1096,6 +1004,6 @@ mod tests {
         let mat_b = SparseMat::read_mm_file("test_write_read_mm3.mm").expect("failed read");
         assert!(mat_b.value != None);
         assert_eq!(mat_a.compare(&mat_b), true);
-        assert_eq!(mat_a.my_rank(), mutex.convey.my_rank);
+        drop(mutex);
     }
 }

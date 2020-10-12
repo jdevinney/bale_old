@@ -15,7 +15,7 @@
 // LICENSE file in the top level dirctory of the distribution.
 //
 use clap::{App, Arg};
-use convey_hpc::collect::ValueCollect;
+use convey_hpc::collect::CollectValues;
 use convey_hpc::Convey;
 use std::time::Instant;
 
@@ -46,28 +46,28 @@ fn main() {
         .expect("bad collectives arg");
     let verbose: u64 = matches.occurrences_of("verbose");
 
-    let convey = Convey::new().expect("convey initializtion failed");
-
+    let convey = Convey::new().expect("bad");
     do_collect_convey(&convey, collectives, verbose);
     do_collect_shmem(&convey, collectives, verbose);
 }
 
 fn do_collect_convey(convey: &Convey, collectives: usize, verbose: u64) {
     let value: usize = 42;
-
     let now = Instant::now();
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
 
     let mut total_result = 0;
 
     for _i in 0..collectives {
-        total_result += convey.reduce_sum(value);
+        total_result += value.reduce_sum();
     }
     let d = now.elapsed();
-    if verbose > 0 || convey.my_rank == 0 {
+    if verbose > 0 || my_rank == 0 {
         println!(
             "convey pe{}/{}, {} reductions, {} reductions, {} msec",
-            convey.my_rank,
-            convey.num_ranks,
+            my_rank,
+            num_ranks,
             collectives,
             total_result,
             d.as_millis(),
@@ -77,20 +77,22 @@ fn do_collect_convey(convey: &Convey, collectives: usize, verbose: u64) {
 
 fn do_collect_shmem(convey: &Convey, collectives: usize, verbose: u64) {
     let _value: usize = 42;
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
 
     let now = Instant::now();
 
     let total_result = 0;
 
     for _i in 0..collectives {
-        //total_result += convey.shmem.sum_to_all(value);
+        //total_result += Shmem::sum_to_all(value);
     }
     let d = now.elapsed();
-    if verbose > 0 || convey.my_rank == 0 {
+    if verbose > 0 || my_rank == 0 {
         println!(
             "shmem pe{}/{}, {} reductions, {} reductions, {} msec",
-            convey.my_rank,
-            convey.num_ranks,
+            my_rank,
+            num_ranks,
             collectives,
             total_result,
             d.as_millis(),

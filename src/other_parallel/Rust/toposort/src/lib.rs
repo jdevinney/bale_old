@@ -15,8 +15,8 @@
 /// This file is part of Bale.  For license information see the
 /// LICENSE file in the top level dirctory of the distribution.
 ///
-use convey_hpc::collect::ValueCollect;
-use convey_hpc::RcVec;
+use convey_hpc::collect::CollectValues;
+use convey_hpc::{Convey, RcVec};
 use serde::{Deserialize, Serialize};
 use spmat::perm::Perm;
 use spmat::wall_seconds;
@@ -166,7 +166,7 @@ impl TopoSort for SparseMat {
 
         let mut r_and_c_done = 0;
         {
-            let mut session = self.begin(|item: TopoSend, _from_rank| {
+            let mut session = Convey::begin(|item: TopoSend, _from_rank| {
                 match item {
                     TopoSend::ToColq { offset, lev } => {
                         // we have revieved a transposed row, push it on the
@@ -251,7 +251,7 @@ impl TopoSort for SparseMat {
                         nr + nc
                     );
                     if wall_seconds() - t1 > 10.0 {
-                        session.convey.debug(true);
+                        session.debug(true);
                     }
                 }
             }
@@ -259,7 +259,7 @@ impl TopoSort for SparseMat {
 
         //println!("tsq1");
         num_levels += 1;
-        num_levels = self.reduce_max(num_levels);
+        num_levels = num_levels.reduce_max();
 
         let mut level_sizes: Vec<usize> = vec![0; num_levels];
         let mut level_start: Vec<usize> = vec![0; num_levels];
@@ -271,8 +271,8 @@ impl TopoSort for SparseMat {
         let mut total = 0;
         for i in 0..num_levels {
             let size = level_sizes[i];
-            level_start[i] = total + self.reduce_prior_sum(size);
-            level_sizes[i] = self.reduce_sum(size);
+            level_start[i] = total + size.reduce_prior_sum();
+            level_sizes[i] = size.reduce_sum();
             //println!("start[{}] {}, sizes {}", i, level_start[i], level_sizes[i]);
             total += level_sizes[i];
         }
@@ -287,7 +287,7 @@ impl TopoSort for SparseMat {
         }
         //println!("tsq2");
 
-        self.session()
+        Convey::session()
             .pull_fn(|item: (usize, usize), _from_rank| {
                 ret.cperm.perm()[item.0] = item.1;
             })
@@ -343,7 +343,7 @@ impl TopoSort for SparseMat {
 
         let mut r_and_c_done = 0;
         {
-            let mut to_colq = self.begin(|item: (usize, usize), _from_rank| {
+            let mut to_colq = Convey::begin(|item: (usize, usize), _from_rank| {
                 // we have revieved a transposed row, push it on the
                 // column queue with the associated level
                 //println!("off {} lev {}", offset, lev);
@@ -353,7 +353,7 @@ impl TopoSort for SparseMat {
             to_colq.always_send = true;
 
             {
-                let mut mark_row = self.begin(|item: (usize, usize, usize), _from_rank| {
+                let mut mark_row = Convey::begin(|item: (usize, usize, usize), _from_rank| {
                     let row = item.0;
                     let global_col = item.1;
                     let lev = item.2;
@@ -422,7 +422,7 @@ impl TopoSort for SparseMat {
         }
 
         num_levels += 1;
-        num_levels = self.reduce_max(num_levels);
+        num_levels = num_levels.reduce_max();
 
         let mut level_sizes: Vec<usize> = vec![0; num_levels];
         let mut level_start: Vec<usize> = vec![0; num_levels];
@@ -434,8 +434,8 @@ impl TopoSort for SparseMat {
         let mut total = 0;
         for i in 0..num_levels {
             let size = level_sizes[i];
-            level_start[i] = total + self.reduce_prior_sum(size);
-            level_sizes[i] = self.reduce_sum(size);
+            level_start[i] = total + size.reduce_prior_sum();
+            level_sizes[i] = size.reduce_sum();
             //println!("start[{}] {}, sizes {}", i, level_start[i], level_sizes[i]);
             total += level_sizes[i];
         }
@@ -449,7 +449,7 @@ impl TopoSort for SparseMat {
             level_start[lev] += 1;
         }
 
-        self.session()
+        Convey::session()
             .pull_fn(|item: (usize, usize), _from_rank| {
                 ret.cperm.perm()[item.0] = item.1;
             })

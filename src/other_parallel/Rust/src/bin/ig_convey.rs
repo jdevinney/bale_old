@@ -49,14 +49,14 @@ fn main() {
         .parse()
         .expect("bad table_size arg");
 
-    let convey = Convey::new().expect("shmem initializtion failed");
+    let convey = Convey::new().expect("conveyor initializtion failed");
     do_ig_convey(&convey, table_entries, requests);
     do_ig_convey_simple(&convey, table_entries, requests);
 }
 
 fn do_ig_convey(convey: &Convey, table_entries: usize, requests: u64) {
-    let me = convey.my_rank;
-    let num = convey.num_ranks;
+    let me = convey.my_rank();
+    let num = convey.num_ranks();
     println!("Hello, world from rank {} of {}!", me, num);
 
     let mut rng = rand::thread_rng();
@@ -72,14 +72,14 @@ fn do_ig_convey(convey: &Convey, table_entries: usize, requests: u64) {
         // Always put the session in a new block, as you will not be
         // able to able to local content after conveyor is done
         //  Could also use an explicit drop
-        let mut session2 = convey.begin(|item: (usize, i64), _from_rank| {
+        let mut session2 = Convey::begin(|item: (usize, i64), _from_rank| {
             tgt[item.0] = item.1;
             total_returns += 1;
         });
 
         //println!("{:?}", session2);
         {
-            let mut session1 = convey.begin(|item: (usize, usize), from_rank| {
+            let mut session1 = Convey::begin(|item: (usize, usize), from_rank| {
                 session2.push((item.0, ltable[item.1]), from_rank);
                 total_requests += 1;
             });
@@ -106,8 +106,8 @@ fn do_ig_convey(convey: &Convey, table_entries: usize, requests: u64) {
 }
 
 fn do_ig_convey_simple(convey: &Convey, table_entries: usize, requests: u64) {
-    let me = convey.my_rank;
-    let num = convey.num_ranks;
+    let me = convey.my_rank();
+    let num = convey.num_ranks();
     println!("Hello, world from rank {} of {}!", me, num);
 
     let mut rng = rand::thread_rng();
@@ -119,7 +119,7 @@ fn do_ig_convey_simple(convey: &Convey, table_entries: usize, requests: u64) {
     let mut total_requests: i64 = 0;
     let mut total_returns: i64 = 0;
 
-    convey.simple_return(
+    Convey::simple_return(
         (0..(requests / num as u64)).map(|x| {
             let (offset, rank) = convey.offset_rank(die.sample(&mut rng));
             ((x as usize, offset), rank)

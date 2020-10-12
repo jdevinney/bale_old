@@ -71,9 +71,11 @@ fn main() {
         .parse()
         .expect("nz_per_row: not a float");
 
-    let convey = Convey::new().expect("convey initializtion failed");
-    let quiet = matches.is_present("quiet") || (verbose == 0 && convey.my_rank > 0);
-    let numrows = numrows_per_rank * convey.num_ranks;
+    let convey = Convey::new().expect("conveyor initializtion failed");
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
+    let quiet = matches.is_present("quiet") || (verbose == 0 && my_rank > 0);
+    let numrows = numrows_per_rank * num_ranks;
 
     if erdos_renyi_prob == 0.0 {
         // use nz_per_row to get erdos_renyi_prob
@@ -87,7 +89,7 @@ fn main() {
     }
 
     if !quiet {
-        println!("Running randperm on {} ranks", convey.num_ranks);
+        println!("Running randperm on {} ranks", num_ranks);
         println!("Number of rows per rank     (-n) {}", numrows_per_rank);
         println!("Avg # non-eros per row      (-Z) {}", nz_per_row);
         println!("Erdos-Renyi edge probabilty (-e) {}", erdos_renyi_prob);

@@ -70,10 +70,11 @@ fn main() {
         .expect("bad ranks_per_node arg");
     let verbose: u64 = matches.occurrences_of("verbose");
 
-    let convey = Convey::new().expect("shmem initializtion failed");
+    let convey = Convey::new().expect("conveyor initializtion failed");
 
-    if ranks_per_node > convey.num_ranks {
-        ranks_per_node = convey.num_ranks;
+    let num_ranks = convey.num_ranks();
+    if ranks_per_node > num_ranks {
+        ranks_per_node = num_ranks;
     }
 
     do_histo_convey(&convey, buckets, updates, ranks_per_node, verbose);
@@ -88,8 +89,8 @@ fn do_histo_convey(
     ranks_per_node: usize,
     verbose: u64,
 ) {
-    let me = convey.my_rank;
-    let num = convey.num_ranks;
+    let me = convey.my_rank();
+    let num = convey.num_ranks();
     if verbose > 0 {
         println!("Hello, world from rank {} of {}!", me, num);
     }
@@ -107,7 +108,7 @@ fn do_histo_convey(
     {
         // Always put the session in a new block, as you will
         // not be able to able to local after conveyor is done
-        let mut session = convey.begin(|item: usize, _from_rank| {
+        let mut session = Convey::begin(|item: usize, _from_rank| {
             //if from_rank != me {
             //   println!("to {} from {} received item {}", me, from_rank, item);
             //}
@@ -127,7 +128,7 @@ fn do_histo_convey(
         session.finish();
     }
     let d = now.elapsed();
-    if verbose > 0 || convey.my_rank == 0 {
+    if verbose > 0 || me == 0 {
         println!(
             "pe{}, {} updates, {} msec, {} mb/node-sec first 5 buckets {:?}",
             me,
@@ -147,8 +148,8 @@ fn do_histo_convey_simple(
     ranks_per_node: usize,
     verbose: u64,
 ) {
-    let me = convey.my_rank;
-    let num = convey.num_ranks;
+    let me = convey.my_rank();
+    let num = convey.num_ranks();
     if verbose > 0 {
         println!("Hello, world from rank {} of {}!", me, num);
     }
@@ -161,7 +162,7 @@ fn do_histo_convey_simple(
     let mut total_updates: u64 = 0;
 
     let now = Instant::now();
-    convey.simple(
+    Convey::simple(
         (0..updates).map(|_x| convey.offset_rank(die.sample(&mut rng))),
         |item: usize, _from_rank| {
             local[item] += 1;
@@ -170,7 +171,7 @@ fn do_histo_convey_simple(
     );
 
     let d = now.elapsed();
-    if verbose > 0 || convey.my_rank == 0 {
+    if verbose > 0 || me == 0 {
         println!(
             "pe{}, {} updates, {} msec, {} mb/node-sec first 5 buckets {:?}",
             me,
