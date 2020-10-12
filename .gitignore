@@ -25,3 +25,4 @@ target/
 html/
 latex/
 t
+.DS_Store
