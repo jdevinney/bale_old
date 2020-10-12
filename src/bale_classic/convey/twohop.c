@@ -586,7 +586,11 @@ twohop_free(convey_t* self)
   MPI_Comm_free(&twohop->col_team);
 #else
   if (twohop->odd)
+#if 0
     shmemx_team_free(&twohop->col_team);
+#else
+    shmemx_team_destroy(&twohop->col_team);
+#endif
 #endif
   free_allocs(twohop);
   return convey_OK;
@@ -699,7 +703,11 @@ convey_new_twohop(size_t capacity, size_t row_procs,
     shmem_team_t full_team;
     shmemx_team_create_strided(twohop->comm.start, twohop->comm.stride, n_procs, &full_team);
     shmemx_team_split(full_team, my_proc % n_cols, my_proc / n_cols, &twohop->col_team);
+#if 0
     shmemx_team_free(&full_team);
+#else
+    shmemx_team_destroy(&full_team);
+#endif
   }
 #endif
 

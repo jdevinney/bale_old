@@ -3,40 +3,17 @@
 #
 #  Copyright(C) 2020, Institute for Defense Analyses
 #  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-#  This material may be reproduced by or for the US Government
-#  pursuant to the copyright license under the clauses at DFARS
-#  252.227-7013 and 252.227-7014.
 # 
 #
 #  All rights reserved.
 #  
-#  Redistribution and use in source and binary forms, with or without
-#  modification, are permitted provided that the following conditions are met:
-#    * Redistributions of source code must retain the above copyright
-#      notice, this list of conditions and the following disclaimer.
-#    * Redistributions in binary form must reproduce the above copyright
-#      notice, this list of conditions and the following disclaimer in the
-#      documentation and/or other materials provided with the distribution.
-#    * Neither the name of the copyright holder nor the
-#      names of its contributors may be used to endorse or promote products
-#      derived from this software without specific prior written permission.
-# 
-#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-#  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-#  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-#  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-#  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-#  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-#  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-#  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-#  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-#  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-#  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-#  OF THE POSSIBILITY OF SUCH DAMAGE.
+#   This file is a part of Bale.  For license information see the
+#   LICENSE file in the top level directory of the distribution.
+#  
 # 
 # *****************************************************************/ 
 
-bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles write_sparse_matrix sssp #unionfind
+bin_PROGRAMS = histo ig topo randperm permute_matrix transpose_matrix triangles sparse_matrix_io  sssp #unionfind
 
 #BDEBUG = -g -O0
 BDEBUG =
@@ -194,26 +171,26 @@ triangles_LINK=$(LINK) $(BDEBUG)
 endif
 
 ###################################################################
-#noinst_HEADERS += write_sparse_matrix_src/write_sparse_matrix.h
-write_sparse_matrix_sources = write_sparse_matrix_src/write_sparse_matrix.upc
+sparse_matrix_io_sources = sparse_matrix_io_src/sparse_matrix_io.upc
 
-write_sparse_matrix_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/write_sparse_matrix_src
-write_sparse_matrix_LDADD = @libdeps_LIBS@ -lm
+sparse_matrix_io_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/sparse_matrix_io_src
+sparse_matrix_io_LDADD = @libdeps_LIBS@ -lm
 
 if BUILD_UPC
-write_sparse_matrix_SOURCES = $(write_sparse_matrix_sources)
-write_sparse_matrix_LINK=$(UPCLINK)
+sparse_matrix_io_SOURCES = $(sparse_matrix_io_sources)
+sparse_matrix_io_LINK=$(UPCLINK)
 endif
 if BUILD_SHMEM
-write_sparse_matrix_SOURCES = $(write_sparse_matrix_sources:.upc=__c.c)
-write_sparse_matrix_CPPFLAGS += -DUSE_SHMEM
-write_sparse_matrix_LINK=$(LINK) $(BDEBUG)
+sparse_matrix_io_SOURCES = $(sparse_matrix_io_sources:.upc=__c.c)
+sparse_matrix_io_CPPFLAGS += -DUSE_SHMEM
+sparse_matrix_io_LINK=$(LINK) $(BDEBUG)
 endif
+
+###################################################################
 
 ###################################################################
 noinst_HEADERS += sssp_src/sssp.h sssp_src/sssp_delta_common.h
 sssp_sources = sssp_src/sssp.upc
-sssp_sources += sssp_src/sssp_bellman_agp.upc
 sssp_sources += sssp_src/sssp_bellman_exstack.upc
 sssp_sources += sssp_src/sssp_bellman_exstack2.upc
 sssp_sources += sssp_src/sssp_bellman_conveyor.upc
@@ -221,7 +198,7 @@ sssp_sources += sssp_src/sssp_delta_exstack.upc
 sssp_sources += sssp_src/sssp_delta_conveyor.upc
 sssp_sources += sssp_src/sssp_delta_exstack2.upc
 sssp_sources += sssp_src/sssp_delta_common.upc
-#sssp_sources += sssp_src/alternates/sssp_alt.upc
+sssp_sources += sssp_src/alternates/sssp_bellman_agp.upc
 sssp_CPPFLAGS = $(BDEBUG) @libdeps_CFLAGS@ -I$(top_srcdir)/sssp_src
 sssp_LDADD = @libdeps_LIBS@ -lm
 

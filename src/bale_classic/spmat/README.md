@@ -133,3 +133,7 @@ by Kepner et. al. for more details. The parallel generation of these graphs is n
 The spmat library has the ability to read matrices in Matrix Market format. This function reads the matrices in serial using one PE and then distributes the resulting matrix to all PEs. For
 this reason it is not meant to scale to large matrices, but it is
 useful for debugging or sanity checking on known examples.
+
+#### Parallel I/O
+
+The spmat library has functions to read and write a binary dataset for sparse matrices (that is not standard). See the [sparse_matrix_io](../apps/sparse_matrix_io_src/README.md) app for more details.

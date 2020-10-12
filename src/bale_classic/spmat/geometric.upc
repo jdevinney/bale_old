@@ -1,39 +1,14 @@
-/******************************************************************
+/*****************************************************************
 //
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-// 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//  This file is a part of Bale.  For license information see the
+//  LICENSE file in the top level directory of the distribution.
+//
  *****************************************************************/
 
 /*! \file geometric.upc
@@ -41,16 +16,33 @@
  */
 #include <spmat.h>
 #include <exstack.h>
+
+/*! \brief maximum number of sectors across all threads */
 int64_t sector_max;
 
-
-// returns the square of the L2 distance
+/*! 
+\brief compute the square of the distance between two points
+\param a the first point
+\param b the other point
+\return the square 
+*/
 double dist(point_t a, point_t b){
   return((a.x - b.x)*(a.x - b.x) + (a.y - b.y)*(a.y - b.y));
 }
 
-
-// This function computes all edges between two sectors and added them to the edge list
+/*! 
+\brief This function computes all edges between two sectors and added them to the edge list
+\param this_sec_idx index of my sector
+\param other_sec_idx index of the other sector
+\param my_first_sector the first sector on my thread
+\param nsectors number of sectors
+\param points array of points
+\param first_point_in_sector the first point in the sectors
+\param counts the number of
+\param r2 square of the radius
+\param loops whether or not we have loops
+\param el the edge list
+*/
 void append_edges_between_sectors(uint64_t this_sec_idx,
                                   uint64_t other_sec_idx,
                                   int64_t my_first_sector,
@@ -136,10 +128,21 @@ void append_edges_between_sectors(uint64_t this_sec_idx,
 }
 
 
-// This routine appends to the edge_list (el) all edges for points in a given sector.
-// It does this by looking for point pairs that are closer than r, where one point lies
-// in "sector" and the other point lies in any of the 8 neighboring sectors or "sector" itself.
-// 
+/*!
+\brief This routine appends to the edge_list (el) all edges for points in a given sector.
+\param sector the sector
+\param my_first_sector the first sector on my thread
+\param nsectors number of sectors
+\param points array of points
+\param first_point_in_sector the first point in the sectors
+\param counts the number of
+\param r the radius
+\param loops whether or not we have loops
+\param el the edge list
+
+It does this by looking for point pairs that are closer than r, where one point lies
+in "sector" and the other point lies in any of the 8 neighboring sectors or "sector" itself.
+*/ 
 void append_edges_for_sector(int64_t sector,
                              int64_t my_first_sector,
                              int64_t nsectors,
@@ -179,7 +182,14 @@ void append_edges_for_sector(int64_t sector,
                              
 
 
-// This is the Hillis and Steele algorithm as presented on wikipedia.
+/*!
+\brief produces a shared array containing the prefix scan of the given array
+\param counts the given array
+\param n the length of the array
+\return a pointer to the new array
+
+This is the Hillis and Steele algorithm as presented on wikipedia.
+*/
 SHARED int64_t * prefix_scan(SHARED int64_t * counts, int64_t n){
   int64_t i, j;
   SHARED int64_t * cumsum = lgp_all_alloc(n, sizeof(int64_t));
@@ -207,23 +217,21 @@ SHARED int64_t * prefix_scan(SHARED int64_t * counts, int64_t n){
   return(cumsum);
 }
 
-/*! \brief Generates the adjacency matrix for a random geometric graph. 
-  * 
-  * See https://en.wikipedia.org/wiki/Random_geometric_graph
-  * Each vertex corresponds to a point randomly placed in the unit square. Two vertices
-  * are adjancent if their corresponding points are within distance r of each other.
-  * 
-  * \param n The number of vertices
-  * \param r The size of the neighborhoods that determine edges.
-  * \param type See edge_type. Must be UNDIRECTED or UNDIRECTED_WEIGHTED.
-  * \param loops See self_loops. Are there self loops?
-  * \param seed A seed for the RNG. This should be a single across all PEs (it will be modified by each PE individually).
-  * \param points (Optional) If you supply this pointer, the routine will populate it with the points associated with the vertices in the graph. 
-  * \return An adjacency matrix (or lower portion of in the undirected case).
-  */
+/*!
+\brief Generates the adjacency matrix for a random geometric graph. 
+\param n The number of vertices
+\param r The size of the neighborhoods that determine edges.
+\param edgetype See enum edge_type. Must be UNDIRECTED or UNDIRECTED_WEIGHTED.
+\param loops See self_loops. Are there self loops?
+\param seed A seed for the RNG. This should be a single across all PEs (it will be modified by each PE individually).
+\param out_points (Optional) If you supply this pointer, the routine will populate it with the points associated with the vertices in the graph. 
+\return An adjacency matrix (or lower portion of it in the undirected case).
 
-// TODO: add optional return that gives back the geometric positions of points
-sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points){
+See https://en.wikipedia.org/wiki/Random_geometric_graph
+Each vertex corresponds to a point randomly placed in the unit square. Two vertices
+are adjancent if their corresponding points are within distance r of each other.
+*/
+sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edgetype, self_loops loops, uint64_t seed, SHARED point_t ** out_points){
   
   // We generate n points (p_i) uniformly at random over the unit square.
   // Each point corresponds to a vertex (v_i).
@@ -241,21 +249,22 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   int64_t nsectors = nsectors_across*nsectors_across;
   int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
-  int weighted = (edge_type == DIRECTED_WEIGHTED || edge_type == UNDIRECTED_WEIGHTED);
+  int weighted = (edgetype == DIRECTED_WEIGHTED || edgetype == UNDIRECTED_WEIGHTED);
 
-  if((edge_type == DIRECTED) || (edge_type == DIRECTED_WEIGHTED)){
+  if((edgetype == DIRECTED) || (edgetype == DIRECTED_WEIGHTED)){
     T0_fprintf(stderr,"Error!: geometric random graphs can only be undirected!");
     return(NULL);
   }
   
   //T0_printf("GEOMETRIC GRAPH: r = %lf number of sectors = %ld sector_width = %lf\n",
   //          r, nsectors, sector_width);
-  //T0_printf("                 edge_type = %d loops = %d\n", edge_type, loops);
+  //T0_printf("                 edgetype = %d loops = %d\n", edgetype, loops);
 
   
   lgp_rand_seed(seed);
-  // TODO: permute matrix at end to get Zmorton order (which would improve locality)
-  //       or round-robin point order (which would destroy locality)
+
+  // FUTURE: permute matrix at end to get Zmorton order (which would improve locality)
+  //         or round-robin point order (which would destroy locality)
 
   // Step 1. Figure out how many points land in every sector. We do
   // this by having each PE generate n/THREADS random sector indices,
@@ -419,16 +428,20 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   SHARED int64_t * row_counts = lgp_all_alloc(n, sizeof(int64_t));
   int64_t * lrow_counts = lgp_local_part(int64_t, row_counts);
   for(i = 0; i < ln; i++) lrow_counts[i] = 0;
-  
+
   lgp_barrier();
   
   for(i = 0; i < el->num; i++){
     if(el->edges[i].row < 0) continue;
-    lgp_atomic_add(row_counts, el->edges[i].row, 1L);
+    assert(el->edges[i].row < n);
+    lgp_atomic_add(row_counts, el->edges[i].row, 1L);    
   }
 
   lgp_barrier();
   
+  lgp_barrier();
+  // this second barrier seems to be necessary in OpenMPI's OSHMEM 1.4 on SMP
+  // We were seeing occasional errors without it.
   
   // Step 9. Sum the vertex degrees for the points you will receive
   int64_t lnnz = 0;
@@ -444,14 +457,18 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
     T0_printf("ERROR: geometric_random_graph: init_matrix failed.\n");
     return(NULL);
   }
-
+  
   // initialize the offsets for the sparse matrix
   A->loffset[0] = 0;
   for(i = 1; i <= ln; i++){
     A->loffset[i] = A->loffset[i - 1] + lrow_counts[i-1];
-    lrow_counts[i-1] = 0;
   }
+  //if(A->loffset[ln] != lnnz){
+  //fprintf(stderr,"ERROR: PE %d: %ld %ld\n", MYTHREAD, A->loffset[ln], lnnz);
+  //}
   assert(A->loffset[ln] == lnnz);
+  
+  for(i = 0; i < ln; i++) lrow_counts[i] = 0;
 
   // Step 11. Distribute the edges to the proper PEs
   // and populate the matrix struct.

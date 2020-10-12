@@ -3,36 +3,13 @@
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
 *****************************************************************/
 /*! \file histo.upc
@@ -71,8 +48,9 @@ Run with the --help, -?, or --usage flags for run details.
 
 
 typedef struct args_t{
-  int64_t l_num_ups;
-  int64_t l_tbl_size;
+  int64_t num_ups;      /*!< number of updates for all threads */
+  int64_t l_num_ups;    /*!< number of updates for each thread */
+  int64_t l_tbl_size;   /*!< per thread size of the counts table */
   std_args_t std;
 }args_t;
 
@@ -80,6 +58,8 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   args_t * args = (args_t *)state->input;
   switch(key)
     {
+    case 'N':
+      args->num_ups = atol(arg); break;
     case 'n':
       args->l_num_ups = atol(arg); break;
     case 'T':
@@ -93,8 +73,9 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option options[] =
   {
-    {"num_updates",'n', "NUM", 0, "Number of updates per PE to the histogram table"},
-    {"table_size", 'T', "SIZE", 0, "Number of entries per PE in the histogram table"},
+    {"l_num_updates",'n', "NUM", 0, "Number of updates per PE to the histogram table"},
+    {"num_updates",  'N', "NUM", 0, "Number of updates for all PE to the histogram table"},
+    {"table_size",   'T', "SIZE", 0, "Number of entries per PE in the histogram table"},
     {0}
   };
 
@@ -111,6 +92,7 @@ int main(int argc, char * argv[]) {
   /* process command line */
   args_t args;
   args.l_tbl_size = 10000;
+  args.num_ups = 0;
   args.l_num_ups = 5000000;
   struct argp argp = {options, parse_opt, 0,
                       "Accumulate updates into a table.", children_parsers};
@@ -119,7 +101,13 @@ int main(int argc, char * argv[]) {
   if(ret < 0) return(ret);
   else if(ret) return(0);
 
+  if(args.num_ups == 0) 
+    args.num_ups = args.l_num_ups * THREADS;
+  else
+    args.l_num_ups = (args.num_ups + THREADS - MYTHREAD - 1)/THREADS;
+
   if(!MYTHREAD){
+    bale_app_write_int(&args.std, "num_updates_total", args.num_ups);
     bale_app_write_int(&args.std, "num_updates_per_pe", args.l_num_ups);
     bale_app_write_int(&args.std, "table_size_per_pe", args.l_tbl_size);
     write_std_options(&args.std);
@@ -184,14 +172,14 @@ int main(int argc, char * argv[]) {
     
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      laptime = histo_exstack(&data, args.std.buffer_size);
+      laptime = histo_exstack(&data, args.std.buf_cnt);
       num_models++;
       lgp_barrier();
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      laptime = histo_exstack2(&data, args.std.buffer_size);
+      laptime = histo_exstack2(&data, args.std.buf_cnt);
       num_models++;
       lgp_barrier();
       break;
@@ -231,7 +219,9 @@ int main(int argc, char * argv[]) {
   // Check the results
   // Assume that the atomic add version will correctly zero out the counts array
   for(i = 0; i < data.l_num_ups; i++) {
-#pragma pgas defer_sync
+    #if __cray__ || _CRAYC
+      #pragma pgas defer_sync
+    #endif
     lgp_atomic_add(data.counts, data.index[i], -num_models);
   }
   lgp_barrier();

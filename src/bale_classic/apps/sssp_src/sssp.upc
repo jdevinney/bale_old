@@ -3,40 +3,17 @@
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
  *****************************************************************/
 /*! \file sssp.upc
- * \brief Demo application that implements Single Source Shortest Path algorithms
+ * \brief Implementation of Single Source Shortest Path algorithms
  */
 
 #include "sssp.h"
@@ -44,16 +21,13 @@
 
 /*!
   \page sssp_page Single Source Shortest Path
+  Demo Program that runs single source shortest path algoriths. See README for more info.
+*/
 
-
-We are given a weight adjacency matrix for a (directed) graph
-and an initial starting vertex. 
-The problem is to find the distance 
-(the sum of the weights of the edges on the least heavy path)
-to all other vertices in the graph.
-
+/*! \brief debugging rountine to dump the d_array holding the tentative weights
+ * \param str a string to prefix the line of weights
+ * \param tent the d_array of tentative weights
  */
-
 void dump_tent(char *str, d_array_t *tent)
 {
   int64_t i;
@@ -66,6 +40,12 @@ void dump_tent(char *str, d_array_t *tent)
   }
 }
 
+/*!
+ * \brief Compare two d_arrays
+ * \param *A one array (as a vector)
+ * \param *B the other (as a vector)
+ * \return the l_2 norm of the given arrays
+ */
 double sssp_answer_diff(d_array_t *A, d_array_t *B)
 {
   int64_t i;
@@ -82,8 +62,7 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B)
   return(sqrt(lgp_reduce_add_d(ldiff)));
 }
 
-
-
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   double deltaStep; 
   int64_t V0;
@@ -135,22 +114,21 @@ int main(int argc, char * argv[])
   args_t args = {0};  // initialize args struct to all zero
   struct argp argp = {options, parse_opt, 0,
                       "Parallel Single Source Shortest Path (SSSP).", children_parsers};  
-  args.gstd.l_numrows = 50;
+
+  // set reasonable default for lnumrows and required defaults for graph params
+  args.gstd.l_numrows = 100000;  
+  args.gstd.directed = 1;
+  args.gstd.weighted = 1;
+
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
-  
-  //override command line 
-  // SSSP only applies to weighted directed graphs 
-  //args.gstd.l_numrows = 100;
-  if(args.gstd.loops == 1 || args.gstd.directed == 0 || args.gstd.weighted == 0){
-    T0_fprintf(stderr,"WARNING: assume the input graph is directed, weighted [0,1) graph with no loops.\n");
-    T0_fprintf(stderr,"Overwriting the options.\n");
-    args.gstd.loops = 0;
-    args.gstd.directed = 1;
-    args.gstd.weighted = 1;
-  }
 
+  // SSSP only applies to weighted directed graphs with no loops
+  if(args.gstd.loops){
+    T0_fprintf(stderr,"WARNING: SSSP requires no self loops. overriding -l flag\n");
+    args.gstd.loops = 0;
+  }
 
   if(!MYTHREAD){
     write_std_graph_options(&args.std, &args.gstd);
@@ -181,65 +159,79 @@ int main(int argc, char * argv[])
   double laptime = 0.0;
   char model_str[32];
 
-  T0_printf("delta step = %lf\n", args.deltaStep);
+  //T0_printf("delta step = %lf\n", args.deltaStep);
+  bale_app_write_double(&args.std, "delta", args.deltaStep);
+  
+  // To our understanding, the AGP model requires an atomic min of a double.
+  // Until we get it, we haven't taken the AGP model out of the models_mask.
+  lgp_barrier();
+  args.std.models_mask &=0xFE;
+  int64_t bz = args.std.buf_cnt;
+  int64_t V0 = args.V0;
+  double delta = args.deltaStep;
 
-#define USE_BELLMAN (1L<<16)
-#define USE_DELTA   (1L<<17)
+/*! \brief do Bellman-Ford */
+#define USE_BELLMAN (32) // the command line switch -a (alg) is an extension of the -M switch
+/*!  \brief do delta-stepping */
+#define USE_DELTA   (64) 
   
   for( alg = 1; alg < 3; alg *=2 ){
-    use_alg = (args.alg & alg)<<16;
-    for( use_model=1L; use_model < 32; use_model *=2 ) {
+    use_alg = (args.alg & alg) * 32;
+    for( use_model=2L; use_model < 32; use_model *=2 ) {
       model_str[0] = '\0';
-      switch( (use_model & args.std.models_mask) | use_alg ) {
-      case (AGP_Model | USE_BELLMAN):
-        sprintf(model_str, "Bellman-Ford AGP");
+      switch( (use_model & args.std.models_mask) + use_alg ) {
+
+      case (EXSTACK_Model + USE_BELLMAN):
+        strcpy(model_str, "Bellman-Ford Exstack");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_agp(tent, mat, 0); 
+        laptime = sssp_bellman_exstack(tent, mat, bz, V0);
         break;
 
-      case (EXSTACK_Model | USE_BELLMAN):
-        sprintf(model_str, "Bellman-Ford Exstack");
+      case (EXSTACK_Model + USE_DELTA):
+        strcpy(model_str, "Delta Exstack");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_exstack(tent, mat, args.V0);
+        laptime = sssp_delta_exstack(tent, mat, bz, V0, delta);
         break;
 
-      case (EXSTACK_Model | USE_DELTA):
-        sprintf(model_str, "Delta Exstack");
+      case (EXSTACK2_Model + USE_BELLMAN):
+        strcpy(model_str, "Bellman-Ford Exstack2");
         set_d_array(tent, INFINITY);
-        laptime = sssp_delta_exstack(tent, mat, args.V0, args.deltaStep);
+        laptime = sssp_bellman_exstack2(tent, mat, bz, V0);
         break;
 
-      case (EXSTACK2_Model | USE_BELLMAN):
-        sprintf(model_str, "Bellman-Ford Exstack2");
+      case (EXSTACK2_Model + USE_DELTA):
+        strcpy(model_str, "Delta Exstack2");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_exstack2(tent, mat, 0);
-        break;
-
-      case (EXSTACK2_Model | USE_DELTA):
-        sprintf(model_str, "Delta Exstack");
-        set_d_array(tent, INFINITY);
-        laptime = sssp_delta_exstack2(tent, mat, args.V0, args.deltaStep);
+        laptime = sssp_delta_exstack2(tent, mat, bz, V0, delta);
         break;
         
-      case (CONVEYOR_Model | USE_BELLMAN):
-        sprintf(model_str, "Bellman-Ford Conveyor");
+      case (CONVEYOR_Model + USE_BELLMAN):
+        strcpy(model_str, "Bellman-Ford Conveyor");
         set_d_array(tent, INFINITY);
-        laptime = sssp_bellman_convey(tent, mat, args.V0);
+        laptime = sssp_bellman_convey(tent, mat, V0);
         break;
 
-      case (CONVEYOR_Model | USE_DELTA):
-        sprintf(model_str, "Delta Conveyor");
+      case (CONVEYOR_Model + USE_DELTA):
+        strcpy(model_str, "Delta Conveyor");
         set_d_array(tent, INFINITY);
-        laptime = sssp_delta_convey(tent, mat, args.V0, args.deltaStep);
+        laptime = sssp_delta_convey(tent, mat, V0, delta);
         break;
+
+      case (ALTERNATE_Model + USE_BELLMAN):
+        strcpy(model_str, "Bellman-Ford AGP");
+        set_d_array(tent, INFINITY);
+        laptime = sssp_bellman_agp(tent, mat, V0); 
+        break;
+      default:
+        continue;
       }
       if(model_str[0]) {
         if(comp_tent == NULL){
           comp_tent = copy_d_array(tent);
-          sprintf(model_str, "%s ()", model_str);
+          strcat(model_str, " ()");
         }else{
           if( sssp_answer_diff(comp_tent, tent) < 1.0e-8)
-            sprintf(model_str, "%s (compares)", model_str);
+            strcat(model_str, " (compares)");
         }
         lgp_barrier();
         bale_app_write_time(&args.std, model_str, laptime);
@@ -249,9 +241,17 @@ int main(int argc, char * argv[])
   
   lgp_barrier();
 
+  if(args.std.dump_files && !MYTHREAD){
+    FILE * fp = fopen("sssp_dist", "w");
+    for(i = 0; i < tent->num; i++)
+      fprintf(fp, "%lf\n", lgp_get_double(tent->entry, i));
+    fclose(fp);
+  }
+  lgp_barrier();
+    
   clear_d_array(tent); free(tent);
-  clear_d_array(comp_tent); free(comp_tent);
-
+  if(comp_tent) clear_d_array(comp_tent); free(comp_tent);
+ 
   bale_app_finish(&args.std);
 
   return(0);

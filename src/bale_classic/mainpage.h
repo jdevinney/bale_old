@@ -3,36 +3,13 @@
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
  *****************************************************************/ 
 /*!
@@ -98,7 +75,8 @@
   - \subpage permute_matrix_page sparse matrix manipulation that is interesting in it own right
   - \subpage randperm_page a parallel algorithm to find a large permutation in parallel
   - \subpage triangles_page counting triangles in a graph
-  - \subpage write_sparse_matrix_page Write a sparse matrix in a binary form.
+  - \subpage sssp_page Single Source Shortest Path in a graph.
+  - \subpage sparse_matrix_io_page Write and Read a sparse matrix in a binary form.
 
   Libraries
   - \ref libgetputgrp a set of macros and functions that can be built on UPC or SHMEM
@@ -115,7 +93,8 @@
   
   Also
   - INSTALL: Instructions on how to get bale up and running.
-  - runall.sh: A bash script that runs all the applications with "standard" options.
+  - make_bale: A python script to make compiling bale easier.
+  - run_apps.py: A python script to run tests on applications.
 
   \subsection History History
 
@@ -149,7 +128,7 @@
   performance can be quite good in some applications but there are
   some applications (especially in SHMEM) where it performs terribly
   and we have not put the energy into finding out why yet. There are
-  also applications (such as randperm and write_sparse_matrix) which
+  also applications (such as randperm and sparse_matrix_io) which
   are hard to implement in exstack2. Features like steady-mode and
   giant-messages in coveyors makes some applications easier to program
   in conveyors than exstack/2.

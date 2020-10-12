@@ -3,36 +3,13 @@
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
  *****************************************************************/
 /*! \file triangle.upc
@@ -85,10 +62,10 @@ See "Design, Generation, and Validation of Extreme Scale Power-Law Graphs" by Ke
 for more information on Kronecker product graphs. 
  */
 
-
+/*! \brief structure to hold counts of the number of pushes and pulls */
 typedef struct push_pull_ctr_t{
-  int64_t npushes;
-  int64_t npulls;
+  int64_t npushes;                //!< number of pushes
+  int64_t npulls;                 //!< number of pulls
 }push_pull_ctr_t;
 
 typedef struct args_t{
@@ -133,7 +110,7 @@ int main(int argc, char * argv[]) {
   /* process command line */
   args_t args = {0};  // initialize args struct to all zero
   struct argp argp = {options, parse_opt, 0,
-                      "Parallel sparse matrix transpose.", children_parsers};  
+                      "Parallel triangle counting.", children_parsers};  
 
   args.gstd.l_numrows = 500000;
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
@@ -181,7 +158,7 @@ int main(int argc, char * argv[]) {
   int64_t correct_answer = -1;
   int wrote_num_triangles = 0;
   if(args.gstd.model == KRONECKER){
-    correct_answer = calculate_num_triangles(args.gstd.kron_mode, args.gstd.kron_spec, args.gstd.kron_num);
+    correct_answer = calc_num_tri_kron_graph(args.gstd.kron_mode, args.gstd.kron_spec, args.gstd.kron_num);
     bale_app_write_int(&args.std, "num_triangles", correct_answer);
     wrote_num_triangles = 1;
   }
@@ -214,12 +191,12 @@ int main(int argc, char * argv[]) {
     
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      laptime = triangle_exstack_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
+      laptime = triangle_exstack_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buf_cnt);
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      laptime = triangle_exstack2_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
+      laptime = triangle_exstack2_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buf_cnt);
       break;
 
     case CONVEYOR_Model:

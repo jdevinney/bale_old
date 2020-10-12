@@ -5,7 +5,7 @@
 ///
 /// All rights reserved.
 ///
-/// This file is part of Bale.  For licence information see the
+/// This file is part of Bale.  For license information see the
 /// LICENSE file in the top level dirctory of the distribution.
 ///
 use convey_hpc::collect::CollectValues;

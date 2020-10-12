@@ -2,6 +2,8 @@
 
 This library contains both exstack and exstack2.
 
+**exstack**
+
 exstack was originally written in 2011 and was our first attempt at an aggregation library. Exstack is synchronous and resembles Bulk Synchronous Programming. The main functions in its API (push and pop)
 remain in its descendants (exstack2 and [conveyors](../convey/README.md)). In a typical exstack loop there are
 three phases. 
@@ -18,6 +20,8 @@ three phases.
     of their in-buffers and do whatever computation is required. 
 
 See [histogram](../apps/histo_src/README.md) for a simple example. While exstack is naive compared to conveyors, it still acheives very good performance on most of the bale apps.
+
+**exstack2**
 
 exstack2 was our attempt to improve both the performance and ease-of-use of exstack. In fact, bale grew out of our attempt to write exstack2. exstack2's main difference from exstack is the fact that exstack2 is asynchronous. PEs do not proceed in lock-step and there is no "exchange phase". The buffer sends happen automatically and individually as soon as a buffer is full. 
 

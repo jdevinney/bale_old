@@ -1,40 +1,15 @@
-/******************************************************************
+/*****************************************************************
 //
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-// 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
- *****************************************************************/ 
+//  This file is a part of Bale.  For license information see the
+//  LICENSE file in the top level directory of the distribution.
+//  
+ *****************************************************************/
 /*! \file spmat_utils.upc
  * \brief Utilities to support spmat and wrappers to make it easier to switch 
  * between routines written in the various models.
@@ -43,24 +18,24 @@
 #include <spmat.h>
 #include <exstack.h>
 
-/*! \brief Produce a global array the holds a uniform random permutation.
- * \param N the global length of the permutaion
- * \param seed the seed for the random number generator
- * \param buf_cnt The size of the buffers in any exstack, exstack2, calls
- * \return a pointer to the matrix that has been produced or NULL if the model can't be used
- *
- * This is wrapper for implementations written in the different models.
- * It is interest enough to be its own apps, one should experiment with it
- * within the apps framework. 
- *
- * This is a collective call.
- *
- * this implements the random dart algorithm to generate the permutation.
- * Each thread throws its elements of the perm array randomly at large target array.
- * Each element claims a unique entry in the large array using compare_and_swap.
- * This gives a random permutation with spaces in it, then you squeeze out the spaces.
- * \ingroup spmatgrp
- */
+/*!
+\brief Produce a global array the holds a uniform random permutation.
+\param N the global length of the permutaion
+\param seed the seed for the random number generator
+\return a pointer to the matrix that has been produced or NULL if the model can't be used
+
+This is wrapper for implementations written in the different models.
+It is interest enough to be its own apps, one should experiment with it
+within the apps framework. 
+
+This is a collective call.
+
+this implements the random dart algorithm to generate the permutation.
+Each thread throws its elements of the perm array randomly at large target array.
+Each element claims a unique entry in the large array using compare_and_swap.
+This gives a random permutation with spaces in it, then you squeeze out the spaces.
+\ingroup spmatgrp
+*/
 SHARED int64_t * rand_permp(int64_t N, int seed) {
   SHARED int64_t * p;
   //p = rand_permp_agp(N, seed);
@@ -75,45 +50,43 @@ SHARED int64_t * rand_permp(int64_t N, int seed) {
 }
 
 
-/*! \brief apply row and column permutations to a sparse matrix using straight UPC
- * \param omat pointer to the original matrix
- * \param rperminv pointer to the global array holding the inverse of the row permutation
- * \param cperminv pointer to the global array holding the inverse of the column permutation
- * rperminv[i] = j means that row i of A goes to row j in matrix Ap
- * cperminv[i] = j means that col i of A goes to col j in matrix Ap
- * \param buf_cnt The size of the buffers in any exstack, exstack2, calls
+/*!
+\brief apply row and column permutations to a sparse matrix using straight UPC
+\param omat pointer to the original matrix
+\param rperminv pointer to the global array holding the inverse of the row permutation
+       rperminv[i] = j means that row i of A goes to row j in matrix Ap
+\param cperminv pointer to the global array holding the inverse of the column permutation
+       cperminv[i] = j means that col i of A goes to col j in matrix Ap
 
- * \return a pointer to the matrix that has be computed or NULL on failure
- *
- * This is wrapper for implementations written in the different models.
- * It is interest enough to be its own apps, one should experiment with it
- * within the apps framework. 
- *
- * \ingroup spmatgrp
+\return a pointer to the matrix that has be computed or NULL on failure
+
+This is wrapper for implementations written in the different models.
+It is interest enough to be its own apps, one should experiment with it
+within the apps framework. 
+
+\ingroup spmatgrp
  */
 sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {
   //return( permute_matrix_agp(omat, rperminv, cperminv) );
-    return( permute_matrix_exstack(omat, rperminv, cperminv, 128) );
-  //return( permute_matrix_exstack2(omat, rperminv, cperminv, 1024) );
+    return( permute_matrix_exstack(omat, rperminv, cperminv, 512) );
+  //return( permute_matrix_exstack2(omat, rperminv, cperminv, 512) );
   //return( permute_matrix_conveyor(omat, rperminv, cperminv) );
 }
 
-/*! \brief produce the transpose of a sparse matrix using UPC
+/*! \brief produce the transpose of a sparse matrix 
  * \param omat  pointer to the original matrix
- * \param buf_cnt The size of the buffers in any exstack, exstack2, calls
  * \return a pointer to the matrix that has be computed or NULL on failure
  *
  * This is wrapper for implementations written in the different models.
- * It is interest enough to be its own apps, one should experiment with it
- * within the apps framework. 
- *
+ * It is interest enough to be its own apps, one should experiment with it within the apps framework. 
+ * This is provided as library function. 
  * \ingroup spmatgrp
  */
 sparsemat_t * transpose_matrix(sparsemat_t *omat) {
   sparsemat_t * A;
   //A = transpose_matrix_agp(omat);
-  A = transpose_matrix_exstack(omat, 128);
-  //A = transpose_matrix_exstack2(omat, 1024);
+  A = transpose_matrix_exstack(omat, 512);
+  //A = transpose_matrix_exstack2(omat, 512);
   //A = transpose_matrix_conveyor(omat);
   if(!A){return(NULL);}
   
@@ -121,311 +94,6 @@ sparsemat_t * transpose_matrix(sparsemat_t *omat) {
   return(A);
 }
 
-
-/*! \brief writes a sparse matrix to a file in Matrix Market format
- * \param A pointer to the sparse matrix
- * \param name the filename to written to
- * \return 0 on success, non-0 on error.
- * \ingroup spmatgrp
- */
-int write_matrix_mm(sparsemat_t *A, char * name) {
-  if(!MYTHREAD){
-    FILE * fp = fopen(name, "w");
-    /* write the banner */
-    if(A->value){
-      fprintf(fp,"%%%%MatrixMarket matrix coordinate real\n");
-    }else{
-      fprintf(fp,"%%%%MatrixMarket matrix coordinate pattern\n");
-    }
-    fprintf(fp,"%"PRId64" %"PRId64" %"PRId64"\n", A->numrows, A->numcols, A->nnz);
-    fclose(fp);
-  }
-  
-  lgp_barrier();
-  
-  int64_t i, j,k, row;
-  for(k = 0; k < THREADS; k++){
-    if(k == MYTHREAD){
-      FILE * fp = fopen(name, "a");
-      for(i = 0; i < A->lnumrows; i++){
-        row = i*THREADS + MYTHREAD;
-        for(j = A->loffset[i]; j < A->loffset[i+1]; j++){
-          if(A->value)
-            fprintf(fp, "%"PRId64" %"PRId64" %lf\n",
-                    row + 1,
-                    A->lnonzero[j] + 1,
-                    A->value[j]);
-          else
-            fprintf(fp, "%"PRId64" %"PRId64"\n",
-                    row + 1,
-                    A->lnonzero[j] + 1);
-        }
-      }
-      fclose(fp);
-    }
-    lgp_barrier();
-  }
-  
-  return(0);
-}
-
-
-
-//
-// this is new code not ready for release in bale2.0
-//
-int64_t read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t * nwriters){
-  *nr = *nc = *nnz = 0;
-  if(MYTHREAD == 0){
-    int ret = 0;
-    char fname[64];
-    sprintf(fname, "%s/metadata", dirname);
-    FILE * fp = fopen(fname, "r");
-    ret += fscanf(fp, "%"PRId64"\n", nr);
-    ret += fscanf(fp, "%"PRId64"\n", nc);
-    ret += fscanf(fp, "%"PRId64"\n", nnz);
-    ret += fscanf(fp, "%"PRId64"\n", nwriters);
-    if(ret != 4){
-      fprintf(stderr,"ERROR: read_sparse_matrix_metadata\n");      
-    }
-    *nr = -1;
-    fclose(fp);
-  }
-  lgp_barrier();
-  *nr = lgp_reduce_add_l(*nr);
-  *nc = lgp_reduce_add_l(*nc);
-  *nnz = lgp_reduce_add_l(*nnz);
-  *nwriters = lgp_reduce_add_l(*nwriters);
-  if(*nr < 0) return(-1);
-  return(0);
-}
-
-/*! \brief This function writes out the ASCII metadata file for a sparse matrix dataset.
- * The metadata file is called "metadata" and contains 4 lines
- * - numrows
- * - numcols
- * - number of nonzeros
- * - number of PEs that were writing.
- *
- * \param dirname The name of the directory where the dataset will be written.
- * \param A The sparse matrix that is being written.
- * \ingroup spmatgrp
- */
-int64_t write_sparse_matrix_metadata(char * dirname, sparsemat_t * A){
-  if(MYTHREAD == 0){
-    /* open params file for writing */
-    char fname[64];
-    sprintf(fname, "%s/metadata", dirname);
-    FILE * fp = fopen(fname, "w");
-    fprintf(fp, "%"PRId64"\n%"PRId64"\n%"PRId64"\n%d\n", A->numrows, A->numcols, A->nnz,THREADS);
-    fclose(fp);
-  }
-  return(0);
-}
-
-
-/*! \brief Read a sparse matrix in matrix market format on one PE and create a distributed matrix
-  from that.
-  * Only PE 0 reads the matrix file.
-  * 
-  * \param name The name of the file.
-  * \return The sparsemat_t struct.
-  * \ingroup spmatgrp
-  */
-sparsemat_t * read_matrix_mm_to_dist(char * name) {
-  typedef struct pkg_rowcol_t{
-    int64_t row;    
-    int64_t col;
-  }pkg_rowcol_t;
-
-  int64_t nr, nc, nnz = 0, i, pe;
-  SHARED int64_t * sh_data;
-  sh_data = lgp_all_alloc (THREADS*4, sizeof(int64_t));
-
-  int64_t * rowcount;
-  edge_t * edges;
-  w_edge_t * tri;
-  if(!MYTHREAD){
-    int fscanfret;
-    int64_t * nnz_per_th = calloc(THREADS, sizeof(int64_t));
-    
-    FILE * fp = fopen(name, "r");
-    if( fp == NULL ) {
-      fprintf(stderr,"read_matrix_mm: can't open file %s \n", name);
-      lgp_global_exit(1);
-    }
-    
-    // Read the header line of the MatrixMarket format 
-    char * object = calloc(64, sizeof(char));
-    char * format = calloc(64, sizeof(char));
-    char * field = calloc(64, sizeof(char));;
-    fscanfret = fscanf(fp,"%%%%MatrixMarket %s %s %s\n", object, format, field);
-    if( (fscanfret != 3 ) || strncmp(object,"matrix",24) || strncmp(format,"coordinate",24) ){
-      fprintf(stderr,"read_matrix_mm: Incompatible matrix market format.\n");
-      fprintf(stderr,"                First line should be either:\n");
-      fprintf(stderr,"                matrix coordinate pattern\n");
-      fprintf(stderr,"                OR\n");
-      fprintf(stderr,"                matrix coordinate real\n");
-      fprintf(stderr,"                OR\n");
-      fprintf(stderr,"                matrix coordinate integer\n");
-      lgp_global_exit(1);
-    }
-
-    // Make sure that this is a format we support
-    if(strncmp(field,"pattern",24) && strncmp(field,"real",24) && strncmp(field,"integer",24) ){
-      fprintf(stderr,"read_matrix_mm: Incompatible matrix market field.\n");
-      fprintf(stderr,"                Last entry on first line should be pattern, real, or integer\n");
-      lgp_global_exit(1);
-    }
-    int64_t values;
-    if(strncmp(field,"pattern",7) == 0){
-      values = 0L; // no values
-    }else if(strncmp(field,"real",4) == 0){
-      values = 1L; // real values
-    }else{
-      values = 2L; // integer values
-    }
-    
-    // Read the header (nr, nc, nnz)
-    fscanfret = fscanf(fp,"%"PRId64" %"PRId64" %"PRId64"\n", &nr, &nc, &nnz);
-    if( (fscanfret != 3 ) || (nr<=0) || (nc<=0) || (nnz<=0) ) {
-      fprintf(stderr,"read_matrix_mm: reading nr, nc, nnz\n");
-      lgp_global_exit(1);
-    }
-
-    // allocate space to store the matrix data    
-    rowcount = calloc(nr, sizeof(int64_t));
-    if(!rowcount){
-      T0_printf("ERROR: read_matrix_mm_to_dist: could not allocate arrays\n");
-      for(i = 0; i < THREADS; i++) lgp_put_int64(sh_data, i, -1);
-    }
-    
-    // read the data
-    int64_t row, col, val, pos = 0;
-    if(values == 0){
-      edges = calloc(nnz, sizeof(edge_t));
-      while(fscanf(fp,"%"PRId64" %"PRId64"\n", &row, &col) != EOF){
-        row--;//MM format is 1-up
-        col--;
-        edges[pos].row   = row;
-        edges[pos++].col = col;
-        nnz_per_th[row % THREADS]++;
-        rowcount[row]++;
-      }
-      qsort( edges, nnz, sizeof(edge_t), edge_comp);
-    }else{
-      tri = calloc(nnz, sizeof(w_edge_t));    
-      while(fscanf(fp,"%"PRId64" %"PRId64" %"PRId64"\n", &row, &col, &val) != EOF){
-        tri[pos].row = row - 1;
-        tri[pos].col = col - 1;
-        tri[pos++].val = val;
-        nnz_per_th[row % THREADS]++;
-        rowcount[row]++;
-      }
-      qsort( tri, nnz, sizeof(w_edge_t), w_edge_comp);
-    }
-    
-    fclose(fp);
-    if(nnz != pos){
-      T0_printf("ERROR: read_matrix_mm_to_dist: nnz (%"PRId64") != pos (%"PRId64")\n", nnz, pos);
-      for(i = 0; i < THREADS; i++) lgp_put_int64(sh_data, i, -1);
-    }
-    for(i = 0; i < THREADS; i++){
-      lgp_put_int64(sh_data, i, nnz_per_th[i]);
-      lgp_put_int64(sh_data, i+THREADS, nr);
-      lgp_put_int64(sh_data, i+2*THREADS, nc);
-      lgp_put_int64(sh_data, i+3*THREADS, values);
-    }
-    free(nnz_per_th);
-
-  }
-  
-  lgp_barrier();
-
-  int64_t * lsh_data = lgp_local_part(int64_t, sh_data);
-  if(lsh_data[0] == -1)
-    return(NULL);
-  
-  int64_t lnnz = lsh_data[0];
-  nr = lsh_data[1];
-  nc = lsh_data[2];
-  int value = (lsh_data[3] != 0L);
-  
-  sparsemat_t * A = init_matrix(nr, nc, lnnz, value);
-  SHARED int64_t * tmp_offset = lgp_all_alloc(nr + THREADS, sizeof(int64_t));
-  if(!A || !tmp_offset){
-    T0_printf("ERROR: read_matrix_mm_to_dist: failed to init matrix or tmp_offset!\n");
-    return(NULL);
-  }
-
-  /* set up offset array and tmp_offset */
-  lgp_barrier();
-  lgp_all_free(sh_data);
-  
-  if(!MYTHREAD){
-    for(i = 0; i < nr; i++)
-      lgp_put_int64(tmp_offset, i, rowcount[i]);
-    free(rowcount);
-  }
-
-  lgp_barrier();
-
-  int64_t * ltmp_offset = lgp_local_part(int64_t, tmp_offset);
-  A->loffset[0] = 0;
-  for(i = 1; i <= A->lnumrows; i++){
-    A->loffset[i] = A->loffset[i-1] + ltmp_offset[i-1];
-    ltmp_offset[i-1] = 0;
-  }
-
-  int64_t fromth;
-  w_edge_t pkg;
-  exstack_t * ex = exstack_init(256, sizeof(w_edge_t));
-  if( ex == NULL ) return(NULL);
-  
-  /* distribute the matrix to all other PEs */
-  /* pass around the nonzeros */
-  /* this is a strange exstack loop since only PE0 has data to push */
-  i = 0;
-  while(exstack_proceed(ex, (i == nnz))){
-    while(i < nnz){
-      if(value == 0){
-        pkg.row = edges[i].row;
-        pkg.col = edges[i].col;
-      }else{
-        pkg.row = tri[i].row;
-        pkg.col = tri[i].col;
-        pkg.val = tri[i].val;
-      }
-      pe = pkg.row % THREADS;
-      if(!exstack_push(ex, &pkg, pe))
-        break;
-      i++;
-    }
-    exstack_exchange(ex);
-
-    while(exstack_pop(ex, &pkg, &fromth)){
-      int64_t row = pkg.row/THREADS;
-      int64_t pos = A->loffset[row] + ltmp_offset[row];
-      //printf("pos = %ld row = %ld col = %ld\n", pos, row, pkg.col);fflush(0);
-      A->lnonzero[pos] = pkg.col;
-      if(value) A->lvalue[pos] = pkg.val;
-      ltmp_offset[row]++;
-    }
-  }
-
-  lgp_barrier();
-  if(!MYTHREAD){
-    if(value == 0)
-      free(edges);
-    else
-      free(tri);
-  }
-
-  lgp_all_free(tmp_offset);
-  exstack_clear(ex);
-  sort_nonzeros(A);
-  return(A);
-}
 
 /*! \brief checks that the sparse matrix is lower triangluar
  * \param A pointer to the sparse matrix
@@ -605,18 +273,19 @@ int is_perm(SHARED int64_t * perm, int64_t N) {
  /*                               RANDOM MATRICES                                     */
  /*************************************************************************************/
 
-/*! \brief A routine to generate the adjacency matrix of a random graph.
-  * If the graph is undirected, this routine only returns a lower-triangular
-  * adjancency matrix (since the adjancency matrix would be symmetric and we don't need
-  * the redundant entries).
-  * 
-  * \param n The number of vertices in the graph.
-  * \param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
-  * \param edge_type See edge_type enum. Directed, or not, Weighted or not.
-  * \param loops see self_loops enum. Does every node have a loop or not.
-  * \param edge_density: d in [0, 1), target fraction of edges present.
-  * \param seed: RNG seed.
-  */
+/*! 
+\brief A routine to generate the adjacency matrix of a random graph.
+\param n The number of vertices in the graph.
+\param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
+\param edgetype See enum edge_type enum. Directed, or not, Weighted or not.
+\param loops see self_loops enum. Does every node have a loop or not.
+\param edge_density: d in [0, 1), target fraction of edges present.
+\param seed: RNG seed.
+
+If the graph is undirected, this routine only returns a lower-triangular
+adjancency matrix (since the adjancency matrix would be symmetric and we don't need
+the redundant entries).
+*/
 
 sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
                            self_loops loops,
@@ -643,9 +312,9 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     // for undirected density = E/(n choose 2)
     // for directed   density = E/(n^2 - n)
     if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
-       r = sqrt((n-1)*edge_density/(M_PI*n));
-     else
-       r = sqrt(2*(n-1)*edge_density/(M_PI*n));
+      r = sqrt((n-1)*edge_density/(M_PI*n));
+    else
+      r = sqrt(2*(n-1)*edge_density/(M_PI*n));
     sparsemat_t * L = geometric_random_graph(n, r, et, loops, seed, NULL);// &op);
     if(L == NULL){
       T0_fprintf(stderr,"Error: random_graph: geometric_r_g returned NULL!\n");
@@ -688,13 +357,13 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
  *
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
- * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
+ * \param edgetype See enum edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Does all or no vertices have self loops.
  * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE individually).
  * \return A distributed sparsemat_t that holds the graph.  It is either a lower triangular  matrix
            or square matrix, weighted or not with or without a diagonal.
  */
-  sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
+  sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edgetype, self_loops loops, uint64_t seed){
   
   int64_t row, col, i;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
@@ -710,7 +379,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
   row = MYTHREAD;
   col = 1 + floor(log(1 - lgp_rand_double()) / D);
   while(row < n){
-    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       end = row;
     while(col < end){
       // if we just hit a diagonal entry (we don't have to generate this one later)
@@ -726,7 +395,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
 
   lgp_barrier();
 
-  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  int weighted = (edgetype == UNDIRECTED_WEIGHTED || edgetype == DIRECTED_WEIGHTED);
   sparsemat_t * A = init_matrix(n, n, lnnz_orig, weighted);
   if(!A){T0_printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL);}
 
@@ -739,7 +408,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
   col = 1 + floor(log(1 - lgp_rand_double()) / D);
   while(row < n){
     int need_diag = (loops == LOOPS);
-    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       end = row;
     while(col < end){
       if(col == row) need_diag = 0;
@@ -766,7 +435,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
     }
   }
 
-  if(loops == LOOPS && (edge_type == DIRECTED || edge_type == DIRECTED_WEIGHTED))
+  if(loops == LOOPS && (edgetype == DIRECTED || edgetype == DIRECTED_WEIGHTED))
     sort_nonzeros(A); // to get the diagonal entry sorted correctly
   
   return(A);
@@ -776,14 +445,14 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
  * This is the naive O(n^2) algorithm. It flips an unfair coin for each possible edge.
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
- * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
+ * \param edgetype See enum edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Do all or no vertices have self loops.
  * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE 
  individually).
  * \return A distributed sparsemat_t that holds the graph.  It is either a lower triangular  matrix
            or square matrix, weighted or not with or without a diagonal.
  */
-sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
+sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edgetype, self_loops loops, uint64_t seed){
   
   int64_t row, col, i, j;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
@@ -795,7 +464,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   lgp_rand_seed(seed);
   lnnz_orig = 0;
   for(row = MYTHREAD; row < n; row += THREADS){
-    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       end = row;
     for(col = 0; col < end; col++){
       if(col == row)//skip diagonal (we handle loops separately)
@@ -808,7 +477,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   
   lgp_barrier();
 
-  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  int weighted = (edgetype == UNDIRECTED_WEIGHTED || edgetype == DIRECTED_WEIGHTED);
   sparsemat_t * A = init_matrix(n, n, lnnz_orig, weighted);
   if(!A){T0_printf("ERROR: erdos_renyi_random_graph_naive: init_matrix failed!\n"); return(NULL);}
 
@@ -819,7 +488,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   A->loffset[0] = 0;  
   lnnz = 0;
   for(row = MYTHREAD; row < n; row += THREADS){
-    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       end = row + (loops == LOOPS);
     for(col = 0; col < row; col++){
       if(col == row && loops == LOOPS){
@@ -1126,21 +795,6 @@ sparsemat_t * kronecker_product_of_stars(int64_t M, int64_t * m, int mode) {
   for(i = 0; i < 2*M-2; i++){
     clear_matrix(Aarr[i]); free(Aarr[i]);
   }
-#if 0
-  /* remove the self loop */
-  if(mode == 1){
-    /* set A(0,0) = 0*/
-    for(i = 0; i < A->lnumrows+1; i++)
-      A->loffset[i]--;
-    for(i = 0; i < A->lnnz - 1; i++){
-      A->lnonzero[i] = A->lnonzero[i+1];
-    }
-  }else if(mode == 2){
-    /* set A(m1*m2 - 1, m1*m2 - 1) = 0 */
-    A->loffset[A->lnumrows] -= 1;
-  }
-  A->lnnz = A->nnz = A->nnz - 1;
-#endif
   return(A);
 }
 
@@ -1151,7 +805,6 @@ sparsemat_t * kronecker_product_of_stars(int64_t M, int64_t * m, int mode) {
 int sort_nonzeros( sparsemat_t *mat) {
   int i,j;
   if(mat->value){
-    
     // we have to sort the column indicies, but we also have to permute the value array accordingly
     // this is annoying in C
     // we have to create an array of stucts that holds col,val pairs for a row
@@ -1191,7 +844,19 @@ int sort_nonzeros( sparsemat_t *mat) {
   return(0);
 }
 
-int64_t calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num){
+/*!
+\brief compute the number of triangles in a Kronecker Product of stars graph
+\param kron_mode the mode 0,1,2
+\param kron_spec the list of sizes of the stars (note the +1)
+\param kron_num the number of stars
+
+See:
+On Large-Scale Graph Generation with Validation of Diverse Triangle Statistics at Edges and Vertices
+by Geoffrey Sanders, Roger Pearce, Timothy La Fond, Jeremy Kepner
+*/
+
+int64_t calc_num_tri_kron_graph(int kron_mode, int * kron_spec, int kron_num)
+{
   int i;
   double correct_answer = 0;
   if(kron_mode == 0){
@@ -1276,7 +941,7 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
   }
   if(lmat->value){
     for(j=0; j< lmat->lnnz; j++){
-      if( spmat_compare_doubles(lmat->lvalue[j],rmat->lvalue[j])) {
+      if( spmat_are_eq_doubles(lmat->lvalue[j],rmat->lvalue[j])) {
         fprintf(stderr,"PE %d: lmat->lvalue[%d] = %lf != rmat->lvalue[%d] = %lf\n", 
                 MYTHREAD, j, lmat->lvalue[j], j, rmat->lvalue[j] );
         return(1);
@@ -1288,8 +953,13 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
 }
 
 
-// Given the adjacency matrix for an undirected graph (should be lower triangular)
-// We randomly orient each edge and return the new adjacency matrix.
+/*! \brief produce a directed graph from a undirected graph
+ * \param L undirected graph, a lower triangular matrix
+ * \return the directed graph
+ * \ingroup spmatgrp
+ * We randomly orient each edge and build edge lists on the appropriate threads.
+ * Then convert the edge lists to a sparse matrix.
+ */
 sparsemat_t * direct_undirected_graph(sparsemat_t * L){
   int64_t i, j;
   int weighted = (L->value != NULL);
@@ -1379,7 +1049,8 @@ sparsemat_t * direct_undirected_graph(sparsemat_t * L){
   
 }
 
-/*! \brief makes an exact copy of a given sparse matrices
+/*! 
+ * \brief produce an exact copy of a given sparse matrices
  * \param srcmat pointer to the original sparse matrix
  * \return A pointer to the cloned sparse matrix
  */
@@ -1410,14 +1081,22 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat) {
 // (z-1)*n = e*(n*(n-1)/2) (if we are forcing loops into the graph)
 //
 
-void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops){
+/*! 
+ * \brief computes the number of non-zeros per row from the edge probability or vice-versa.
+ * \param edge_prob given edge probability (or place to put the computed edge_prob)
+ * \param nz_per_row  given number of nonzeros per row (or place to put the computed nz_per_row)
+ * \param numrows = numcols global order of the matrix 
+ * \param edgetype enum edge_type weighted or unweighted
+ * \param loops whether the diagonal is all zeros or all ones
+ */
+void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edgetype, self_loops loops){
   if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
     if(loops == LOOPS)
       *edge_prob = (*nz_per_row - 1)/(numrows-1);
     else
       *edge_prob = (*nz_per_row)/(numrows-1);
     
-    if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if (edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       *edge_prob = *edge_prob*2;
         
     if(*edge_prob > 1.0)
@@ -1430,8 +1109,13 @@ void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, i
 
 
 // return 1 if the two values are different "enough" relative to their size.
-
-int spmat_compare_doubles(double a, double b){
+/*! 
+ * \brief compare to doubles
+ * \param a first one
+ * \param b the other one
+ * \return int 0, if they are close enough 
+ */
+int spmat_are_eq_doubles(double a, double b) {
   if(a == 0.0){
     if(fabs(b) < 1e-8) return(0);
     return(1);
@@ -1442,9 +1126,10 @@ int spmat_compare_doubles(double a, double b){
 
 /*! \brief initializes the struct that holds a sparse matrix
  *    given the total number of rows and columns and the local number of non-zeros
- * \param numrows total number of rows
- * \param numcols total number of columns
+ * \param numrows total (global) number of rows
+ * \param numcols total (global) number of columns  (always equals numrows in bale)
  * \param nnz_this_thread number of nonzero on this thread
+ * \param weighted whether the nonzeros have weights or not
  * \return An initialized sparsemat_t or NULL on error.
  * \ingroup spmatgrp
  */
@@ -1465,7 +1150,8 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   int64_t total = lgp_reduce_add_l(nnz_this_thread);
   mat->nonzero = lgp_all_alloc(max*THREADS, sizeof(int64_t));
   if(mat->nonzero == NULL){
-    T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for nonzero array (max = %"PRId64")\n", max*THREADS*8, max);
+    T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for nonzero array (max = %"PRId64")\n",
+              max*THREADS*8, max);
     return(NULL);
   }
   mat->lnonzero = lgp_local_part(int64_t, mat->nonzero);
@@ -1473,7 +1159,8 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   if(weighted){
     mat->value = lgp_all_alloc(max*THREADS, sizeof(double));
     if(mat->value == NULL){
-      T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for value array (max = %"PRId64")\n", max*THREADS*8, max);
+      T0_printf("ERROR: init_matrix: could not allocate %"PRId64" bytes for value array (max = %"PRId64")\n",
+                max*THREADS*8, max);
       return(NULL);
     }
     mat->lvalue = lgp_local_part(double, mat->value);
@@ -1485,6 +1172,8 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
   mat->nnz = total;
   mat->lnnz = nnz_this_thread;
 
+  lgp_barrier();
+  
   return(mat);
 }
 
@@ -1516,6 +1205,13 @@ sparsemat_t * init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz) {
   return(mat);
 }
 
+/*! 
+ * \brief initialize an edge list
+ * \param nalloc the number tuples or triples to allocate
+ * \param weighted whether or not we are using weights
+ * \return a pointer to the list
+ * \ingroup spmatgrp
+ */
 edge_list_t * init_edge_list(int64_t nalloc, int weighted){
   edge_list_t * el = calloc(1, sizeof(edge_list_t));
   el->num = 0;
@@ -1530,12 +1226,26 @@ edge_list_t * init_edge_list(int64_t nalloc, int weighted){
   return(el);
 }
 
+/*! 
+ * \brief free the memory using by the edge list
+ * \param el the edge list
+ * \ingroup spmatgrp
+ */
 void clear_edge_list(edge_list_t * el){
   free(el->edges);
   free(el);
 }
 
 
+/*! 
+ * \brief initialize a triples_t struct to hold a sparse matrix
+ * \param numrows the number of rows in the matrix
+ * \param numcols the number of column in the matrix (same as numrows for bale)
+ * \param nalloc number of triples to allocate
+ * \param weighted whether or not we are using weights
+ * \return a pointer to the triples_t 
+ * \ingroup spmatgrp
+ */
 triples_t * init_triples(int64_t numrows, int64_t numcols, int64_t nalloc, int weighted){
   triples_t * T = calloc(1, sizeof(triples_t));
   T->numrows = numrows;
@@ -1564,13 +1274,25 @@ void clear_matrix(sparsemat_t * mat) {
 }
 
 /*! \brief frees the space allocated for a triples_t
- * \param mat pointer to the triples_t
+ * \param T pointer to the triples_t
  * \ingroup spmatgrp
  */
 void clear_triples(triples_t * T) {
   free(T->val);
   free(T->row);
   free(T->col);
+}
+
+/*! \brief frees the space allocated for an spmat_dataset_t
+ * \param T pointer to the spmat_dataset_t
+ * \ingroup spmatgrp
+ */
+void clear_spmat_dataset(spmat_dataset_t * spd){
+  free(spd->dirname);
+  free(spd->nrows_in_file);
+  free(spd->nrows_read_in_file);
+  free(spd->rowcnt);
+  free(spd->global_first_row_to_me);
 }
 
 /*! \brief Append a triple to a triples_t struct and expand the storage if necessary
@@ -1599,6 +1321,13 @@ int64_t append_triple(triples_t * T, int64_t row, int64_t col, double val){
   return(T->lnnz);
 }
 
+/*! 
+ * \brief Append an edge to a edge_list and expand the storage if necessary
+ * \param el the edge_list
+ * \param row the row index of the edge
+ * \param col the column index of the edge
+ * \return the number of edges after this edge was appended.
+ */
 int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
   if(el->nalloc == el->num){
     //printf("PE %d: out of space! nalloc = %ld\n", MYTHREAD, el->nalloc);
@@ -1616,6 +1345,14 @@ int64_t append_edge(edge_list_t * el, int64_t row, int64_t col){
   return(el->num);
 }
 
+/*! 
+ * \brief Append a weighted edge to a edge_list and expand the storage if necessary
+ * \param el the edge_list
+ * \param row the row index of the edge
+ * \param col the column index of the edge
+ * \param val the value 
+ * \return the number of edges after this edge was appended.
+ */
 int64_t append_weighted_edge(edge_list_t * el, int64_t row, int64_t col, double val){
     if(el->nalloc == el->num){
     //printf("PE %d: out of space! nalloc = %ld\n", MYTHREAD, el->nalloc);
@@ -1633,8 +1370,9 @@ int64_t append_weighted_edge(edge_list_t * el, int64_t row, int64_t col, double 
   el->num++;
   return(el->num);
 }
-/* \brief Convert a triples_t to a sparsemat_t.
- * 
+
+/*!
+ * \brief Convert a triples_t to a sparsemat_t.
  * \param T A triples_t struct.
  * \return The sparsemat_t version of T-> Or NULL on error.
  */
@@ -1666,16 +1404,23 @@ sparsemat_t * triples_to_sparsemat(triples_t * T){
   return(A);
 }
 
+/*!
+ * \brief debugging routine to print a matrix to stdout
+ * \param A the sparsemat
+ */
 void print_matrix(sparsemat_t * A){
   int64_t i, j;
-
+  
   for(i = 0; i < A->numrows; i++){
     T0_printf("row %ld: ",i);
-    for(j = A->offset[i]; j < A->offset[i+THREADS]; j++){
-	    if( A->value != NULL ){
-        T0_printf("(%ld, %lg) ", A->nonzero[j*THREADS + i%THREADS], A->value[j*THREADS + i%THREADS]);
+    int64_t start = lgp_get_int64(A->offset, i);
+    int64_t end = lgp_get_int64(A->offset, i+THREADS);
+    for(j = start; j < end; j++){
+      if( A->value != NULL ){
+        T0_printf("(%ld, %lg) ", lgp_get_int64(A->nonzero, j*THREADS + i%THREADS),
+                  lgp_get_double(A->value, j*THREADS + i%THREADS));
       } else {
-        T0_printf("%ld ", A->nonzero[j*THREADS + i%THREADS]);
+        T0_printf("%ld ", lgp_get_int64(A->nonzero, j*THREADS + i%THREADS));
       }
     }
     T0_printf("\n");
@@ -1801,12 +1546,12 @@ void incr_S_nxnz( nxnz_t *nxz, int64_t S_row ) {
   nxz->col   = lgp_get_int64(nxz->mat->nonzero, (nxz->idx) * THREADS +  (nxz->row)%THREADS );
 }
 
-/*! \brief comparison function to support qsort 
- */
+/*! \brief comparison function to support qsort */
 int nz_comp(const void *a, const void *b) {
   return( *(uint64_t *)a - *(uint64_t *)b );
 }
 
+/*! \brief comparison function to support qsort */
 int point_comp(const void *a, const void *b) {
   point_t *p1 = (point_t *)a;
   point_t *p2 = (point_t *)b;
@@ -1817,17 +1562,16 @@ int point_comp(const void *a, const void *b) {
   return(-1);
 }
 
+/*! \brief comparison function to support qsort in sort_nonzeros */
 int col_val_comp(const void *a, const void *b) {
   col_val_t * A = (col_val_t*)a;
   col_val_t * B = (col_val_t*)b;
   return((int)(A->col - B->col));
 }
 
-/*! \brief the compare function for qsort called while reading 
- * a MatrixMarket format.
- * NB. We sort on the rows so that we can fill the offset array
- * sequentially in one pass. We sort on the columns so that
- * the matrix will be "tidy"
+/*! \brief the compare function for qsort called while reading a MatrixMarket format.
+ * NB. We sort on the rows so that we can fill the offset array sequentially in one pass. 
+ * We sort on the columns so that the matrix will be "tidy"
  */
 int edge_comp(const void *a, const void *b) 
 {
@@ -1839,9 +1583,8 @@ int edge_comp(const void *a, const void *b)
 }
 
 /*! \brief the compare function for qsort of w_edge_t structs.
- * NB. We sort on the rows so that we can fill the offset array
- * sequentially in one pass. We sort on the columns so that
- * the matrix will be "tidy"
+ * NB. We sort on the rows so that we can fill the offset array sequentially in one pass. 
+ * We sort on the columns so that the matrix will be "tidy"
  */
 int w_edge_comp(const void *a, const void *b) 
 {
@@ -1854,7 +1597,8 @@ int w_edge_comp(const void *a, const void *b)
 
 
 
-/*! \brief initializes the struct that holds a distributed array of doubles
+/*! 
+ * \brief initializes the struct that holds a distributed array of doubles
  * \param num total number of entries
  * \return an allocated d_array_t or NULL on error
  * \ingroup spmatgrp
@@ -1874,7 +1618,8 @@ d_array_t * init_d_array(int64_t num)
   return(array);
 }
 
-/*! \brief sets all the entries of d_array_t to a value
+/*! 
+ * \brief sets all the entries of d_array_t to a value
  * \param A the array
  * \param v the value
  * \ingroup spmatgrp
@@ -1887,7 +1632,8 @@ void set_d_array(d_array_t * A, double v)
   }
 }
 
-/*! \brief produces a copy of a source array
+/*! 
+ * \brief produces a copy of a source array
  * \param S the source array
  * \ingroup spmatgrp
  * this is a collective operation with a barrier before and aft
@@ -1909,7 +1655,8 @@ d_array_t * copy_d_array(d_array_t * S)
 }
 
 
-/*! \brief replaces the destination array with a copy of the source array
+/*! 
+ * \brief replaces the destination array with a copy of the source array
  * \param D the destination array
  * \param S the source array
  * \ingroup spmatgrp
@@ -1933,9 +1680,9 @@ int64_t replace_d_array(d_array_t * D, d_array_t * S)
   return(1);
 }
 
-/*! \brief clears the d_array_t struct
+/*! 
+ * \brief frees the space used by the d_array_t
  * \param A the d_array
- * \ingroup spmatgrp
  */
 void clear_d_array(d_array_t * A)
 {

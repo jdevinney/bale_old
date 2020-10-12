@@ -3,36 +3,13 @@
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
  *****************************************************************/
 
@@ -52,14 +29,14 @@
 static int std_parse_opt(int key, char * arg, struct argp_state * state){
   std_args_t * args = (std_args_t *)state->input;
   switch(key){
-  case 'b': args->buffer_size = atol(arg); break;
+  case 'b': args->buf_cnt = atol(arg); break;
   case 'c': args->cores_per_node = atoi(arg); break;
   case 'D': args->dump_files = 1; break;
   case 'j': args->json = 1; strcpy(args->json_output,arg); break;
   case 'M': args->models_mask = atol(arg); break;
   case 's': args->seed = atol(arg); break;
   case ARGP_KEY_INIT:
-    args->buffer_size = 1024;
+    args->buf_cnt = 1024;
     args->cores_per_node = 0;
     args->seed = 122222;
     args->models_mask = ALL_Models;
@@ -72,7 +49,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option std_options[] =
   {
-    {"buffer_size",   'b', "BUF", 0, "Exstack or exstack2 buffer size."},
+    {"buf_cnt",   'b', "BUF", 0, "Exstack or exstack2 buffer size."},
     {"cores_per_node",'c', "CPN", 0, "Specify cores per node for network injection rate statistics"},
     {"dump_files",    'D', 0,     0, "Dump files for debugging"},
     {"json_output",   'j', "FILE",0, "Output results to a json file, rather than to stderr"},
@@ -90,13 +67,13 @@ void write_std_options(std_args_t * sargs){
   if(sargs->json == 0){
     fprintf(stderr,"Standard options:\n");
     fprintf(stderr,"----------------------------------------------------\n");
-    fprintf(stderr,"buf_cnt (buffer size)    (-b): %"PRId64"\n", sargs->buffer_size);
+    fprintf(stderr,"buf_cnt (buffer size)    (-b): %"PRId64"\n", sargs->buf_cnt);
     fprintf(stderr,"seed                     (-s): %"PRId64"\n", sargs->seed);
     fprintf(stderr,"cores_per_node           (-c): %d\n", sargs->cores_per_node);
     fprintf(stderr,"Models Mask              (-M): %d\n\n", sargs->models_mask);
   }else{
     FILE * jp = fopen(sargs->json_output, "a");
-    fprintf(jp, "\"buf_cnt\": \"%"PRId64"\",\n", sargs->buffer_size);
+    fprintf(jp, "\"buf_cnt\": \"%"PRId64"\",\n", sargs->buf_cnt);
     fclose(jp);
   }
 }
@@ -105,6 +82,8 @@ void write_std_options(std_args_t * sargs){
 // the arg_parse function for std_graph_args_t.
 static int graph_parse_opt(int key, char * arg, struct argp_state * state){
   std_graph_args_t * args = (std_graph_args_t *)state->input;
+  char * ptr;
+  int i, ptrshf;
   switch(key){
   case 'd': args->directed = 1; break;
   case 'e': args->edge_prob = atof(arg); break;
@@ -114,24 +93,19 @@ static int graph_parse_opt(int key, char * arg, struct argp_state * state){
   case 'K':
     args->model = KRONECKER;
     strcpy(args->kron_string,arg);
-    char * ptr = arg;
+    ptr = arg;
     //T0_fprintf(stderr, "%s\n", arg);
     sscanf(ptr, "%d:", &args->kron_mode);
-    //printf("mode %d\n", args->kron_mode);
-    int i = 0;
-    int tmp;
-    ptr+=2;
-    while(i < 63 && sscanf(ptr, "%d", &args->kron_spec[i])){
-      //fprintf(stderr,"%d\n", args->kron_spec[i]);
-      i++;
-      ptr++; 
-      if(*ptr != 'x'){
+    assert( args->kron_mode == 0 || args->kron_mode == 1 || args->kron_mode == 2);
+    ptr+=2;  // move pass the ':'
+    for(i=0; i<63; i++) {
+      sscanf(ptr, "%d%n", &args->kron_spec[i], &ptrshf);
+      ptr += ptrshf;  // move pass the digits
+      if(*ptr != 'x') // better be 'x' or NULL
         break;
-      }
-      ptr++; 
+      ptr++;          // move pass the digits
     }
-
-    args->kron_num = i;
+    args->kron_num = i+1;
     break;
   case 'l': args->loops = 1; break;
   case 'n': args->l_numrows = atol(arg); break;
@@ -446,5 +420,15 @@ void bale_app_write_int(std_args_t * sargs, char * key, int64_t val){
     fclose(jp);
   }else{
     T0_fprintf(stderr, "%10s: %"PRId64"\n", key, val);
+  }
+}
+
+void bale_app_write_double(std_args_t * sargs, char * key, double val){
+  if(sargs->json && !MYTHREAD){    
+    FILE * jp = fopen(sargs->json_output, "a");
+    fprintf(jp,"\"%s\": \"%lf\",\n", key, val);
+    fclose(jp);
+  }else{
+    T0_fprintf(stderr, "%10s: %lf\n", key, val);
   }
 }

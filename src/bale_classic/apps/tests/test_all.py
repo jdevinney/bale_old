@@ -53,8 +53,8 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
   apps.append("permute_matrix")
   apps.append("topo")
   apps.append("triangles")
-  #apps.append("sssp")
-  apps.append("write_sparse_matrix")
+  apps.append("sssp")
+  apps.append("sparse_matrix_io")
 
   launcher = determine_launcher(launcher_cmd)
     
@@ -79,10 +79,13 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
       runs.append("-b 16 -n 1000 ")
       runs.append("-b 35 -n 813 ")
       runs.append("-b 24 -n 2509 ")
+      runs.append("-b 24 -N 2509 ")
     if app == 'histo' or app == 'ig':
       runs.append("-b 35 -n 2344 -T 10 ")
       runs.append("-b 120 -n 1998 -T 10000 ")
-    if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles' or app == 'sssp':
+      runs.append("-b 35 -N 10000 -T 10 ")
+    if app == 'topo' or app == 'transpose_matrix' or app == 'permute_matrix' or app == 'triangles' or app == 'sssp'\
+       or app == 'sparse_matrix_io':
       runs.append("-b 120 -n 1000 -F -z 2 ")
       runs.append("-b 120 -n 1042 -F -z 4 ")
       runs.append("-b 31 -n 3079 -F -z 4 ")
@@ -117,22 +120,36 @@ def test_all(path, launcher_cmd, launcher_opts, node_range, implementation_mask)
       runs.append("-b 345 -K 0:2x4x7 ")
       runs.append("-b 345 -K 1:2x4x7 ")
       runs.append("-b 345 -K 2:2x4x7 ")    
+      runs.append("-b 128 -K 0:2x11x13")
+      runs.append("-b 128 -K 0:2x11x2")
       if os.path.exists("../../../example_matrices/"):
         runs.append("-b 44 -f ../../../example_matrices/undirected_flat_100.mm")
         runs.append("-b 44 -f ../../../example_matrices/undirected_geometric_100.mm")
         if app != 'triangles':
           runs.append("-b 44 -f ../../../example_matrices/directed_flat_100.mm")
           runs.append("-b 44 -f ../../../example_matrices/directed_geometric_100.mm")
-
+    if app == 'sssp':
+      runs.append("-n 100")
+          
     print()
     print("*************************************************************")
     for pes in node_range:
       if pes == 0: continue
       for run in runs:
-        cmd = launcher.format(pes, launcher_opts, os.path.join(path,app)) +" "+run+" -M "+implementation_mask
-        print(launcher.format(pes, launcher_opts, app)+" "+run+" -M "+implementation_mask)
-        ret = run_command(cmd, 1)
-        assert(ret == 0)
+        
+        # for write sparse matrix we split each run into npes-1 runs testing the -r option
+        if app == 'sparse_matrix_io' and pes > 1:
+          for i in range(1,pes+1):
+            run2 = "{0} -r {1}".format(run, i)            
+            cmd = launcher.format(pes, launcher_opts, os.path.join(path,app)) +" "+run2+" -M "+implementation_mask
+            print(launcher.format(pes, launcher_opts, app)+" "+run2+" -M "+implementation_mask)
+            ret = run_command(cmd, 1)
+            assert(ret == 0)
 
+        else:
+          cmd = launcher.format(pes, launcher_opts, os.path.join(path,app)) +" "+run+" -M "+implementation_mask
+          print(launcher.format(pes, launcher_opts, app)+" "+run+" -M "+implementation_mask)
+          ret = run_command(cmd, 1)
+          assert(ret == 0)
 
 

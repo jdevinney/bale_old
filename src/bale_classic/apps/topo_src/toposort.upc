@@ -3,41 +3,18 @@
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
  *****************************************************************/ 
 
 /*! \file toposort.upc
- * \brief Demo application that does a toposort on a permuted upper triangular matrix
+ * \brief Driver routine that runs different implementations of toposort on a permuted upper triangular matrix.
  */
 
 #include "toposort.h"
@@ -46,80 +23,20 @@
 /*!
 \page toposort_page Toposort
 
-The toposort algorithm is more complicated than histogram and indexgather.
-It typically enjoys a significant amount of parallelism, but it 
-is not completely order and latency tolerant.
 
-To prepare the input to the toposort algorithm, 
-we start we an upper-triangular matrix <b>T</b> with no zeros on the diagonal. 
-We don't care about the values of the non-zeros in the matrix, only their position.
-Next we randomly permute the rows and columns of <b>T</b> to get a matrix <b>M</b>. 
-The matrix <b>M</b> has been called a morally triangular matrix.
-
-Given a morally triangular matrix, <b>M</b>, the goal of toposort is 
-to create row and column permutations such that when these 
-permutations are applied to <b>M</b>,
-the result is an upper triangular matrix with no zeros on the diagonal.
-Note, the answer need not be unique and since <b>M</b> is a row and column permutation
-of <b>T</b>, there must be a solution.
-
-We use a breadth first search algorithm based on the following observations:
-    - The rows (and columns) of a sparse matrix partition the set of non-zeros in the matrix.
-    - Row and column permutations preserve both partitions.
-
-For example, if you create a set of the nonzeros in a particular row;
-a column permutation might change the labels of the elements in the set,
-but doesn't change the cardinality of the set. Likewise for columns.
-Hence, there must be a row in <b>M</b> with a single non-zero.
-If we remove that row and column, 
-we are left with smaller, morally upper triangular matrix. This is the motivation behind a simple algorithm.
-
-The outline of the algorithm is as follows:
-\verbatim
-For all rows with a single non-zero, put its non-zero onto a queue.
-While the queue is not empty: 
-   pop a non-zero from the queue (this represents row r and column c)
-   claim its new position as the last row and column of the permutations being created 
-   remove all the non-zeros in column c
-   if any row now has a single non-zero, enqueue that non-zero
-\endverbatim
-
-Rather than changing the matrix by deleting rows and column and then searching the 
-new matrix for the next row.  We do the obvious thing of keeping and array of row counts,
-<b>rowcnt[i]</b> is the number of non-zeros in <b>row i</b> and
-we use a cool trick to find the column of a row with <b>rowcnt[i]</b> equal 1.
-We initialize an array, <b>rowsum[i]</b>, to be the sum of the column indices in <b> row i</b>.
-When we "delete" a column we decrement <b>rowcnt[i]</b> and <b>rowsum[i]</b> by that column index.
-Hence, when the <b>rowcnt[i]</b> gets down to one, the <b>rowsum[i]</b> is the column that is left.
-
-In parallel there are three race conditions or synchronization issues to address..
-
-The first is reading and writing the queue of rows to be processed.
-One way to handle it is to introduce the notion of a levels.
-Within a level all threads process the all the rows on their queues 
-and by doing so create new degree one rows. These rows are placed on the 
-appropriate queues for the next level. There is a barrier between levels.
-
-Threads race to pick their position in <b>rperm</b> and <b>cperm</b>. 
-One could handle this race for the pivots with a fetch_and_add,
-instead we use parallel prefix to claim enough room for the pivots 
-in the current level on each thread then assign them in order per thread.
-   
-Threads race to update the <b>rowcnt</b> and <b>rowsum</b> arrays. 
-We handle this with levels and atomic memory operations.
 
 Run with the --help, -?, or --usage flags for run details.
 */
 
 
-/*! \brief check the result toposort 
- *
- * check that the permutations are in fact permutations and the check that applying
- * them to the original matrix yields an upper triangular matrix
+/*! 
+ * \brief check the result toposort 
  * \param mat the original matrix
  * \param rperm the row permutation
  * \param cperm the column permutation
  * \return 0 on success, 1 otherwise
+ * We check that the permutations are in fact permutations and the check that applying
+ * them to the given matrix yields an upper triangular matrix.
  */
 int check_is_triangle(sparsemat_t * mat, SHARED int64_t * rperm, SHARED int64_t * cperm) {
   int ret = 0;
@@ -199,6 +116,7 @@ sparsemat_t * generate_toposort_input(sparsemat_t * tri_mat, uint64_t rand_seed)
   return( pmat );
 }
 
+/********************************  argp setup  ************************************/
 typedef struct args_t{
   std_args_t std;
   std_graph_args_t gstd;
@@ -288,12 +206,12 @@ int main(int argc, char * argv[]) {
 
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      laptime = toposort_matrix_exstack(rperm2, cperm2, mat, tmat, args.std.buffer_size);
+      laptime = toposort_matrix_exstack(rperm2, cperm2, mat, tmat, args.std.buf_cnt);
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      laptime = toposort_matrix_exstack2(rperm2, cperm2, mat, tmat, args.std.buffer_size);
+      laptime = toposort_matrix_exstack2(rperm2, cperm2, mat, tmat, args.std.buf_cnt);
       break;
 
     case CONVEYOR_Model:

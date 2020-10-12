@@ -2,15 +2,12 @@
 
 The applications in bale are meant to showcase:
 
-- the challenges to writing interesting, distributed, parallel applications that are efficient and high performing at scale
-
-- the challenges of getting these codes to use aggregated communications
-
-- - getting the code right the first time
+- the challenges in writing interesting, distributed, parallel applications that are efficient and high performing at scale
+- the challenges of getting these codes to use aggregated communications. Including:
+  - getting the code right the first time
   - rapidly experimenting at scale during algorithm development
   - reading and understanding the code
   - implementing algorithms with different tolerances for latency
-
 - our quest for the From the Book (FTB) implementation of each app
 
 ### Implementations
@@ -26,6 +23,6 @@ Each of the applications in bale are implemented in multiple ways to showcase th
 - [permute_matrix](permute_matrix_src/README.md)
 - [triangle counting](triangle_src/README.md)
 - [toposort](topo_src/README.md) 
-- [write_sparse_matrix](write_sparse_matrix_src/README.md)
+- [sparse_matrix_io](sparse_matrix_io_src/README.md)
 - [Single Source Shortest Path (sssp)](sssp_src/README.md)
 

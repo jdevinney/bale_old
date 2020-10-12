@@ -1,40 +1,17 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2019, Institute for Defense Analyses
+//  Copyright(C) 2019-2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
- ********************************************************g483*********/ 
+ *****************************************************************/
 /*! \file libgetput.upc
  * \brief some standard parallel programming support functions
  */
@@ -179,17 +156,18 @@ void lgp_finalize(){
   return;
 }
 
-#define Define_Reducer( NAME, XTYPE, STYPE, RED_FUNC, UPC_FUNC)         \
-  XTYPE NAME (XTYPE myval) {                                            \
-    static shared STYPE *dst=NULL, * src;                            \
-    if (dst==NULL) {                                                 \
-      dst = upc_all_alloc(THREADS, sizeof(STYPE));                   \
-      src = upc_all_alloc(THREADS, sizeof(STYPE));                      \
-    }                                                                   \
-    src[MYTHREAD] = myval;                                              \
-    upc_barrier;                                                        \
+/*! \brief macro magic to generate all the reduction operation of all the types */
+#define Define_Reducer( NAME, XTYPE, STYPE, RED_FUNC, UPC_FUNC)                    \
+  XTYPE NAME (XTYPE myval) {                                                       \
+    static shared STYPE *dst=NULL, * src;                                          \
+    if (dst==NULL) {                                                               \
+      dst = upc_all_alloc(THREADS, sizeof(STYPE));                                 \
+      src = upc_all_alloc(THREADS, sizeof(STYPE));                                 \
+    }                                                                              \
+    src[MYTHREAD] = myval;                                                         \
+    upc_barrier;                                                                   \
     RED_FUNC(dst,src,UPC_FUNC, THREADS, 1, NULL, UPC_IN_NOSYNC || UPC_OUT_NOSYNC); \
-    upc_barrier;                                                        \
+    upc_barrier;                                                                   \
     return dst[0]; }
 
 Define_Reducer(lgp_reduce_add_l, int64_t, int64_t, upc_all_reduceL, UPC_ADD)
@@ -217,6 +195,7 @@ void lgp_init(int argc, char *argv[]) {
 void lgp_finalize(){
   shmem_finalize();
 }
+
 static void *setup_shmem_reduce_workdata(long **psync, size_t xsize) {
   int *work;
   int i;
@@ -230,11 +209,11 @@ static void *setup_shmem_reduce_workdata(long **psync, size_t xsize) {
   return work;
 }
 
-
 /* Macro to define wrapper around shmem reduce functions */
-#define Define_Reducer( NAME, XTYPE, STYPE, SHMEM_FUNC)             \
+#define Define_Reducer( NAME, XTYPE, STYPE, CTYPE, SHMEM_FUNC)      \
   XTYPE NAME (XTYPE myval) {                                        \
     static STYPE *buff=NULL, *work; static long *sync;              \
+    assert(sizeof(STYPE) == sizeof(CTYPE));                         \
     if (buff==NULL) {                                               \
       buff=shmem_malloc(2*sizeof(STYPE));                           \
       work=setup_shmem_reduce_workdata(&sync,sizeof(STYPE));        \
@@ -244,28 +223,15 @@ static void *setup_shmem_reduce_workdata(long **psync, size_t xsize) {
     shmem_barrier_all();                                            \
     return buff[1]; }
 
-/*
-long lgp_reduce_add_l(long myval){
-  static long *buff=NULL, *work; static long *sync;
-  if (buff==NULL) {
-    buff=shmem_malloc(2*sizeof(long));
-    work=setup_shmem_reduce_workdata(&sync,sizeof(long));
-  }
-  buff[0]=myval;
-  shmem_long_sum_to_all(&buff[1],buff,1,0,0,shmem_n_pes(),work,sync);
-  shmem_barrier_all();
-  return buff[1];
-}
-*/
-Define_Reducer(lgp_reduce_add_l, int64_t, int64_t, shmem_longlong_sum_to_all)
-Define_Reducer(lgp_reduce_min_l, int64_t, int64_t, shmem_longlong_min_to_all)
-Define_Reducer(lgp_reduce_max_l, int64_t, int64_t, shmem_longlong_max_to_all)
+Define_Reducer(lgp_reduce_add_l, int64_t, int64_t, long, shmem_long_sum_to_all)
+Define_Reducer(lgp_reduce_min_l, int64_t, int64_t, long, shmem_long_min_to_all)
+Define_Reducer(lgp_reduce_max_l, int64_t, int64_t, long, shmem_long_max_to_all)
 
-Define_Reducer(lgp_reduce_add_d, double, double, shmem_double_sum_to_all)
-Define_Reducer(lgp_reduce_min_d, double, double, shmem_double_min_to_all)
-Define_Reducer(lgp_reduce_max_d, double, double, shmem_double_max_to_all)
+Define_Reducer(lgp_reduce_add_d, double, double, double, shmem_double_sum_to_all)
+Define_Reducer(lgp_reduce_min_d, double, double, double, shmem_double_min_to_all)
+Define_Reducer(lgp_reduce_max_d, double, double, double, shmem_double_max_to_all)
 
-Define_Reducer(lgp_reduce_or_int, int, int, shmem_int_or_to_all)
+Define_Reducer(lgp_reduce_or_int, int, int, int, shmem_int_or_to_all)
 
 /*!
 * \ingroup libgetputgrp
@@ -330,7 +296,7 @@ double lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, 
 
   local_ptr =(double*)(( (char*)addr ) + local_index);
 
-  return shmem_int64_g ( local_ptr, pe );
+  return shmem_double_g ( local_ptr, pe );
 }
 
 #endif
@@ -339,11 +305,11 @@ double lgp_shmem_read_upc_array_double(const SHARED double *addr, size_t index, 
 /******************************************************************************************/
 
 /*!
-  \brief Compute partial sums across threads.  
-  In the formulas below, \a m represents <tt>MYTHREAD</tt>.
-  \note This function must be called on all threads.
-  \param x input value \f$x_m\f$
-  \return \f$\sum_{i<=m} x_i\f$ 
+\brief Compute partial sums across threads.  
+\param x input value \f$x_m\f$
+\return \f$\sum_{i<=m} x_i\f$  where \f$m\f$ is MYTHREAD
+
+NB: This function must be called on all threads.
 * \ingroup libgetputgrp
 */
 int64_t lgp_partial_add_l(int64_t x) {
@@ -365,13 +331,12 @@ int64_t lgp_partial_add_l(int64_t x) {
 }
 
 /*! 
-  \brief Compute prior partial sums (not including this value) across threads.  
-  In the formulas below, \a m represents <tt>MYTHREAD</tt>.
-  \note This function must be called on all threads.
-  \param x input value \f$x_m\f$
-  \return \f$\sum_{i<m} x_i\f$ 
-  * \ingroup libgetputgrp
-  */
+\brief Compute prior partial sums (not including this value) across threads.  
+\param x the value on <tt>MYTHREAD</tt>
+\return \f$\sum_{i<m} x_i\f$, where \f$x_m\f$ is <tt>MYTHREAD</tt>
+NB: This function must be called on all threads.
+\ingroup libgetputgrp
+*/
 int64_t lgp_prior_add_l(int64_t x) {
   return lgp_partial_add_l(x) - x;
 }
@@ -421,33 +386,6 @@ int64_t lgp_min_avg_max_d(minavgmaxD_t * s, double myval, int64_t dem){
   return( retval );
 }
 
-
-#if 0  // TODO
-/* utility to print some basic stats about a run */
-void dump_header(int argc, char *argv[]) {
-  int i;
-  char datestr[64];
-  time_t dattmp;
-
-  if(MYTHREAD==0) {
-    dattmp = time(NULL);
-    strcpy(datestr , asctime( localtime( &dattmp ) ) );
-        for(i=0; i<strlen(datestr); i++){
-           if(datestr[i] == 0xa) 
-                   datestr[i] = (char)0;
-        }
-        fprintf(stderr,"%s: %s\n", argv[0], datestr); 
-
-    fprintf(stderr,"Number of Threads %d\n",THREADS);
-    for(i=0; i<argc; i++)
-       fprintf(stderr,"%s ",argv[i]);
-    fprintf(stderr,"\n");
-  }
-}
-#endif
-
-
-
 /*! 
  * \brief This routine uses gettimeofday routine to give access 
  *  to the wall clock timer on most UNIX-like systems.
@@ -462,15 +400,19 @@ double wall_seconds() {
 
 
 
-#define USE_KNUTH
+#define USE_KNUTH   /*!< Default define to set whether we use the Knuth random number generator or rand48 */
 #ifdef USE_KNUTH
-#define LGP_RAND_MAX 2251799813685248
+#define LGP_RAND_MAX 2251799813685248  /*!< max random number depends on which rng we use */
 #include "knuth_rng_double_2019.h"
 #else
 #define LGP_RAND_MAX 281474976710656
 #endif
 
-// all PEs should call this with the same seed.
+/*! 
+ * \brief seed for the random number generator
+ * \param seed the seed
+ * Note: if all thread call this with the same seed they actually get different seeds.
+ */
 void lgp_rand_seed(int64_t seed){
 #ifdef USE_KNUTH
   ranf_start(seed + 1 + MYTHREAD);
@@ -479,7 +421,9 @@ void lgp_rand_seed(int64_t seed){
 #endif
 }
 
-/*! \brief return a random integer mod N.
+/*! 
+ * \brief return a random integer mod N.
+ * \param N the modulus
  */
 int64_t lgp_rand_int64(int64_t N){
   assert(N < LGP_RAND_MAX);
@@ -490,7 +434,9 @@ int64_t lgp_rand_int64(int64_t N){
 #endif
 }
 
-
+/*! 
+ * \brief return a random double in the interval (0,1]
+ */
 double lgp_rand_double(){
 #ifdef USE_KNUTH
   return(ranf_arr_next());

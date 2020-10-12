@@ -3,37 +3,12 @@
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-// 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
+//  This file is a part of Bale.  For license information see the
+//  LICENSE file in the top level directory of the distribution.
+//  
  *****************************************************************/ 
 /*! \file spmat.h
  * \brief The header file for spmat library.
@@ -50,7 +25,7 @@
 #include "spmat_enums.h"
 
 
-/*! \struct sparsemat_t spmat.h
+/*!
  * \brief A structure to hold a sparse matrix.
  *
  * We use a distributed version of the standard Compressed Sparse Row (CSR) format.  
@@ -91,6 +66,7 @@ typedef struct sparsemat_t {
 }sparsemat_t;
 
 
+/*! \brief holds the length and the elements in a SHARED array of doubles */
 typedef struct d_array_t {
   int64_t num;                  //!< the total number of entries in the array
   int64_t lnum;                 //!< the number of entries on this PE. lnum = (num / NPES) + {0 or 1}
@@ -98,50 +74,99 @@ typedef struct d_array_t {
   double * lentry;              //!< the localized part of the shared array
 } d_array_t;
 
+/*! \brief unused */
 typedef struct triples_t {
-  int64_t * row;
-  int64_t * col;
-  double * val;
-  int64_t numrows;
-  int64_t lnumrows;
-  int64_t numcols;
-  int64_t lnnz;
-  int64_t nalloc;
+  int64_t * row;    //!< unused
+  int64_t * col;    //!< unused
+  double * val;    //!< unused
+  int64_t numrows;    //!< unused
+  int64_t lnumrows;    //!< unused
+  int64_t numcols;    //!< unused
+  int64_t lnnz;    //!< unused
+  int64_t nalloc;    //!< unused
 } triples_t;
 
 
+/*!
+\brief structure to work with weighted edges as a triple.
+*/
 typedef struct w_edge_t{
-  int64_t row;
-  int64_t col;
-  double val;
+  int64_t row;          //!< row
+  int64_t col;          //!< col
+  double val;           //!< value of M[row,col]
 }w_edge_t;
 
 
+
+/*!
+\brief structure to work with unweighted edges as a tuple.
+We take the value of M[row,col] to be 1.
+*/
 typedef struct edge_t{
-  int64_t row;
-  int64_t col;
+  int64_t row;          //!< row
+  int64_t col;          //!< col
 }edge_t;
 
+/*!
+\brief structure to work the non-zeros as a list of edges.
+This is a convenient format for reading and writing to files
+*/
 typedef struct edge_list_t{
-  edge_t * edges;
-  w_edge_t * wedges;
-  int64_t nalloc;
-  int64_t num;
+  edge_t * edges;       //!< pointer to a array of edges
+  w_edge_t *wedges;     //!< pointer to a array of weighted edges
+  int64_t nalloc;       //!< number of elements allocated for the array
+  int64_t num;          //!< number of elements in the array
 }edge_list_t;
 
-// struct to sort rows in a matrix with values
+/*!
+\brief struct use while sorting a row in a matrix with values
+*/
 typedef struct col_val_t{
-   int64_t col;
-   double value;
+   int64_t col;         //!< col
+   double value;        //!< val
 }col_val_t;
 
-// struct to represent a point on the plane. (for geometric graphs)
+/*!  
+\brief struct to represent a point on the plane. (for geometric graphs)
+*/
 typedef struct point_t{
-  double x;
-  double y;
+  double x;             //!< x
+  double y;             //!< y
 }point_t;
 
 
+/*!
+  \brief A struct to help faciliate reading and writing sparse matrices.
+*/
+
+typedef struct spmat_dataset_t{
+  int64_t nwriters; //!< Number of PEs that are or did write the dataset
+  int64_t lnumrows; //!< Number of rows this PE is reading or writing.
+  int64_t numrows;  //!< Number of rows in the matrix.
+  int64_t numcols;  //!< Number of columns in the matrix.
+  int64_t nnz;      //!< Number of nonzeros in the matrix.
+  int values;       //!< 0/1 flag is the matrix has values.
+  int64_t io_rank;  //!< the rank of this PE amongst the writers or readers.
+  int64_t global_first_row; //!< The first row in the matrix this PE will read or write.
+  char * dirname;   //!< The directory where the dataset will be written / read.
+  FILE * nnzfp;     //!< File pointer for the nonzeros files.  
+  FILE * valfp;     //!< File pointer for the values files.
+  
+  // only used when reading
+  int64_t first_file; //!< The index of the first file this PE will read.
+  uint64_t nfiles;    //!< The number of row_info files this PE will touch during reading.
+  int64_t * nrows_in_file; //!< The number of rows in each row_info file this PE will read.
+  int64_t * nrows_read_in_file; //!< Keep track of the number of rows we read in each of our files.
+  int64_t start_row_first_file; //!< The first row in our first file.
+  int64_t first_file_offset;    //!< The first record in our file nonzero file.
+  int64_t * rowcnt;             //!< The row counts of all rows we are reading.
+  int file_open;                //!< 0/1 if we have a file open currently.
+  int64_t current_file;         //!< The index of the current file we are reading.
+  int64_t current_row_in_file;  //!< The row we are in in our current file.  
+  int64_t current_global_row;   //!< The global row index of our current row.
+  int64_t * global_first_row_to_me; //!< An array for the first row that will be sent to me from all other PEs.
+  
+}spmat_dataset_t;
 
 /*! \struct nxnz_t spmat.h
  * \brief A structure to experiment with an iterator that walks across a row of a sparsemat.
@@ -173,9 +198,11 @@ int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
 int64_t             append_weighted_edge(edge_list_t * el, int64_t row, int64_t col, double val);
 int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
 
-int64_t             calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num);
+int64_t             calc_num_tri_kron_graph(int kron_mode, int * kron_spec, int kron_num);
 void                clear_edge_list(edge_list_t * el);
 void                clear_matrix(sparsemat_t * mat);
+
+void                clear_spmat_dataset(spmat_dataset_t * spd);
 void                clear_triples(triples_t * T);
 
 int                 compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
@@ -183,10 +210,10 @@ sparsemat_t *       copy_matrix(sparsemat_t *srcmat);
 
 sparsemat_t *       direct_undirected_graph(sparsemat_t * L);
 
-sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed);
+sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edgetype, self_loops loops, uint64_t seed);
 sparsemat_t *       gen_star_graph(int64_t m, int mode);
 sparsemat_t *       generate_kronecker_graph_from_spec(int mode, int * spec, int num);
-sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
+sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edgetype, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
 
 
 edge_list_t *       init_edge_list(int64_t nalloc, int weighted);
@@ -215,11 +242,12 @@ SHARED int64_t *    rand_permp_conveyor(int64_t N, int seed);
 SHARED int64_t *    rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_agp(int64_t N, int seed);
-sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
+sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edgetype, self_loops loops,
                                  double edge_density, int64_t seed);
-void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops);
 
-int                 spmat_compare_doubles(double a, double b);
+void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edgetype, self_loops loops);
+
+int                 spmat_are_eq_doubles(double a, double b);
   
 sparsemat_t *       transpose_matrix(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
@@ -228,26 +256,30 @@ sparsemat_t *       transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt);
 sparsemat_t *       transpose_matrix_agp(sparsemat_t * A);
 sparsemat_t *       triples_to_sparsemat(triples_t * T);
 
-int64_t             write_sparse_matrix_agp( char * datadir, sparsemat_t * mat);
-int64_t             write_sparse_matrix_exstack( char * datadir, sparsemat_t * mat, int64_t buf_cnt);
 
-/* misc utility functions */
-//int write_matrix(sparsemat_t * A, int maxrows, char * name);
-int                 write_matrix_mm(sparsemat_t * A, char * name);
+
+
+/* read and write sparse matrix (binary format) routines */
+spmat_dataset_t *   open_sparse_matrix_read(char * dirname, int64_t nreaders);
+spmat_dataset_t *   open_sparse_matrix_write(char * dirname, sparsemat_t * A);
+int64_t             read_nonzeros_buffer(spmat_dataset_t * spd, int64_t * buf,
+                                         double * vbuf, int64_t buf_size);
+
+void                read_row_info(spmat_dataset_t * spd);
 sparsemat_t *       read_matrix_mm_to_dist(char * name);
-int64_t             write_sparse_matrix_metadata(char * dirname, sparsemat_t * A);
-int64_t             read_sparse_matrix_metadata(char * dirname, int64_t * nr, int64_t * nc, int64_t * nnz, int64_t *nwriters);
-sparsemat_t *       read_sparse_matrix_agp(char * datadir);
+sparsemat_t *       read_sparse_matrix_agp(char * datadir, int64_t nreaders);
+sparsemat_t *       read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64_t buf_cnt);
+spmat_dataset_t *   read_sparse_matrix_metadata(char * dirname);
 
+void                write_row_info(spmat_dataset_t * spd, sparsemat_t * A);
+
+int                 write_matrix_mm(sparsemat_t * A, char * name);
+int                 write_sparse_matrix_agp(char * dirname, sparsemat_t * A);
+int64_t             write_sparse_matrix_exstack( char * datadir, sparsemat_t * mat, int64_t buf_cnt);
+int                 write_sparse_matrix_metadata(spmat_dataset_t * spd);
 
 int64_t tril(sparsemat_t * A, int64_t k);
 int64_t triu(sparsemat_t * A, int64_t k);
-
-
-sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);
-sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, uint64_t seed);
-
 
 int sort_nonzeros( sparsemat_t *mat);
 int nz_comp(const void *a, const void *b);

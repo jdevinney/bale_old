@@ -1,40 +1,12 @@
-/******************************************************************
-//
-//
-//  Copyright(C) 2018, Institute for Defense Analyses
-//  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
-// 
-//
-//  All rights reserved.
-//  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
-// 
-*****************************************************************/ 
+/*******************************************************************/
+/* Copyright (c) 2020, Institute for Defense Analyses              */
+/* 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500 */
+/*                                                                 */
+/* All rights reserved.                                            */
+/*                                                                 */
+/* This file is part of Bale.   For license information see the    */
+/* LICENSE file in the top level dirctory of the distribution.     */
+/*******************************************************************/
 
 /*! \file spmat_utils.h
  * \brief The header file for spmat library.
@@ -53,92 +25,80 @@
 #include <sys/time.h>
 #include <limits.h>
 #include <unistd.h>
+#include <time.h>
 #include <stdarg.h>
 #include <fcntl.h>
 #include <getopt.h>
 #include <assert.h>
 
-
-/*! \struct sparsemat_t 
- * \brief A structure to hold a sparse matrix 
- * \ingroup spmatgrp
- * We use the standard Compressed Sparse Row format.
- * The offset array is an array with length numrows + 1. offset[i]
- * is the index where the ith row's data starts in the nonzero and value arrays. 
- * The nonzero array holds the column index for each nonzero in row-major order.
- * The value array holds the nonzero value for each nonzero in row-major order 
- * (it is aligned with the nonzero array.)
- *
+/*!
+\brief data structure to hold a sparse matrix
+We use one of the standard Compressed Sparse Row formats.
+The ``nonzero[]`` array holds the columns number for a particular non-zero in the matrix and
+the ``value[]`` array holds the non-zero value of the corresponding non-zero in the matrix.
+This is just a long array indexed by the counting across rows, one row after another.
+The entry ``offset[i]`` in the ``offset[ ]`` array is where 
+the ``i``th row's data starts in the ``nonzero[ ]`` and ``value[]`` arrays. 
+The ``nonzero[ ]`` and ``value[ ]`` arrays have length ``nnz`` , the number of non-zeros
+and the ``offset[ ]`` array has length ``(numrows + 1)``. Note, ``offset[0]==0`` and ``offset[numrows]==nnz``.
+In case the matrix is a {0,1}-matrix, we don't need values and we set ``*value=NULL``.
 */
 typedef struct sparsemat_t{
   int64_t numrows;       //!< the total number of rows in the matrix
   int64_t numcols;       //!< the nonzeros have values between 0 and numcols
   int64_t nnz;           //!< total number of nonzeros in the matrix
-  int64_t * offset;      //!< the row offsets into the array of nonzeros
-  int64_t * nonzero;     //!< the global array of column indices for nonzeros
-  double * value;       //!< the global array of nonzero values (optional)
+  int64_t *offset;       //!< the row offsets into the array of nonzeros
+  int64_t *nonzero;      //!< the global array of column indices for nonzeros
+  double *value;         //!< the global array of nonzero values (optional)
 }sparsemat_t;
 
-/*! \brief struct to hold the state used to iterate across the row of a sparse matrix.
- * \ingroup spmatgrp
- */
-typedef struct next_nz {
-  sparsemat_t * mat;      //!<  the matrix
-  int64_t start;
-  int64_t idx;
-  int64_t stop;
-  int64_t col;
-} next_nz_t;
+/*! \brief structure to work with weighted edges as a triples */
+typedef struct w_edge_t{
+  int64_t row;          //!< row
+  int64_t col;          //!< col
+  double val;           //!< value of M[row,col]
+}w_edge_t;
 
-/*! \struct element_t 
- * \brief structure used while reading and writing the MatrixMarket format.
- * We only handle {0,1} matrices, so we don't need triples.
- */
-
+/*! \brief structure to work with unweighted edges as a tuple */
 typedef struct edge_t{
-  int64_t row;
-  int64_t col;
+  int64_t row;         //!< row
+  int64_t col;         //!< col
 }edge_t;
 
+/*!
+\brief structure to work the non-zeros as a list of edges.
+
+This is a convenient format for reading and writing to files.
+Note, we set either ``edges`` or ``wedges`` to ``NULL`` to indicate
+that we are using the other.
+*/
 typedef struct edge_list_t{
-  edge_t * edges;
-  int64_t nalloc;
-  int64_t num;
+  edge_t * edges;       //!< pointer to a array of edges
+  w_edge_t *wedges;     //!< pointer to a array of weighted edges
+  int64_t nalloc;       //!< number of elements allocated for the array
+  int64_t num;          //!< number of elements in the array
 }edge_list_t;
 
-// struct to sort rows in a matrix with values
+/*! \brief struct use while sorting a row in a matrix with values */
 typedef struct col_val_t{
-   int64_t col;
-   double value;
- }col_val_t;
+  int64_t col;         //!< col
+  double value;        //!< val
+}col_val_t;
 
-typedef struct triple_t{
-  int64_t row;
-  int64_t col;
-  double val;
-}triple_t;
+/*!  \brief struct to represent a point on the plane. (for geometric graphs) */
+typedef struct point_t{
+  double x;         //!< x
+  double y;         //!< y
+}point_t;
 
-typedef struct kron_args_t{
-  char str[256];
-  int mode;
-  int num_stars;      // 
-  int star_size[64];  // can't be too many stars, else the graph would be huge
-  int64_t numrows;
-} kron_args_t;
-
+/*! \brief graph_model is Flat (Erdos-Renyi), Geometric, or Kronecker product (of stars) */
 typedef enum graph_model {FLAT, GEOMETRIC, KRONECKER} graph_model;
+/*! \brief edge_type flag directed, undirected and weighted or unweighted */
 typedef enum edge_type {DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED} edge_type;
+/*! \brief self_loop is whether or not the diagonal is all zeros or all ones */
 typedef enum self_loops {LOOPS, NOLOOPS} self_loops;
 
-next_nz_t * new_nxt_nz( sparsemat_t *mat );
-void init_nxt_l_nz(next_nz_t * nxtnz, int64_t row);
-int has_nxt_l_nz(next_nz_t * nxtnz);
-void incr_nxt_l_nz(next_nz_t * nxtnz);
-
-
-
 void             clear_matrix(sparsemat_t * mat);
-void             clear_kron_args(kron_args_t * kron_args);
 int64_t          compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat);
 sparsemat_t *    copy_matrix(sparsemat_t *srcmat);
 
@@ -149,14 +109,17 @@ sparsemat_t *    erdos_renyi_random_graph(int64_t n, double p, edge_type edge_ty
 sparsemat_t *    erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, int64_t seed);
 
 sparsemat_t *    geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
-kron_args_t *    kron_args_init(char *str);
-sparsemat_t *    kronecker_product_graph(kron_args_t * K);
-int64_t          tri_count_kron_graph(kron_args_t *K);
+
+sparsemat_t *    generate_kronecker_graph_from_spec(int mode, int * spec, int num, int weighted);
+int64_t          calc_num_tri_kron_graph(int kron_mode, int * kron_spec, int kron_num);
 
 sparsemat_t *    init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values);
 
-int64_t          is_upper_triangular(sparsemat_t *A);
-int64_t          is_lower_triangular(sparsemat_t *A);
+int64_t          tril(sparsemat_t * A, int64_t k);
+int64_t          triu(sparsemat_t * A, int64_t k);
+
+int64_t          is_upper_triangular(sparsemat_t *A, int64_t ondiag);
+int64_t          is_lower_triangular(sparsemat_t *A, int64_t ondiag);
 int64_t          is_perm(int64_t * perm, int64_t N);
 
 int              nz_comp(const void *a, const void *b);
@@ -165,7 +128,6 @@ sparsemat_t *    permute_matrix(sparsemat_t *A, int64_t *rperminv, int64_t *cper
 int64_t *        rand_perm(int64_t N, int64_t seed);
 
 sparsemat_t *    random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops, double edge_density, int64_t seed);
-sparsemat_t *    random_sparse_matrix(int64_t nrows, int64_t ncols, double density, int values, int64_t seed);
 
 sparsemat_t *    read_matrix_mm(char * name);
 void             resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row,
@@ -178,21 +140,48 @@ sparsemat_t *    transpose_matrix(sparsemat_t *A);
 sparsemat_t *    make_symmetric_from_lower(sparsemat_t * L);
 int64_t          write_matrix_mm(sparsemat_t * A, char * name);
 
+
+/*!
+\brief holds the length and the elements of an array of doubles
+
+This is not really necessary for the serial code, 
+but it makes the serial code look more like the parallel code.
+In the parallel case the ``d_array_t`` struct is more interesting.
+*/
 typedef struct d_array_t {
   int64_t num;                 //!< the total number of entries in the array
   double * entry;              //!< the array of doubles
 } d_array_t;
 
-d_array_t * init_d_array(int64_t num); 
+d_array_t * init_d_array(int64_t num);  
 d_array_t * read_d_array(char *name);
-int64_t     write_d_array(d_array_t *A, char * name);
+int64_t     write_d_array(d_array_t *A, char *comment, char * name);
 void        set_d_array(d_array_t * A, double v);
 void        clear_d_array(d_array_t *A);
-void        copy_d_array(d_array_t *dest, d_array_t *src);
+d_array_t  *copy_d_array(d_array_t *src);
+int64_t     replace_d_array(d_array_t *dest, d_array_t *src);
 
 
 double wall_seconds();
+
+/*! \brief USE_KNUTH  to use the Knuth random number generator or not */
+#define USE_KNUTH
+#ifdef USE_KNUTH
+/*! \brief CBALE_RAND_MAX largest random number (depends on Knuth or rand48) */
+#define CBALE_RAND_MAX 2251799813685248
+#include "knuth_rng_double_2019.h"
+#else
+/*! \brief CBALE_RAND_MAX largest random number (depends on Knuth or rand48) */
+#define CBALE_RAND_MAX 281474976710656
+#endif
+double  rand_double();
+int64_t rand_int64(int64_t N);
+void    rand_seed(int64_t seed);
+
+
+/*! \brief DEBUG set to use debug printing */
 #define DEBUG 0
+/*! \brief Dprintf controls printf by DEBUG macro */
 #define Dprintf if(DEBUG) printf
 #endif
 

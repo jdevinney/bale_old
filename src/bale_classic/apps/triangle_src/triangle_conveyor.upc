@@ -1,60 +1,37 @@
 /******************************************************************
 //
 //
-//  Copyright(C) 2019, Institute for Defense Analyses
+//  Copyright(C) 2019-2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
  *****************************************************************/ 
 
-/*! \file toposort_conveyor.upc
- * \brief Demo application that does a toposort on a permuted upper triangular matrix
+/*! \file triangle_conveyor.upc
+ * \brief Implementations of triangle counting algorithm using conveyors.
  */
 
 #include "triangle.h"
-
+/*! \brief same as the others */
 typedef struct pkg_tri_t{
-  int64_t w;    
-  int64_t vj;
+  int64_t w;    //!< w
+  int64_t vj;   //!< vj
 }pkg_tri_t;
 
 /*!
- * \brief pop routine to handle the pushes
+ * \brief routine to handle the conveyor pushes to the remote thread
  * \param *c a place to return the number of hits.
  * \param *conv the conveyor
  * \param *mat the input sparse matrix 
-     NB. The nonzero within a row must be increasing
  * \param done the signal to convey_advance that this thread is done
  * \return the return value from convey_advance
+ * NB. The matrix must be tidy.
  */
 static int64_t tri_convey_push_process(int64_t *c, convey_t *conv, sparsemat_t *mat, int64_t done) {
   int64_t k, cnt = 0;
@@ -77,14 +54,15 @@ static int64_t tri_convey_push_process(int64_t *c, convey_t *conv, sparsemat_t *
 }
 
 /*!
-* \brief This routine implements the exstack variant of triangle counting. 
- *   NB. The column indices of the nonzeros must be in increasing order within each row.
+ * \brief This routine implements the conveyor variant of triangle counting,
+ * where one pushes the appropriate part of the local row to the remote row. 
  * \param *count  a place to return the counts from each thread
  * \param *sr a place to return the number of shared references
  * \param *L lower triangle of the input matrix
  * \param *U upper triangle of the input matrix
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \return average run time
+ * NB. The matrix must be tidy.
  */
 double triangle_convey_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg) {
   
@@ -157,7 +135,16 @@ double triangle_convey_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparse
   return(stat->avg);
 }
 
-/* the pull version of triangle counting */
+/*!
+\brief This routine implements the conveyor variant of triangle counting,
+       where one pulls the remote row to the local row.
+\param count  a place to return the counts from each thread
+\param sr a place to return the number of shared references
+\param mat lower triangle of the input matrix
+\return average run time
+
+NB. The matrix must be tidy.
+*/
 double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {
 
   int64_t cnt = 0, row, col, i, ii, j, k, rowcnt, pos, pos2;
@@ -278,5 +265,4 @@ double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {
   convey_free(conv_resp);
   
   return(stat->avg);
-  
 }

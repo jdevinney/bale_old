@@ -3,36 +3,13 @@
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
  *****************************************************************/ 
 
@@ -42,21 +19,22 @@
 
 #include "toposort.h"
 
-typedef struct pkg_rowcol_t{
-  int64_t row;    
-  int64_t col;
-}pkg_rowcol_t;
-
 /*!
- * \brief This routine implements the exstack variant of toposort. It uses atomic ops
- * to construct the permutations.
- * \param *rperm returns the row permutation that is found
- * \param *cperm returns the column permutation that is found
- * \param *mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
- * \param *tmat the transpose of mat
- * \return average run time
+\brief This routine implements the exstack variant of toposort. 
+\param rperm place to return the row permutation that is found
+\param cperm place to return the column permutation that is found
+\param mat the input sparse matrix NB. it must be a permuted upper triangular matrix 
+\param tmat the transpose of mat
+\return average run time
  */
-double toposort_matrix_exstack_orig(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat){
+double toposort_matrix_exstack_orig(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat)
+{
+  /*! \brief the package struct for exstack */
+  typedef struct pkg_rowcol_t{
+    int64_t row;   /*!< local row */
+    int64_t col;   /*!< column */
+  }pkg_rowcol_t;
+
   int64_t nr = mat->numrows;
   int64_t nc = mat->numcols;
   int64_t lnr = (nr + THREADS - MYTHREAD - 1)/THREADS;

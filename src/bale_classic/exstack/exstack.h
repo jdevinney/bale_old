@@ -3,36 +3,13 @@
 //
 //  Copyright(C) 2020, Institute for Defense Analyses
 //  4850 Mark Center Drive, Alexandria, VA; 703-845-2500
-//  This material may be reproduced by or for the US Government
-//  pursuant to the copyright license under the clauses at DFARS
-//  252.227-7013 and 252.227-7014.
 // 
 //
 //  All rights reserved.
 //  
-//  Redistribution and use in source and binary forms, with or without
-//  modification, are permitted provided that the following conditions are met:
-//    * Redistributions of source code must retain the above copyright
-//      notice, this list of conditions and the following disclaimer.
-//    * Redistributions in binary form must reproduce the above copyright
-//      notice, this list of conditions and the following disclaimer in the
-//      documentation and/or other materials provided with the distribution.
-//    * Neither the name of the copyright holder nor the
-//      names of its contributors may be used to endorse or promote products
-//      derived from this software without specific prior written permission.
-// 
-//  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-//  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-//  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-//  FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-//  COPYRIGHT HOLDER NOR CONTRIBUTORS BE LIABLE FOR ANY DIRECT,
-//  INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-//  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
-//  SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
-//  HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
-//  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
-//  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
-//  OF THE POSSIBILITY OF SUCH DAMAGE.
+//   This file is a part of Bale.  For license information see the
+//   LICENSE file in the top level directory of the distribution.
+//  
 // 
  *****************************************************************/ 
 
@@ -47,7 +24,6 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
-//#include <malloc.h>
 #include <string.h>
 #include <math.h>
 #include <float.h>
@@ -65,37 +41,33 @@
 #include <upc_nb.h>
 #endif
 
+/*! \brief the struct for each of the individual buffers (or stacks) */
 typedef struct exstack_buffer_t{
-  int64_t count;
-  char data[];
+  int64_t count;        /*!< number of things in the buffer */
+  char data[];          /*!< bytes to hold the buffer */
 }exstack_buffer_t;
 
 /*******************  Classic Exstack  ***************************************************/
-/*! \struct exstack_t 
- * \brief A structure to hold the exstack buffers and
- *  the flags used in the endgame.
- * \ingroup exstackgrp
- */
+/*!
+\brief A structure to hold the exstack buffers and the flags used in the endgame.
+\ingroup exstackgrp
+*/
 typedef struct exstack_t {
-  //SHARED char *snd_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for items to be sent */
-  //SHARED char *rcv_buf;       /*!< Shared THREADS*THREADS*buf_len_alloc buffer for recieved items */
-  int64_t bytes_per_stack;
-  SHARED char * snd_buf;
-  SHARED char * rcv_buf;
-  //char **l_snd_buf;           /*!< Local pointers to each of the send buffers */
-  //char **l_rcv_buf;           /*!< Local pointers to each of the receive buffers */
-  exstack_buffer_t ** l_snd_buf;
-  exstack_buffer_t ** l_rcv_buf;
-  char **fifo_ptr;            /*!< (internal) pointer to oldest work item in each rcv buffer */
-  char **push_ptr;            /*!< (internal) pointer to next avail work item position in each snd buffer */
-  int *put_order;             /*!< local pointer to random upc_memput ordering */
-  uint64_t buf_cnt;           /*!< The number of structs to allocate for each send and recieve buffer */
-  uint64_t pkg_size;          /*!< The size of each struct (work item) in bytes */
-  uint64_t first_ne_rcv;      /*!< (internal) 1st possible non-empty rcv buffer */
+  int64_t bytes_per_stack;       /*!< bytes version of buf_cnt */
+  SHARED char * snd_buf;         /*!< SHARED send buffers */
+  SHARED char * rcv_buf;         /*!< SHARED receive buffers */
+  exstack_buffer_t ** l_snd_buf; /*!< local pointer to a threads part of the send buffer */
+  exstack_buffer_t ** l_rcv_buf; /*!< local pointer to a threads part of the receive buffer */
+  char **fifo_ptr;               /*!< (internal) pointer to oldest work item in each rcv buffer */
+  char **push_ptr;               /*!< (internal) pointer to next avail work item position in each snd buffer */
+  int *put_order;                /*!< local pointer to random upc_memput ordering */
+  uint64_t buf_cnt;              /*!< The number of structs to allocate for each send and recieve buffer */
+  uint64_t pkg_size;             /*!< The size of each struct (work item) in bytes */
+  uint64_t first_ne_rcv;         /*!< (internal) 1st possible non-empty rcv buffer */
 
-  int64_t notify_done;        /*!< flag to say this pe has sent its done status. */
-  SHARED int64_t *wait_done;  /*!< The shared array which will communicate done condition. */
-  int64_t *l_wait_done;       /*!< The local pointer to wait_done. */
+  int64_t notify_done;           /*!< flag to say this pe has sent its done status. */
+  SHARED int64_t *wait_done;     /*!< The shared array which will communicate done condition. */
+  int64_t *l_wait_done;          /*!< The local pointer to wait_done. */
 } exstack_t;
 
 /* public routines */
@@ -135,14 +107,11 @@ void exstack_reset(exstack_t *q);
 #define msg_pe(msg)     ( ((msg) & MSG_pe_mask) >> 1 )                                          /*!< returns who sent it */
 #define msg_islast(msg) ((msg) & 0x1)                                                           /*!< returns whether or not they are done */
 
-//#define TRUE          1
-//#define FALSE         0
 
-/*! \struct exstack2_t 
- * \brief A structure to hold the buffers and the flags used to control them 
- * along with flags for the endgame.
- * \ingroup exstackgrp
- */
+/*!
+\brief A structure to hold the buffers and the flags used to control them  along with flags for the endgame.
+\ingroup exstackgrp
+*/
 typedef struct exstack2_t { 
   
   /*******  Buffers  ***********/
@@ -193,12 +162,10 @@ typedef struct exstack2_t {
 
   int all_done;         /*!< This exstack is all done (exstack2_proceed should return 0), useful in nested exstacks */
   int num_done_sending; /*!< This is a counter of the number of threads that are done sending to me. */
-
-
 } exstack2_t;
 
 /* public routines */
-exstack2_t *exstack2_init(int64_t buffer_cnt, size_t pkg_size);
+exstack2_t *exstack2_init(int64_t buf_cnt, size_t pkg_size);
 int64_t exstack2_proceed(exstack2_t *Xstk2, int done_pushing);
 int64_t exstack2_push(exstack2_t *Xstk2, void *pkg, int64_t pe);
 int64_t exstack2_pop(exstack2_t *Xstk2, void *pkg, int64_t *from_pe); 
