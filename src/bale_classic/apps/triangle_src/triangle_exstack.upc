@@ -20,7 +20,7 @@
 #include "triangle.h"
 
 /*! \brief same as the others */
-typedef struct pkg_tri_t {           //TODO get this from triangle.h
+typedef struct pkg_tri_t {
   //int64_t vi;    
   int32_t w; //!< w
   int32_t vj; //!< vj
@@ -67,12 +67,12 @@ static int64_t tri_exstack_push_process(int64_t *c, exstack_t *ex, sparsemat_t *
  * \param *L lower triangle of the input matrix
  * \param *U upper triangle of the input matrix
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
- * \param bufsiz the number of packets in the exstack buffers
+ * \param buf_cnt the number of packets in the exstack buffers
  * \return average run time
  * NB. The matrix must be tidy.
  */
-double triangle_exstack_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg, int64_t bufsiz) {
-  exstack_t * ex = exstack_init(bufsiz, sizeof(pkg_tri_t));
+double triangle_exstack_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg, int64_t buf_cnt) {
+  exstack_t * ex = exstack_init(buf_cnt, sizeof(pkg_tri_t));
   if( ex == NULL ){return(-1.0);}
   
   int64_t cnt = 0;
@@ -155,15 +155,15 @@ double triangle_exstack_push(int64_t *count, int64_t *sr, sparsemat_t * L, spars
 \param sr a place to return the number of pushes 
 \param mat the input matrix
 \param alg pull from remote rows or push to remote rows
-\param bufsiz the number of packets in the exstack buffers
+\param buf_cnt the number of packets in the exstack buffers
 \return average run time
 
 NB. The matrix must be tidy
 */
-double triangle_exstack_pull(int64_t *count, int64_t *sr, sparsemat_t * mat, int64_t alg, int64_t bufsiz) {
+double triangle_exstack_pull(int64_t *count, int64_t *sr, sparsemat_t * mat, int64_t alg, int64_t buf_cnt) {
 
-  exstack_t * ex_req = exstack_init(bufsiz, sizeof(pkg_tri_t));
-  exstack_t * ex_resp = exstack_init(bufsiz, sizeof(pkg_tri_t));
+  exstack_t * ex_req = exstack_init(buf_cnt, sizeof(pkg_tri_t));
+  exstack_t * ex_resp = exstack_init(buf_cnt, sizeof(pkg_tri_t));
   if( !ex_req || !ex_resp ){return(-1.0);}
 
   int64_t exstack_pushes = 0;

@@ -172,14 +172,14 @@ int main(int argc, char * argv[]) {
     
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      laptime = histo_exstack(&data, args.std.buffer_size);
+      laptime = histo_exstack(&data, args.std.buf_cnt);
       num_models++;
       lgp_barrier();
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      laptime = histo_exstack2(&data, args.std.buffer_size);
+      laptime = histo_exstack2(&data, args.std.buf_cnt);
       num_models++;
       lgp_barrier();
       break;

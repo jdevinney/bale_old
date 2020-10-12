@@ -206,12 +206,12 @@ int main(int argc, char * argv[]) {
 
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      laptime = toposort_matrix_exstack(rperm2, cperm2, mat, tmat, args.std.buffer_size);
+      laptime = toposort_matrix_exstack(rperm2, cperm2, mat, tmat, args.std.buf_cnt);
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      laptime = toposort_matrix_exstack2(rperm2, cperm2, mat, tmat, args.std.buffer_size);
+      laptime = toposort_matrix_exstack2(rperm2, cperm2, mat, tmat, args.std.buf_cnt);
       break;
 
     case CONVEYOR_Model:

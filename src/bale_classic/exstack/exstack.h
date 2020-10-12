@@ -165,7 +165,7 @@ typedef struct exstack2_t {
 } exstack2_t;
 
 /* public routines */
-exstack2_t *exstack2_init(int64_t buffer_cnt, size_t pkg_size);
+exstack2_t *exstack2_init(int64_t buf_cnt, size_t pkg_size);
 int64_t exstack2_proceed(exstack2_t *Xstk2, int done_pushing);
 int64_t exstack2_push(exstack2_t *Xstk2, void *pkg, int64_t pe);
 int64_t exstack2_pop(exstack2_t *Xstk2, void *pkg, int64_t *from_pe); 

@@ -111,7 +111,7 @@ sparsemat_t *    erdos_renyi_random_graph_naive(int64_t n, double p, edge_type e
 sparsemat_t *    geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed);
 
 sparsemat_t *    generate_kronecker_graph_from_spec(int mode, int * spec, int num, int weighted);
-int64_t          tri_count_kron_graph(int kron_mode, int * kron_spec, int kron_num);
+int64_t          calc_num_tri_kron_graph(int kron_mode, int * kron_spec, int kron_num);
 
 sparsemat_t *    init_matrix(int64_t numrows, int64_t numcols, int64_t nnz, int values);
 

@@ -221,7 +221,7 @@ SHARED int64_t * prefix_scan(SHARED int64_t * counts, int64_t n){
 \brief Generates the adjacency matrix for a random geometric graph. 
 \param n The number of vertices
 \param r The size of the neighborhoods that determine edges.
-\param edge_type See edge_type. Must be UNDIRECTED or UNDIRECTED_WEIGHTED.
+\param edgetype See enum edge_type. Must be UNDIRECTED or UNDIRECTED_WEIGHTED.
 \param loops See self_loops. Are there self loops?
 \param seed A seed for the RNG. This should be a single across all PEs (it will be modified by each PE individually).
 \param out_points (Optional) If you supply this pointer, the routine will populate it with the points associated with the vertices in the graph. 
@@ -231,9 +231,7 @@ See https://en.wikipedia.org/wiki/Random_geometric_graph
 Each vertex corresponds to a point randomly placed in the unit square. Two vertices
 are adjancent if their corresponding points are within distance r of each other.
 */
-
-// TODO: add optional return that gives back the geometric positions of points
-sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points){
+sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edgetype, self_loops loops, uint64_t seed, SHARED point_t ** out_points){
   
   // We generate n points (p_i) uniformly at random over the unit square.
   // Each point corresponds to a vertex (v_i).
@@ -251,21 +249,22 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
   int64_t nsectors = nsectors_across*nsectors_across;
   int64_t lnsectors = (nsectors + THREADS - MYTHREAD - 1)/THREADS;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
-  int weighted = (edge_type == DIRECTED_WEIGHTED || edge_type == UNDIRECTED_WEIGHTED);
+  int weighted = (edgetype == DIRECTED_WEIGHTED || edgetype == UNDIRECTED_WEIGHTED);
 
-  if((edge_type == DIRECTED) || (edge_type == DIRECTED_WEIGHTED)){
+  if((edgetype == DIRECTED) || (edgetype == DIRECTED_WEIGHTED)){
     T0_fprintf(stderr,"Error!: geometric random graphs can only be undirected!");
     return(NULL);
   }
   
   //T0_printf("GEOMETRIC GRAPH: r = %lf number of sectors = %ld sector_width = %lf\n",
   //          r, nsectors, sector_width);
-  //T0_printf("                 edge_type = %d loops = %d\n", edge_type, loops);
+  //T0_printf("                 edgetype = %d loops = %d\n", edgetype, loops);
 
   
   lgp_rand_seed(seed);
-  // TODO: permute matrix at end to get Zmorton order (which would improve locality)
-  //       or round-robin point order (which would destroy locality)
+
+  // FUTURE: permute matrix at end to get Zmorton order (which would improve locality)
+  //         or round-robin point order (which would destroy locality)
 
   // Step 1. Figure out how many points land in every sector. We do
   // this by having each PE generate n/THREADS random sector indices,

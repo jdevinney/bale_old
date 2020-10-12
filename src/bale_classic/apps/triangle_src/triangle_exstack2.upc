@@ -19,7 +19,7 @@
 #include "triangle.h"
 
 /*! \brief make it the same */
-typedef struct pkg_tri_t {            // TODO get this from triangle.h
+typedef struct pkg_tri_t {
   int64_t w;     //!< w
   int64_t vj;    //!< vj
 }pkg_tri_t;
@@ -140,5 +140,4 @@ double triangle_exstack2_push(int64_t * count, int64_t *sr, sparsemat_t * L, spa
   return(stat->avg);
 }
 
-//TODO do we need double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {         //TODO why is this only on the mat
 

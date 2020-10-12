@@ -30,7 +30,7 @@
  * \brief Stuct for the arguments used by almost all apps.
  */
 typedef struct std_args_t{
-  int64_t buffer_size;         /*!< the number of packages in each exstack or exstack2 buffer */
+  int64_t buf_cnt;         /*!< the number of packages in each exstack or exstack2 buffer */
   int cores_per_node;          /*!< core per node */
   int dump_files;              /*!< flag to dump files or not */
   int json;                    /*!< flag to output json performance files or not */

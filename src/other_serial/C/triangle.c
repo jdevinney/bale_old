@@ -132,7 +132,7 @@ int main(int argc, char * argv[])
   // if KRONECKER, calculate the number of triangles 
   int64_t correct_answer = -1;
   if (args.gstd.model == KRONECKER) {
-    correct_answer = tri_count_kron_graph(args.gstd.kron_mode, args.gstd.kron_spec, args.gstd.kron_num);
+    correct_answer = calc_num_tri_kron_graph(args.gstd.kron_mode, args.gstd.kron_spec, args.gstd.kron_num);
     bale_app_write_int(&args.std, "known_num_triangles", correct_answer);
   }
 

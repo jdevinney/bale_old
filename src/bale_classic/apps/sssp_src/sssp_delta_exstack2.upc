@@ -154,9 +154,7 @@ double sssp_delta_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, 
     }
     while( delta_exstack2_relax_process(ds, ex2, 1) )
       ;
-    lgp_barrier();            // TODO needed?
-    exstack2_reset(ex2);
-    lgp_barrier();            // TODO needed?
+    exstack2_reset(ex2);  // exstack2_reset does imply barriers fore and aft
   }
 
   lgp_barrier();

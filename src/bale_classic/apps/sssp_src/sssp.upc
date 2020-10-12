@@ -166,13 +166,14 @@ int main(int argc, char * argv[])
   // Until we get it, we haven't taken the AGP model out of the models_mask.
   lgp_barrier();
   args.std.models_mask &=0xFE;
-  int64_t bz = args.std.buffer_size;
+  int64_t bz = args.std.buf_cnt;
   int64_t V0 = args.V0;
   double delta = args.deltaStep;
-/*! \brief do bellman */
-#define USE_BELLMAN (32)               //TODO make this better so the command line works
-/*!  \brief do delta */
-#define USE_DELTA   (64)              //TODO make this better so the command line works
+
+/*! \brief do Bellman-Ford */
+#define USE_BELLMAN (32) // the command line switch -a (alg) is an extension of the -M switch
+/*!  \brief do delta-stepping */
+#define USE_DELTA   (64) 
   
   for( alg = 1; alg < 3; alg *=2 ){
     use_alg = (args.alg & alg) * 32;

@@ -58,7 +58,7 @@ int main(int argc, char * argv[])
   for(i=0; i<kron_args->num_stars; i++)
     printf("%"PRId32" ", kron_args->star_size[i]); 
   printf("\n-- numrows %"PRId64"\n", kron_args->numrows);
-  printf("Known number of triangles = %"PRId64"\n", tri_count_kron_graph(kron_args));
+  printf("Known number of triangles = %"PRId64"\n", calc_num_tri_kron_graph(kron_args));
 
   sparsemat_t *Kron = kronecker_product_graph(kron_args);
   spmat_stats(Kron);

@@ -1087,7 +1087,7 @@ sparsemat_t * generate_kronecker_graph_from_spec(int mode, int * spec, int num, 
  * \param num number of stars
  * \return the number of triangles
 */
-int64_t tri_count_kron_graph(int mode, int * spec, int num)
+int64_t calc_num_tri_kron_graph(int mode, int * spec, int num)
 {
    double approx, ns, nr;
    int i;

@@ -386,33 +386,6 @@ int64_t lgp_min_avg_max_d(minavgmaxD_t * s, double myval, int64_t dem){
   return( retval );
 }
 
-
-#if 0  // TODO
-/* utility to print some basic stats about a run */
-void dump_header(int argc, char *argv[]) {
-  int i;
-  char datestr[64];
-  time_t dattmp;
-
-  if(MYTHREAD==0) {
-    dattmp = time(NULL);
-    strcpy(datestr , asctime( localtime( &dattmp ) ) );
-        for(i=0; i<strlen(datestr); i++){
-           if(datestr[i] == 0xa) 
-                   datestr[i] = (char)0;
-        }
-        fprintf(stderr,"%s: %s\n", argv[0], datestr); 
-
-    fprintf(stderr,"Number of Threads %d\n",THREADS);
-    for(i=0; i<argc; i++)
-       fprintf(stderr,"%s ",argv[i]);
-    fprintf(stderr,"\n");
-  }
-}
-#endif
-
-
-
 /*! 
  * \brief This routine uses gettimeofday routine to give access 
  *  to the wall clock timer on most UNIX-like systems.
