@@ -8,8 +8,16 @@ The bale effort attempts to:
 - demonstrate an approach to achieving high performance for the internode communication in such applications
 - explore concepts that make it easier to write, maintain, and get top performance from such applications
 
-In addition to [bale_classic](src/bale_classic/README.md), there are now several other instances of bale in other languages. These "cousins" of bale imitate the original in one way or another (usually they implement the "apps"
-directory in bale_classic). Each of these cousin directories is a separate project and comes with its own build and run instructions. All source code is found in the src directory.
+The bale repo includes:
+
+- custom communication layers for HPC systems built on top of PGAS programming models (UPC, SHMEM) that offer performance
+  and/or programmability benefits relative to hand-coding against lower level communication models.
+- example implementations of benchmarks on a variety of programming models and platforms:
+  - standard sequential programming langauges (e.g. C, Rust) under src/other_serial
+  - standard parallel programming languages/models (e.g. Chapel, Rust) under src/other_parallel
+  - custom bale parallel libraries (e.g. exstack, conveyors) under src/bale_classic
+
+Each variant of bale (sequential, parallel, and custom parallel) is a separate project and comes with its own build and run instructions. All source code is found in the src directory.
 
 **bale_classic**: (src/bale_classic)
 
