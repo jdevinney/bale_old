@@ -19,7 +19,7 @@
 
 #include "triangle.h"
 /*! \brief same as the others */
-typedef struct pkg_tri_t{             // TODO unify all these packages in triangle.h
+typedef struct pkg_tri_t{
   int64_t w;    //!< w
   int64_t vj;   //!< vj
 }pkg_tri_t;
@@ -58,7 +58,7 @@ static int64_t tri_convey_push_process(int64_t *c, convey_t *conv, sparsemat_t *
  * where one pushes the appropriate part of the local row to the remote row. 
  * \param *count  a place to return the counts from each thread
  * \param *sr a place to return the number of shared references
- * \param *L lower triangle of the input matrix     //TODO explain this
+ * \param *L lower triangle of the input matrix
  * \param *U upper triangle of the input matrix
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \return average run time
@@ -145,7 +145,7 @@ double triangle_convey_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparse
 
 NB. The matrix must be tidy.
 */
-double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {         //TODO why is this only on the mat
+double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {
 
   int64_t cnt = 0, row, col, i, ii, j, k, rowcnt, pos, pos2;
   int64_t L_i, l_i, L_j, pe, frompe;

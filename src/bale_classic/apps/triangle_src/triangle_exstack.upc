@@ -20,7 +20,7 @@
 #include "triangle.h"
 
 /*! \brief same as the others */
-typedef struct pkg_tri_t {           //TODO get this from triangle.h
+typedef struct pkg_tri_t {
   //int64_t vi;    
   int32_t w; //!< w
   int32_t vj; //!< vj
