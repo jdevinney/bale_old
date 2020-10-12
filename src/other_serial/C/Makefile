@@ -51,7 +51,12 @@ OBJ= spmat_utils.o std_options.o
 
 GRAPHS= demo.mm 10_ring.mm 2comps.mm
 
-all: html/index.html std_options.o spmat_utils.o ${EXE}
+all: std_options.o spmat_utils.o ${EXE}
+
+doc: html/index.html
+
+test: std_options.o spmat_utils.o ${EXE}
+	pytest -s
 
 std_options.o: std_options.c std_options.h
 	${CC} -g -c std_options.c
