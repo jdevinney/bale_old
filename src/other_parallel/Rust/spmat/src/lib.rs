@@ -23,12 +23,13 @@ use rand::Rng;
 use regex::Regex;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::fs::File;
-use std::fs::OpenOptions;
 use std::io::BufRead;
 use std::io::BufReader;
 use std::io::Write;
 use std::io::{Error, ErrorKind};
+use std::rc::Rc;
 
 use std::path::Path;
 
@@ -536,14 +537,11 @@ impl SparseMat {
     /// # Arguments
     /// * filename the filename to written to
     pub fn write_mm_file(&self, filename: &str) -> Result<(), Error> {
-        let path = Path::new("/dev/null");
-        let mut file = OpenOptions::new().write(true).open(path)?;
         // use a new conveyor, not the one in the SparseMat, to avoid borrow issues
         let convey = Convey::new().expect("conveyor initialization failed");
         let my_rank = convey.my_rank;
-        if my_rank == 0 {
-            let path = Path::new(&filename);
-            file = OpenOptions::new().write(true).create(true).open(path)?;
+        let file_rc = Rc::new(RefCell::new(if my_rank == 0 {
+            let mut file = File::create(&filename)?;
             if let Some(_) = &self.value {
                 writeln!(file, "%%MatrixMarket matrix coordinate real general")
                     .expect("can't write .mm file");
@@ -553,15 +551,21 @@ impl SparseMat {
             }
             writeln!(file, "{} {} {}", self.numrows, self.numcols, self.nnz)
                 .expect("can't write .mm file");
-        }
+            Some(file)
+        } else {
+            None
+        }));
         {
             let mut session = convey.begin(|entry: Entry, _from_rank| {
                 // only rank 0 will ever get asked to do this
-                if let Some(_) = &self.value {
-                    writeln!(file, "{} {} {}", entry.row, entry.col, entry.val)
-                        .expect("can't write .mm file");
-                } else {
-                    writeln!(file, "{} {}", entry.row, entry.col).expect("can't write .mm file");
+                if let Some(mut file) = file_rc.borrow_mut().as_ref() {
+                    if let Some(_) = &self.value {
+                        writeln!(file, "{} {} {}", entry.row, entry.col, entry.val)
+                            .expect("can't write .mm file");
+                    } else {
+                        writeln!(file, "{} {}", entry.row, entry.col)
+                            .expect("can't write .mm file");
+                    }
                 }
             });
             for i in 0..self.numrows_this_rank {
