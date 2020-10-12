@@ -3,8 +3,16 @@
 This is the implementation of the Bale applications, using the Rust
 programming language.
 
+## Cray Installation
+
+If you are attempting to build on a Cray system, this is currently
+tricky.  See the [Cray Instrucstions](README_cray.md) and ignore 
+the rest of these instructions.
+
+## Non-Cray Installation
+
 It depends on the rust conveyor library [available
-here](https://github.com/wwc559/convey_private).  It is 
+here](https://github.com/wwc559/convey_private). It is 
 strongly advised that you do a *standalone build and test* of 
 `convey_private` *first*, following the instructions in that library.
 This can be a *bit tricky* as you probably need to specify where the
