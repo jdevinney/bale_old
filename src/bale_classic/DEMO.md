@@ -19,14 +19,14 @@ Assuming you have cloned bale in a directory called $BALEDIR.
 You should have a reasonably modern C complier (gcc 8.3.0 seems to be working well for us) and 'oshcc' in your path. You also need OpenMPI 4.x.x or higher.
 
 ```bash
-cd $BALEDIR
+cd $BALEDIR/src/bale_classic
 export PLATFORM=linux_oshmem
 export CC=oshcc
 ./bootstrap.sh
 ./make_bale -s
 ```
 
-This builds everything in $BALEDIR/build_linux_oshmem. Binaries appear in $BALEDIR/build_linux_oshmem/bin.
+This builds everything in $BALEDIR/src/bale_classic/build_linux_oshmem. Binaries appear in $BALEDIR/src/bale_classic/build_linux_oshmem/bin.
 
 **Note**: Due to a bug in OpenMPI/OpenSHMEM, exstack2 and conveyor apps sometimes hang. We recommend you avoid running them under oshmem by running application with the implementation mask set to 3 (-M 3).
 
@@ -43,7 +43,7 @@ Otherwise, exactly the same instructions as above substituting "linux_sos" for P
 You should have a reasonably modern C complier (gcc 8.3.0 seems to be working well for us) and gupc/upc in your path for GUPC or CUPC. You should also have GUPC 5.2.0.1 or Clang-UPC 3.9.1.1.
 
 ```bash
-cd $BALEDIR
+cd $BALEDIR/src/bale_classic
 export PLATFORM=linux_gupc
 export UPC=gupc (for GUPC)
 export UPC=upc (for CUPC)
@@ -52,7 +52,7 @@ unset CC
 ./make_bale -u
 ```
 
-This builds everything in $BALEDIR/build_linux_oshmem. Binaries appear in $BALEDIR/build_linux_oshmem/bin.
+This builds everything in $BALEDIR/src/bale_classic/build_linux_oshmem. Binaries appear in $BALEDIR/src/bale_classic/build_linux_oshmem/bin.
 
 ## ... on a Cray XC30
 
@@ -63,7 +63,7 @@ This builds everything in $BALEDIR/build_linux_oshmem. Binaries appear in $BALED
 - If you want to use Cray OpenSHMEMX: Use PrgEnvgnu and load cray-openshmemx. 
 
 ```bash
-cd $BALEDIR
+cd $BALEDIR/src/bale_classic
 export PLATFORM=xc30
 ./bootstrap.sh
 ./make_bale -u
