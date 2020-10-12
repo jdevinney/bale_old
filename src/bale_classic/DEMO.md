@@ -12,21 +12,21 @@
 
 ## Building on some common platforms
 
-Assuming you have cloned bale in a directory called $BALEDIR.
+For this document, let BALEDIR = the directory containing this file.
 
 ## ... on a Linux SMP with OpenMPI/OSHMEM
 
 You should have a reasonably modern C complier (gcc 8.3.0 seems to be working well for us) and 'oshcc' in your path. You also need OpenMPI 4.x.x or higher.
 
 ```bash
-cd $BALEDIR/src/bale_classic
+cd $BALEDIR
 export PLATFORM=linux_oshmem
 export CC=oshcc
 ./bootstrap.sh
 ./make_bale -s
 ```
 
-This builds everything in $BALEDIR/src/bale_classic/build_linux_oshmem. Binaries appear in $BALEDIR/src/bale_classic/build_linux_oshmem/bin.
+This builds everything in $BALEDIR/build_linux_oshmem. Binaries appear in $BALEDIR/build_linux_oshmem/bin.
 
 **Note**: Due to a bug in OpenMPI/OpenSHMEM, exstack2 and conveyor apps sometimes hang. We recommend you avoid running them under oshmem by running application with the implementation mask set to 3 (-M 3).
 
@@ -43,7 +43,7 @@ Otherwise, exactly the same instructions as above substituting "linux_sos" for P
 You should have a reasonably modern C complier (gcc 8.3.0 seems to be working well for us) and gupc/upc in your path for GUPC or CUPC. You should also have GUPC 5.2.0.1 or Clang-UPC 3.9.1.1.
 
 ```bash
-cd $BALEDIR/src/bale_classic
+cd $BALEDIR
 export PLATFORM=linux_gupc
 export UPC=gupc (for GUPC)
 export UPC=upc (for CUPC)
@@ -52,7 +52,7 @@ unset CC
 ./make_bale -u
 ```
 
-This builds everything in $BALEDIR/src/bale_classic/build_linux_oshmem. Binaries appear in $BALEDIR/src/bale_classic/build_linux_oshmem/bin.
+This builds everything in $BALEDIR/build_linux_oshmem. Binaries appear in $BALEDIR/build_linux_oshmem/bin.
 
 ## ... on a Cray XC30
 
@@ -63,7 +63,7 @@ This builds everything in $BALEDIR/src/bale_classic/build_linux_oshmem. Binaries
 - If you want to use Cray OpenSHMEMX: Use PrgEnvgnu and load cray-openshmemx. 
 
 ```bash
-cd $BALEDIR/src/bale_classic
+cd $BALEDIR
 export PLATFORM=xc30
 ./bootstrap.sh
 ./make_bale -u
@@ -121,15 +121,15 @@ to get this to work.  On recent OS X versions (10.15, maybe 10.14) you need
 Try running a simple test (remember to use -M 3 with OpenMPI/oshmem or SOS)
 ### with oshrun
 ```bash
-oshrun -n 4 $BALEDIR/src/bale_classic/build_$PLATFORM/bin/histo
+oshrun -n 4 $BALEDIR/build_$PLATFORM/bin/histo
 ```
 ### with slurm
 ```bash
-srun -n 4 $BALEDIR/src/bale_classic/build_$PLATFORM/bin/histo
+srun -n 4 $BALEDIR/build_$PLATFORM/bin/histo
 ```
 ### with gupc
 ```bash
-$BALEDIR/src/bale_classic/build_$PLATFORM/bin/histo -n 4
+$BALEDIR/build_$PLATFORM/bin/histo -n 4
 ```
 
 You should see something like this...
