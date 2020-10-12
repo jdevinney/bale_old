@@ -198,7 +198,7 @@ int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
 int64_t             append_weighted_edge(edge_list_t * el, int64_t row, int64_t col, double val);
 int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
 
-int64_t             calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num);
+int64_t             calc_num_tri_kron_graph(int kron_mode, int * kron_spec, int kron_num);
 void                clear_edge_list(edge_list_t * el);
 void                clear_matrix(sparsemat_t * mat);
 
@@ -210,10 +210,10 @@ sparsemat_t *       copy_matrix(sparsemat_t *srcmat);
 
 sparsemat_t *       direct_undirected_graph(sparsemat_t * L);
 
-sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed);
+sparsemat_t *       erdos_renyi_random_graph(int64_t n, double p, edge_type edgetype, self_loops loops, uint64_t seed);
 sparsemat_t *       gen_star_graph(int64_t m, int mode);
 sparsemat_t *       generate_kronecker_graph_from_spec(int mode, int * spec, int num);
-sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
+sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edgetype, self_loops loops, uint64_t seed, SHARED point_t ** out_points);
 
 
 edge_list_t *       init_edge_list(int64_t nalloc, int weighted);
@@ -242,12 +242,12 @@ SHARED int64_t *    rand_permp_conveyor(int64_t N, int seed);
 SHARED int64_t *    rand_permp_exstack2(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_exstack(int64_t N, int seed, int64_t buf_cnt);
 SHARED int64_t *    rand_permp_agp(int64_t N, int seed);
-sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edge_type, self_loops loops,
+sparsemat_t *       random_graph(int64_t n, graph_model model, edge_type edgetype, self_loops loops,
                                  double edge_density, int64_t seed);
 
-void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops);
+void                resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edgetype, self_loops loops);
 
-int                 spmat_compare_doubles(double a, double b);
+int                 spmat_are_eq_doubles(double a, double b);
   
 sparsemat_t *       transpose_matrix(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);

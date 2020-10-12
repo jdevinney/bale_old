@@ -277,7 +277,7 @@ int is_perm(SHARED int64_t * perm, int64_t N) {
 \brief A routine to generate the adjacency matrix of a random graph.
 \param n The number of vertices in the graph.
 \param model FLAT: Erdos-Renyi random, GEOMETRIC: geometric random graph
-\param edgetype See edge_type enum. Directed, or not, Weighted or not.
+\param edgetype See enum edge_type enum. Directed, or not, Weighted or not.
 \param loops see self_loops enum. Does every node have a loop or not.
 \param edge_density: d in [0, 1), target fraction of edges present.
 \param seed: RNG seed.
@@ -287,7 +287,7 @@ adjancency matrix (since the adjancency matrix would be symmetric and we don't n
 the redundant entries).
 */
 
-sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,             //TODO edgetype edge_type
+sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,
                            self_loops loops,
                            double edge_density, int64_t seed){
 
@@ -357,13 +357,13 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,    
  *
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
- * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
+ * \param edgetype See enum edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Does all or no vertices have self loops.
  * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE individually).
  * \return A distributed sparsemat_t that holds the graph.  It is either a lower triangular  matrix
            or square matrix, weighted or not with or without a diagonal.
  */
-  sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
+  sparsemat_t * erdos_renyi_random_graph(int64_t n, double p, edge_type edgetype, self_loops loops, uint64_t seed){
   
   int64_t row, col, i;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
@@ -379,7 +379,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,    
   row = MYTHREAD;
   col = 1 + floor(log(1 - lgp_rand_double()) / D);
   while(row < n){
-    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       end = row;
     while(col < end){
       // if we just hit a diagonal entry (we don't have to generate this one later)
@@ -395,7 +395,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,    
 
   lgp_barrier();
 
-  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  int weighted = (edgetype == UNDIRECTED_WEIGHTED || edgetype == DIRECTED_WEIGHTED);
   sparsemat_t * A = init_matrix(n, n, lnnz_orig, weighted);
   if(!A){T0_printf("ERROR: erdos_renyi_random_graph: init_matrix failed!\n"); return(NULL);}
 
@@ -408,7 +408,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,    
   col = 1 + floor(log(1 - lgp_rand_double()) / D);
   while(row < n){
     int need_diag = (loops == LOOPS);
-    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       end = row;
     while(col < end){
       if(col == row) need_diag = 0;
@@ -435,7 +435,7 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,    
     }
   }
 
-  if(loops == LOOPS && (edge_type == DIRECTED || edge_type == DIRECTED_WEIGHTED))
+  if(loops == LOOPS && (edgetype == DIRECTED || edgetype == DIRECTED_WEIGHTED))
     sort_nonzeros(A); // to get the diagonal entry sorted correctly
   
   return(A);
@@ -445,14 +445,14 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,    
  * This is the naive O(n^2) algorithm. It flips an unfair coin for each possible edge.
  * \param n The total number of vertices in the graph.
  * \param p The probability that each non-loop edge is present.
- * \param edge_type See edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
+ * \param edgetype See enum edge_type enum. DIRECTED, UNDIRECTED, DIRECTED_WEIGHTED, UNDIRECTED_WEIGHTED
  * \param loops See self_loops enum. Do all or no vertices have self loops.
  * \param seed A random seed. This should be a single across all PEs (it will be modified by each PE 
  individually).
  * \return A distributed sparsemat_t that holds the graph.  It is either a lower triangular  matrix
            or square matrix, weighted or not with or without a diagonal.
  */
-sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge_type, self_loops loops, uint64_t seed){
+sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edgetype, self_loops loops, uint64_t seed){
   
   int64_t row, col, i, j;
   int64_t ln = (n + THREADS - MYTHREAD - 1)/THREADS;
@@ -464,7 +464,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   lgp_rand_seed(seed);
   lnnz_orig = 0;
   for(row = MYTHREAD; row < n; row += THREADS){
-    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       end = row;
     for(col = 0; col < end; col++){
       if(col == row)//skip diagonal (we handle loops separately)
@@ -477,7 +477,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   
   lgp_barrier();
 
-  int weighted = (edge_type == UNDIRECTED_WEIGHTED || edge_type == DIRECTED_WEIGHTED);
+  int weighted = (edgetype == UNDIRECTED_WEIGHTED || edgetype == DIRECTED_WEIGHTED);
   sparsemat_t * A = init_matrix(n, n, lnnz_orig, weighted);
   if(!A){T0_printf("ERROR: erdos_renyi_random_graph_naive: init_matrix failed!\n"); return(NULL);}
 
@@ -488,7 +488,7 @@ sparsemat_t * erdos_renyi_random_graph_naive(int64_t n, double p, edge_type edge
   A->loffset[0] = 0;  
   lnnz = 0;
   for(row = MYTHREAD; row < n; row += THREADS){
-    if(edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       end = row + (loops == LOOPS);
     for(col = 0; col < row; col++){
       if(col == row && loops == LOOPS){
@@ -855,7 +855,8 @@ On Large-Scale Graph Generation with Validation of Diverse Triangle Statistics a
 by Geoffrey Sanders, Roger Pearce, Timothy La Fond, Jeremy Kepner
 */
 
-int64_t calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num){  //TODO rename this to indicate it is for Kronecker Graphs
+int64_t calc_num_tri_kron_graph(int kron_mode, int * kron_spec, int kron_num)
+{
   int i;
   double correct_answer = 0;
   if(kron_mode == 0){
@@ -940,7 +941,7 @@ int compare_matrix(sparsemat_t *lmat, sparsemat_t *rmat) {
   }
   if(lmat->value){
     for(j=0; j< lmat->lnnz; j++){
-      if( spmat_compare_doubles(lmat->lvalue[j],rmat->lvalue[j])) {
+      if( spmat_are_eq_doubles(lmat->lvalue[j],rmat->lvalue[j])) {
         fprintf(stderr,"PE %d: lmat->lvalue[%d] = %lf != rmat->lvalue[%d] = %lf\n", 
                 MYTHREAD, j, lmat->lvalue[j], j, rmat->lvalue[j] );
         return(1);
@@ -1085,17 +1086,17 @@ sparsemat_t * copy_matrix(sparsemat_t *srcmat) {
  * \param edge_prob given edge probability (or place to put the computed edge_prob)
  * \param nz_per_row  given number of nonzeros per row (or place to put the computed nz_per_row)
  * \param numrows = numcols global order of the matrix 
- * \param edge_type weighted or unweighted
+ * \param edgetype enum edge_type weighted or unweighted
  * \param loops whether the diagonal is all zeros or all ones
  */
-void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edge_type, self_loops loops){
+void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, int64_t numrows, edge_type edgetype, self_loops loops){
   if(*edge_prob == 0.0){ // use nz_per_row to get erdos_renyi_prob
     if(loops == LOOPS)
       *edge_prob = (*nz_per_row - 1)/(numrows-1);
     else
       *edge_prob = (*nz_per_row)/(numrows-1);
     
-    if (edge_type == UNDIRECTED || edge_type == UNDIRECTED_WEIGHTED)
+    if (edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
       *edge_prob = *edge_prob*2;
         
     if(*edge_prob > 1.0)
@@ -1114,7 +1115,7 @@ void resolve_edge_prob_and_nz_per_row(double * edge_prob, double * nz_per_row, i
  * \param b the other one
  * \return int 0, if they are close enough 
  */
-int spmat_compare_doubles(double a, double b){          // TODO check usage could return -1,0,1
+int spmat_are_eq_doubles(double a, double b) {
   if(a == 0.0){
     if(fabs(b) < 1e-8) return(0);
     return(1);
@@ -1544,7 +1545,6 @@ void incr_S_nxnz( nxnz_t *nxz, int64_t S_row ) {
   nxz->idx += 1; 
   nxz->col   = lgp_get_int64(nxz->mat->nonzero, (nxz->idx) * THREADS +  (nxz->row)%THREADS );
 }
-//TODO is any of this used
 
 /*! \brief comparison function to support qsort */
 int nz_comp(const void *a, const void *b) {
