@@ -53,8 +53,9 @@ fn main() {
         .expect("bad numrows arg");
     let verbose: u64 = matches.occurrences_of("verbose");
 
-    let my_rank = Convey::my_rank();
-    let num_ranks = Convey::num_ranks();
+    let convey = Convey::new().expect("failed conveyor initializtoin");
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
     let quiet = matches.is_present("quiet") || (verbose == 0 && my_rank > 0);
 
     let numrows = numrows_per_rank * num_ranks;

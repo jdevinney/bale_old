@@ -49,14 +49,14 @@ fn main() {
         .parse()
         .expect("bad table_size arg");
 
-    let convey = Convey::new().expect("shmem initializtion failed");
-    do_ig_convey(table_entries, requests);
+    let convey = Convey::new().expect("conveyor initializtion failed");
+    do_ig_convey(&convey, table_entries, requests);
     do_ig_convey_simple(&convey, table_entries, requests);
 }
 
-fn do_ig_convey(table_entries: usize, requests: u64) {
-    let me = Convey::my_rank();
-    let num = Convey::num_ranks();
+fn do_ig_convey(convey: &Convey, table_entries: usize, requests: u64) {
+    let me = convey.my_rank();
+    let num = convey.num_ranks();
     println!("Hello, world from rank {} of {}!", me, num);
 
     let mut rng = rand::thread_rng();
@@ -106,8 +106,8 @@ fn do_ig_convey(table_entries: usize, requests: u64) {
 }
 
 fn do_ig_convey_simple(convey: &Convey, table_entries: usize, requests: u64) {
-    let me = Convey::my_rank();
-    let num = Convey::num_ranks();
+    let me = convey.my_rank();
+    let num = convey.num_ranks();
     println!("Hello, world from rank {} of {}!", me, num);
 
     let mut rng = rand::thread_rng();

@@ -46,15 +46,16 @@ fn main() {
         .expect("bad collectives arg");
     let verbose: u64 = matches.occurrences_of("verbose");
 
-    do_collect_convey(collectives, verbose);
-    do_collect_shmem(collectives, verbose);
+    let convey = Convey::new().expect("bad");
+    do_collect_convey(&convey, collectives, verbose);
+    do_collect_shmem(&convey, collectives, verbose);
 }
 
-fn do_collect_convey(collectives: usize, verbose: u64) {
+fn do_collect_convey(convey: &Convey, collectives: usize, verbose: u64) {
     let value: usize = 42;
     let now = Instant::now();
-    let my_rank = Convey::my_rank();
-    let num_ranks = Convey::num_ranks();
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
 
     let mut total_result = 0;
 
@@ -74,10 +75,10 @@ fn do_collect_convey(collectives: usize, verbose: u64) {
     }
 }
 
-fn do_collect_shmem(collectives: usize, verbose: u64) {
+fn do_collect_shmem(convey: &Convey, collectives: usize, verbose: u64) {
     let _value: usize = 42;
-    let my_rank = Convey::my_rank();
-    let num_ranks = Convey::num_ranks();
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
 
     let now = Instant::now();
 

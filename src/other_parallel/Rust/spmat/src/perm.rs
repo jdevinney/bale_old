@@ -25,7 +25,7 @@ pub struct Perm {
 
 impl std::fmt::Debug for Perm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let my_rank = Convey::my_rank();
+        let my_rank = self.convey.my_rank();
         f.debug_struct("Perm")
             .field("rank", &my_rank)
             .field("len", &self.perm.len())
@@ -47,8 +47,8 @@ impl Perm {
     pub fn identity(n: usize) -> Self {
         let convey = Convey::new().unwrap();
         let mut perm = vec![0; convey.per_my_rank(n)];
-        let my_rank = Convey::my_rank();
-        let num_ranks = Convey::num_ranks();
+        let my_rank = convey.my_rank();
+        let num_ranks = convey.num_ranks();
 
         for i in 0..perm.len() {
             perm[i] = i * num_ranks + my_rank;
@@ -105,7 +105,7 @@ impl Perm {
             .fold(0_u64, |acc, x| if *x != -1_i64 { acc + 1 } else { acc });
         let offset = count.reduce_prior_sum() as usize;
         let mut pos = 0;
-        let num_ranks = Convey::num_ranks();
+        let num_ranks = convey.num_ranks();
         let mut rank = offset % num_ranks;
         {
             let mut session = Convey::begin(|item: i64, _from_rank| {

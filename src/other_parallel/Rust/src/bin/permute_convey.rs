@@ -71,8 +71,9 @@ fn main() {
         .parse()
         .expect("nz_per_row: not a float");
 
-    let my_rank = Convey::my_rank();
-    let num_ranks = Convey::num_ranks();
+    let convey = Convey::new().expect("conveyor initializtion failed");
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
     let quiet = matches.is_present("quiet") || (verbose == 0 && my_rank > 0);
     let numrows = numrows_per_rank * num_ranks;
 

@@ -86,8 +86,9 @@ fn main() {
     let gen_kron_str = matches.value_of("gen_kron").unwrap_or("");
 
     let seed = 12346;
-    let my_rank = Convey::my_rank();
-    let num_ranks = Convey::num_ranks();
+    let convey = Convey::new().expect("Conveyor initialzation failed");
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
     let quiet = matches.is_present("quiet") || my_rank > 0;
     let _dump_files = matches.is_present("dump_files");
 

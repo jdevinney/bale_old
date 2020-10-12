@@ -78,8 +78,9 @@ impl SsspInfo {
 
     /// Write output distances to a file in Phil's format, collecting them all on rank 0
     pub fn write_dst(&self, filename: &str) -> Result<(), Error> {
-        let my_rank = Convey::my_rank();
-        let num_ranks = Convey::num_ranks();
+        let convey = Convey::new().expect("conveyor initializtion failed");
+        let my_rank = convey.my_rank();
+        let num_ranks = convey.num_ranks();
         let num_vtxs = self.distance.len().reduce_sum();
         let mut all_distances: Vec<f64> = vec![0.0; if my_rank == 0 { num_vtxs } else { 0 }];
         #[derive(Copy, Clone, Debug, Serialize, Deserialize)]

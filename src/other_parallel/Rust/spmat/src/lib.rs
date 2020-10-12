@@ -199,7 +199,7 @@ impl SparseMat {
     /// convenience function to return my rank
     pub fn my_rank(&self) -> usize {
         if self.convey.is_some() {
-            Convey::my_rank()
+            self.convey.as_ref().unwrap().my_rank()
         } else {
             0
         }
@@ -208,7 +208,7 @@ impl SparseMat {
     /// Convenience function returning num_ranks
     pub fn num_ranks(&self) -> usize {
         if self.convey.is_some() {
-            Convey::num_ranks()
+            self.convey.as_ref().unwrap().num_ranks()
         } else {
             1
         }
@@ -483,7 +483,7 @@ impl SparseMat {
     /// * filename the filename to written to
     pub fn write_mm_file(&self, filename: &str) -> Result<(), Error> {
         // use a new conveyor, not the one in the SparseMat, to avoid borrow issues
-        let my_rank = Convey::my_rank();
+        let my_rank = self.my_rank();
         let file = if my_rank > 0 {
             Rc::new(RefCell::new(None))
         } else {
