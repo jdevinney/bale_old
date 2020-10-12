@@ -6,7 +6,7 @@ programming language.
 ## Cray Installation
 
 If you are attempting to build on a Cray system, this is currently
-tricky.  See the [Cray Instrucstions](README_cray.md) and ignore 
+tricky.  See the [Cray Instructions](README_cray.md) and ignore 
 the rest of these instructions.
 
 ## Non-Cray Installation

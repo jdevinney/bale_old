@@ -5,7 +5,7 @@ here](https://github.com/wwc559/convey_private). Install this
 first but DO NOT BUILD.
 
 The Cray build is complicated, at least on the NERSC Cori system.
-The crux of the probem is that some modules will not build with the
+The crux of the probem is that some Rust crates will not build with the
 llvm module loaded while others will not build without it loaded.
 This is unfortunate and we will look for solutions that work
 better going forward.
