@@ -100,11 +100,11 @@ int main(int argc, char * argv[])
       sprintf(model_str, "AGP");
       break;
     case EXSTACK_Model:
-      outmat = transpose_matrix_exstack(inmat, args.std.buffer_size);
+      outmat = transpose_matrix_exstack(inmat, args.std.buf_cnt);
       sprintf(model_str, "Exstack");
       break;
     case EXSTACK2_Model:
-      outmat = transpose_matrix_exstack2(inmat, args.std.buffer_size);
+      outmat = transpose_matrix_exstack2(inmat, args.std.buf_cnt);
       sprintf(model_str, "Exstack2");
       break;
     case CONVEYOR_Model:

@@ -29,14 +29,14 @@
 static int std_parse_opt(int key, char * arg, struct argp_state * state){
   std_args_t * args = (std_args_t *)state->input;
   switch(key){
-  case 'b': args->buffer_size = atol(arg); break;
+  case 'b': args->buf_cnt = atol(arg); break;
   case 'c': args->cores_per_node = atoi(arg); break;
   case 'D': args->dump_files = 1; break;
   case 'j': args->json = 1; strcpy(args->json_output,arg); break;
   case 'M': args->models_mask = atol(arg); break;
   case 's': args->seed = atol(arg); break;
   case ARGP_KEY_INIT:
-    args->buffer_size = 1024;
+    args->buf_cnt = 1024;
     args->cores_per_node = 0;
     args->seed = 122222;
     args->models_mask = ALL_Models;
@@ -49,7 +49,7 @@ static int std_parse_opt(int key, char * arg, struct argp_state * state){
 
 static struct argp_option std_options[] =
   {
-    {"buffer_size",   'b', "BUF", 0, "Exstack or exstack2 buffer size."},
+    {"buf_cnt",   'b', "BUF", 0, "Exstack or exstack2 buffer size."},
     {"cores_per_node",'c', "CPN", 0, "Specify cores per node for network injection rate statistics"},
     {"dump_files",    'D', 0,     0, "Dump files for debugging"},
     {"json_output",   'j', "FILE",0, "Output results to a json file, rather than to stderr"},
@@ -67,13 +67,13 @@ void write_std_options(std_args_t * sargs){
   if(sargs->json == 0){
     fprintf(stderr,"Standard options:\n");
     fprintf(stderr,"----------------------------------------------------\n");
-    fprintf(stderr,"buf_cnt (buffer size)    (-b): %"PRId64"\n", sargs->buffer_size);
+    fprintf(stderr,"buf_cnt (buffer size)    (-b): %"PRId64"\n", sargs->buf_cnt);
     fprintf(stderr,"seed                     (-s): %"PRId64"\n", sargs->seed);
     fprintf(stderr,"cores_per_node           (-c): %d\n", sargs->cores_per_node);
     fprintf(stderr,"Models Mask              (-M): %d\n\n", sargs->models_mask);
   }else{
     FILE * jp = fopen(sargs->json_output, "a");
-    fprintf(jp, "\"buf_cnt\": \"%"PRId64"\",\n", sargs->buffer_size);
+    fprintf(jp, "\"buf_cnt\": \"%"PRId64"\",\n", sargs->buf_cnt);
     fclose(jp);
   }
 }

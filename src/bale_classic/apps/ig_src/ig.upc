@@ -184,12 +184,12 @@ int main(int argc, char * argv[]) {
      
      case EXSTACK_Model:
        sprintf(model_str, "Exstack");
-       laptime =ig_exstack(tgt, pckindx, args.l_num_req,  ltable,  args.std.buffer_size); 
+       laptime =ig_exstack(tgt, pckindx, args.l_num_req,  ltable,  args.std.buf_cnt); 
      break;
    
      case EXSTACK2_Model:
        sprintf(model_str, "Exstack2");
-       laptime = ig_exstack2(tgt, pckindx, args.l_num_req,  ltable, args.std.buffer_size);
+       laptime = ig_exstack2(tgt, pckindx, args.l_num_req,  ltable, args.std.buf_cnt);
      break;
    
      case CONVEYOR_Model:

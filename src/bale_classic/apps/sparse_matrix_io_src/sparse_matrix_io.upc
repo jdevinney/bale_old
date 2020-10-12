@@ -127,8 +127,8 @@ int main(int argc, char * argv[])
       break;
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      write_sparse_matrix_exstack(datadir, inmat, args.std.buffer_size);
-      readmat = read_sparse_matrix_exstack(datadir, args.num_readers, args.std.buffer_size);
+      write_sparse_matrix_exstack(datadir, inmat, args.std.buf_cnt);
+      readmat = read_sparse_matrix_exstack(datadir, args.num_readers, args.std.buf_cnt);
       break;
     case EXSTACK2_Model:
       continue;

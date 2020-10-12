@@ -191,12 +191,12 @@ int main(int argc, char * argv[]) {
     
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      laptime = triangle_exstack_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
+      laptime = triangle_exstack_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buf_cnt);
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      laptime = triangle_exstack2_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
+      laptime = triangle_exstack2_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buf_cnt);
       break;
 
     case CONVEYOR_Model:

@@ -123,12 +123,12 @@ int main(int argc, char * argv[]) {
 
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      out = rand_permp_exstack(args.num_rows, seed, args.std.buffer_size);
+      out = rand_permp_exstack(args.num_rows, seed, args.std.buf_cnt);
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      out = rand_permp_exstack2(args.num_rows, seed, args.std.buffer_size);
+      out = rand_permp_exstack2(args.num_rows, seed, args.std.buf_cnt);
       break;
 
     case CONVEYOR_Model:

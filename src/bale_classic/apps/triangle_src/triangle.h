@@ -27,9 +27,9 @@
 #include <locale.h>
 
 double   triangle_agp(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
-double   triangle_exstack_push(int64_t *count, int64_t *sr, sparsemat_t *L, sparsemat_t * U, int64_t alg, int64_t bufsiz);
-//double   triangle_exstack_pull(int64_t *count, int64_t *sr, sparsemat_t *L, int64_t alg, int64_t bufsiz);
-double   triangle_exstack2_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg, int64_t bufsiz);
+double   triangle_exstack_push(int64_t *count, int64_t *sr, sparsemat_t *L, sparsemat_t * U, int64_t alg, int64_t buf_cnt);
+//double   triangle_exstack_pull(int64_t *count, int64_t *sr, sparsemat_t *L, int64_t alg, int64_t buf_cnt);
+double   triangle_exstack2_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg, int64_t buf_cnt);
 double   triangle_convey_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg);
 //double   triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat);
 

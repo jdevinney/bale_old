@@ -166,7 +166,7 @@ int main(int argc, char * argv[])
   // Until we get it, we haven't taken the AGP model out of the models_mask.
   lgp_barrier();
   args.std.models_mask &=0xFE;
-  int64_t bz = args.std.buffer_size;
+  int64_t bz = args.std.buf_cnt;
   int64_t V0 = args.V0;
   double delta = args.deltaStep;
 /*! \brief do bellman */
