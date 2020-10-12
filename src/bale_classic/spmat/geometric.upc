@@ -231,8 +231,6 @@ See https://en.wikipedia.org/wiki/Random_geometric_graph
 Each vertex corresponds to a point randomly placed in the unit square. Two vertices
 are adjancent if their corresponding points are within distance r of each other.
 */
-
-// TODO: add optional return that gives back the geometric positions of points
 sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, self_loops loops, uint64_t seed, SHARED point_t ** out_points){
   
   // We generate n points (p_i) uniformly at random over the unit square.
@@ -264,8 +262,9 @@ sparsemat_t * geometric_random_graph(int64_t n, double r, edge_type edge_type, s
 
   
   lgp_rand_seed(seed);
-  // TODO: permute matrix at end to get Zmorton order (which would improve locality)
-  //       or round-robin point order (which would destroy locality)
+
+  // FUTURE: permute matrix at end to get Zmorton order (which would improve locality)
+  //         or round-robin point order (which would destroy locality)
 
   // Step 1. Figure out how many points land in every sector. We do
   // this by having each PE generate n/THREADS random sector indices,

@@ -66,10 +66,10 @@ within the apps framework.
 
 \ingroup spmatgrp
  */
-sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {    // TODO should we add buf_cnt here
+sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED int64_t *cperminv) {
   //return( permute_matrix_agp(omat, rperminv, cperminv) );
-    return( permute_matrix_exstack(omat, rperminv, cperminv, 128) );
-  //return( permute_matrix_exstack2(omat, rperminv, cperminv, 1024) );
+    return( permute_matrix_exstack(omat, rperminv, cperminv, 512) );
+  //return( permute_matrix_exstack2(omat, rperminv, cperminv, 512) );
   //return( permute_matrix_conveyor(omat, rperminv, cperminv) );
 }
 
@@ -85,8 +85,8 @@ sparsemat_t * permute_matrix(sparsemat_t *omat, SHARED int64_t *rperminv, SHARED
 sparsemat_t * transpose_matrix(sparsemat_t *omat) {
   sparsemat_t * A;
   //A = transpose_matrix_agp(omat);
-  A = transpose_matrix_exstack(omat, 128);
-  //A = transpose_matrix_exstack2(omat, 1024);
+  A = transpose_matrix_exstack(omat, 512);
+  //A = transpose_matrix_exstack2(omat, 512);
   //A = transpose_matrix_conveyor(omat);
   if(!A){return(NULL);}
   
@@ -312,9 +312,9 @@ sparsemat_t * random_graph(int64_t n, graph_model model, edge_type edgetype,    
     // for undirected density = E/(n choose 2)
     // for directed   density = E/(n^2 - n)
     if(edgetype == UNDIRECTED || edgetype == UNDIRECTED_WEIGHTED)
-       r = sqrt((n-1)*edge_density/(M_PI*n));
-     else
-       r = sqrt(2*(n-1)*edge_density/(M_PI*n));
+      r = sqrt((n-1)*edge_density/(M_PI*n));
+    else
+      r = sqrt(2*(n-1)*edge_density/(M_PI*n));
     sparsemat_t * L = geometric_random_graph(n, r, et, loops, seed, NULL);// &op);
     if(L == NULL){
       T0_fprintf(stderr,"Error: random_graph: geometric_r_g returned NULL!\n");
@@ -795,21 +795,6 @@ sparsemat_t * kronecker_product_of_stars(int64_t M, int64_t * m, int mode) {
   for(i = 0; i < 2*M-2; i++){
     clear_matrix(Aarr[i]); free(Aarr[i]);
   }
-#if 0
-  /* remove the self loop */
-  if(mode == 1){
-    /* set A(0,0) = 0*/
-    for(i = 0; i < A->lnumrows+1; i++)
-      A->loffset[i]--;
-    for(i = 0; i < A->lnnz - 1; i++){
-      A->lnonzero[i] = A->lnonzero[i+1];
-    }
-  }else if(mode == 2){
-    /* set A(m1*m2 - 1, m1*m2 - 1) = 0 */
-    A->loffset[A->lnumrows] -= 1;
-  }
-  A->lnnz = A->nnz = A->nnz - 1;
-#endif
   return(A);
 }
 
@@ -865,7 +850,9 @@ int sort_nonzeros( sparsemat_t *mat) {
 \param kron_spec the list of sizes of the stars (note the +1)
 \param kron_num the number of stars
 
-See: //TODO find the reference
+See:
+On Large-Scale Graph Generation with Validation of Diverse Triangle Statistics at Edges and Vertices
+by Geoffrey Sanders, Roger Pearce, Timothy La Fond, Jeremy Kepner
 */
 
 int64_t calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num){  //TODO rename this to indicate it is for Kronecker Graphs
@@ -1195,7 +1182,7 @@ sparsemat_t * init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thr
  * \param nnz the number of nonzeros
  * \ingroup spmatgrp
  */
-sparsemat_t * init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz) {           // TODO where is this used
+sparsemat_t * init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz) {
   sparsemat_t * mat = calloc(1, sizeof(sparsemat_t));
   mat->local = 1;
   mat->numrows  = numrows;
@@ -1295,6 +1282,10 @@ void clear_triples(triples_t * T) {
   free(T->col);
 }
 
+/*! \brief frees the space allocated for an spmat_dataset_t
+ * \param T pointer to the spmat_dataset_t
+ * \ingroup spmatgrp
+ */
 void clear_spmat_dataset(spmat_dataset_t * spd){
   free(spd->dirname);
   free(spd->nrows_in_file);
@@ -1302,6 +1293,7 @@ void clear_spmat_dataset(spmat_dataset_t * spd){
   free(spd->rowcnt);
   free(spd->global_first_row_to_me);
 }
+
 /*! \brief Append a triple to a triples_t struct and expand the storage if necessary
  *
  * \param T The triples_t struct
@@ -1434,7 +1426,6 @@ void print_matrix(sparsemat_t * A){
   }
 }
 
-//TODO is any of this used
 /*!
  * \brief returns the number of nonzeros in a row of the localize part of a sparse matrix
  * \param *mat pointer to the sparse matrix 
@@ -1571,7 +1562,7 @@ int point_comp(const void *a, const void *b) {
   return(-1);
 }
 
-/*! \brief comparison function to support qsort */
+/*! \brief comparison function to support qsort in sort_nonzeros */
 int col_val_comp(const void *a, const void *b) {
   col_val_t * A = (col_val_t*)a;
   col_val_t * B = (col_val_t*)b;

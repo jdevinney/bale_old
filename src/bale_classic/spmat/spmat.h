@@ -74,7 +74,6 @@ typedef struct d_array_t {
   double * lentry;              //!< the localized part of the shared array
 } d_array_t;
 
-// TODO is this used
 /*! \brief unused */
 typedef struct triples_t {
   int64_t * row;    //!< unused
@@ -197,14 +196,12 @@ int64_t rowcount_S( sparsemat_t *mat, int64_t S_row );
 
 int64_t             append_edge(edge_list_t * el, int64_t row, int64_t col);
 int64_t             append_weighted_edge(edge_list_t * el, int64_t row, int64_t col, double val);
-// TODO is this used
 int64_t             append_triple(triples_t * T, int64_t row, int64_t col, double val);
 
 int64_t             calculate_num_triangles(int kron_mode, int * kron_spec, int kron_num);
 void                clear_edge_list(edge_list_t * el);
 void                clear_matrix(sparsemat_t * mat);
 
-// TODO is this used
 void                clear_spmat_dataset(spmat_dataset_t * spd);
 void                clear_triples(triples_t * T);
 
@@ -221,7 +218,6 @@ sparsemat_t *       geometric_random_graph(int64_t n, double r, edge_type edge_t
 
 edge_list_t *       init_edge_list(int64_t nalloc, int weighted);
 sparsemat_t *       init_matrix(int64_t numrows, int64_t numcols, int64_t nnz_this_thread, int weighted);
-// TODO is this used
 triples_t *         init_triples(int64_t numrows, int64_t numcols, int64_t lnnz, int weighted);
 sparsemat_t *       init_local_matrix(int64_t numrows, int64_t numcols, int64_t nnz);
 
@@ -258,7 +254,6 @@ sparsemat_t *       transpose_matrix_conveyor(sparsemat_t * A);
 sparsemat_t *       transpose_matrix_exstack2(sparsemat_t * A, int64_t buf_cnt);
 sparsemat_t *       transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt);
 sparsemat_t *       transpose_matrix_agp(sparsemat_t * A);
-// TODO is this used
 sparsemat_t *       triples_to_sparsemat(triples_t * T);
 
 
@@ -285,12 +280,6 @@ int                 write_sparse_matrix_metadata(spmat_dataset_t * spd);
 
 int64_t tril(sparsemat_t * A, int64_t k);
 int64_t triu(sparsemat_t * A, int64_t k);
-
-
-sparsemat_t * gen_erdos_renyi_graph_dist_naive(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);         // TODO delete?
-sparsemat_t * gen_erdos_renyi_graph_dist(int n, double p, int64_t unit_diag, int64_t mode, uint64_t seed);               // TODO delete?
-sparsemat_t * gen_erdos_renyi_graph_triangle_dist(int n, double p, int64_t unit_diag, int64_t lower, uint64_t seed);     // TODO delete?
-
 
 int sort_nonzeros( sparsemat_t *mat);
 int nz_comp(const void *a, const void *b);

@@ -206,7 +206,7 @@ int main(int argc, char * argv[]) {
 
     case ALTERNATE_Model:
       sprintf(model_str, "Alternate");
-      laptime = triangle_agp_iter(&tri_cnt, &sh_refs, L, U);
+      laptime = triangle_agp_iter(&tri_cnt, &sh_refs, L, U, args.alg);
       break;
     case 0:
       continue;
