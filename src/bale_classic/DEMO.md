@@ -12,7 +12,7 @@
 
 ## Building on some common platforms
 
-Assuming you have cloned bale in a directory called $BALEDIR.
+For this document, let BALEDIR = the directory containing this file.
 
 ## ... on a Linux SMP with OpenMPI/OSHMEM
 
@@ -121,15 +121,15 @@ to get this to work.  On recent OS X versions (10.15, maybe 10.14) you need
 Try running a simple test (remember to use -M 3 with OpenMPI/oshmem or SOS)
 ### with oshrun
 ```bash
-oshrun -n 4 $BALEDIR/src/bale_classic/build_$PLATFORM/bin/histo
+oshrun -n 4 $BALEDIR/build_$PLATFORM/bin/histo
 ```
 ### with slurm
 ```bash
-srun -n 4 $BALEDIR/src/bale_classic/build_$PLATFORM/bin/histo
+srun -n 4 $BALEDIR/build_$PLATFORM/bin/histo
 ```
 ### with gupc
 ```bash
-$BALEDIR/src/bale_classic/build_$PLATFORM/bin/histo -n 4
+$BALEDIR/build_$PLATFORM/bin/histo -n 4
 ```
 
 You should see something like this...
