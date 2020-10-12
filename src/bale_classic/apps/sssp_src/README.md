@@ -119,7 +119,11 @@ because the amount of work done remotely is at least as much as the work done lo
 The analysis of the SSSP algorithms is on-going.
 
 #### From the Book?
-We don't think there's an FTB version of any of these algorithms using the AGP model.
+
+We don't think there's an FTB version of any of these algorithms using
+the AGP model because of the amount of work that must be done
+remotely and atomically for every edge relaxation. For this reason the aggregated versions
+of delta-stepping are actually easier to code thatn AGP and are not far off of the serial implementation of SSSP.
 
 See apps/sssp_src/ for the all implementations.
 
