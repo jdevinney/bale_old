@@ -16,7 +16,7 @@ Run randperm --help or --usage for insructions on running.
 
 #include "spmat_utils.h"
 #include "std_options.h"
-#include "default_app_sizes.h"
+#include "default_app_opts.h"
 
 /*! \brief A timing wrapper around the rand_perm routine that is in `spmat_utils.c`
 \param len length of the permutation array
@@ -147,7 +147,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
   args_t * args = (args_t *)state->input;
   switch(key)
   {
-  case 'n':
+  case 'N':
     args->perm_size = atol(arg); break;
   case ARGP_KEY_INIT:
     state->child_inputs[0] = &args->std;
@@ -157,7 +157,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
 }
 
 static struct argp_option options[] = {
-  {"perm_size", 'n', "NUM",  0, "Size of permutation to create."},
+  {"perm_size", 'N', "NUM",  0, "Size of permutation to create."},
   {0}
 };
 
@@ -178,7 +178,6 @@ int main(int argc, char * argv[])
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
-
   write_std_options(&args.std);
   bale_app_write_int(&args.std, "perm_size", args.perm_size);
 
