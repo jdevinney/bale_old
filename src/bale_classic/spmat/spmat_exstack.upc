@@ -591,10 +591,11 @@ sparsemat_t * read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64
   int64_t num_rows_read = 0;
   int64_t nnz_read = 0;
   int64_t rc = 0;
+  int64_t pe;
   int imdone = 0;
   
   while(exstack_proceed(ex, (tot_rows_read == spd->lnumrows))){
-    int64_t pe, col;
+    int64_t col;
     double val;
     int loop_break = (tot_rows_read == spd->lnumrows);
     
