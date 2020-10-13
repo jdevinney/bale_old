@@ -35,7 +35,7 @@ proof of its correctness).
 In the following graphic for the algorithm we labeled the nonzeros with 
 letters to help follow the permutations.
 
-<img src="../../../images/toposort.png" alt="picture of toposort" align=center style="height: 400px;"/>
+<img src="../../../../images/toposort.png" alt="picture of toposort" align=center style="height: 400px;"/>
 
 An outline of an algorithm is as follows:
 
