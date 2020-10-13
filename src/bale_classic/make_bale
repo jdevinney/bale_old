@@ -177,8 +177,9 @@ if __name__ == '__main__':
   print("                             Report                             ")
   print("****************************************************************")
   print("****************************************************************")
-  for pkg in PACKAGES:    
-    print("{0:12} : {1}".format(pkg, pkg_status[pkg]))
+  for pkg in PACKAGES:
+    if pkg in pkg_status:
+      print("{0:12} : {1}".format(pkg, pkg_status[pkg]))
   print()
   print("build directory   : {0}".format(build_dir))
   print("install directory : {0}".format(install_dir))  
