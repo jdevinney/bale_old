@@ -9,14 +9,18 @@ returns it to an upper triangular form.
 ### Algorithms
 We generate the morally upper triangular matrix by 
 randomly permuting the rows and columns of a triangular matrix.
+In the figure below, we have marked the nonzeros in the matrix
+with letter to help follow the permutations.
 
 To find row and column permutations that would return the matrix 
-to upper triangular form, we recursively find pivot position.
+to upper triangular form, we recursively find pivot positions.
 A pivot is a nonzero (really a (row,col) pair) that is the single
 nonzero in a row. If we permute this row and column to the last
 row and column of our new matrix and delete the row and column
 from the original matrix, we can recursively construct the new
 matrix from the bottom right corner to the top left corner.
+
+<img src="../../../../images/toposort.png" alt="picture of toposort" align=center style="height: 400px;"/>
 
 A more detailed description of the algorithm is given in 
 bale_classic toposort documentation.

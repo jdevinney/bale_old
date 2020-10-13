@@ -45,18 +45,19 @@ EXE= histo
   EXE+=demo_spmat
   EXE+=opts_demo
 
-DOC= mainpage.h Doxyfile
+DOC= Doxyfile
 
 OBJ= spmat_utils.o std_options.o
 
 GRAPHS= demo.mm 10_ring.mm 2comps.mm
 
+READMES= README.md histo.md ig.md randperm.md 
+  READMES+= permute_matrix.md transpose_matrix.md
+  READMES+= std_options.md spmat_utils.md
+  READMES+= toposort.md triangle.md sssp.md unionfind.md
+  READMES+= opts_demo.md pytest.md
+
 all: std_options.o spmat_utils.o ${EXE}
-
-doc: html/index.html
-
-test: std_options.o spmat_utils.o ${EXE}
-	pytest -s
 
 std_options.o: std_options.c std_options.h
 	${CC} -g -c std_options.c
@@ -97,8 +98,11 @@ transpose_matrix: transpose_matrix.c std_options.o spmat_utils.o
 sssp: sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o
 	${CC} sssp.c sssp_dijsktra.c sssp_delta.c sssp_bellmanford.c std_options.o spmat_utils.o ${LFLAGS} ${LDFLAGS} -o sssp
 
-html/index.html:
+doc: ${READMES}
 	doxygen
+
+test: std_options.o spmat_utils.o ${EXE}
+	pytest -s
 
 clean:
 	rm -f *.out ${EXE} ${OBJ}
