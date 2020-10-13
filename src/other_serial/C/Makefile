@@ -45,7 +45,7 @@ EXE= histo
   EXE+=demo_spmat
   EXE+=opts_demo
 
-DOC= mainpage.h Doxyfile
+DOC= Doxyfile
 
 OBJ= spmat_utils.o std_options.o
 
@@ -55,7 +55,7 @@ READMES= README.md histo.md ig.md randperm.md
   READMES+= permute_matrix.md transpose_matrix.md
   READMES+= std_options.md spmat_utils.md
   READMES+= toposort.md triangle.md sssp.md unionfind.md
-  READMES+= pytest.md
+  READMES+= opts_demo.md pytest.md
 
 all: std_options.o spmat_utils.o ${EXE}
 

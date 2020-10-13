@@ -795,7 +795,8 @@ INPUT = README.md \
   unionfind.c unionfind.md \
   spmat_utils.h spmat_utils.c spmat_utils.md \
   std_options.h std_options.c std_options.md \
-  pytest.md
+  opts_demo.c opts_demo.md \
+  pytest.md 
 
 # This tag can be used to specify the character encoding of the source files
 # that doxygen parses. Internally doxygen uses the UTF-8 encoding. Doxygen uses
