@@ -163,6 +163,7 @@ int64_t col_iter_next( col_iter_t *citer)
 \param sr a place to return the number of shared references
 \param Lmat the tidy lower triangular part of the adjacency matrix
 \param Umat the tidy upper triangular part of the adjacency matrix (equals transpose(Lmat))
+\param alg used by similar implementations
 \return average run time
 NB: The matrix must be the tidy lower triangular matrix form of the adjacency matrix
 */
