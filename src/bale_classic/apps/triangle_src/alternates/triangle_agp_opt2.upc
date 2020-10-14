@@ -40,9 +40,9 @@ double triangle_agp_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat
   int64_t numpulled=0;
   int64_t l_i, ii, k, kk, kt, num2pull, L_i, L_j;
 
-/*! \brief pull remote gets in a buffer of this size */
-#define PULL_BUF_SIZE 64
-  int64_t w[PULL_BUF_SIZE];
+/*! \brief pull remote gets in a buffer with this many nonzeros */
+#define PULL_BUF_DEPTH 64  //!< the number of things one pulls at a time
+  int64_t w[PULL_BUF_DEPTH];
 
   double t1 = wall_seconds();
   //foreach nonzero (i, j) in L
@@ -58,21 +58,21 @@ double triangle_agp_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat
       if(alg == 0){
         row_start = lgp_get_int64(L->offset, L_j);
         row_end   = lgp_get_int64(L->offset, L_j + THREADS);
-        inc = PULL_BUF_SIZE;
+        inc = PULL_BUF_DEPTH;
         num2pull = row_end - row_start;
         start = L->loffset[l_i];
       }else{
         row_start = lgp_get_int64(U->offset, L_j + THREADS) - 1;
         row_end   = lgp_get_int64(U->offset, L_j);
-        inc = -PULL_BUF_SIZE;
+        inc = -PULL_BUF_DEPTH;
         num2pull = row_start - row_end;
         start = U->loffset[l_i + 1] - 1;
       }
       numpulled += num2pull;
       
       for( kk = row_start; kk >= row_end; kk += inc ){
-        //num2pull = ((row_end - kk) <= PULL_BUF_SIZE) ? row_end - kk : PULL_BUF_SIZE;
-        num2pull_now = (PULL_BUF_SIZE > num2pull ? num2pull : PULL_BUF_SIZE);
+        //num2pull = ((row_end - kk) <= PULL_BUF_DEPTH) ? row_end - kk : PULL_BUF_DEPTH;
+        num2pull_now = (PULL_BUF_DEPTH > num2pull ? num2pull : PULL_BUF_DEPTH);
         num2pull -= num2pull_now;
         if(alg == 0){
           lgp_memget(w,
