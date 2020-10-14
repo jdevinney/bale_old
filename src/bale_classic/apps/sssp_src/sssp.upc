@@ -63,15 +63,16 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B)
 }
 
 /********************************  argp setup  ************************************/
-typedef struct args_t{
+typedef struct args_t {
   double deltaStep; 
   int64_t V0;
   int64_t alg;
   std_args_t std;
   std_graph_args_t gstd;
-}args_t;
+} args_t;
 
-static int parse_opt(int key, char * arg, struct argp_state * state){
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
   args_t * args = (args_t *)state->input;
   switch(key)
     {
@@ -89,21 +90,23 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   return(0);
 }
 
-static struct argp_option options[] =
-  {
-    {"alg", 'a', "flag", 0, "alg: 1==bellman | 2==delta"},
-    {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
-    {"V0", 'V', "NUM", 0, "initial vertex"},  
-    {0}
-  };
+static struct argp_option options[] = {
+  {"alg", 'a', "flag", 0, "alg: 1==bellman | 2==delta"},
+  {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
+  {"V0", 'V', "NUM", 0, "initial vertex"},  
+  {0}
+};
 
-static struct argp_child children_parsers[] =
-  {    
-    {&std_options_argp, 0, "Standard Options", -2},
-    {&std_graph_options_argp, 0, "Standard Graph Options", -3},
-    {0}
-  };
+static struct argp_child children_parsers[] = {    
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
+};
 
+// use the command line switch -a (alg) as an extension of the -M switch
+#define USE_BELLMAN (32) //!< run the Bellman-Ford algorithm
+#define USE_DELTA   (64) //!< run the Delta-Stepping algorithm
+  
 
 int main(int argc, char * argv[])
 {
@@ -170,11 +173,6 @@ int main(int argc, char * argv[])
   int64_t V0 = args.V0;
   double delta = args.deltaStep;
 
-/*! \brief do Bellman-Ford */
-#define USE_BELLMAN (32) // the command line switch -a (alg) is an extension of the -M switch
-/*!  \brief do delta-stepping */
-#define USE_DELTA   (64) 
-  
   for( alg = 1; alg < 3; alg *=2 ){
     use_alg = (args.alg & alg) * 32;
     for( use_model=2L; use_model < 32; use_model *=2 ) {

@@ -238,7 +238,12 @@ int main(int argc, char * argv[]) {
   return(error);
 }
 
-
+/*!
+\brief calculate the number of remote push or pull needed depending on the algorithm used
+\param L the lower triangular matrix
+\param args  to get which algorithm is being used
+\return a pointer to struct that holds both answers
+*/
 push_pull_ctr_t calculate_num_pushes_pulls(sparsemat_t * L, args_t * args){
   int64_t i;
   SHARED int64_t * cc = lgp_all_alloc(L->numrows, sizeof(int64_t));
