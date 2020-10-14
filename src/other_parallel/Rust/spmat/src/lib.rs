@@ -985,10 +985,12 @@ mod tests {
     fn write_read_mm2() {
         let mutex = TestingMutex::new();
         let mat_a = SparseMat::erdos_renyi_tri(100, 0.05, true, false, 0);
-        mat_a
-            .write_mm_file("test_write_read_mm2.mm")
-            .expect("failed write");
-        let mat_b = SparseMat::read_mm_file("test_write_read_mm2.mm").expect("failed read");
+        let f1 = format!(
+            "{}/test_write_read_mm2.mm",
+            std::env::temp_dir().to_str().unwrap()
+        );
+        mat_a.write_mm_file(&f1).expect("failed write");
+        let mat_b = SparseMat::read_mm_file(&f1).expect("failed read");
         assert!(mat_b.value == None);
         assert_eq!(mat_a.compare(&mat_b), true);
         drop(mutex);
@@ -997,11 +999,14 @@ mod tests {
     fn write_read_mm3() {
         let mutex = TestingMutex::new();
         let mut mat_a = SparseMat::erdos_renyi_tri(100, 0.05, true, false, 0);
+        let f1 = format!(
+            "{}/test_write_read_mm3.mm",
+            std::env::temp_dir().to_str().unwrap()
+        );
         mat_a.randomize_values();
-        mat_a
-            .write_mm_file("test_write_read_mm3.mm")
-            .expect("failed write");
-        let mat_b = SparseMat::read_mm_file("test_write_read_mm3.mm").expect("failed read");
+        mat_a.write_mm_file(&f1).expect("failed write");
+
+        let mat_b = SparseMat::read_mm_file(&f1).expect("failed read");
         assert!(mat_b.value != None);
         assert_eq!(mat_a.compare(&mat_b), true);
         drop(mutex);
