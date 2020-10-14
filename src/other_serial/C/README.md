@@ -54,6 +54,7 @@ doxygen for documentation and ``pytest`` for unit testing.
 - Other:
 - [spmat_utils](spmat_utils.md) -- the sparse matrix library and some support functions (see doxygen: spmat_utils.h, spmat_utils.c)
 - [std_options](std_options.md)  -- the command line parsing routines (see doxygen: std_options.h, std_options.c)
+- [opts_demo](opts_demo.md) -- programs to play with if you want to modify command line options (see doxygen: opts_demo.c) 
 
 ## Build Instructions
 This is meant to be basic C, with a simple Makefile, so hopefully just typing 'make' will work.

@@ -2,7 +2,7 @@ Start with the [README](README.md). Also see the [DEMO.md](DEMO.md) for instruct
 
 # Environment Configuration
 
-For this document, let BALEDIR = the directory containing this file.
+See the System Requirments section in [README](README.md).
 
 You can build bale on top of UPC or SHMEM. 
 
@@ -10,6 +10,24 @@ You can build bale on top of UPC or SHMEM.
         the UPCFLAGS variable to whatever options you pass to the compiler (for example:
         UPCFLAGS="-gupc -network=ibv".
 - SHMEM: If you are using openshmem, set CC=oshcc (the openshmem compiler).
+
+For this document, let BALEDIR = the directory containing this file.
+
+#### Docker files
+
+bale now comes with some Docker files to assist you in getting a bale-friendly environment on desktop linux. These files are in the *docker* directory. There are 4 sub-directories here:
+
+- cupc (Clang UPC)
+- gupc (GNU UPC)
+- oshmem (OpenMPI OpenSHMEM)
+- sos (Sandia OpenSHMEM)
+
+Each directory has a file "Dockerfile" that when run will build an evironment that is capable of building all of bale and running bale apps.
+
+We also have public images of the GUPC and oshmem environments on Dockerhub.
+
+- https://hub.docker.com/r/npmolino/bale_public_gupc
+- https://hub.docker.com/r/npmolino/bale_public_oshmem4.0.3
 
 
 # Build and Install

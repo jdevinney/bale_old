@@ -64,9 +64,9 @@ use spmat::SparseMat;
 
 fn main() {
     // figure out parallel environment
-    let convey = Convey::new().expect("Conveyor system initialization failed");
-    let my_rank = convey.my_rank;
-    let num_ranks = convey.num_ranks;
+    let convey = Convey::new().expect("conveyor initializtion failed");
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
 
     // parse the command line arguments
     let matches = App::new("DeltaStepping")

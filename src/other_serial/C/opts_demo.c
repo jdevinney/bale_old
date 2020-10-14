@@ -9,91 +9,115 @@
 /*******************************************************************/
 
 /*! \file opts_demo.c
-\brief Play with options
+example programs that play with commandline options
+*/
+  
+/*!
+\brief Examples to play with modifying and adding commandline options
+
+This is really the same toy program written four different times,
+each given by it own #ifdef.  Un-comment one of the defines
+at a time to play with the different versions.
 */
 
 #include "spmat_utils.h"
 #include "std_options.h"
 
+// Only un-comment one of these at time
+#define STANDARD_OPT_ONLY
+//#define STANDARD_AND_GRAPH_OPTS
+//#define APP_SPECIFIC_OPTS
+//#define STANDARD_AND_REUSE
 
-/********************************  argp setup  ************************************/
-// Starting with defines both set to 0.
-#define GRAPH_OPTS 0
-#define APP_OPTS 0
-// GRAPH_OPTS==0 and APP_OPTS==0 give you just the standard options with default values
+#ifdef STANDARD_OPT_ONLY
+// Compile the demo and try these
 //  ./opts_demo
 //  ./opts_demo --help
 //  ./opts_demo -s 131
 //  ./opts_demo -s 131 -M15
+// This should make a json
 //  ./opts_demo -s 131 -M15 -j opts_demo.json
 // Then find models_mask and uncomment the line to set your own default 
-// Next try (this should fail until we add the GRAPH options)
+// Next try this, which should fail until we add the GRAPH options.
 // ./opts_demo -F
-// define GRAPH_OPTS 1 
-// ./opts_demo --help
-// define APP_OPTS 1  to see how to add an option for an individual app.
-// ./opts_demo
-// ./opts_demo -W 2
-// ./opts_demo -W 2 -Y"You bet ja"
-//
-// Set GRAPH_OPT to 0 and REUSE_OPT to 1
-#define REUSE_OPT 1
-
+/********************************  argp setup  ************************************/
 typedef struct args_t {
-#if APP_OPTS
-  int64_t Wacky;  
-  char Yes_str[128];
-#endif
-#if REUSE_OPT
-  int64_t num_things;
-#endif
   std_args_t std;
-#if GRAPH_OPTS
-  std_graph_args_t gstd;
-#endif
 } args_t;
 
 static int parse_opt(int key, char * arg, struct argp_state * state)
 {
   args_t * args = (args_t *)state->input;
   switch(key) {
-#if APP_OPTS
-  case 'W': args->Wacky = atoi(arg); break;
-  case 'Y': strcpy(args->Yes_str, arg); break;
-#endif
-#if REUSE_OPT
-  case 'N': args->num_things = atoi(arg); break;
-#endif
   case ARGP_KEY_INIT:
-#if APP_OPTS
-    args->Wacky = 0;
-    strcpy(args->Yes_str,"Yes sir.");
-#endif
     state->child_inputs[0] = &args->std;
-#if GRAPH_OPTS
-    state->child_inputs[1] = &args->gstd;
-#endif
     break;
   }
   return(0);
 }
 
 static struct argp_option options[] = {
-#if APP_OPTS
-  {"Wacky",        'W', "NUM", 0, "Wacky FLAG"},
-  {"Yes_str",      'Y', "YES",  0, "Yes string"},
-#endif
-#if REUSE_OPT
-  {"num_things",      'N', "NUM",  0, "numthings, not the graph numrows"},
-#endif 
   {0}
 };
 
 static struct argp_child children_parsers[] = {
   {&std_options_argp, 0, "Standard Options", -2},
-#if GRAPH_OPTS
-  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
+};
+
+int main(int argc, char * argv[]) 
+{
+  args_t args = {0};
+  //args.std.models_mask = 63;  // default value for model_mask can be overridden here
+  struct argp argp = {options, parse_opt, 0, "opts_demo with only standard options", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if (ret < 0) return(ret);
+  else if (ret) return(0);
+
+  write_std_options(&args.std);
+  
+  if(args.std.dump_files) printf("dumpfile is on\n");
+  
+  if(args.std.json) printf("All bale init/write rountines send everything to json file %s\n", args.std.json_output);
+
+  double laptime = 3.141592;
+  bale_app_write_time(&args.std, "playing with options", laptime);
+  bale_app_finish(&args.std);
+  return(0);
+}
 #endif
+#ifdef STANDARD_AND_GRAPH_OPTS
+// With the graph option included, these should now work.
+//  ./opts_demo --help
+//  ./opts_demo -G
+//  ./opts_demo -s 131 -N 17 -M15 -j opts_demo.json
+//
+/********************************  argp setup  ************************************/
+typedef struct args_t {
+  std_args_t std;
+  std_graph_args_t gstd;
+} args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
+  args_t * args = (args_t *)state->input;
+  switch(key) {
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    state->child_inputs[1] = &args->gstd;
+    break;
+  }
+  return(0);
+}
+
+static struct argp_option options[] = {
+  {0}
+};
+
+static struct argp_child children_parsers[] = {
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
   {0}
 };
 
@@ -102,35 +126,156 @@ int main(int argc, char * argv[])
 {
   args_t args = {0};
   args.std.models_mask = 63;  // default value for model_mask can be overridden here
-#if GRAPH_OPTS
   args.gstd.numrows = 100;
-#endif
-  struct argp argp = {options, parse_opt, 0, "opts_demo", children_parsers};
+  struct argp argp = {options, parse_opt, 0, "opts_demo including graph options", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if (ret < 0) return(ret);
   else if (ret) return(0);
 
   write_std_options(&args.std);
-#if GRAPH_OPTS
   write_std_graph_options(&args.std, &args.gstd);
-#endif 
   
   if(args.std.dump_files) printf("dumpfile is on\n");
   
   if(args.std.json) printf("All bale init/write rountines send everything to json file %s\n", args.std.json_output);
-
-#if APP_OPTS
-  if(args.Wacky)
-    printf("%s! This is Wacky times %ld\n", args.Yes_str, args.Wacky);
-#endif
-
-#if REUSE_OPT
-    printf("option -N now means num_things = %ld\n", args.num_things);
-#endif
 
   double laptime = 3.141592;
   bale_app_write_time(&args.std, "playing with options", laptime);
   bale_app_finish(&args.std);
   return(0);
 }
+#endif
+#ifdef APP_SPECIFIC_OPTS
+// You can over write the default values for options like with did above.
+// If you want to add a option, find an available key and do the following
+// and try:
+// ./opts_demo --help
+// ./opts_demo -W 2
+// ./opts_demo -W 2 -Y"You bet ja"
+/********************************  argp setup  ************************************/
+
+typedef struct args_t {
+  int64_t Wacky;  
+  char Yes_str[128];
+  std_args_t std;
+  std_graph_args_t gstd;
+} args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
+  args_t * args = (args_t *)state->input;
+  switch(key) {
+  case 'W': args->Wacky = atoi(arg); break;
+  case 'Y': strcpy(args->Yes_str, arg); break;
+  case ARGP_KEY_INIT:
+    args->Wacky = 0;
+    strcpy(args->Yes_str,"Yes sir.");
+    state->child_inputs[0] = &args->std;
+    state->child_inputs[1] = &args->gstd;
+    break;
+  }
+  return(0);
+}
+
+static struct argp_option options[] = {
+  {"Wacky",        'W', "NUM", 0, "Wacky FLAG"},
+  {"Yes_str",      'Y', "YES",  0, "Yes string"},
+  {0}
+};
+
+static struct argp_child children_parsers[] = {
+  {&std_options_argp, 0, "Standard Options", -2},
+  {&std_graph_options_argp, 0, "Standard Graph Options", -3},
+  {0}
+};
+
+
+int main(int argc, char * argv[]) 
+{
+  args_t args = {0};
+  args.std.models_mask = 63;  // default value for model_mask can be overridden here
+  args.gstd.numrows = 100;
+  struct argp argp = {options, parse_opt, 0, "opts_demo standard, graph, and app specific options", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if (ret < 0) return(ret);
+  else if (ret) return(0);
+
+  write_std_options(&args.std);
+  write_std_graph_options(&args.std, &args.gstd);
+  
+  if(args.std.dump_files) printf("dumpfile is on\n");
+  
+  if(args.std.json) printf("All bale init/write rountines send everything to json file %s\n", args.std.json_output);
+
+  printf("%s! This is Wacky times %ld\n", args.Yes_str, args.Wacky);
+
+  double laptime = 3.141592;
+  bale_app_write_time(&args.std, "playing with options", laptime);
+  bale_app_finish(&args.std);
+  return(0);
+}
+#endif
+#ifdef STANDARD_AND_REUSE
+// For apps without graph options, histo, ig, randperm, 
+// we wanted to make -N be "the order" of the work.
+// Since -N was now be used it becomes available 
+// for an app specific option
+// try: 
+//  ./opts_demo --help
+//  ./opts_demo -s 131
+/********************************  argp setup  ************************************/
+
+typedef struct args_t {
+  int64_t num_things;
+  std_args_t std;
+} args_t;
+
+static int parse_opt(int key, char * arg, struct argp_state * state)
+{
+  args_t * args = (args_t *)state->input;
+  switch(key) {
+  case 'N': args->num_things = atoi(arg); break;
+  case ARGP_KEY_INIT:
+    state->child_inputs[0] = &args->std;
+    break;
+  }
+  return(0);
+}
+
+static struct argp_option options[] = {
+  {"num_things",      'N', "NUM",  0, "numthings, not the graph numrows"},
+  {0}
+};
+
+static struct argp_child children_parsers[] = {
+  {&std_options_argp, 0, "Standard Options", -2},
+  {0}
+};
+
+
+int main(int argc, char * argv[]) 
+{
+  args_t args = {0};
+  args.std.models_mask = 63;  // default value for model_mask can be overridden here
+  struct argp argp = {options, parse_opt, 0, "opts_demo reuse hack", children_parsers};
+  argp_parse(&argp, argc, argv, 0, 0, &args);
+  int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
+  if (ret < 0) return(ret);
+  else if (ret) return(0);
+
+  write_std_options(&args.std);
+  
+  if(args.std.dump_files) printf("dumpfile is on\n");
+  
+  if(args.std.json) printf("All bale init/write rountines send everything to json file %s\n", args.std.json_output);
+
+    printf("option -N now means num_things = %ld\n", args.num_things);
+
+  double laptime = 3.141592;
+  bale_app_write_time(&args.std, "playing with options", laptime);
+  bale_app_finish(&args.std);
+  return(0);
+}
+#endif

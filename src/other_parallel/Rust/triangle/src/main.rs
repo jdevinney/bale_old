@@ -9,7 +9,7 @@
 /// LICENSE file in the top level dirctory of the distribution.
 ///
 use clap::{App, Arg};
-use convey_hpc::collect::ValueCollect;
+use convey_hpc::collect::CollectValues;
 use convey_hpc::Convey;
 use triangle::Triangle;
 
@@ -85,12 +85,14 @@ fn main() {
     let gen_kron = matches.is_present("gen_kron");
     let gen_kron_str = matches.value_of("gen_kron").unwrap_or("");
 
-    let convey = Convey::new().expect("Conveyor system initializtion failed");
     let seed = 12346;
-    let quiet = matches.is_present("quiet") || convey.my_rank > 0;
+    let convey = Convey::new().expect("Conveyor initialzation failed");
+    let my_rank = convey.my_rank();
+    let num_ranks = convey.num_ranks();
+    let quiet = matches.is_present("quiet") || my_rank > 0;
     let _dump_files = matches.is_present("dump_files");
 
-    let numrows = numrows_per_rank * convey.num_ranks;
+    let numrows = numrows_per_rank * num_ranks;
 
     if erdos_renyi_prob == 0.0 {
         // use nz_per_row to get erdos_renyi_prob
@@ -104,7 +106,7 @@ fn main() {
     }
 
     if !quiet {
-        println!("Running triangle on {} ranks", convey.num_ranks);
+        println!("Running triangle on {} ranks", num_ranks);
         println!("Number of rows per rank     (-n) {}", numrows_per_rank);
         println!("Algorithm                   (-a) {}", alg);
         if gen_kron {
@@ -185,8 +187,8 @@ fn main() {
             }
             triret = mat.triangle_pull(upper);
         }
-        let tot_shref = mat.reduce_sum(triret.sh_refs);
-        let tot_tri_cnt = mat.reduce_sum(triret.tri_cnt);
+        let tot_shref = triret.sh_refs.reduce_sum();
+        let tot_tri_cnt = triret.tri_cnt.reduce_sum();
         if !quiet {
             println!(
                 " {:.4} seconds, {} Shrefs, {} Triangles",

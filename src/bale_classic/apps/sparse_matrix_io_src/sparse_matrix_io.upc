@@ -49,6 +49,7 @@ for the source for the kernels.
 /********************************  argp setup  ************************************/
 typedef struct args_t{
   int64_t num_readers;
+  char dir_path[128];
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
@@ -58,6 +59,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
   switch(key)
     {
     case 'r': args->num_readers = atoi(arg); break;
+    case 'p': strcpy(args->dir_path,arg); break;
     case ARGP_KEY_INIT:
       state->child_inputs[0] = &args->std;
       state->child_inputs[1] = &args->gstd;
@@ -69,6 +71,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state){
 static struct argp_option options[] =
   {
     {"num_readers", 'r', "NUM", 0, "Specify the number of PEs to read the written matrix back in."},
+    {"dir_path", 'p', "PATH", 0, "Specify an alternate name for the dataset directory. Default is 'write_matrix_dir"},
     {0}
   };
 
@@ -90,10 +93,12 @@ int main(int argc, char * argv[])
 
   args.gstd.l_numrows = 1000000;
   args.num_readers = -1;
+  strcpy(args.dir_path, "write_matrix_dir");
+
   int ret = bale_app_init(argc, argv, &args, sizeof(args_t), &argp, &args.std);
   if(ret < 0) return(ret);
   else if(ret) return(0);
-
+  
   if(args.num_readers == -1)
     args.num_readers = THREADS;
   
@@ -110,25 +115,23 @@ int main(int argc, char * argv[])
   //print_matrix(inmat);
   double t1;
   minavgmaxD_t stat[1];
-  char * datadir = calloc(64, sizeof(char));
   char model_str[32];
   int64_t use_model;
   int error = 0;
   sparsemat_t * readmat;
-  sprintf(datadir,"%s","write_matrix_dir");
   
   for( use_model=1L; use_model < 32; use_model *=2 ) {
     t1 = wall_seconds();
     switch( use_model & args.std.models_mask ) {
     case AGP_Model:
       sprintf(model_str, "AGP");
-      write_sparse_matrix_agp(datadir, inmat);
-      readmat = read_sparse_matrix_agp(datadir, args.num_readers);
+      write_sparse_matrix_agp(args.dir_path, inmat);
+      readmat = read_sparse_matrix_agp(args.dir_path, args.num_readers);
       break;
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      write_sparse_matrix_exstack(datadir, inmat, args.std.buf_cnt);
-      readmat = read_sparse_matrix_exstack(datadir, args.num_readers, args.std.buf_cnt);
+      write_sparse_matrix_exstack(args.dir_path, inmat, args.std.buf_cnt);
+      readmat = read_sparse_matrix_exstack(args.dir_path, args.num_readers, args.std.buf_cnt);
       break;
     case EXSTACK2_Model:
       continue;
@@ -161,7 +164,6 @@ int main(int argc, char * argv[])
     bale_app_write_time(&args.std, model_str, stat->avg);
   }
   
-  free(datadir);
   clear_matrix(inmat); free(inmat);
   lgp_barrier();
   bale_app_finish(&args.std);

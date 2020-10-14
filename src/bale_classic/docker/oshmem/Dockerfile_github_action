@@ -4,7 +4,7 @@ FROM npmolino/bale_public_oshmem4.0.3:v1
 
 RUN apt-get -y update \
     && apt-get install -y --no-install-recommends \
-	vim less curl python3 python3-pip
+	vim less curl python3 python3-setuptools python3-pip
 
 RUN ln -s /usr/bin/python3 /usr/bin/python && \
     ln -s /usr/bin/pip3 /usr/bin/pip
@@ -18,7 +18,7 @@ WORKDIR /opt/bale_private/src/bale_classic
 RUN ./bootstrap.sh
 ENV CC oshcc 
 ENV PLATFORM oshmem
-RUN ./install.sh -s
+RUN ./make_bale -s
 
 RUN echo "---- done with install ----"
 

@@ -30,9 +30,14 @@ set. Likewise for columns. Hence, there must be a row in **M** with a
 single non-zero.  If we remove that row and the column it intersects,
 we are left with smaller, morally unit upper triangular matrix. This is the
 motivation behind a simple algorithm (and the outline of an induction
-proof of its correctness).
+proof of its correctness).  
 
-The outline of an algorithm is as follows:
+In the following graphic for the algorithm we labeled the nonzeros with 
+letters to help follow the permutations.
+
+<img src="../../../../images/toposort.png" alt="picture of toposort" align=center style="height: 400px;"/>
+
+An outline of an algorithm is as follows:
 
 Let **M** be an N by N morally unit-upper-triangular matrix. 
 ```

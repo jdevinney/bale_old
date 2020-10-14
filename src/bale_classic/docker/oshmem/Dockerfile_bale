@@ -16,7 +16,7 @@ WORKDIR /opt/bale_private
 RUN ./bootstrap.sh
 ENV CC oshcc
 ENV PLATFORM oshmem
-RUN ./install.sh -s
+RUN ./make_bale -s
 
 RUN echo "---- done with install ----"
 

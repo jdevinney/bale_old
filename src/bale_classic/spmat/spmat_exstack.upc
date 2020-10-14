@@ -545,7 +545,6 @@ sparsemat_t * read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64
     }
   }
   
-  //exstack_clear(ex);
   exstack_reset(ex);
   lgp_barrier();
   
@@ -569,7 +568,7 @@ sparsemat_t * read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64
   for(i = 0; i < THREADS; i++){
     offset[i] = A->loffset[spd->global_first_row_to_me[i]/THREADS];
   }
-  //ex = exstack_init(buf_cnt, sizeof(int64_t));
+  
   if(spd->values)
     vex = exstack_init(buf_cnt, sizeof(double));
   
@@ -582,7 +581,9 @@ sparsemat_t * read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64
   /****************************************************/
   int64_t buf_size = 512*512;
   int64_t * buf = calloc(buf_size, sizeof(int64_t));
-  double * vbuf = calloc(buf_size, sizeof(double));
+  double * vbuf;
+  if(spd->values)
+    vbuf = calloc(buf_size, sizeof(double));  
   int64_t tot_rows_read = 0;
   int64_t global_row = spd->global_first_row;
   int64_t pos = 0;
@@ -591,10 +592,10 @@ sparsemat_t * read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64
   int64_t num_rows_read = 0;
   int64_t nnz_read = 0;
   int64_t rc = 0;
-  int imdone = 0;
+  int64_t pe;
   
   while(exstack_proceed(ex, (tot_rows_read == spd->lnumrows))){
-    int64_t pe, col;
+    int64_t col;
     double val;
     int loop_break = (tot_rows_read == spd->lnumrows);
     
@@ -737,10 +738,6 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
       last_row[i-1] = current_row_to_th[i];
   }
   last_row[THREADS - 1] = mat->numrows;
-
-  //for(i = 0; i < THREADS; i++)
-    //T0_fprintf("%d first_pe = %"PRId64" last_row[%d]= %"PRId64" current_row_to_th[%"PRId64"] = %"PRId64"\n", MYTHREAD, first_pe, i, last_row[i], i, current_row_to_th[i]);
-  
   
   /* open nonzero file */
   char fname[128];
@@ -750,7 +747,12 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
   /*********************************/
   /*        WRITE OUT DATASET      */
   /*********************************/
-  //T0_fprintf(stderr, "Writing data...");
+  /* For each PE, we keep track of what row we are currently on for that PE (current_row_to_th).
+     Each exstack pass, we add rows_per_pass rows worth of nonzero data to the buffer for that PE.
+     This is a very different kind of exstack loop, where we don't rely on exstack to tell us when we
+     are done, but rather carefully push an amount of data in each pass that will not overflow the 
+     buffers.
+  */
   
   int64_t room;
   num_passes = (nr + THREADS - 1)/THREADS;
@@ -844,6 +846,5 @@ int64_t write_sparse_matrix_exstack( char * dirname, sparsemat_t * mat, int64_t 
 
   lgp_barrier();
 
-  //T0_fprintf(stderr,"***** End writing sparse matrix %s *****\n", dirname);
   return(0);
 }
