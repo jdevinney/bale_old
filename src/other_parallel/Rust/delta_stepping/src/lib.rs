@@ -726,7 +726,7 @@ mod tests {
     #[test]
     fn delta_stepping_sparse() {
         let mutex = TestingMutex::new();
-        let input_file = "erdosrenyi/sparse100.mm";
+        let input_file = "../../../../example_matrices/sparse100.mm";
         let mat = SparseMat::read_mm_file(input_file).expect("can't read input file");
         let source = 2;
         let forced_delta = None;
