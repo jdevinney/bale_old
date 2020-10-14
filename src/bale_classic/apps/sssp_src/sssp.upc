@@ -64,9 +64,9 @@ double sssp_answer_diff(d_array_t *A, d_array_t *B)
 
 /********************************  argp setup  ************************************/
 typedef struct args_t {
-  double deltaStep; 
-  int64_t V0;
-  int64_t alg;
+  double deltaStep;         //!< command line supplied delta step value
+  int64_t V0;               //!< the starting vertex
+  int64_t alg;              //!< which algorithm (1=Bellman-Ford | 2=Delta-stepping)
   std_args_t std;
   std_graph_args_t gstd;
 } args_t;

@@ -1284,7 +1284,7 @@ void clear_triples(triples_t * T) {
 }
 
 /*! \brief frees the space allocated for an spmat_dataset_t
- * \param T pointer to the spmat_dataset_t
+ * \param spd pointer to the spmat_dataset_t
  * \ingroup spmatgrp
  */
 void clear_spmat_dataset(spmat_dataset_t * spd){

@@ -69,7 +69,7 @@ typedef struct push_pull_ctr_t{
 }push_pull_ctr_t;
 
 typedef struct args_t{
-  int alg;
+  int alg;                        //!< which alg (pushing to or pulling from) remote rows
   std_args_t std;
   std_graph_args_t gstd;
 }args_t;
