@@ -158,7 +158,7 @@ int main(int argc, char * argv[]) {
   int64_t correct_answer = -1;
   int wrote_num_triangles = 0;
   if(args.gstd.model == KRONECKER){
-    correct_answer = calculate_num_triangles(args.gstd.kron_mode, args.gstd.kron_spec, args.gstd.kron_num);
+    correct_answer = calc_num_tri_kron_graph(args.gstd.kron_mode, args.gstd.kron_spec, args.gstd.kron_num);
     bale_app_write_int(&args.std, "num_triangles", correct_answer);
     wrote_num_triangles = 1;
   }
@@ -191,12 +191,12 @@ int main(int argc, char * argv[]) {
     
     case EXSTACK_Model:
       sprintf(model_str, "Exstack");
-      laptime = triangle_exstack_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
+      laptime = triangle_exstack_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buf_cnt);
       break;
 
     case EXSTACK2_Model:
       sprintf(model_str, "Exstack2");
-      laptime = triangle_exstack2_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buffer_size);
+      laptime = triangle_exstack2_push(&tri_cnt, &sh_refs, L, U, args.alg, args.std.buf_cnt);
       break;
 
     case CONVEYOR_Model:

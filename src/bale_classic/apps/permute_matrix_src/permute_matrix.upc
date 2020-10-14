@@ -117,12 +117,12 @@ int main(int argc, char * argv[]) {
       break;
 
     case EXSTACK_Model:
-      outmat = permute_matrix_exstack(inmat, rp, cp, args.std.buffer_size);
+      outmat = permute_matrix_exstack(inmat, rp, cp, args.std.buf_cnt);
       sprintf(model_str, "Exstack");
       break;
 
     case EXSTACK2_Model:
-      outmat = permute_matrix_exstack2(inmat, rp, cp, args.std.buffer_size);
+      outmat = permute_matrix_exstack2(inmat, rp, cp, args.std.buf_cnt);
       sprintf(model_str, "Exstack2");
       break;
 

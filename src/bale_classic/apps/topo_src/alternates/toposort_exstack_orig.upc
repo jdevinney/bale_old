@@ -19,12 +19,6 @@
 
 #include "toposort.h"
 
-/*! \brief the package struct for exstack */
-typedef struct pkg_rowcol_t{                      //TODO use one package for all exs
-  int64_t row;   /*!< local row */
-  int64_t col;   /*!< column */
-}pkg_rowcol_t;
-
 /*!
 \brief This routine implements the exstack variant of toposort. 
 \param rperm place to return the row permutation that is found
@@ -33,7 +27,14 @@ typedef struct pkg_rowcol_t{                      //TODO use one package for all
 \param tmat the transpose of mat
 \return average run time
  */
-double toposort_matrix_exstack_orig(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat){
+double toposort_matrix_exstack_orig(SHARED int64_t *rperm, SHARED int64_t *cperm, sparsemat_t *mat, sparsemat_t *tmat)
+{
+  /*! \brief the package struct for exstack */
+  typedef struct pkg_rowcol_t{
+    int64_t row;   /*!< local row */
+    int64_t col;   /*!< column */
+  }pkg_rowcol_t;
+
   int64_t nr = mat->numrows;
   int64_t nc = mat->numcols;
   int64_t lnr = (nr + THREADS - MYTHREAD - 1)/THREADS;

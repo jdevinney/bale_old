@@ -162,9 +162,9 @@ double sssp_delta_convey(d_array_t *dist, sparsemat_t * mat, int64_t r0, double 
     }
     while( delta_convey_relax_process(ds, conv, 1) )
       ;
-    lgp_barrier();            // TODO needed?
-    convey_reset(conv);
-    lgp_barrier();            // TODO needed?
+    lgp_barrier();
+    convey_reset(conv); // Does convey_reset imply barriers?
+    lgp_barrier();
   }
 
   lgp_barrier();

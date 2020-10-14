@@ -161,13 +161,12 @@ int64_t col_iter_next( col_iter_t *citer)
 \brief This routine implements another AGP variant of triangle counting
 \param count a place to return the counts from this thread
 \param sr a place to return the number of shared references
-\param Lmat the tidy lower triangular part of the adjacency matrix    //TODO transpose ???
-\param Umat the tidy lower triangular part of the adjacency matrix    //TODO
-\param alg which algorithm push to remote rows or pull from remote rows
+\param Lmat the tidy lower triangular part of the adjacency matrix
+\param Umat the tidy upper triangular part of the adjacency matrix (equals transpose(Lmat))
 \return average run time
 NB: The matrix must be the tidy lower triangular matrix form of the adjacency matrix
 */
-double triangle_agp_iter(int64_t *count, int64_t *sr, sparsemat_t * Lmat, sparsemat_t * Umat, int64_t alg){        //TODO remove alg arg
+double triangle_agp_iter(int64_t *count, int64_t *sr, sparsemat_t * Lmat, sparsemat_t * Umat, int64_t alg){
   int64_t cnt=0;
   int64_t numpulled=0;
   int64_t U,W,V,H;

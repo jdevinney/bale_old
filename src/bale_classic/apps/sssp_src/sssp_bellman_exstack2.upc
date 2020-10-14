@@ -67,8 +67,8 @@ static int64_t bellman_exstack2_push(exstack2_t *ex2, d_array_t *tent, int64_t J
 \param buf_cnt the number of packages in an exstack buffer
 \param v0 is the given staring row (vertex)
 \return average run time
- */
-double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t v0)    // TODO consisent check
+*/
+double sssp_bellman_exstack2(d_array_t *dist, sparsemat_t * mat, int64_t buf_cnt, int64_t v0)
 {
   double t1 = wall_seconds();
 

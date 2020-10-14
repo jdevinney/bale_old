@@ -18,12 +18,10 @@
  */
 #include "ig.h"
   
-/*!
-\brief the package struct for elements of the exstack buffers               //TODO make these uniform
-*/
+/*! \brief the package struct for elements of the exstack buffers */
 typedef struct index_val_t {
-  int64_t i;                      /*!< this local index on the "remote" thread */
-  int64_t idx;                    /*!< the global index */
+  int64_t i;          /*!< this local index */
+  int64_t idx;        /*!< the local index on remote thread OR the return value value */
 } index_val_t;
 
 /*!
@@ -33,7 +31,6 @@ typedef struct index_val_t {
  * \param *ltable localized pointer to the count array
  * \param imdone flag for this thread
  * \return average run time
- *
  */
 void ig_exstack_service(exstack_t *ex, int64_t *tgt, int64_t *ltable, int64_t imdone ) {
   int64_t fromth;
