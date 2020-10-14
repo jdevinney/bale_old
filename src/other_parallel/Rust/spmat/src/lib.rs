@@ -500,10 +500,7 @@ impl SparseMat {
             }
             writeln!(f, "{} {} {}", self.numrows, self.numcols, self.nnz)
                 .expect("can't write .mm file");
-            Some(file)
-        } else {
-            None
-        }));
+        };
         {
             let mut session = Convey::begin(|entry: Entry, _from_rank| {
                 // only rank 0 will ever get asked to do this
