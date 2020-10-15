@@ -20,7 +20,7 @@ The bale effort is, first and foremost, *a vehicle for discussion* for parallel 
 
 The bale effort attempts to:
 
-- demonstrate some challenges of implementing interesting (i.e. irregular) scalable distributed parallel applications.
+- demonstrate some challenges of implementing interesting (i.e. irregular) scalable distributed parallel applications
 
 - demonstrate an approach to achieving high performance for the internode communication in such applications
 
@@ -38,11 +38,11 @@ Note: We call this directory bale classic because this collection of code is the
 
 **Aggregation**
 
-bale_classic contains three libraries that provide the programmer with an API to aggregate communications within application code. These libraries are: exstack, exstack2, and conveyors. And while their API's are quite similar, they differ in their underlying implementations and behaviors. We think aggregation is and will remain vital to getting top performance on parallel computers, but we don't like how difficult it is to write programs that use aggregation
+bale_classic contains three libraries that provide the programmer with an API to aggregate communications within application code. These libraries are: exstack, exstack2, and conveyors. And while their API's are quite similar, they differ in their underlying implementations and behaviors. We think aggregation is and will remain vital to getting top performance on parallel computers, but we don't like how difficult it is to write programs that use aggregation.
 
-**Apps**
+**[Apps](apps/README.md)**
 
-bale_classic also contains a directory of [apps](apps/README.md) that exhibit interesting communication patterns and programming demands. The apps can be written with aggregated communication as opposed to fine-grained point-to-point communication. Each app is written in multiple ways to demonstrate the pros and cons of each. 
+bale_classic also contains a directory of "apps" that exhibit interesting communication patterns and programming demands. The apps can be written with aggregated communication as opposed to fine-grained point-to-point communication. Each app is written in multiple ways to demonstrate the pros and cons of each. 
 
 One of the questions we ask ourselves in bale is what is the "best" version of an app? Obviously subjective, we consider ease of reading, ease of understanding what is happening when the code runs, ease of writing, and performance. We call this elusive version, "**From the Book**" or FTB in honor of [Paul Erdos](https://en.wikipedia.org/wiki/Proofs_from_THE_BOOK).
 
@@ -51,11 +51,11 @@ One of the questions we ask ourselves in bale is what is the "best" version of a
 The main components are :
 
 - [libgetput](libgetput/README.md)  - parallel programming library allowing simple remote gets, puts, and atomics. libgetput can be compiled on top of UPC or SHMEM. Everything in bale except conveyors is built on top of libgetput.
-- [exstack](exstack/README.md)   - The exstack and exstack2 libraries for aggregating communication
-- [convey](convey/README.md) - The conveyor library for aggregating communication. More mature and sophisticated aggregation library than the exstacks.
-- [spmat](spmat/README.md)  -  a sparse matrix library
-- [std_options](std_options/README.md) - options parsing library
-- [apps](apps/README.md)  -  the applications directory.
+- [exstack](exstack/README.md)   - the xstack and exstack2 libraries for aggregating communication
+- [convey](convey/README.md) - the conveyor library for aggregating communication (a more mature and sophisticated aggregation library than the exstacks)
+- [spmat](spmat/README.md)  -  the sparse matrix library
+- [std_options](std_options/README.md) - command line options parsing library
+- [apps](apps/README.md)  -  the applications directory
 
 ### System Requirements
 bale_classic is written in C and can be compiled with UPC or linked against OpenSHMEM 1.4. bale_classic has been tested on a variety of architectures including Cray XC30, clusters with Infiniband, and SMP Linux. See [INSTALL.md](INSTALL.md) for detailed build instructions and [DEMO.md](DEMO.md) for some quick installation demos.
@@ -112,6 +112,6 @@ We have a unit test script that uses pytest as a harness. To run this test, firs
 
     pytest -s -P=<path/to/bale/binaries> --node_range=0,10,2 -M 15
 
-If you get an error that claims that pytest cannot load the conftest.py file, I have found that deleting the
+If you get an error that claims that pytest cannot load the conftest.py file, We have found that deleting the
 __pycache__ directories from the apps and apps/tests directories fixes this.
 

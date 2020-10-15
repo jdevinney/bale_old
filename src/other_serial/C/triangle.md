@@ -3,6 +3,7 @@
 Find the number of triangles in a given simple unweighted graph. 
 
 A triangle is a set of three vertices {u,w,v} where edges {u,w}, {w,v} and {u,v} are in the graph.
+
 ### Algorithm
 This uses matrix algebra approach to counting triangles in a graph.
 Given, L,  the (strictly) lower triangular matrix that holds the undirected graph,
@@ -12,9 +13,13 @@ Recall that  U = L transpose.
 
 ### Discussion
 This is here to shadow the algorithms in bale_classic. 
-The amount of work done in these two products depends on the matrix.
-It is important to us that communication pattern in the parallel app
-differs between these product (and still depends on the row densities in the matrix).
+
+The amount of work done in these formulations depends on the matrix.
+This is interesting and well studied even in the serial case, but not here.
+
+In the parallel case, it is even more interesting because it depends 
+on ones ability to push or pull information remotely as well as the 
+row densities in the matrix.
 
 ### References
 See the book, "Graph Algorithms in the Language of Linear Algebra",

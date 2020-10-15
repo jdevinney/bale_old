@@ -14,7 +14,7 @@ Goals of our sparse matrix dataset:
 * We would also like the data to be laid out in row-major order on disk. That would make it more convenient to explore the data on disk if necessary.
 * We would like to be able to read/write a sparse matrix without allocating a lot of extra memory (for example, a whole matrix worth of memory is unacceptable).
 
-All of these goals are automatically and easily achieved using BLOCK layout. However, as we mentioned, CYCLIC layout has its perks too. Also, that would not be that interesting. So for bale, we are going to concentrate on reading matrices from a sparse matrix dataset (with the properties above) into memory in CYCLIC layout, and writing a matrix in CYCLIC layout onto disk as a sparse matrix dataset.
+All of these goals are automatically and easily achieved using BLOCK layout. However, as we mentioned, CYCLIC layout has its perks too. Also, that would not be that interesting. So for bale, we are going to concentrate on reading matrices from a sparse matrix dataset (with the properties above) into memory in CYCLIC layout, and writing a matrix in BLOCK layout onto disk as a sparse matrix dataset.
 
 Another interesting idea for the write is to always just dump the data in CYCLIC layout. Then when reading back in, the PEs need to figure out which rows they read and where those rows go. This can be tricky since the rows are laid out in a way that depends on the number of writing PEs and the communication pattern during the read depends on the number of PEs used to write and how many are reading. We do not pursue this idea in bale.
 

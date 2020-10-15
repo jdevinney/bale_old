@@ -19,10 +19,10 @@ and target is a local array where we record the results of the remote reads. Sim
 Indexgather is another rather simple application. Just like histogram, it is important because it represents a pattern of communication that is frequently used in parallel applications. In terms of difficulty to aggregate though, it is a step up from histogram.
 
 Below is indexgather written with exstack. Note that we need three distinct phases. 
-In phase 1, we send out requests for the remote read. 
-In phase 2, we process requests (pop them off in-buffers, 
+  - In phase 1, we send out requests for the remote read. 
+  - In phase 2, we process requests (pop them off in-buffers, 
  look up the requested index in the table, and push them back onto out-buffers). 
-In phase 3, we receive our processed requests and record their values in our tgt array.
+  -In phase 3, we receive our processed requests and record their values in our tgt array.
 
 ```c
 while( exstack_proceed(ex, (i==l_num_req)) ) {

@@ -3,8 +3,10 @@
 Besides their uses in physical sciences, sparse matrices are also useful in representing the adjacency matrix of a graph. The spmat library in bale is mostly a collection of functions that act on sparse matrices or graphs. There are also a few functions that act on or create permutations of the numbers {0,..., n-1}.
 
 #### Data Structure
-The main data structure in this library is a distributed sparse matrix (implemented as Compressed Sparse Row (CSR)). **The rows are distributed to PEs in a round-robin (CYCLIC) fashion and all nonzeros of any given row have affinity to a single PE**. The sparse matrix data structure also has a
-pointer to the local slice of the matrix for each PE. So to look at the nonzeros on your own PE the code looks like this:
+The main data structure in this library is a distributed sparse matrix (implemented as Compressed Sparse Row (CSR)). 
+**The rows are distributed to PEs in a round-robin (CYCLIC) fashion and all nonzeros of any given row have affinity to a single PE**. 
+NB: This scheme balances the distribution of the matrix across the machine by **rows** not necessarily by **nonzeros**.
+The sparse matrix data structure also has a pointer to the local slice of the matrix for each PE. So to look at the nonzeros on your own PE the code looks like this:
 
 ```c
 sparsemat_t * A;
@@ -40,12 +42,11 @@ point however for applications that require values.
 #### A Graph is a Matrix (and a Matrix can be a graph)
 The adjacency matrix of an undirected graph with N vertices is an N by N matrix
 where the (i,j) element is nonzero if there is an edge between vertex
-i and vertex j. For a directed graph, there element (i,j) is nonzero
-if there is an edge **from** vertex i to vertex j. In bale, all
+i and vertex j. For a directed graph, the element (i,j) is nonzero
+if there is an edge **from** vertex i **to** vertex j. In bale, all
 undirected graphs are represented by a square lower triangular
 matrix. This is the lower half of the symmetric adjacency matrix. A
-directed graph is represented by a square matrix (no necessarily
-special form).
+directed graph is represented by a square matrix.
 
 #### App-like functions
 Several functions in this library are instructive enough that they are

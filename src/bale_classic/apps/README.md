@@ -16,13 +16,13 @@ Each of the applications in bale are implemented in multiple ways to showcase th
 
 ### List of apps
 
-- [histogram](histo_src/README.md)
-- [indexgather](ig_src/README.md)
-- [transpose_matrix](transpose_matrix_src/README.md) 
-- [randperm](randperm_src/README.md)
-- [permute_matrix](permute_matrix_src/README.md)
-- [triangle counting](triangle_src/README.md)
-- [toposort](topo_src/README.md) 
-- [sparse_matrix_io](sparse_matrix_io_src/README.md)
-- [Single Source Shortest Path (sssp)](sssp_src/README.md)
+- [histo](histo_src/README.md)  -- histogram
+- [indexgather](ig_src/README.md) -- index_gater
+- [transpose_matrix](transpose_matrix_src/README.md)  -- matrix transpose
+- [randperm](randperm_src/README.md) -- random array of integers
+- [permute_matrix](permute_matrix_src/README.md) -- permute a matrix
+- [triangle counting](triangle_src/README.md) -- count the triangles in a graph
+- [toposort](topo_src/README.md) -- topologically sort a matrix
+- [sparse_matrix_io](sparse_matrix_io_src/README.md) -- distributed sparse matrix I/O
+- [sssp](sssp_src/README.md) -- single source shortest path problem
 

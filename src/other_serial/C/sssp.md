@@ -5,7 +5,7 @@ We are given the adjacency matrix for a graph with non-negative edge weights *c(
 and a given source vertex, *v_0*.
 We wish to find the lightest weighted path from *v_0* to all other vertices,
 where the weight of a path is the sum of the weights of the edges in the path.
-Note, if the graph is undirected we are given the full (symmetric) adjacency matrix.
+Note, if the graph is undirected we work with the full (symmetric) adjacency matrix.
 
 ### Algorithms
 We consider three algorithms: Dijsktra's, Delta-Stepping, and Bellman-Ford.
