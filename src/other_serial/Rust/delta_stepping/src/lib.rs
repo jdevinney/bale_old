@@ -71,7 +71,7 @@ impl SsspInfo {
         Ok(())
     }
 
-    /// Dump output distances to a file in Phil's .wts format
+    /// Dump output distances to a file foo.wts 
     pub fn dump_wts(&self, filename: &str) -> Result<(), Error> {
         let path = Path::new(&filename);
         let mut file = OpenOptions::new().write(true).create(true).open(path)?;

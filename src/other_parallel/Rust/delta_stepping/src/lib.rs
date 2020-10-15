@@ -76,7 +76,7 @@ impl SsspInfo {
         Ok(())
     }
 
-    /// Write output distances to a file in Phil's format, collecting them all on rank 0
+    /// Write output distances to a file, collecting them all on rank 0
     pub fn write_dst(&self, filename: &str) -> Result<(), Error> {
         let convey = Convey::new().expect("conveyor initializtion failed");
         let my_rank = convey.my_rank();
