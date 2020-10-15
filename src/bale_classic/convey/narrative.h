@@ -163,4 +163,14 @@ The \b indexgather example illustrates two-way communication.  It uses a
 request conveyor and a reply conveyor simultaneously to gather values from
 a distributed array.
 
+\example bigather.c
+A version of the \b indexgather example using a single biconveyor rather
+than a pair of conveyors.
+
+\example meld.c
+The \b meld example illustrates a loop that combines data from two parallel
+data structures. It relies on the strong progress guarantees of
+biconveyors. If the loop were written with two pairs of conveyors rather
+than two biconveyors, it would not work; it would be prone to deadlock.
+
 */

@@ -25,4 +25,6 @@ target/
 html/
 latex/
 t
+
+#ignore apple DS_Store
 .DS_Store

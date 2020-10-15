@@ -30,13 +30,28 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
+#include <string.h>
 #include "example.h"
+#include "biconvey.h"
 
-typedef struct {
-  long slot;
-  long value;
-} packet_t;
+static void
+check_bike(int err, const char* method)
+{
+  if (err < 0) {
+    fprintf(stderr, "biconveyor error in %s: %s\n", method,
+	    convey_error_string(NULL, err));
+    exit(EXIT_FAILURE);
+  }
+}
+
+static void
+lookup(const void* query, void* reply, void* context)
+{
+  long* source = context;
+  long local;
+  memcpy(&local, query, sizeof(long));
+  memcpy(reply, &source[local], sizeof(long));
+}
 
 int
 main(int argc, char* argv[])
@@ -72,44 +87,34 @@ main(int argc, char* argv[])
     }
   }
 
-  convey_t* request = convey_new(SIZE_MAX, 0, NULL, convey_opt_ALERT | convey_opt_SCATTER);
-  convey_t* reply = convey_new(SIZE_MAX, 0, NULL, convey_opt_ALERT);
+  // biconvey_t* bike = biconvey_new(SIZE_MAX, 0, NULL, convey_opt_ALERT);
+  biconvey_t* bike = biconvey_new_simple(100, NULL, NULL, convey_opt_ALERT);
 
-  if (request && reply && index && source && target) {
+  if (bike && index && source && target) {
     // Transpose, then perform inverse transpose
     for (int loop = 0; loop < 2; loop++) {
-      convey_begin(request, sizeof(packet_t), alignof(packet_t));
-      convey_begin(reply, sizeof(packet_t), alignof(packet_t));
+      int err = biconvey_begin(bike, sizeof(long), sizeof(long), &lookup, source);
+      check_bike(err, "begin");
 
-      /*** START OF CONVEYOR LOOP ***/
-      long n = 0;
-      bool more;
-      while (more = convey_advance(request, n == dim),
-             more | convey_advance(reply, !more)) {\
-        for (; n < dim; n++) {
-          packet_t packet = { .slot = n, .value = index[n] / n_procs };
-          long pe = index[n] % n_procs;
-          if (! convey_push(request, &packet, pe))
+      /*** START OF BICONVEYOR LOOP ***/
+      long i = 0, j = 0;
+      while (biconvey_advance(bike, i == dim)) {
+        for (; i < dim; i++) {
+	  long query = index[i] / n_procs;
+          long pe = index[i] % n_procs;
+          if (! biconvey_push(bike, &query, pe))
             break;
+	  // fprintf(stderr, "pushed query[%ld] = %ld\n", i, query);
         }
-
-        packet_t* p;
-        int64_t from;
-        while ((p = convey_apull(request, &from)) != NULL) {
-          packet_t packet = { .slot = p->slot, .value = source[p->value] };
-          if (! convey_push(reply, &packet, from)) {
-            convey_unpull(request);
-            break;
-          }
-        }
-
-        while ((p = convey_apull(reply, NULL)) != NULL)
-          target[p->slot] = p->value;
+	while (biconvey_pull(bike, &target[j])) {
+	  // fprintf(stderr, "got reply[%ld] = %016lx\n", j, target[j]);
+	  j++;
+	}
       }
-      /*** END OF CONVEYOR LOOP ***/
+      /*** END OF BICONVEYOR LOOP ***/
 
-      convey_reset(reply);
-      convey_reset(request);
+      err = biconvey_reset(bike);
+      check_bike(err, "reset");
 
       long* temp;
       temp = source, source = target, target = temp;
@@ -120,7 +125,8 @@ main(int argc, char* argv[])
     bool ok = true;
     for (long i = 0; ok && i < dim; i++)
       if (source[i] != original[i]) {
-        printf("ERROR: %ld[%ld] is wrong\n", my_proc, i);
+        printf("ERROR: %ld[%ld] is wrong (%lx should be %lx)\n",
+	       my_proc, i, source[i], original[i]);
         ok = false;
       }
     if (ok && my_proc == 0)
@@ -131,8 +137,7 @@ main(int argc, char* argv[])
       status = EXIT_SUCCESS;
   }
 
-  convey_free(reply);
-  convey_free(request);
+  biconvey_free(bike);
   free(original);
   free(target);
   free(source);

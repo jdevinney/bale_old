@@ -103,7 +103,9 @@ void xshmem_broadcast64(void* data, size_t count, int root);
 // The arrays recv, recv_bytes, send, send_bytes must be symmetric
 int xshmem_alltoallv(char* recv, size_t recv_bytes[],
                      char* send, size_t send_bytes[],
-                     size_t offsets[], int perm[]);
+                     const size_t offsets[], const int perm[]);
+// Likewise recv and send must be symmetric
+int xshmem_alltoall(char* recv, char* send, size_t n_bytes, const int perm[]);
 void xshmem_final(void);
 void xshmem_exit(int status);
 

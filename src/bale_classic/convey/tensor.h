@@ -47,7 +47,6 @@ struct tensor {
   convey_t convey;
   int n_complete;
   int order;  // 1=vector, 2=matrix, 3=tensor
-  uint32_t align;
   // Fixed data for dealing with routing tags
   uint8_t tag_bytes[3];
   bool accelerate;
@@ -95,7 +94,7 @@ pull_pointer(uint32_t* item, void* temp, size_t item_size)
 /*** Functions that etensor conveyors need to call ***/
 
 int tensor_advance(convey_t* self, bool done);
-int tensor_begin(convey_t* self, size_t item_bytes);
+int tensor_begin(convey_t* self, size_t item_bytes, size_t align);
 int tensor_reset(convey_t* self);
 int tensor_free(convey_t* self);
 int64_t tensor_statistic(convey_t* self, int which);

@@ -75,8 +75,8 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
   if(conv_throw == NULL){return(NULL);}
   if(conv_reply == NULL){return(NULL);}
 
-  convey_begin(conv_throw, sizeof(pkg_t));
-  convey_begin(conv_reply, sizeof(int64_t));
+  convey_begin(conv_throw, sizeof(pkg_t), 0);
+  convey_begin(conv_reply, sizeof(int64_t), 0);
   
   bool more;
   int64_t hits = 0;
@@ -129,7 +129,7 @@ SHARED int64_t * rand_permp_conveyor(int64_t N, int seed) {
 
   convey_free(conv_throw);
   convey_reset(conv_reply);
-  convey_begin(conv_reply, sizeof(int64_t));
+  convey_begin(conv_reply, sizeof(int64_t), 0);
   
   /* now locally pack the values you have in target */
   cnt = 0;
@@ -213,7 +213,7 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperm, S
   pkg_rowcnt_t pkgrc_p;
   convey_t* cnv_rc = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
 
-  convey_begin(cnv_rc, sizeof(pkg_rowcnt_t));
+  convey_begin(cnv_rc, sizeof(pkg_rowcnt_t), 0);
   lnnz = row = 0;
   while(convey_advance(cnv_rc, (row == A->lnumrows))) {
     for( ;row < A->lnumrows; row++){
@@ -253,9 +253,9 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperm, S
   w_edge_t wedge;
   convey_t* cnv_nz = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
   if(weighted)
-    convey_begin(cnv_nz, sizeof(w_edge_t));
+    convey_begin(cnv_nz, sizeof(w_edge_t), 0);
   else
-    convey_begin(cnv_nz, sizeof(edge_t));
+    convey_begin(cnv_nz, sizeof(edge_t), 0);
 
   i = row = 0;
   while(convey_advance(cnv_nz, (i == A->lnnz))){
@@ -311,8 +311,8 @@ sparsemat_t * permute_matrix_conveyor(sparsemat_t * A, SHARED int64_t * rperm, S
   assert( cnv_r != NULL );
   convey_t* cnv_e = convey_new(SIZE_MAX, 0, NULL, 0);
   assert( cnv_e != NULL );
-  convey_begin(cnv_r, sizeof(pkg_inonz_t));
-  convey_begin(cnv_e, sizeof(pkg_inonz_t));
+  convey_begin(cnv_r, sizeof(pkg_inonz_t), 0);
+  convey_begin(cnv_e, sizeof(pkg_inonz_t), 0);
   bool more;
   i=0;
   while( more = convey_advance(cnv_r,(i == Ap->lnnz)), more | convey_advance(cnv_e, !more) ){
@@ -359,7 +359,7 @@ sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
 
   int weighted = (A->value != NULL);
   convey_t* cnv_cnt = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
-  convey_begin(cnv_cnt, sizeof(int64_t));
+  convey_begin(cnv_cnt, sizeof(int64_t), 0);
 
   lnnz = i = 0;
   while(convey_advance(cnv_cnt, (i == A->lnnz))){
@@ -396,9 +396,9 @@ sparsemat_t * transpose_matrix_conveyor(sparsemat_t * A) {
   
   convey_t* cnv_rd = convey_new(SIZE_MAX, 0, NULL, convey_opt_SCATTER);
   if(weighted)
-    convey_begin(cnv_rd, sizeof(w_edge_t));
+    convey_begin(cnv_rd, sizeof(w_edge_t), 0);
   else
-    convey_begin(cnv_rd, sizeof(edge_t));
+    convey_begin(cnv_rd, sizeof(edge_t), 0);
 
   uint64_t numtimespop=0;
   edge_t edge;

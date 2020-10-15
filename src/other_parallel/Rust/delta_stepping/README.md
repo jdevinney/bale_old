@@ -11,6 +11,7 @@ https://www.sciencedirect.com/science/article/pii/S0196677403000762).
 * [Correctness-test data](#Sample-data)
 * [Outline of the algorithm](#Outline-of-delta-stepping)
 * [Discussion](#Discussion)
+* [Test Matrices](#Test-Matrices)
 
 ### Building the application
 
@@ -123,3 +124,17 @@ We don't think there's an FTB version based on gets, puts, and hardware atomics.
 The Book version probably requires user-defined atomics,
 and then probably looks pretty close to the half-page pseudocode in the Meyer/Sanders paper.
 It is interesting that the parallel Rust Conveyors code looks almost identical to the serial Rust code.
+
+### Test Matrices
+
+The following are provided in the top Bale repository example_matrices directory:
+
+Matrices:
+
+- er_nn_prob.mm  reasonably dense ER graphs
+- sparsennn.mm   sparser ER graphs
+
+Distances:
+
+- er_nn_prob.dst distances with source_vtx 0
+- sparsennn.dst  distances with source_vtx 2

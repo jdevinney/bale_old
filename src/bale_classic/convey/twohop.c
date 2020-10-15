@@ -97,7 +97,6 @@ typedef struct twohop {
   int8_t col_bits;       // number of bits needed to hold column #
   bool odd;              // does n_cols have an odd factor?
   bool dynamic;          // do we deallocate buffers while dormant?
-  uint8_t align_opt;     // argument of convey_opt_NOALIGN option
   size_t row_stride;     // stride in 4-byte chunks between row buffers
   size_t col_stride;     // stride in 4-byte chunks between column buffers
   size_t packet_quads;   // how many 4-byte chunks per packet?
@@ -507,7 +506,7 @@ reset_areas(twohop_t* twohop)
 }
 
 static int
-twohop_begin(convey_t* self, size_t item_size)
+twohop_begin(convey_t* self, size_t item_size, size_t align)
 {
   twohop_t* twohop = (twohop_t*) self;
   if (!mpp_comm_is_equal(MPP_COMM_CURR, twohop->comm))
@@ -524,7 +523,6 @@ twohop_begin(convey_t* self, size_t item_size)
   twohop->row_quads = packet_quads * (twohop->row_stride / packet_quads);
   twohop->col_quads = packet_quads * (twohop->col_stride / packet_quads);
 
-  size_t align = twohop->align_opt;
   if (! convey_prep_aligned(&twohop->aligned_item, item_size, 4, align))
     return convey_error_ALLOC;
   if (twohop->dynamic && !alloc_buffers(twohop))
@@ -586,11 +584,7 @@ twohop_free(convey_t* self)
   MPI_Comm_free(&twohop->col_team);
 #else
   if (twohop->odd)
-#if 0
-    shmemx_team_free(&twohop->col_team);
-#else
     shmemx_team_destroy(&twohop->col_team);
-#endif
 #endif
   free_allocs(twohop);
   return convey_OK;
@@ -650,7 +644,7 @@ convey_new_twohop(size_t capacity, size_t row_procs,
     return convey_new_simple(capacity, alloc, NULL, options);
 
   if (alloc == NULL)
-    alloc = &convey_imp_alloc;
+    alloc = &convey_imp_alloc_align;
   else if (!alloc->grab || !alloc->free)
     CONVEY_REJECT(quiet, "alloc is missing one or both methods");
 
@@ -665,6 +659,8 @@ convey_new_twohop(size_t capacity, size_t row_procs,
   bool wide = (n_cols >= n_rows);
   size_t row_bytes = wide ? capacity : (capacity * n_rows) / n_cols;
   size_t col_bytes = wide ? (capacity * n_cols) / n_rows : capacity;
+  row_bytes = (row_bytes + CONVEY_MAX_ALIGN - 1) & -CONVEY_MAX_ALIGN;
+  col_bytes = (col_bytes + CONVEY_MAX_ALIGN - 1) & -CONVEY_MAX_ALIGN;
   int col_bits = 64 - _leadz(n_cols - 1);
 
   // Initialize some things; set scratch pointers to NULL
@@ -679,7 +675,6 @@ convey_new_twohop(size_t capacity, size_t row_procs,
     .odd = n_cols & (n_cols - 1), .my_col = my_proc % n_cols,
     .row_stride = (row_bytes + 3) >> 2, .col_stride = (col_bytes + 3) >> 2,
     .alloc = *alloc, .dynamic = (options & convey_opt_DYNAMIC),
-    .align_opt = (options / convey_opt_NOALIGN) & 0xFF,
   };
   twohop->get_row = _divbymul32_prep(n_cols);
   twohop->comm = MPP_COMM_CURR;
@@ -703,11 +698,7 @@ convey_new_twohop(size_t capacity, size_t row_procs,
     shmem_team_t full_team;
     shmemx_team_create_strided(twohop->comm.start, twohop->comm.stride, n_procs, &full_team);
     shmemx_team_split(full_team, my_proc % n_cols, my_proc / n_cols, &twohop->col_team);
-#if 0
-    shmemx_team_free(&full_team);
-#else
     shmemx_team_destroy(&full_team);
-#endif
   }
 #endif
 

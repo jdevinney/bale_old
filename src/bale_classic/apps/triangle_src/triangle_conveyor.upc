@@ -68,7 +68,7 @@ double triangle_convey_push(int64_t *count, int64_t *sr, sparsemat_t * L, sparse
   
   convey_t * conv = convey_new(SIZE_MAX, 0, NULL, 0);
   if(conv == NULL){return(-1);}
-  if(convey_begin( conv, sizeof(pkg_tri_t) ) != convey_OK){return(-1);}
+  if(convey_begin( conv, sizeof(pkg_tri_t), 0 ) != convey_OK){return(-1);}
 
   int64_t cnt = 0;
   int64_t numpushed = 0;
@@ -160,11 +160,11 @@ double triangle_convey_pull(int64_t *count, int64_t *sr, sparsemat_t *mat) {
   int64_t * buf = calloc(max_row + 2, sizeof(int64_t));
   
   convey_t * conv_req = convey_new(SIZE_MAX, 0, NULL, 0);
-  convey_t * conv_resp = convey_new_elastic(sizeof(int64_t), (max_row + 2)*sizeof(int64_t), SIZE_MAX, 0, NULL, 0);
+  convey_t * conv_resp = convey_new_elastic((max_row + 2)*sizeof(int64_t), SIZE_MAX, 0, NULL, 0);
   
   if(!conv_req || !conv_resp){return(-1);}
-  if(convey_begin( conv_req, sizeof(pkg_tri_t) ) != convey_OK){return(-1);}
-  if(convey_begin( conv_resp, sizeof(int64_t) ) != convey_OK){return(-1);}
+  if(convey_begin( conv_req, sizeof(pkg_tri_t), 0 ) != convey_OK){return(-1);}
+  if(convey_begin( conv_resp, sizeof(int64_t), 0 ) != convey_OK){return(-1);}
   
   int64_t numpushed = 0;
   bool more, new_pull = 1;

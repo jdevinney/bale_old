@@ -69,11 +69,11 @@ enum convey_imp_timers {
 extern const convey_alc8r_t convey_imp_alloc, convey_imp_alloc_align;
 
 // Compute the required alignment from the item size and the alignment
-// request (coming from constructor options).  If it exceeds the alignment
-// automatically guaranteed by the item size and the header size, then
-// allocate an aligned buffer of item_size bytes and store its address in
-// *handle.  On entry, *handle must be NULL.  The return value is false iff
-// allocation failed.
+// request (coming from convey_begin, and validated).  If it exceeds the
+// alignment automatically guaranteed by the item size and the header size,
+// then allocate an aligned buffer of item_size bytes and store its address
+// in *handle.  On entry, *handle must be NULL.  The return value is false
+// iff allocation failed.
 bool
 convey_prep_aligned(void** handle, size_t item_size, size_t header_size,
                     size_t align_wanted);

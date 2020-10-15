@@ -44,5 +44,8 @@ $LAUNCH ./alltoall? -- <<EOF
 -R -A -b2 -c360 -w10     -dpy vector 100 32
 -R -A -b4 -c400 -w10 -t8 -py  matrix 100 36
 -R -A -b1 -c320 -w10 -t4 -dpy tensor 100 28
+-R -M -b2 -c500 -w20        vector 100 64
+-R -M -b2 -c500 -w20 -t8    matrix 100 64
+-R -M -b2 -c500 -w20 -t4    tensor 100 64
 EOF
 exit 0

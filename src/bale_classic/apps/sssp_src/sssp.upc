@@ -160,7 +160,7 @@ int main(int argc, char * argv[])
 
   uint64_t use_model, use_alg, alg;
   double laptime = 0.0;
-  char model_str[32];
+  char model_str[64];
 
   //T0_printf("delta step = %lf\n", args.deltaStep);
   bale_app_write_double(&args.std, "delta", args.deltaStep);

@@ -46,8 +46,8 @@ double ig_conveyor(int64_t *tgt, int64_t *pckindx, int64_t l_num_req,  int64_t *
   convey_t* replies = convey_new(SIZE_MAX, 0, NULL, 0);
   assert( replies != NULL );
 
-  convey_begin(requests, sizeof(pkg_t));
-  convey_begin(replies, sizeof(pkg_t));
+  convey_begin(requests, sizeof(pkg_t), 0);
+  convey_begin(replies, sizeof(pkg_t), 0);
   lgp_barrier();
   
   tm = wall_seconds();
