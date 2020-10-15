@@ -47,6 +47,8 @@ static double sssp_answer_diff(d_array_t *A, d_array_t *B)
 typedef struct args_t {
   double deltaStep; 
   int64_t V0;
+  int64_t compare;
+  char compare_file[256];
   std_args_t std;
   std_graph_args_t gstd;
 } args_t;
@@ -57,9 +59,12 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
   switch(key) {
   case 'S': args->deltaStep = atof(arg); break; 
   case 'V': args->V0 = atoi(arg); break;
+  case 'C': args->compare = 1; strcpy(args->compare_file, arg); break;
+          
   case ARGP_KEY_INIT:
     args->deltaStep = 0.0;
     args->V0 = 0;
+    args->compare = 0;
     state->child_inputs[0] = &args->std;
     state->child_inputs[1] = &args->gstd;
     break;
@@ -70,6 +75,7 @@ static int parse_opt(int key, char * arg, struct argp_state * state)
 static struct argp_option options[] = {
   {"deltaStep", 'S', "STEPSIZE", 0, "user supplied delta step size"},  
   {"V0",        'V',      "NUM", 0, "initial vertex"},  
+  {"compare",   'C',     "FILE", 0, "read compare weights from a file"},  
   {0}
 };
 
@@ -104,6 +110,9 @@ int main(int argc, char * argv[])
   if(args.std.dump_files) write_matrix_mm(mat, "sssp_inmat");
 
   d_array_t *comp_weight=NULL;
+  if (args.compare) {
+    comp_weight = read_d_array(args.compare_file);
+  }
   d_array_t *weight = init_d_array(mat->numrows);
   uint32_t use_model;
   double laptime = 0.0;
@@ -147,7 +156,7 @@ int main(int argc, char * argv[])
   }
 
   if(args.std.dump_files){
-    write_d_array(comp_weight, "SSSP weights to each node", "ssspout.wts");
+    write_d_array(comp_weight, "SSSP weights to each node", "ssspout.dst");
   }
   
   clear_matrix(mat); free(mat);

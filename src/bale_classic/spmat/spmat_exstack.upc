@@ -498,8 +498,8 @@ sparsemat_t * transpose_matrix_exstack(sparsemat_t * A, int64_t buf_cnt) {
  * PEs (between 1 and THREADS) to do the actual I/O.
  *
  * \param datadir The directory that holds the dataset.
- * \param nreaders Number of PEs that will actually do the I/O (all other PEs will mostly
- * be idle.
+ * \param nreaders Number of PEs that will actually do the I/O (all other PEs will mostly be idle).
+ * \param buf_cnt number of packages in an exstack buffer
  * \return The sparsemat_t that was read from the matrix dataset.
  */
 sparsemat_t * read_sparse_matrix_exstack(char * datadir, int64_t nreaders, int64_t buf_cnt){

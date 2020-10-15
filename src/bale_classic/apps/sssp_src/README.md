@@ -67,7 +67,46 @@ using only the light edges. Then the algorithm relaxes the vertices that were in
 bucket using the heavy edges. This uses an extension of Dijsktra's approach because the 
 heavy edges cannot put vertices into the active bucket.  The efficiency of the algorithm
 comes at the price of a more complicate flow control and data-structure manipulations
-to maintain the buckets.
+to maintain the buckets.  Here is psuedo code for the algorithm:
+```
+// We write an edge with tail v, head w and weight (cost) as {v,w,c}.
+// We will say the weight of the lightest tentative path 
+// to a vertex is the price of the vertex.  The relax routine is 
+// more involved than it is in other sssp algorithms.  In addition 
+// to (possibly) reducing the price of the head of an edge,
+// it can move the head from one bucket to another, possibly to the 
+// bucket of the tail.
+
+def relax(w, p, B):
+  if tent[w] > p:
+    remove.bucket(w, B(tent[w]/delta))
+    add.bucket(w, B(p/delta))
+    tent[w] = x
+
+
+program sssp:
+
+  set tent[v] = inf for all v
+
+  relax(s, 0, B)  // sets tent[s] = 0  and puts s in B[0]
+
+  while "there is a non-empty bucket" :
+    let B[i] "be the first (smallest i) non-empty bucket"
+    set R = NULL   // set of vertices that we will retire
+
+    while B[i] is not empty:
+      let v = a vertex in B[i]
+      for all light edges {v,w,c}:
+        p = tent[v] + c  // possible new price of w
+        relax (w, p, B)  // possibly adding w to B[i]
+        add v to R
+        remove v from B[i]
+    
+    for all v in R:
+      for all heavy edges {v,w,c}
+        p = tent[v] + c  // possible new price of w
+        relax (w, p, B)  // won't add w to B[i]
+```        
 
 We have implementations of Delta-Stepping and Bellman-Ford in this directory.
 We also have implementations of all three algorithms in the other_serial/C "cousin" 

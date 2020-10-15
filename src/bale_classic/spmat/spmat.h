@@ -168,7 +168,7 @@ typedef struct spmat_dataset_t{
   
 }spmat_dataset_t;
 
-/*! \struct nxnz_t spmat.h
+/*! 
  * \brief A structure to experiment with an iterator that walks across a row of a sparsemat.
  * \ingroup spmatgrp
  */

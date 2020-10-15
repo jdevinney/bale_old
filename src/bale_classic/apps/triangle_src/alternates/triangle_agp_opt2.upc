@@ -35,13 +35,13 @@
  * \param alg 0,1: 0 to compute (L & L * U), 1 to compute (L & U * L).
  * \return average run time
  */
+#define PULL_BUF_DEPTH 64        //!< the number of things one pulls at a time
 double triangle_agp_opt2(int64_t *count, int64_t *sr, sparsemat_t * L, sparsemat_t * U, int64_t alg) {
   int64_t cnt=0;
   int64_t numpulled=0;
   int64_t l_i, ii, k, kk, kt, num2pull, L_i, L_j;
 
 /*! \brief pull remote gets in a buffer with this many nonzeros */
-#define PULL_BUF_DEPTH 64  //!< the number of things one pulls at a time
   int64_t w[PULL_BUF_DEPTH];
 
   double t1 = wall_seconds();

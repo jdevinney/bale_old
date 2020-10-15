@@ -24,10 +24,10 @@ at a time to play with the different versions.
 #include "std_options.h"
 
 // Only un-comment one of these at time
-#define STANDARD_OPT_ONLY
+//#define STANDARD_OPT_ONLY
 //#define STANDARD_AND_GRAPH_OPTS
 //#define APP_SPECIFIC_OPTS
-//#define STANDARD_AND_REUSE
+#define STANDARD_AND_REUSE
 
 #ifdef STANDARD_OPT_ONLY
 // Compile the demo and try these
@@ -67,7 +67,7 @@ static struct argp_child children_parsers[] = {
 
 int main(int argc, char * argv[]) 
 {
-  args_t args = {0};
+  args_t args = {{0}};
   //args.std.models_mask = 63;  // default value for model_mask can be overridden here
   struct argp argp = {options, parse_opt, 0, "opts_demo with only standard options", children_parsers};
   argp_parse(&argp, argc, argv, 0, 0, &args);
@@ -124,7 +124,7 @@ static struct argp_child children_parsers[] = {
 
 int main(int argc, char * argv[]) 
 {
-  args_t args = {0};
+  args_t args = {{0}};
   args.std.models_mask = 63;  // default value for model_mask can be overridden here
   args.gstd.numrows = 100;
   struct argp argp = {options, parse_opt, 0, "opts_demo including graph options", children_parsers};
