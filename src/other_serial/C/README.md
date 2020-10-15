@@ -20,8 +20,8 @@ We have included a simple C version of the apps in
 bale_classic as a concrete description of the apps written in a familiar language.
 Some of the apps (like histo and ig) are trivial as serial apps.
 It might be useful to view the serial version of the more complicated apps
-(like toposort and sssp) before dealing with the parallelism and buffer communication 
-of the bale_classic apps.  The C version of the way we implement a 
+(like toposort and sssp) before dealing with the parallelism and buffered communication 
+of the bale_classic apps.  The C version of our implementation of a 
 compressed row format data structure for a sparse matrix is also simpler than
 the parallel version.  Finally, we also have examples of applications that
 are efficient as serial codes, but have no known parallel implementations.
@@ -29,12 +29,10 @@ are efficient as serial codes, but have no known parallel implementations.
 This is a self contained directory that does not depend 
 on build process for the rest of bale.
 
-## Nitty Gritty
-
 ### Where does it run?
 This is written in generic C, hopefully it will run in any C environment.
 It does depend on the ``argp`` library for command line argument parsing,
-doxygen for documentation and ``pytest`` for unit testing.
+doxygen for documentation and python3 for ``pytest`` unit testing.
 
 ### What is included here:
 
@@ -46,15 +44,15 @@ doxygen for documentation and ``pytest`` for unit testing.
   - [randperm](randperm.md) -- creates a random permutation (see doxygen: randperm.c)
   - [transpose_matrix](transpose_matrix.md) -- computes the transpose of a sparse matrix (see doxygen: transpose_matrix.c)
   - [permute_matrix](permute_matrix.md) -- applies row and column permutations to a sparse matrix (see doxygen: permute_matrix.c)
-  - [triangle](triangle.md) -- counts the number triangles in a graph (see doxygen: triangle.c)
-  - [toposort](toposort.md) -- performs a toposort (matrix) sort of a morally upper triangular matrix (see doxygen: toposort.c)
+  - [triangle](triangle.md) -- counts the number of triangles in a graph (see doxygen: triangle.c)
+  - [toposort](toposort.md) -- performs a topological sort of a morally upper triangular matrix (see doxygen: toposort.c)
   - [sssp](sssp.md) -- solves the single source shortest path problem on a graph (see doxygen: sssp.c)
   - [unionfind](unionfind.md) -- uses the union-find data structure to find connected components in a graph (see doxygen: unionfind.c)
 
 - Other:
 - [spmat_utils](spmat_utils.md) -- the sparse matrix library and some support functions (see doxygen: spmat_utils.h, spmat_utils.c)
 - [std_options](std_options.md)  -- the command line parsing routines (see doxygen: std_options.h, std_options.c)
-- [opts_demo](opts_demo.md) -- programs to play with if you want to modify command line options (see doxygen: opts_demo.c) 
+- [opts_demo](opts_demo.md) -- programs to play with modifying the command line options (see doxygen: opts_demo.c) 
 
 ## Build Instructions
 This is meant to be basic C, with a simple Makefile, so hopefully just typing 'make' will work.
@@ -70,13 +68,13 @@ On Mac, you will probably have to install it by hand
 LD_LIBRARY_PATH and LDFLAGS variables.
 
 ## Testing
-For bale 3.0 we have started using pytest for the unit testing.
+For bale 3.0 we have started using pytest for the unit testing. This requires python3.
 One can run the test specified in file ``tests/test_all.py`` by hand with the command:
 
 ```
     pytest -s
 ```
-For more details on how to modify the tests see [pytest](pytest.md)
+You can also edit the file `tests/test_all.py` to add or modify the tests that are run.
 
 ## Documentation
 serial_C is documented using Doxygen. 

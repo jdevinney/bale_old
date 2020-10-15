@@ -17,6 +17,7 @@ given by the column permutation.
 This app is really just a wrapper that calls the routine in the sparse matrix library. 
 
 This is C_bale to shadow the app in bale_classic.
+It is here because we need it in the library.
 It is an app in bale_classic because the communication pattern is interesting.
 
 ### References

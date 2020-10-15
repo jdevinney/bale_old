@@ -1,7 +1,7 @@
 ## unionfind
 
 ### Definition
-Use the unionfind data structure to implement the union of disjoint sets
+We use the unionfind data structure to implement the union of disjoint sets
 approach to finding the connect components in a simple graph.
 
 ### Algorithms
@@ -17,9 +17,12 @@ The key to algorithm is a data structure that forms a tree for each subset.
 The union of the subsets is formed by connecting the root of one tree to the
 other tree.
 
-We have implemented two versions: the first joins the trees by connecting
+We have implemented two versions (there are a number of versions): 
+the first joins the trees by connecting
 the root of the tree corresponding to one vertex of the edge to the node
-corresponding to the other vertex of the connecting edge.  The most efficient
+corresponding to the other vertex of the connecting edge. 
+This is referred to as the "bad algorithm" because it is not 
+nearly as efficient as the second version. The most efficient
 version connects the roots of the two trees according to the rank of the
 trees, where the rank is the length of the longest branch in the tree.
 
@@ -40,7 +43,9 @@ lock-free way is currently beyond our capability.
 Unlike Dijsktra's or the Fisher-Yates algorithm, the use of this forest
 of trees is not necessarily serial.  There is plenty of opportunity for
 asynchronous parallelism, but keeping the data structure consistent while
-making parallel changes to it seems overwhelming.  There are other algorithms
+making parallel changes to it seems overwhelming.  
+
+There are other algorithms
 to find the connected components in a graph.  We present this algorithm
 because we are interested in a discussion about parallel data structures.
 

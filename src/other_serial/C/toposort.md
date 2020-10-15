@@ -36,5 +36,8 @@ flow of the algorithm but does redundant checking of
 rows which have already been processed. 
 
 ### Discussion
+In the serial case, the use of a queue seem like an obvious win.
+In the parallel case, the queue has to be managed with remote operations. 
+Whether or not it is a win in this case is an interesting discussion.
 
 ### References

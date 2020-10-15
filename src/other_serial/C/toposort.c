@@ -79,10 +79,10 @@ sparsemat_t *generate_toposort_input(std_args_t *sargs, std_graph_args_t *gargs)
     printf("ERROR: generate_toposort_input: rand_perm returned NULL!\n");
     exit(1);
   }
-  //if(dump_files){
-  //  dump_array(rperminv, numrows, 20, "rperm.out");
-  //  dump_array(cperminv, numcols, 20, "cperm.out");
-  //}
+  if(sargs->dump_files){
+    dump_array(rperminv, nr, 20, "topo_rperm.out");
+    dump_array(cperminv, nr, 20, "topo_cperm.out");
+  }
   
   sparsemat_t * mat = permute_matrix(U, rperminv, cperminv);
   if(!mat) {

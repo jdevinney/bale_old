@@ -1,6 +1,7 @@
 ## randperm
+
 ### Definition
-We fill an array of int64_t's with a flat random permutation.
+We fill an array of `int64_t`'s with a flat random permutation.
 
 ### Algorithms
 #### the Fisher-Yates algorithm
@@ -16,7 +17,7 @@ You have to process the entries from right to left one at a time.
 #### the "dart throwing" algorithm
 We pick a dart board (an array) that is bigger than the desired permutation,
 say twice as big and fill the entries with -1. 
-Then randomly throw darts (numbers from 0 to `len-1`) 
+Then we randomly throw darts (numbers from 0 to `len-1`) 
 at the dart board, re-throwing any dart that hits an entry that is already occupied (!= -1). 
 Then we squeeze out the holes.
 
@@ -38,7 +39,7 @@ in bale_classic.  It is in bale_classic because it is fun.
 And because the AGP version is essentially the same as this serial version.
 
 The sorting version seems like a reasonable parallel algorithm, but it 
-not in bale_classic because its not that interesting or fun.
+not in bale_classic because its not that interesting nor fun.
 
 ### References
 https://en.wikipedia.org/wiki/Fisher-Yates_shuffle
