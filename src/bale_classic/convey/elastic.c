@@ -42,7 +42,7 @@
 #if MPP_NO_MIMD
 
 convey_t*
-convey_new_etensor(size_t item_bytes, size_t buffer_bytes, size_t monster_bytes,
+convey_new_etensor(size_t buffer_bytes, size_t monster_bytes,
                    int order, size_t n_local, size_t n_buffers,
                    const convey_alc8r_t* alloc, uint64_t options)
 {
@@ -61,6 +61,7 @@ typedef struct ticket {
 
 typedef struct elastic {
   tensor_t tensor;
+  void* aligned_item;
   size_t max_size;  // maximum item size, in bytes
   size_t big_size;  // above this size, must use these buffers:
   PARALLEL(char*, outgoing);   // holds one large item being pushed
@@ -398,7 +399,7 @@ elastic_epull(convey_t* self, convey_item_t* result)
   uint32_t n_bytes = PORTER_BYTES(descr);
   result->from = from;
   result->bytes = n_bytes;
-  result->data = pull_pointer(&packet[2], tensor->aligned_item, n_bytes);
+  result->data = pull_pointer(&packet[2], elastic->aligned_item, n_bytes);
   return convey_OK;
 }
 
@@ -478,9 +479,14 @@ elastic_advance(convey_t* self, bool done)
 }
 
 static int
-elastic_begin(convey_t* self, size_t item_size)
+elastic_begin(convey_t* self, size_t item_size, size_t align)
 {
-  int a = tensor_begin(self, item_size);
+  elastic_t* elastic = (elastic_t*) self;
+  size_t max_size = (elastic->big_size + align - 1) & -align;
+  if (! convey_prep_aligned(&elastic->aligned_item, max_size, 4, align))
+    return convey_error_ALLOC;
+
+  int a = tensor_begin(self, item_size, align);
   int b = monster_begin((elastic_t*) self);
   return (a < 0) ? a : b;
 }
@@ -488,7 +494,11 @@ elastic_begin(convey_t* self, size_t item_size)
 static int
 elastic_reset(convey_t* self)
 {
+  elastic_t* elastic = (elastic_t*) self;
+  free(elastic->aligned_item);
+  elastic->aligned_item = NULL;
   mpp_barrier(1);
+
   int a = monster_reset((elastic_t*) self);
   int b = tensor_reset(self);
   return (a < 0) ? a : b;
@@ -498,6 +508,8 @@ static int
 elastic_free(convey_t* self)
 {
   // FIXME: check for correct team?
+  elastic_t* elastic = (elastic_t*) self;
+  free(elastic->aligned_item);
   mpp_barrier(1);
   monster_free((elastic_t*) self);
   return tensor_free(self);
@@ -545,36 +557,24 @@ static const convey_methods_t elastic_debug_methods = {
 /*** Constructor ***/
 
 convey_t*
-convey_new_etensor(size_t atom_bytes, size_t buffer_bytes, size_t monster_bytes,
+convey_new_etensor(size_t buffer_bytes, size_t monster_bytes,
                    int order, size_t n_local, size_t n_buffers,
                    const convey_alc8r_t* alloc, uint64_t options)
 {
   const bool quiet = (options & convey_opt_QUIET);
-  if (atom_bytes == 0 || monster_bytes < atom_bytes)
-    CONVEY_REJECT(quiet, "invalid arguments");
   if (buffer_bytes < 16)
     buffer_bytes = 16;
 
   // Must ensure that the buffers are at least of size buffer_bytes.
-  uint64_t packet_quads = 1 + ((atom_bytes + 3) >> 2);
+  uint64_t packet_quads = 4;
   uint64_t capacity = 1 + (buffer_bytes - 1) / (4 * packet_quads);
-  if (packet_quads >> 29 || (capacity * packet_quads) >> 29)
-    CONVEY_REJECT(quiet, "size arguments are too large");
+  if ((capacity * packet_quads) >> 29)
+    CONVEY_REJECT(quiet, "buffer_bytes is too large");
   size_t big_bytes = (capacity * packet_quads - 2) * sizeof(uint32_t);
   big_bytes = MIN(big_bytes, monster_bytes);
 
-  // Prepare for alignment.  Packet headers are now 8 bytes.
-  uint64_t align = (options / convey_opt_NOALIGN) & 0xFF;
-  size_t atom_align = atom_bytes & ~(atom_bytes - 1);
-  size_t big_item_size = (big_bytes + (atom_align - 1)) & ~(atom_align - 1);
-  // Ask for an odd multiple of atom_align to ensure we don't over-align
-  void* slot = NULL;
-  if (! convey_prep_aligned(&slot, (big_item_size | atom_align), 8, align))
-    CONVEY_REJECT(quiet, "local allocation failed");
-
-  // Build the underlying tensor conveyor, without strong alignment or compression
-  uint64_t tensor_opts = options - (align - 1) * convey_opt_NOALIGN
-    - (options & convey_opt_COMPRESS);
+  // Build the underlying tensor conveyor, without compression
+  uint64_t tensor_opts = options - (options & convey_opt_COMPRESS);
   tensor_opts |= convey_opt_STANDARD;
   convey_t* self = convey_new_tensor(4 * packet_quads * capacity, order, n_local,
                                      n_buffers, alloc, tensor_opts);
@@ -601,7 +601,6 @@ convey_new_etensor(size_t atom_bytes, size_t buffer_bytes, size_t monster_bytes,
     tensor->pivots[0] = &elastic_pivot_early;
     tensor->pivots[1] = &elastic_pivot_late;
   }
-  tensor->aligned_item = slot;
 
   // Fill in the unchanging fields of the elastic conveyor
   bool dynamic = (options & convey_opt_DYNAMIC);
@@ -609,10 +608,11 @@ convey_new_etensor(size_t atom_bytes, size_t buffer_bytes, size_t monster_bytes,
   if (alloc == NULL)
     alloc = &convey_imp_alloc_align;
 
+  elastic->aligned_item = NULL;
   elastic->max_size = monster_bytes;
   elastic->big_size = big_bytes;
-  elastic->outgoing = NULL;
-  elastic->incoming = NULL;
+  PARALLEL_NULLIFY(elastic, outgoing);
+  PARALLEL_NULLIFY(elastic, incoming);
   elastic->bigrcvd = NULL;
   elastic->dynamic = dynamic;
   elastic->alloc = *alloc;

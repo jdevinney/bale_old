@@ -45,5 +45,10 @@ $LAUNCH ./alltoall? -- <<EOF
 -A -e -b1 -c5000 -w10     -dpy vector 10 6000
 -A -e -b2 -c5000 -w10 -t4 -dpy matrix 10 6000
 -A -e -b4 -c5000 -w10 -t2 -py  tensor 10 6000
+-M -e -b2 -c600  -w10        vector 10 600
+-M -e -b2 -c500  -w10 -t8    matrix 10 500
+-M -e -b2 -c600  -w10 -t8    matrix 10 600
+-M -e -b2 -c500  -w10 -t4    tensor 10 500
+-M -e -b2 -c600  -w10 -t4    tensor 10 600
 EOF
 exit 0

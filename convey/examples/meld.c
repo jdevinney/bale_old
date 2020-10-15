@@ -170,7 +170,7 @@ main(int argc, char* argv[])
     item_t* values = swap ? alist : blist;
     hashtable_t* table = swap ? gtable : ftable;
 
-    convey_begin(convey, sizeof(entry_t));
+    convey_begin(convey, sizeof(entry_t), alignof(entry_t));
     for (size_t i = 0; convey_advance(convey, i == n); ) {
       entry_t pair;
       for (; i < n; i++) {

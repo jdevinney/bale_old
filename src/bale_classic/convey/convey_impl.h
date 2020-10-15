@@ -69,7 +69,7 @@ struct conveyor_methods {
   int (*pull)(convey_t* self, void* item, int64_t* from);
   int (*unpull)(convey_t* self);
   int (*advance)(convey_t* self, bool done);
-  int (*begin)(convey_t* self, size_t item_bytes);
+  int (*begin)(convey_t* self, size_t item_bytes, size_t align);
   int (*reset)(convey_t* self);
   int (*free)(convey_t* self);
   int64_t (*statistic)(convey_t* self, int which);

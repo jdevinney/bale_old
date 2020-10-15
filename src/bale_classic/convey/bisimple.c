@@ -142,7 +142,7 @@ bisimple_begin(biconvey_t* self, size_t query_bytes, size_t reply_bytes)
 {
   bisimple_t* b = (bisimple_t*) self;
   simple_t* simple = (simple_t*) b->convey;
-  int result = convey_begin(b->convey, query_bytes);
+  int result = convey_begin(b->convey, query_bytes, 0);
   if (result < 0)
     return result;
 

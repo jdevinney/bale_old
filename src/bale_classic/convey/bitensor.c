@@ -115,7 +115,7 @@ bitensor_advance(biconvey_t* self, bool done)
     packet_t* query;
     packet_t* reply = b->reply;
     while ((query = convey_apull(q, &from)) != NULL) {
-      reply->token = query->token;
+      memcpy(&reply->token, &query->token, sizeof(query->token));
       assert(b->biconvey.answer != NULL);
       b->biconvey.answer(query->item, reply->item, b->biconvey.context);
       // FIXME: can we ensure this push will succeed?
@@ -129,7 +129,8 @@ bitensor_advance(biconvey_t* self, bool done)
   packet_t* reply;
   size_t item_size = b->biconvey.reply_bytes;
   while ((reply = convey_apull(r, NULL)) != NULL) {
-    uint32_t token = reply->token;
+    uint32_t token;
+    memcpy(&token, &reply->token, sizeof(token));
     b->present[token >> 6] |= UINT64_C(1) << (token & 63);
     memcpy(b->reorder + token * item_size, reply->item, item_size);
   }
@@ -175,7 +176,7 @@ bitensor_begin(biconvey_t* self, size_t query_bytes, size_t reply_bytes)
 
   b->present = calloc((capacity + 63) / 64, sizeof(uint64_t));
   b->query = malloc(sizeof(packet_t) + query_bytes);
-  // FIXME: align this pointer more strongly
+  // FIXME: align this pointer more strongly?
   b->reply = malloc(sizeof(packet_t) + reply_bytes);
   if (! (b->present && b->query && b->reply))
     return convey_error_ALLOC;
@@ -185,10 +186,10 @@ bitensor_begin(biconvey_t* self, size_t query_bytes, size_t reply_bytes)
   b->await = 0;
 
   const int token_bytes = sizeof(uint32_t);
-  int result = convey_begin(b->queries, token_bytes + query_bytes);
+  int result = convey_begin(b->queries, token_bytes + query_bytes, 1);
   if (result < 0)
     return result;
-  return convey_begin(b->replies, token_bytes + reply_bytes);
+  return convey_begin(b->replies, token_bytes + reply_bytes, 1);
 }
 
 static int
@@ -267,8 +268,7 @@ biconvey_new_tensor(size_t capacity, int order, size_t n_local, size_t n_buffers
     .alloc = (alloc ? *alloc : local_alc8r),
   };
 
-  options &= ~(convey_opt_NOALIGN * 0xFF);
-  options |= convey_opt_PROGRESS | CONVEY_OPT_ALIGN(4);
+  options |= convey_opt_PROGRESS;
   b->queries = convey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
   b->replies = convey_new_tensor(capacity, order, n_local, n_buffers, alloc, options);
   bool ok = (b->queries && b->replies);

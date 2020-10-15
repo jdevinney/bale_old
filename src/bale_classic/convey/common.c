@@ -31,6 +31,7 @@
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
+#include <stdalign.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -49,6 +50,7 @@ wrap_mpp_alloc(void* alc8r, size_t size, const char* tag, uint64_t value)
 static void*
 wrap_mpp_alloc_align(void* alc8r, size_t size, const char* tag, uint64_t value)
 {
+  size = (size + CONVEY_MAX_ALIGN - 1) & -CONVEY_MAX_ALIGN;
   return mpp_alloc_align(size, CONVEY_MAX_ALIGN, CONVEY_MAX_ALIGN);
 }
 
@@ -74,14 +76,14 @@ bool
 convey_prep_aligned(void** handle, size_t item_size, size_t header_size,
                     size_t align)
 {
-  // If the alignment wanted is zero or is not a power of two, or if it
-  // fails to divide the item size, then ignore it.
-  if (align == 0 || (align & (align - 1)) || item_size % align)
-    align = item_size & ~(item_size - 1);
+  // We may assume that align is a power of 2, divides item_size, and
+  // is no greater than CONVEY_MAX_ALIGN.
   if (align <= header_size || header_size == 0)
     return true;
-  if (align >= CONVEY_MAX_ALIGN)
-    align = CONVEY_MAX_ALIGN;
+  if (align < sizeof(void*)) {
+    *handle = malloc(item_size);
+    return (*handle != NULL);
+  }
   int err = posix_memalign(handle, align, item_size);
   return (err == 0);
 }

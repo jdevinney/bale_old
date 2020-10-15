@@ -78,8 +78,8 @@ main(int argc, char* argv[])
   if (request && reply && index && source && target) {
     // Transpose, then perform inverse transpose
     for (int loop = 0; loop < 2; loop++) {
-      convey_begin(request, sizeof(packet_t));
-      convey_begin(reply, sizeof(packet_t));
+      convey_begin(request, sizeof(packet_t), alignof(packet_t));
+      convey_begin(reply, sizeof(packet_t), alignof(packet_t));
 
       /*** START OF CONVEYOR LOOP ***/
       long n = 0;
@@ -95,7 +95,7 @@ main(int argc, char* argv[])
 
         packet_t* p;
         int64_t from;
-        while (p = convey_apull(request, &from)) {
+        while ((p = convey_apull(request, &from)) != NULL) {
           packet_t packet = { .slot = p->slot, .value = source[p->value] };
           if (! convey_push(reply, &packet, from)) {
             convey_unpull(request);
@@ -103,7 +103,7 @@ main(int argc, char* argv[])
           }
         }
 
-        while (p = convey_apull(reply, NULL))
+        while ((p = convey_apull(reply, NULL)) != NULL)
           target[p->slot] = p->value;
       }
       /*** END OF CONVEYOR LOOP ***/

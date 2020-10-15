@@ -126,10 +126,10 @@ simple_alltoallv(simple_t* simple)
                              simple->send_buffers, simple->send_sizes,
                              simple->offsets, simple->perm);
 # elif MPP_USE_MPI
-    int* send_sizes = (int*) simple->send_sizes;
+    int* send_sizes = malloc(2 * n_procs * sizeof(int));
     for (int64_t p = 0; p < n_procs; p++)
-      send_sizes[p] = simple->send_sizes[p];
-    int* recv_sizes = (int*) simple->recv_sizes;
+      send_sizes[p] = (int) simple->send_sizes[p];
+    int* recv_sizes = send_sizes + n_procs;
 
     error = MPI_Alltoall(send_sizes, 1, MPI_INT, recv_sizes, 1, MPI_INT,
                          mpp_comm_mpi(simple->comm));
@@ -137,9 +137,10 @@ simple_alltoallv(simple_t* simple)
       error = MPI_Alltoallv(simple->send_buffers, send_sizes, simple->offsets, MPI_BYTE,
                             simple->recv_buffers, recv_sizes, simple->offsets, MPI_BYTE,
                             mpp_comm_mpi(simple->comm));
-      for (int64_t p = n_procs - 1; p >= 0; p--)
-        simple->recv_sizes[p] = recv_sizes[p];
+      for (int64_t p = 0; p < n_procs; p++)
+        simple->recv_sizes[p] = (size_t) recv_sizes[p];
     }
+    free(send_sizes);
 # elif MPP_NO_MIMD
     memcpy(simple->recv_buffers, simple->send_buffers, simple->send_sizes[0]);
     simple->recv_sizes[0] = simple->send_sizes[0];
@@ -342,14 +343,14 @@ dealloc_buffers(simple_t* simple)
   simple->recv_buffers = NULL;
 }
 
+// Alignment can be ignored; as long as the buffer allocations are
+// maximally aligned, all items will be fully aligned.
 static int
-simple_begin(convey_t* self, size_t item_size)
+simple_begin(convey_t* self, size_t item_size, size_t align)
 {
   simple_t* simple = (simple_t*) self;
   if (!mpp_comm_is_equal(MPP_COMM_CURR, simple->comm))
     return convey_error_TEAM;
-  if (item_size == 0)
-    return convey_error_ZERO;
   if (item_size > simple->buffer_bytes)
     return convey_error_OFLO;
   size_t old_item_size = self->item_size;
@@ -482,6 +483,8 @@ convey_new_simple(size_t buffer_bytes,
   bool quiet = (options & convey_opt_QUIET);
   if (buffer_bytes == 0)
     CONVEY_REJECT(quiet, "invalid capacity");
+  // Round up to guarantee proper alignment
+  buffer_bytes = (buffer_bytes + CONVEY_MAX_ALIGN - 1) & -CONVEY_MAX_ALIGN;
 #if MPP_USE_SHMEM
   if (alloc == NULL && !mpp_comm_is_world(MPP_COMM_CURR))
     CONVEY_REJECT(quiet, "SHMEM cannot allocate symmetric memory for a team");
@@ -505,7 +508,7 @@ convey_new_simple(size_t buffer_bytes,
 #endif
 
   if (alloc == NULL)
-    alloc = &convey_imp_alloc;
+    alloc = &convey_imp_alloc_align;
   else if (!alloc->grab || !alloc->free)
     CONVEY_REJECT(quiet, "alloc is missing one or both methods");
 

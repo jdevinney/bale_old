@@ -156,13 +156,21 @@ convey_no_epull(convey_t* self, convey_item_t* result)
 /*** Slow dispatch functions that check stuff and update the state ***/
 
 int
-convey_begin(convey_t* self, size_t item_bytes)
+convey_begin(convey_t* self, size_t item_bytes, size_t align)
 {
   if (self == NULL)
     return convey_error_NULL;
   if (self->state != convey_DORMANT)
     return PANIC(convey_error_STATE);
-  int result = self->_class_->begin(self, item_bytes);
+  if (item_bytes == 0)
+    return PANIC(convey_error_ZERO);
+
+  if (align == 0 || (align & (align - 1)) || (item_bytes & (align - 1)))
+    align = 1 + ((item_bytes - 1) & ~item_bytes);  // 1 << _trailz(item_bytes)
+  if (align > CONVEY_MAX_ALIGN)
+    align = CONVEY_MAX_ALIGN;
+
+  int result = self->_class_->begin(self, item_bytes, align);
   self->state = convey_WORKING;
   return (result < 0) ? PANIC(result) : result;
 }
@@ -435,7 +443,7 @@ convey_parameters(size_t max_bytes, size_t n_local,
 }
 
 static const uint64_t common_options = convey_opt_RECKLESS | convey_opt_DYNAMIC |
-  convey_opt_QUIET | convey_opt_PROGRESS | convey_opt_ALERT | (0xFF * convey_opt_NOALIGN);
+  convey_opt_QUIET | convey_opt_PROGRESS | convey_opt_ALERT;
 
 convey_t*
 convey_new(size_t max_bytes, size_t n_local,
@@ -464,30 +472,26 @@ convey_new(size_t max_bytes, size_t n_local,
 }
 
 convey_t*
-convey_new_elastic(size_t atom_bytes, size_t item_bound, size_t max_bytes,
-                   size_t n_local, const convey_alc8r_t* alloc, uint64_t options)
+convey_new_elastic(size_t item_bound, size_t max_bytes, size_t n_local,
+                   const convey_alc8r_t* alloc, uint64_t options)
 {
 #if MPP_NO_MIMD
   return convey_new_trivial(item_bound, alloc, options);
 #else
-  if (atom_bytes == 0)
-    return NULL;
-
   // Deduct space for the monster buffers, even if they aren't needed
   if (max_bytes < SIZE_MAX) {
     size_t big = 2 * item_bound;
     max_bytes = (big > max_bytes) ? 0 : max_bytes - big;
   }
 
-  size_t item_size = 8 + 4 * ((atom_bytes + 3) >> 2);
   size_t buffer_bytes, n_buffers;
   int sync, order;
   convey_parameters(max_bytes, n_local, &buffer_bytes, &n_buffers, &sync, &order);
   if (sync)
     return NULL;
 
-  return convey_new_etensor(atom_bytes, buffer_bytes, item_bound, order, n_local,
-                            n_buffers, alloc, options & (common_options | convey_opt_BLOCKING));
+  return convey_new_etensor(buffer_bytes, item_bound, order, n_local, n_buffers,
+                            alloc, options & (common_options | convey_opt_BLOCKING));
 
 #endif
 }

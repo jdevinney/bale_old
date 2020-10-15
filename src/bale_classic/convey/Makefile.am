@@ -137,7 +137,8 @@ endif
 
 if !WITH_UPC
   alltoallv_CFLAGS = $(AM_CFLAGS) $(ignore_deprecation)
-  alltoallv_SOURCES = alltoallv.c bolite.h convey.h
+  alltoallv_SOURCES = alltoallv.c a2a_align.c a2a_apps.c a2a_basic.c \
+    alltoallv.h bolite.h common.h convey.h
   histogram_SOURCES = examples/histo.c examples/example.h bolite.h convey.h
   indexgather_SOURCES = examples/gather.c examples/example.h bolite.h convey.h
   bigather_SOURCES = examples/bigather.c examples/example.h bolite.h convey.h biconvey.h
@@ -148,10 +149,11 @@ if !WITH_UPC
   bigather_LDADD = libconvey.a
   meld_LDADD = libconvey.a
 else
-  alltoallu_SOURCES = bolite.h convey.h
+  alltoallu_SOURCES = alltoallv.h bolite.h common.h convey.h
   histogupc_SOURCES = examples/example.h bolite.h convey.h
   indexgupc_SOURCES = examples/example.h bolite.h convey.h
-  nodist_alltoallu_SOURCES = alltoallv__upc.upc
+  nodist_alltoallu_SOURCES = alltoallv__upc.upc \
+    a2a_align__upc.upc a2a_apps__upc.upc a2a_basic__upc.upc
   nodist_histogupc_SOURCES = examples/histo__upc.upc
   nodist_indexgupc_SOURCES = examples/gather__upc.upc 
   alltoallu_LDADD = libconvey.a
@@ -194,8 +196,9 @@ tune: $(convey_tuner)
 
 ## Distribution:
 
-EXTRA_DIST += INSTALL README launchinfo bench_simple.awk bench_tensor.awk \
-    tune_tensor tune.pl narrative.h sorter.c
+EXTRA_DIST += INSTALL LICENSE MAINTAIN README.md \
+    launchinfo bench_simple.awk bench_tensor.awk tune_tensor tune.pl \
+    narrative.h sorter.c
 CLEANFILES += tests.out tune.log tune.dat
 
 ## Generate documentation using doxygen, if possible:

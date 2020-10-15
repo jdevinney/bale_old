@@ -64,7 +64,7 @@ main(int argc, char* argv[])
   convey_t* conveyor = convey_new(SIZE_MAX, 0, NULL,
                                   convey_opt_SCATTER | convey_opt_ALERT);
   if (conveyor && counts) {
-    convey_begin(conveyor, sizeof(long));
+    convey_begin(conveyor, sizeof(long), alignof(long));
 
     /*** START OF CONVEYOR LOOP ***/
     long n = 0;
@@ -79,7 +79,7 @@ main(int argc, char* argv[])
       }
 
       long* local;
-      while (local = convey_apull(conveyor, NULL))
+      while ((local = convey_apull(conveyor, NULL)) != NULL)
         counts[*local] += 1;
     }
     /*** END OF CONVEYOR LOOP ***/
