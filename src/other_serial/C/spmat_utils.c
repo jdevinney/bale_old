@@ -1702,29 +1702,46 @@ int64_t replace_d_array(d_array_t *dest, d_array_t *src)
 \return a pointer to the double array or NULL on failure
 
 Note: file format is: 
- - first line is the num of entries in the array,
+ - lines that begin with '#' are comment lines
+ - first non-comment line is the num of entries in the array,
  - that many lines of one double per line in the format "%lf"
- - lines that begin with  # a comments /TODO  make this match bale classic and Rust
 */
 d_array_t * read_d_array(char *name)
 {
-
   int64_t i, num;
+  double t;
+  char inputstr[1024];
+  d_array_t *retarr;
+
   FILE * fp = fopen(name, "r");
-  if( fp == NULL ){
+  if ( fp == NULL ){
     fprintf(stderr,"read_d_array: can't open file %s \n", name);
-    exit(1);
+    return(NULL);
   }
 
-  int fscanfret;
-  fscanfret = fscanf(fp,"%"SCNd64"\n", &num);
-  d_array_t *retarr = init_d_array(num);
-
-  for(i=0; i<num; i++){
-    fscanfret = fscanf(fp,"%lf\n", &(retarr->entry[i]));
-    assert (fscanfret == 1);
+  i = 0;
+  num = 0; //also flag for not started yet
+  while (fgets(inputstr, sizeof inputstr, fp)) {
+    if (inputstr[0] == '#') continue;  // skip comment lines
+    if (num) {
+      if(sscanf(inputstr, "%lf\n", &t) != 1) {
+        fprintf(stderr,"read_d_array: file format error, line %ld\n", i);
+        return(NULL);
+      }
+      retarr->entry[i++] = t;
+    } else {   // read number of rows
+      if(sscanf(inputstr, "%"SCNd64"\n", &num) != 1) {
+        fprintf(stderr,"read_d_array: file format error reading num\n");
+        return(NULL);
+      }
+      num = t;
+      retarr = init_d_array(num);
+    }
   }
-
+  if ( i != num) {
+    fprintf(stderr,"read_d_array: read %ld of expected %ld lines\n", i, num);
+    return(NULL);
+  }
   return(retarr);
 }
 
