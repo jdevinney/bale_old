@@ -118,7 +118,7 @@ communicate(convey_t* conveyor, brand_t* prng, double load, size_t size,
   const size_t n_procs = PROCS;
   const size_t n_words = (size + 7) >> 3;
   uint64_t (*sendsums)[n_words] = NULL;
-  uint64_t (*recvsums][n_words] = NULL;
+  uint64_t (*recvsums)[n_words] = NULL;
   if (p2p_sums) {
     sendsums = calloc(n_procs, n_words * sizeof(uint64_t));
     recvsums = calloc(n_procs, n_words * sizeof(uint64_t));
@@ -145,7 +145,7 @@ communicate(convey_t* conveyor, brand_t* prng, double load, size_t size,
   bool pending = false;
   int rv;
 
-  rv = convey_begin(conveyor, size);
+  rv = convey_begin(conveyor, size, 1);
   if (rv != convey_OK)
     conveyor_bug(conveyor, "convey_begin", rv);
 
@@ -314,7 +314,7 @@ elasticomm(convey_t* conveyor, brand_t* prng, double load, size_t max_size,
   bool pending = false;
   int rv;
 
-  rv = convey_begin(conveyor, 1);
+  rv = convey_begin(conveyor, 1, 1);
   if (rv != convey_OK)
     conveyor_bug(conveyor, "convey_begin", rv);
 

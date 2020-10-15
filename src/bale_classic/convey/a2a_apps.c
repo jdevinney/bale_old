@@ -64,10 +64,10 @@ indexgather(convey_t* request, convey_t* reply, size_t reply_size, brand_t* prng
   const size_t reply_extra = reply_size - 12;
   int rv;
 
-  rv = convey_begin(request, sizeof(query_t));
+  rv = convey_begin(request, sizeof(query_t), 1);
   if (rv != convey_OK)
     conveyor_bug(request, "convey_begin", rv);
-  rv = convey_begin(reply, reply_size);
+  rv = convey_begin(reply, reply_size, 1);
   if (rv != convey_OK)
     conveyor_bug(reply, "convey_begin", rv);
 
@@ -179,7 +179,7 @@ histogram(convey_t* conveyor, size_t size, brand_t* prng, double load,
   bool pending = false;
   int rv;
 
-  rv = convey_begin(conveyor, sizeof(packet_t) + size);
+  rv = convey_begin(conveyor, sizeof(packet_t) + size, 1);
   if (rv != convey_OK)
     conveyor_bug(conveyor, "convey_begin", rv);
 

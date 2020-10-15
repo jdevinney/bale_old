@@ -74,7 +74,7 @@ static checksum_t
 flexalign(convey_t* conveyor, brand_t* prng, double load, size_t max_size)
 {
   const size_t max_words = (max_size + 7) >> 3;
-  uint64_t send = malloc(max_words * sizeof(uint64_t));
+  uint64_t* send = malloc(max_words * sizeof(uint64_t));
 
   // all item sizes will be a multiple of 'align'
   const size_t align = 1 + ((max_size - 1) & ~max_size);
