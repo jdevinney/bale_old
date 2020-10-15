@@ -521,12 +521,13 @@ The source code is B<UNCLASSIFIED>.
 
 =head1 COPYRIGHT
 
-Copyright (c) 2018, Institute for Defense Analyses, 4850 Mark Center
-Drive, Alexandria, VA 22311-1882; 703-845-2500.
+Copyright (c) 2020, Institute for Defense Analyses
+4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 
-This material may be reproduced by or for the U.S. Government 
-pursuant to the copyright license under the clauses at DFARS 
-252.227-7013 and 252.227-7014.
+All rights reserved.
+
+This file is part of the conveyor package. For license information,
+see the LICENSE file in the top level directory of the distribution.
 
 =for html <div style="text-align: center; font-size: 120%; color: #006600; margin-top: 1ex;">
 <strong>UNCLASSIFIED//FOR OFFICIAL USE ONLY</strong></div>
