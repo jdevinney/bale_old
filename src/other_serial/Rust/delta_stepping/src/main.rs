@@ -197,7 +197,7 @@ fn main() {
         matret.dump_wts("results.wts").expect("results write error");
     }
 
-    // hack to check against Phil's output file if it's there
+    // hack to check against an output file if it's there
     // this would have been like 6 lines in Python ... just sayin' ...
     if matches.is_present("input_file") {
         let re = Regex::new(r"\.").unwrap();
