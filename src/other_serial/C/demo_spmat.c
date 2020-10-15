@@ -40,7 +40,7 @@ int main(int argc, char * argv[])
 
 
   sparsemat_t *graph;
-  graph = read_matrix_mm("demo.mm");
+  graph = read_matrix_mm("../../../example_matrices/undirected_flat_100.mm");
   spmat_stats(graph);
 
   dump_matrix(graph, 4, "dump_4.out");
