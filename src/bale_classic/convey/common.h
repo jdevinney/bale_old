@@ -65,11 +65,13 @@
 #  define MPP_NO_MIMD 1
 # endif
 # define PARALLEL(TYPE,FIELD) TYPE FIELD
+# define PARALLEL_NULLIFY(OBJECT,FIELD) \
+  (OBJECT)->FIELD = NULL
 # define PARALLEL_ALLOC(OBJECT,FIELD,ALLOC,SIZE,TYPE) \
   (OBJECT)->FIELD = (TYPE*) (ALLOC)->grab((ALLOC)->alc8r, \
     (SIZE) * sizeof(TYPE), __FILE__, __LINE__)
 # define PARALLEL_DEALLOC(OBJECT,FIELD,ALLOC) \
-  (ALLOC)->free((ALLOC)->alc8r, (OBJECT)->FIELD)
+  (ALLOC)->free((ALLOC)->alc8r, (void*) (OBJECT)->FIELD)
 #endif
 
 #if ENABLE_PROFILING

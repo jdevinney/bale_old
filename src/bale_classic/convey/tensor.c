@@ -239,7 +239,7 @@ tensor_advance(convey_t* self, bool done)
 }
 
 int
-tensor_begin(convey_t* self, size_t item_size)
+tensor_begin(convey_t* self, size_t item_size, size_t align)
 {
   tensor_t* tensor = (tensor_t*) self;
   if (!mpp_comm_is_equal(MPP_COMM_CURR, tensor->comm))
@@ -251,10 +251,14 @@ tensor_begin(convey_t* self, size_t item_size)
     return convey_error_OFLO;
 
   self->item_size = item_size;
+  size_t header_bytes = tensor->item_offset;
+  if (header_bytes == 0)
+    header_bytes = sizeof(buffer_t);
   bool ok = true;
+
   if (tensor->accelerate)
     ok &= setup_methods(tensor);
-  ok &= convey_prep_aligned(&tensor->aligned_item, item_size, 4, tensor->align);
+  ok &= convey_prep_aligned(&tensor->aligned_item, item_size, header_bytes, align);
   for (int i = 0; i < tensor->order; i++)
     ok &= porter_setup(tensor->porters[i], item_size);
   tensor->n_complete = 0;
@@ -524,7 +528,7 @@ convey_new_tensor(size_t capacity, int order, size_t n_local, size_t n_buffers,
     CONVEY_REJECT(quiet, "alloc is missing one or both methods");
   if (options &~ (convey_opt_RECKLESS | convey_opt_DYNAMIC | convey_opt_QUIET |
                   convey_opt_PROGRESS | convey_opt_ALERT | convey_opt_COMPRESS |
-                  convey_opt_STANDARD | convey_opt_BLOCKING | 0xFF * convey_opt_NOALIGN))
+                  convey_opt_STANDARD | convey_opt_BLOCKING))
     CONVEY_REJECT(quiet, "unrecognized option(s)");
 
   size_t n_procs = PROCS;
@@ -551,7 +555,6 @@ convey_new_tensor(size_t capacity, int order, size_t n_local, size_t n_buffers,
   if (tensor == NULL)
     return NULL;
 
-  tensor->align = (options / convey_opt_NOALIGN) & 0xFF;
   tensor->accelerate = reckless && !standard;
   tensor->item_offset = tensor->tag_bytes[order - 1];
   tensor->max_bytes = capacity;

@@ -40,5 +40,6 @@ $LAUNCH ./alltoall? -- <<EOF
 -R -A -f0 -c560 -w10 -t6 -d   twohop 100 56
 -R -A -f0 -c160 -w10 -t8 -p   twohop 100 16
 -R -A -f0 -c160 -w10 -t4 -dpy twohop 100 16
+-R -M -f0 -c500 -w40 -t8      twohop 100 64
 EOF
 exit 0

@@ -1,4 +1,4 @@
-// Copyright (c) 2019, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -156,13 +156,21 @@ convey_no_epull(convey_t* self, convey_item_t* result)
 /*** Slow dispatch functions that check stuff and update the state ***/
 
 int
-convey_begin(convey_t* self, size_t item_bytes)
+convey_begin(convey_t* self, size_t item_bytes, size_t align)
 {
   if (self == NULL)
     return convey_error_NULL;
   if (self->state != convey_DORMANT)
     return PANIC(convey_error_STATE);
-  int result = self->_class_->begin(self, item_bytes);
+  if (item_bytes == 0)
+    return PANIC(convey_error_ZERO);
+
+  if (align == 0 || (align & (align - 1)) || (item_bytes & (align - 1)))
+    align = 1 + ((item_bytes - 1) & ~item_bytes);  // 1 << _trailz(item_bytes)
+  if (align > CONVEY_MAX_ALIGN)
+    align = CONVEY_MAX_ALIGN;
+
+  int result = self->_class_->begin(self, item_bytes, align);
   self->state = convey_WORKING;
   return (result < 0) ? PANIC(result) : result;
 }
@@ -267,6 +275,8 @@ static const char * const error_strings[] = {
   [-convey_error_MISFIT] = "item has wrong size for pull",
   [-convey_error_OFLO] = "item is too large for conveyor",
   [-convey_error_ZERO] = "item size is zero",
+  [-convey_error_TOOBIG] = "number of buffered items is too large",
+  [-convey_error_NOFUNC] = "function pointer is NULL",
 };
 
 const char*
@@ -279,7 +289,7 @@ convey_error_string(convey_t* self, int error)
   const char* string = NULL;
   if (-error < sizeof(error_strings) / sizeof(const char*))
     string = error_strings[-error];
-  else if (self->_class_->error_string)
+  else if (self != NULL && self->_class_->error_string)
     string = self->_class_->error_string(self, error);
   return string ? string : "unknown error";
 }
@@ -309,9 +319,9 @@ porter_usage(size_t capacity, size_t n_procs, size_t n_buffers)
 
 // Compute the amount of "symmetric" memory needed by a conveyor
 // with the given parameters.  (Can be a slight overestimate.)
-static size_t
-memory_usage(size_t capacity, bool sync, int order,
-             size_t n_procs, size_t n_local, size_t n_buffers)
+size_t
+convey_memory_usage(size_t capacity, bool sync, int order,
+		    size_t n_procs, size_t n_local, size_t n_buffers)
 {
   // Simple conveyors
   if (sync && order == 1)
@@ -338,8 +348,8 @@ memory_usage(size_t capacity, bool sync, int order,
   }
 }
 
-static void
-choose_parameters(size_t max_bytes, size_t n_local,
+void
+convey_parameters(size_t max_bytes, size_t n_local,
                   size_t* capacity_, size_t* n_buffers_, int* sync_, int* order_)
 {
   // Set up some default values
@@ -375,7 +385,7 @@ choose_parameters(size_t max_bytes, size_t n_local,
 
   if (max_bytes < SIZE_MAX)
     for (int step = 1; true; step++) {
-      size_t usage = memory_usage(capacity, sync, order, n_procs, n_local, n_buffers);
+      size_t usage = convey_memory_usage(capacity, sync, order, n_procs, n_local, n_buffers);
       if (usage <= max_bytes)
         break;
 
@@ -390,7 +400,7 @@ choose_parameters(size_t max_bytes, size_t n_local,
           while (new_local % 2 == 0 && new_local * new_local > 4 * n_procs)
             new_local >>= 1;
           if (new_local != n_local && n_procs > new_local) {
-            size_t try = memory_usage(capacity, true, 2, n_procs, new_local, 1);
+            size_t try = convey_memory_usage(capacity, true, 2, n_procs, new_local, 1);
             if (try < usage) {
               order = 2;
               n_local = new_local;
@@ -403,7 +413,7 @@ choose_parameters(size_t max_bytes, size_t n_local,
           while (new_local % 2 == 0 && new_local * new_local * new_local > 8 * n_procs)
             new_local >>= 1;
           if (new_local != n_local && n_procs > new_local * new_local) {
-            size_t try = memory_usage(capacity, false, 3, n_procs, new_local, 1);
+            size_t try = convey_memory_usage(capacity, false, 3, n_procs, new_local, 1);
             if (try < usage) {
               order = 3;
               n_local = new_local;
@@ -433,7 +443,7 @@ choose_parameters(size_t max_bytes, size_t n_local,
 }
 
 static const uint64_t common_options = convey_opt_RECKLESS | convey_opt_DYNAMIC |
-  convey_opt_QUIET | convey_opt_PROGRESS | convey_opt_ALERT | (0xFF * convey_opt_NOALIGN);
+  convey_opt_QUIET | convey_opt_PROGRESS | convey_opt_ALERT;
 
 convey_t*
 convey_new(size_t max_bytes, size_t n_local,
@@ -444,7 +454,7 @@ convey_new(size_t max_bytes, size_t n_local,
 
   size_t capacity, n_buffers;
   int sync, order;
-  choose_parameters(max_bytes, n_local, &capacity, &n_buffers, &sync, &order);
+  convey_parameters(max_bytes, n_local, &capacity, &n_buffers, &sync, &order);
 
   // Build the chosen conveyor
 #if 0
@@ -462,30 +472,26 @@ convey_new(size_t max_bytes, size_t n_local,
 }
 
 convey_t*
-convey_new_elastic(size_t atom_bytes, size_t item_bound, size_t max_bytes,
-                   size_t n_local, const convey_alc8r_t* alloc, uint64_t options)
+convey_new_elastic(size_t item_bound, size_t max_bytes, size_t n_local,
+                   const convey_alc8r_t* alloc, uint64_t options)
 {
 #if MPP_NO_MIMD
   return convey_new_trivial(item_bound, alloc, options);
 #else
-  if (atom_bytes == 0)
-    return NULL;
-
   // Deduct space for the monster buffers, even if they aren't needed
   if (max_bytes < SIZE_MAX) {
     size_t big = 2 * item_bound;
     max_bytes = (big > max_bytes) ? 0 : max_bytes - big;
   }
 
-  size_t item_size = 8 + 4 * ((atom_bytes + 3) >> 2);
   size_t buffer_bytes, n_buffers;
   int sync, order;
-  choose_parameters(max_bytes, n_local, &buffer_bytes, &n_buffers, &sync, &order);
+  convey_parameters(max_bytes, n_local, &buffer_bytes, &n_buffers, &sync, &order);
   if (sync)
     return NULL;
 
-  return convey_new_etensor(atom_bytes, buffer_bytes, item_bound, order, n_local,
-                            n_buffers, alloc, options & (common_options | convey_opt_BLOCKING));
+  return convey_new_etensor(buffer_bytes, item_bound, order, n_local, n_buffers,
+                            alloc, options & (common_options | convey_opt_BLOCKING));
 
 #endif
 }

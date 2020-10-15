@@ -178,7 +178,7 @@ trivial_advance(convey_t* self, bool done)
 }
 
 static int
-trivial_begin(convey_t* self, size_t item_size)
+trivial_begin(convey_t* self, size_t item_size, size_t align)
 {
   trivial_t* trivial = (trivial_t*) self;
   if (item_size > trivial->capacity)
@@ -261,7 +261,7 @@ convey_new_trivial(size_t monster_size, const convey_alc8r_t* alloc,
     CONVEY_REJECT(quiet, "invalid arguments");
 
   if (alloc == NULL)
-    alloc = &convey_imp_alloc;
+    alloc = &convey_imp_alloc_align;
   else if (!alloc->grab || !alloc->free)
     CONVEY_REJECT(quiet, "alloc is missing one or both methods");
 

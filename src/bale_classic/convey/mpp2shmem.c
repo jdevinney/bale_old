@@ -103,7 +103,8 @@ xshmem_broadcast64(void* data, size_t count, int root)
 
 int
 xshmem_alltoallv(char* recv, size_t recv_bytes[],
-                 char* send, size_t send_bytes[], size_t offsets[], int perm[])
+                 char* send, size_t send_bytes[],
+		 const size_t offsets[], const int perm[])
 {
   int me = shmem_my_pe();
   int npes = shmem_n_pes();
@@ -116,6 +117,20 @@ xshmem_alltoallv(char* recv, size_t recv_bytes[],
     shmem_putmem(&recv_bytes[me], &send_bytes[pe], sizeof(size_t), pe);
   }
 
+  shmem_barrier_all();
+  return 0;
+}
+
+int
+xshmem_alltoall(char* recv, char* send, size_t n_bytes, const int perm[])
+{
+  int me = shmem_my_pe();
+  int npes = shmem_n_pes();
+  shmem_barrier_all();
+  for (int i = 0; i < npes; i++) {
+    int pe = perm[i];
+    shmem_putmem(&recv[me * n_bytes], &send[pe * n_bytes], n_bytes, pe);
+  }
   shmem_barrier_all();
   return 0;
 }

@@ -1,4 +1,4 @@
-// Copyright (c) 2019, Institute for Defense Analyses
+// Copyright (c) 2020, Institute for Defense Analyses
 // 4850 Mark Center Drive, Alexandria, VA 22311-1882; 703-845-2500
 // This material may be reproduced by or for the U.S. Government 
 // pursuant to the copyright license under the clauses at DFARS 
@@ -38,7 +38,9 @@
 
 // Negative error codes:
 enum convey_error {
-  convey_error_ZERO = -11, // item size is zero
+  convey_error_NOFUNC = -13,  // function pointer is NULL
+  convey_error_TOOBIG,     // total buffer capacity is too large
+  convey_error_ZERO,       // item size is zero
   convey_error_OFLO,       // item is too large for conveyor
   convey_error_MISFIT,     // next item is wrong size for pull
   convey_error_RIGID,      // conveyor is not elastic
@@ -67,7 +69,7 @@ struct conveyor_methods {
   int (*pull)(convey_t* self, void* item, int64_t* from);
   int (*unpull)(convey_t* self);
   int (*advance)(convey_t* self, bool done);
-  int (*begin)(convey_t* self, size_t item_bytes);
+  int (*begin)(convey_t* self, size_t item_bytes, size_t align);
   int (*reset)(convey_t* self);
   int (*free)(convey_t* self);
   int64_t (*statistic)(convey_t* self, int which);
@@ -102,5 +104,11 @@ int convey_no_epush(convey_t* c, size_t bytes, const void* item, int64_t pe);
 int convey_no_epull(convey_t* c, convey_item_t* result);
 
 int convey_panic(convey_t* self, const char* where, int error);
+
+// choose good parameters using heuristics and environment variables
+void convey_parameters(size_t max_bytes, size_t n_local,
+		       size_t* capacity_, size_t* n_buffers_, int* sync_, int* order_);
+size_t convey_memory_usage(size_t capacity, bool sync, int order,
+			   size_t n_procs, size_t n_local, size_t n_buffers);
 
 #endif
