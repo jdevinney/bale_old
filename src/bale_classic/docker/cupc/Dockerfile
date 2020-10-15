@@ -1,7 +1,7 @@
 
 FROM ubuntu:18.04
 
-MAINTAINER Jason DeVinney <jgdevin@super.org>
+MAINTAINER bale <bale@super.org>
 
 # Build-arg: NPROCS for parallel make
 ARG NPROCS=2
