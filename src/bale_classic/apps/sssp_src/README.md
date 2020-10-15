@@ -34,7 +34,7 @@ The vertices change state via the process of *relaxing edges*.  Relaxing an edge
 
 There is subtle relationship between the length of a path
 (the number of edge in the path) and the weight of the path.
-Clearly, it is possible to have a longer path that is lighter than a shorter.
+Clearly, it is possible to have a longer path that is lighter than a shorter path.
 If a path from *v0* to *w* contains the vertex *v*, then the weight of the path
 from *v0* to *v* is less than the weight of the path from *v0* thru *v* to *w*.
 If *v* is an intermediate vertex on a lightest path from *v0* to *w*,
@@ -53,7 +53,7 @@ to the "unsettled" and "unreached" vertices.
 Basically the algorithm simply relaxes all of the edges in the graph over and over again 
 until none of the tentative weights *tent(v)* change. 
 The algorithm finds the lightest tentative weights to all vertices on paths of length *i*,
-for *i* equal zero to the length of the longest path.
+for *i* equal zero to the length of a longest path.
 
 The Meyer/Sanders delta-stepping algorithm uses ideas from both of the previous algorithms.
 Unsettled vertices are kept in "buckets" based on their by *tent(v)* weights; bucket *i*
@@ -61,12 +61,11 @@ contains vertices with *tent(v)* at least _i\*delta_ and less than _(i+1)\*delta
 where *delta* is a parameter.  The active bucket is the *i*th bucket (with the smallest *i*)
 that has unsettled vertices.  Edges in the graph are considered light if their weight 
 is less than or equal to *delta* and heavy otherwise.
-
 The algorithm "settles" the vertices in the active bucket with a Bellman-Ford approach
 using only the light edges. Then the algorithm relaxes the vertices that were in the active
 bucket using the heavy edges. This uses an extension of Dijsktra's approach because the 
 heavy edges cannot put vertices into the active bucket.  The efficiency of the algorithm
-comes at the price of a more complicate flow control and data-structure manipulations
+comes at the price of flow control and data-structure manipulations
 to maintain the buckets.  Here is psuedo code for the algorithm:
 ```
 // We write an edge with tail v, head w and weight (cost) as {v,w,c}.
@@ -115,16 +114,16 @@ directory and the delta-stepping algorithm in the other_serial/Rust and other_pa
 #### Parallel Considerations
 Dijsktra's algorithm is a serial algorithm 
 with no opportunity for our static thread based parallelism. 
-One must find *the* single lightest *tent(v)* and then relax the edges from that *v*.
-In addition, serial versions of the algorithm can use a priority queue to efficient
-the next unsettled vertex. In our C implementation we use a simple binary heap.
+One must find **the** single lightest *tent(v)* and then relax the edges from that *v*.
+In addition, serial versions of the algorithm can use a priority queue to efficient find
+this next unsettled vertex. In our C implementation we use a simple binary heap.
 Depending on the average degree of a vertex, one could imagine relaxing the edges
-in parallel with a fork-join threading model, but one still has to have an 
-efficient way to find the smallest weight unsettled vertex.
+in parallel with a fork-join threading model, but that is limited parallelism and
+introduces difficulties in maintaining the consistency of the heap.
 
 Bellman-Ford does a lot of redundant relaxations. We attempt to limit the amount of 
 redundant work with a dynamic programming approach, but it still seems to be over-whelming.
-In it favor, it has trivial flow control, no data structure manipulations 
+In its favor, it has trivial flow control, no data structure manipulations 
 and massive amounts (equal to the number of edges) of parallelism.
 
 The delta-stepping algorithm has a tunable amount of parallelism 
@@ -140,21 +139,21 @@ A thread with affinity to the tail of an edge knows the *tent(v)*
 of a vertex and the weight of the outgoing edges from *v*. It is responsible
 for picking which edges to relax.  A thread with affinity to the head
 of an edge knows whether or not the relaxation improves *tent(w)* of the head
-and is responsible for deciding that and updating data structures accordingly.
+and is responsible for deciding that and updating the data structures accordingly.
 
-If our AGP model had an atomic min of a double, we could reasonable write
+If our AGP model had an atomic min of a `double`, we could reasonable write
 an AGP version of Bellman-Ford.  Our buggy version of the AGP is currently 
 in the alternate sub-directory for sssp. An AGP version of the Delta-Stepping
 algorithm does not seem feasible at this time.
 
 #### Why it is in bale?
 This problem and the different algorithms give a new use case to study programming models.
-The Bellman-Ford is simple algorithm, but it requires an atomic min of a double to 
-perform the relaxations in AGP model.
+The Bellman-Ford is simple algorithm, but it requires an atomic min of a `double` to 
+perform the relaxations in the AGP model.
 Most of the apps in bale do lots of communication and very little work at the remote
 side of the communication.
 The Delta-stepping algorithm provides a new data point 
-because the amount of work done remotely is at least as much as the work done locally.
+because the amount of work done "remotely" is at least as much as the work done "locally".
 The analysis of the SSSP algorithms is on-going.
 
 #### From the Book?
@@ -162,7 +161,7 @@ The analysis of the SSSP algorithms is on-going.
 We don't think there's an FTB version of any of these algorithms using
 the AGP model because of the amount of work that must be done
 remotely and atomically for every edge relaxation. For this reason the aggregated versions
-of delta-stepping are actually easier to code thatn AGP and are not far off of the serial implementation of SSSP.
+of delta-stepping are actually easier to code than an AGP version and are not far off of the serial implementation of SSSP.
 
 See apps/sssp_src/ for the all implementations.
 

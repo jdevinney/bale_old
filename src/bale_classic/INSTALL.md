@@ -6,7 +6,7 @@ See the System Requirments section in [README](README.md).
 
 You can build bale on top of UPC or SHMEM. 
 
-- UPC:   You should set the $UPC environment variable to point to the UPC compiler and 
+- UPC:   You should set the UPC environment variable to point to the UPC compiler and 
         the UPCFLAGS variable to whatever options you pass to the compiler (for example:
         UPCFLAGS="-gupc -network=ibv".
 - SHMEM: If you are using openshmem, set CC=oshcc (the openshmem compiler).

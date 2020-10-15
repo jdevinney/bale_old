@@ -14,12 +14,8 @@ is also up for discussion. We imagine it would be easier to consider
 them coming in synchronous waves -- a batch of edges arrives, the
 components are updated before the next batch arrives.
 
-### Discussion
+There is serial version of union-find in the "cousins" directory 
+`other_serial/C`.
 
-#### Parallel Considerations
-
-#### Why it is in bale?
-
-#### From the Book?
 
 

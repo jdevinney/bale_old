@@ -11,7 +11,7 @@ for(i = 0; i < N; i++)
   shmem_atomic_add(&table[index[i/THREADS], 1, index[i] % THREADS);
 ```
 
-where table is a distributed array with M total elements and index is a local array of global indices into the table.
+where table is a distributed array with M total elements and `index` is a local array of global indices into the table.
 
 ## Discussion
 
