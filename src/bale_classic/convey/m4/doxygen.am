@@ -44,7 +44,7 @@ doc_DATA = $(doxypkg)
 $(doxypkg): doxygen.stamp
 	tar chof - html | gzip -9 -c >$@
 
-doxygen.stamp: Doxyfile narrative.h convey.h convey_alc8r.h convey_codec.h
+doxygen.stamp: Doxyfile narrative.h convey.h convey_alc8r.h convey_codec.h biconvey.h
 	doxygen $<
 	echo Timestamp > $@
 

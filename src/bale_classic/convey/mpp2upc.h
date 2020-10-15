@@ -49,6 +49,9 @@
 // slice of the shared array, but the corresponding shared pointer is also
 // present as a member whose name is prefixed by all_.
 #define PARALLEL(TYPE,FIELD) TYPE FIELD; shared TYPE all_ ## FIELD
+#define PARALLEL_NULLIFY(OBJECT,FIELD) \
+  (OBJECT)->all_ ## FIELD = NULL; \
+  (OBJECT)->FIELD = NULL
 #define PARALLEL_ALLOC(OBJECT,FIELD,ALLOC,SIZE,TYPE) \
   (OBJECT)->all_ ## FIELD = upc_all_alloc(THREADS * (SIZE), sizeof(TYPE)); \
   (OBJECT)->FIELD = ((OBJECT)->all_ ## FIELD == NULL) ? NULL : \
@@ -116,6 +119,9 @@ void upcx_broadcast64(void* data, size_t count, int root);
 
 int upcx_alltoallv(shared char* recv, shared size_t* recv_bytes,
                    shared char* send, shared size_t* send_bytes,
-                   size_t* offsets, int* perm);
+                   const size_t offsets[], const int perm[]);
+
+int upcx_alltoall(shared char* recv, shared char* send,
+		  size_t n_bytes, const int perm[]);
 
 #endif

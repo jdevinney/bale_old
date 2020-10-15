@@ -113,7 +113,7 @@ double sssp_delta_convey(d_array_t *dist, sparsemat_t * mat, int64_t r0, double 
     start = 0;
     end = 0;
     while( lgp_reduce_max_l(ds->B[i_m]) > -1){    // repeatly check that B[i_m] on all threads are empty
-      convey_begin(conv, sizeof(sssp_pkg_t));
+      convey_begin(conv, sizeof(sssp_pkg_t), 0);
 
       while( ds->B[i_m] >= 0 ) {                  // removes vertices from this bucket, but the relaxation process
                                                   // may add vertices to this bucket on any thread
@@ -144,7 +144,7 @@ double sssp_delta_convey(d_array_t *dist, sparsemat_t * mat, int64_t r0, double 
     }
     lgp_barrier();
 
-    convey_begin(conv, sizeof(sssp_pkg_t));
+    convey_begin(conv, sizeof(sssp_pkg_t), 0);
     for(start=0; start<end; start++){           // relax heavy requests edges for everything in R 
       v = ds->R[start];
       for(k = mat->loffset[v]; k < mat->loffset[v + 1]; k++){

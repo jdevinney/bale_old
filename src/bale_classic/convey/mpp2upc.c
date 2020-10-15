@@ -30,8 +30,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdint.h>
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #if (__cray__ || _CRAYC) && __UPC__
 # include <upc_cray.h>
@@ -172,7 +172,7 @@ upcx_broadcast64(void* data, size_t count, int root)
 int
 upcx_alltoallv(shared char* all_recv, shared size_t* all_recv_bytes,
                shared char* all_send, shared size_t* all_send_bytes,
-               size_t* offsets, int* perm)
+               const size_t offsets[], const int perm[])
 {
   size_t* send_bytes = (size_t*) &all_send_bytes[MYTHREAD];
   size_t* recv_bytes = (size_t*) &all_recv_bytes[MYTHREAD];
@@ -186,6 +186,23 @@ upcx_alltoallv(shared char* all_recv, shared size_t* all_recv_bytes,
       upc_memput(&all_recv[THREADS * offsets[MYTHREAD] + thread],
                  &send[offsets[thread]], send_bytes[thread]);
     recv_bytes[thread] = all_send_bytes[THREADS * MYTHREAD + thread];
+  }
+
+  upc_barrier(__LINE__);
+  return 0;
+}
+
+int
+upcx_alltoall(shared char* all_recv, shared char* all_send,
+	      size_t n_bytes, const int perm[])
+{
+  char* send = (char*) &all_send[MYTHREAD];
+  upc_barrier(__LINE__);
+
+  for (int i = 0; i < THREADS; i++) {
+    size_t thread = perm[i];
+    upc_memput(&all_recv[THREADS * (MYTHREAD * n_bytes) + thread],
+	       &send[thread * n_bytes], n_bytes);
   }
 
   upc_barrier(__LINE__);

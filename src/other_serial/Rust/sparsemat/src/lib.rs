@@ -810,7 +810,7 @@ mod tests {
 
     #[test]
     fn read_mm2() {
-        let mat = SparseMat::read_mm_file("src/10_ring.mm");
+        let mat = SparseMat::read_mm_file("good/10_ring.mm");
         match mat {
             Ok(_m) => (),
             Err(e) => panic!("{}", e),
@@ -819,7 +819,7 @@ mod tests {
 
     #[test]
     fn read_mm3() {
-        let mat = SparseMat::read_mm_file("src/10_ring_values.mm");
+        let mat = SparseMat::read_mm_file("good/10_ring_values.mm");
         match mat {
             Ok(_m) => (),
             Err(e) => panic!("{}", e),
@@ -828,47 +828,51 @@ mod tests {
 
     #[test]
     fn write_mm1() {
-        let mat = SparseMat::read_mm_file("src/10_ring.mm").expect("failed read");
-        mat.write_mm_file("src/10_ring1.mm").expect("failed write");
-        let mat1 = SparseMat::read_mm_file("src/10_ring1.mm").expect("failed read");
+        let f1 = format!("{}/10_ring1.mm", std::env::temp_dir().to_str().unwrap());
+        let mat = SparseMat::read_mm_file("good/10_ring.mm").expect("failed read");
+        mat.write_mm_file(&f1).expect("failed write");
+        let mat1 = SparseMat::read_mm_file(&f1).expect("failed read");
         assert_eq!(mat.compare(&mat1), true);
     }
 
     #[test]
     fn write_mm2() {
-        let mat = SparseMat::read_mm_file("src/10_ring_values.mm").expect("failed read");
-        mat.write_mm_file("src/10_ring1_values.mm")
-            .expect("failed write");
-        let mat1 = SparseMat::read_mm_file("src/10_ring1_values.mm").expect("failed read");
+        let f1 = format!(
+            "{}/10_ring1_values.mm",
+            std::env::temp_dir().to_str().unwrap()
+        );
+        let mat = SparseMat::read_mm_file("good/10_ring_values.mm").expect("failed read");
+        mat.write_mm_file(&f1).expect("failed write");
+        let mat1 = SparseMat::read_mm_file(&f1).expect("failed read");
         assert_eq!(mat.compare(&mat1), true);
     }
 
     #[test]
     fn dump1() {
-        let mat = SparseMat::read_mm_file("src/10_ring.mm").expect("failed read");
-        mat.dump(mat.numrows, "src/10_ring.dump")
-            .expect("failed dump");
+        let f1 = format!("{}/10_ring.dump", std::env::temp_dir().to_str().unwrap());
+        let mat = SparseMat::read_mm_file("good/10_ring.mm").expect("failed read");
+        mat.dump(mat.numrows, &f1).expect("failed dump");
         // How to test this is right?
     }
 
     #[test]
     fn compare1() {
-        let mat = SparseMat::read_mm_file("src/10_ring.mm").expect("failed read");
+        let mat = SparseMat::read_mm_file("good/10_ring.mm").expect("failed read");
         assert_eq!(mat.compare(&mat), true);
-        let mat1 = SparseMat::read_mm_file("src/10_ring_values.mm").expect("failed read");
+        let mat1 = SparseMat::read_mm_file("good/10_ring_values.mm").expect("failed read");
         assert_eq!(mat.compare(&mat1), false);
     }
 
     #[test]
     fn triangular1() {
-        let mat = SparseMat::read_mm_file("src/10_ring.mm").expect("failed read");
+        let mat = SparseMat::read_mm_file("good/10_ring.mm").expect("failed read");
         assert_eq!(mat.is_lower_triangular(), true);
         assert_eq!(mat.is_upper_triangular(), false);
     }
 
     #[test]
     fn transpose1() {
-        let mat = SparseMat::read_mm_file("src/10_ring.mm").expect("failed read");
+        let mat = SparseMat::read_mm_file("good/10_ring.mm").expect("failed read");
         let tmat = mat.transpose();
         let ttmat = tmat.transpose();
         println!("mat:{:?}", mat);
@@ -881,13 +885,13 @@ mod tests {
     #[test]
     #[should_panic]
     fn transpose2() {
-        let mat = SparseMat::read_mm_file("src/10_ring_values.mm").expect("failed read");
+        let mat = SparseMat::read_mm_file("good/10_ring_values.mm").expect("failed read");
         let _ = mat.transpose();
     }
 
     #[test]
     fn perm1() {
-        let mat = SparseMat::read_mm_file("src/10_ring.mm").expect("failed read");
+        let mat = SparseMat::read_mm_file("good/10_ring.mm").expect("failed read");
         let rperm = Perm::random(10, 0);
         let irperm = rperm.inverse();
         let cperm = Perm::random(10, 0);
@@ -908,7 +912,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn perm2() {
-        let mat = SparseMat::read_mm_file("src/10_ring_values.mm").expect("failed read");
+        let mat = SparseMat::read_mm_file("good/10_ring_values.mm").expect("failed read");
         let rperm = Perm::random(10, 0);
         let cperm = Perm::random(10, 0);
         let _ = mat.permute(&rperm, &cperm);

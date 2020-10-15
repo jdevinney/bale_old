@@ -1,7 +1,7 @@
-This README file contains notes to orient a developer or maintainer.
+This MAINTAIN file contains notes to orient a developer or maintainer.
 For instructions on how to build the conveyor package, see INSTALL.
-For an introduction to conveyors and the API documentation, do any
-of the following: 
+For an introduction to conveyors and the API documentation, first
+look at README.md, and then do any of the following:
 
 1) Read narrative.h and convey.h
 2) Build the package and peruse the pages rooted at ./html/index.html

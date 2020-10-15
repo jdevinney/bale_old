@@ -38,44 +38,7 @@
 
 #include "convey_impl.h"
 #include "private.h"
-#include "sorter.h"
-
-#ifdef MPP_USE_MPI
-typedef int a2a_off_t;
-#else
-typedef size_t a2a_off_t;
-#endif
-
-typedef struct simple {
-  convey_t convey;
-  sorter_t* sorter;      // for distributing items into buffers
-  bool nonempty;         // is there anything in any buffer?
-  bool overflow;         // has any buffer filled up?
-  bool quiet;            // are communications finished?
-  bool own_a2a;          // did we create the a2a?
-  bool dynamic;          // deallocate buffers when dormant?
-  bool scatter;          // do we want a sorter?
-  bool flip;             // which sync array should we use next?
-  int64_t pull_from;     // draw from which recv buffer?
-  size_t capacity;
-  size_t buffer_bytes;
-  size_t buffer_limit;   // item_size * capacity
-  area_t* send;          // current state of send buffers
-  area_t* recv;          // current state of recv buffers
-  PARALLEL(size_t*, send_sizes);
-  PARALLEL(size_t*, recv_sizes);
-  PARALLEL(char*, send_buffers);
-  PARALLEL(char*, recv_buffers);
-  // Symmetric (in SHMEM case) but not shared (in UPC case):
-  a2a_off_t* offsets;   // offsets (displacements) for alltoallv
-  // Miscellaneous fields
-  convey_alc8r_t alloc;
-  const mpp_alltoall_t* a2a;
-  int* perm;             // for xshmem_alltoallv or upcx_alltoallv
-  long* sync[2];         // for shmemx_alltoallv
-  mpp_comm_t comm;       // for error checking and MPI_Alltoallv
-  int64_t stats[convey_imp_N_STATS];
-} simple_t;
+#include "simple.h"
 
 
 /*** UTILITY FUNCTIONS ***/
@@ -118,7 +81,7 @@ simple_perm_new(int n_procs, int my_proc)
 }
 #endif
 
-static int
+int
 simple_alltoallv(simple_t* simple)
 {
   const size_t n_procs = simple->convey.n_procs;
@@ -163,10 +126,10 @@ simple_alltoallv(simple_t* simple)
                              simple->send_buffers, simple->send_sizes,
                              simple->offsets, simple->perm);
 # elif MPP_USE_MPI
-    int* send_sizes = (int*) simple->send_sizes;
+    int* send_sizes = malloc(2 * n_procs * sizeof(int));
     for (int64_t p = 0; p < n_procs; p++)
-      send_sizes[p] = simple->send_sizes[p];
-    int* recv_sizes = (int*) simple->recv_sizes;
+      send_sizes[p] = (int) simple->send_sizes[p];
+    int* recv_sizes = send_sizes + n_procs;
 
     error = MPI_Alltoall(send_sizes, 1, MPI_INT, recv_sizes, 1, MPI_INT,
                          mpp_comm_mpi(simple->comm));
@@ -174,9 +137,10 @@ simple_alltoallv(simple_t* simple)
       error = MPI_Alltoallv(simple->send_buffers, send_sizes, simple->offsets, MPI_BYTE,
                             simple->recv_buffers, recv_sizes, simple->offsets, MPI_BYTE,
                             mpp_comm_mpi(simple->comm));
-      for (int64_t p = n_procs - 1; p >= 0; p--)
-        simple->recv_sizes[p] = recv_sizes[p];
+      for (int64_t p = 0; p < n_procs; p++)
+        simple->recv_sizes[p] = (size_t) recv_sizes[p];
     }
+    free(send_sizes);
 # elif MPP_NO_MIMD
     memcpy(simple->recv_buffers, simple->send_buffers, simple->send_sizes[0]);
     simple->recv_sizes[0] = simple->send_sizes[0];
@@ -287,8 +251,8 @@ simple_unpull(convey_t* self)
   return convey_FAIL;
 }
 
-static void
-reset_send_buffers(simple_t* simple)
+void
+simple_reset_send_buffers(simple_t* simple)
 {
   const size_t n_procs = simple->convey.n_procs;
   const size_t buffer_bytes = simple->buffer_bytes;
@@ -341,7 +305,7 @@ simple_advance(convey_t* self, bool done)
   int result = simple_alltoallv(simple);
   if (result != convey_OK)
     return result;
-  reset_send_buffers(simple);
+  simple_reset_send_buffers(simple);
 
   simple->quiet = !further_comm;
   return simple->quiet ? convey_NEAR : convey_OK;
@@ -379,14 +343,14 @@ dealloc_buffers(simple_t* simple)
   simple->recv_buffers = NULL;
 }
 
+// Alignment can be ignored; as long as the buffer allocations are
+// maximally aligned, all items will be fully aligned.
 static int
-simple_begin(convey_t* self, size_t item_size)
+simple_begin(convey_t* self, size_t item_size, size_t align)
 {
   simple_t* simple = (simple_t*) self;
   if (!mpp_comm_is_equal(MPP_COMM_CURR, simple->comm))
     return convey_error_TEAM;
-  if (item_size == 0)
-    return convey_error_ZERO;
   if (item_size > simple->buffer_bytes)
     return convey_error_OFLO;
   size_t old_item_size = self->item_size;
@@ -416,7 +380,7 @@ simple_begin(convey_t* self, size_t item_size)
 
   if (simple->dynamic && !alloc_buffers(simple))
     return convey_error_ALLOC;
-  reset_send_buffers(simple);
+  simple_reset_send_buffers(simple);
   reset_recv_buffers(simple);
   simple->quiet = false;
   mpp_barrier(1);
@@ -519,6 +483,8 @@ convey_new_simple(size_t buffer_bytes,
   bool quiet = (options & convey_opt_QUIET);
   if (buffer_bytes == 0)
     CONVEY_REJECT(quiet, "invalid capacity");
+  // Round up to guarantee proper alignment
+  buffer_bytes = (buffer_bytes + CONVEY_MAX_ALIGN - 1) & -CONVEY_MAX_ALIGN;
 #if MPP_USE_SHMEM
   if (alloc == NULL && !mpp_comm_is_world(MPP_COMM_CURR))
     CONVEY_REJECT(quiet, "SHMEM cannot allocate symmetric memory for a team");
@@ -542,7 +508,7 @@ convey_new_simple(size_t buffer_bytes,
 #endif
 
   if (alloc == NULL)
-    alloc = &convey_imp_alloc;
+    alloc = &convey_imp_alloc_align;
   else if (!alloc->grab || !alloc->free)
     CONVEY_REJECT(quiet, "alloc is missing one or both methods");
 

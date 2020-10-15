@@ -78,7 +78,7 @@ typedef struct conveyor convey_t;
 /** The structure returned by an elastic pull. */
 typedef struct {
   size_t bytes;         ///< number of bytes in the pulled item 
-  void* data;           ///< pointer to the pulled item
+  void* data;           ///< aligned pointer to the pulled item
   int64_t from;         ///< index of the PE that pushed it
 } convey_item_t;
 
@@ -115,9 +115,6 @@ enum convey_option {
   /// compression methods will be used unless \c convey_set_codec() is
   /// called.
   convey_opt_COMPRESS = 0x40,
-  /// As an optimization, do not align the pointers returned by \c
-  /// convey_apull(). This option is equivalent to \c CONVEY_OPT_ALIGN(1).
-  convey_opt_NOALIGN = 0x100,
 };
 
 /** Expert options for conveyor constructors. */
@@ -125,27 +122,13 @@ enum convey_expert_option {
   /// Turn off optimizations that alter the format of internal buffers.
   /// This option is provided for conveyor testing and maintenance.
   convey_opt_STANDARD = 0x100000,
-  /// Avoid the use of nonblocking SHMEM/UPC puts.  This option is provided
+  /// Avoid the use of nonblocking SHMEM/UPC puts. This option is provided
   /// for testing and automatic tuning.
   convey_opt_BLOCKING = 0x200000,
 };
 
 /** The maximum alignment that a conveyor can guarantee. */
-#define CONVEY_MAX_ALIGN (64)
-
-/** A macro for specifying alignment requirements for a conveyor.
- *
- * The \c CONVEY_OPT_ALIGN macro, which takes an integer argument \a n,
- * produces a constructor option which requests that the pointers returned
- * by \c convey_pull are aligned to a multiple of \a n bytes. If \a n is
- * not a power or two or does not divide the item size, then the option
- * will be ignored and the default alignment will be maintained. The value
- * of \a n is capped at \c CONVEY_MAX_ALIGN.
- */
-#define CONVEY_OPT_ALIGN(n) (convey_opt_NOALIGN * CONVEY_CLAMP(n,CONVEY_MAX_ALIGN))
-
-/** A helper macro used by the CONVEY_ALIGN macro. */
-#define CONVEY_CLAMP(n,m) ((n) < 0 ? 0 : (n) > (m) ? (m) : (n))
+#define CONVEY_MAX_ALIGN (UINT64_C(64))
 
 /** Strategies for \c mpp_alltoall_simple(); unlikely to be useful
  * 
@@ -164,9 +147,9 @@ typedef struct mpp_alltoall convey_mpp_a2a_t;
  * as efficient conveyors tend to use little memory anyway.
  *
  * This function uses simple heuristics, which may not be reliable, to
- * choose a conveyor and its parameters. If the environment variable \c
- * CONVEY_BUFFER_SIZE is set to a positive integer, then the conveyor will
- * prefer to transfer data in buffers of approximately that size.
+ * choose a conveyor and its parameters. If the environment variable
+ * \c CONVEY_BUFFER_SIZE is set to a positive integer, then the conveyor
+ * will prefer to transfer data in buffers of approximately that size.
  *
  * If \a n_local is zero, then the constructor will use a default value.
  * The value is obtained from the environment variable \c CONVEY_NLOCAL if
@@ -177,8 +160,7 @@ typedef struct mpp_alltoall convey_mpp_a2a_t;
  * \param[in] max_bytes   Desired limit on internal memory usage (per PE)
  * \param[in] n_local     Number of PEs in a local group (e.g., node or socket)
  * \param[in] alloc       Means of obtaining symmetric memory; can be \c NULL
- * \param[in] options     An OR of any set of values from \c enum #convey_option,
- *                        and possibly \c CONVEY_OPT_ALIGN(\a alignment)
+ * \param[in] options     An OR of any set of values from \c enum #convey_option
  */
 
 convey_t*
@@ -188,26 +170,19 @@ convey_new(size_t max_bytes, size_t n_local,
 /** The generic constructor for elastic conveyors.
  *
  * Build a conveyor that supports variable-length items, up to a limit of
- * \a item_bound bytes per item. If every pushed item has size a multiple
- * of \a atom_bytes, then the conveyor guarantees that items pulled by
- * \c convey_epull() will be aligned to the largest power of two (up to
- * \c CONVEY_MAX_ALIGN) that divides \a atom_bytes. This guarantee can be
- * weakened, however, by alignment options, or by the \a alloc function if
- * it does not provide such strong alignment. In other respects this
- * function is the same as \c convey_new().
+ * \a item_bound bytes per item. In other respects this function is the same
+ * as \c convey_new().
  *
- * \param[in] atom_bytes  Helps determine alignment for \c convey_apull()
  * \param[in] item_bound  Maximum size of each item in bytes
  * \param[in] max_bytes   Desired limit on internal memory usage (per PE)
  * \param[in] n_local     Number of PEs in a local group (e.g., node or socket)
  * \param[in] alloc       Means of obtaining symmetric memory; can be \c NULL
- * \param[in] options     An OR of any set of values from \c enum #convey_option,
- *                        and possibly \c CONVEY_OPT_ALIGN(\a alignment)
+ * \param[in] options     An OR of any set of values from \c enum #convey_option
  */
 
 convey_t*
-convey_new_elastic(size_t atom_bytes, size_t item_bound, size_t max_bytes,
-                   size_t n_local, const convey_alc8r_t* alloc, uint64_t options);
+convey_new_elastic(size_t item_bound, size_t max_bytes, size_t n_local,
+                   const convey_alc8r_t* alloc, uint64_t options);
                     
 
 
@@ -216,13 +191,21 @@ convey_new_elastic(size_t atom_bytes, size_t item_bound, size_t max_bytes,
 /** Prepare a conveyor for pushes and pulls.
  *
  * This function sets the item size for subsequent \c convey_push() and
- * \c convey_pull() operations to \a item_bytes. The state must be \e dormant
- * on every process, and it changes to \e working. This is a collective
- * operation. It may check that the conveyor was correctly built, e.g.,
- * that the same parameters were supplied by every process. The return
- * value is \c convey_OK on success, negative on failure.
+ * \c convey_pull() operations to \a item_bytes, and it requests a certain
+ * alignment for pointers supplied by \c convey_apull() and
+ * \c convey_epull(). If \a align is not valid (it is not a power of 2, or
+ * does not divide \a item_byts, or is larger than \c CONVEY_MAX_ALIGN),
+ * then the required alignment is set to the largest power of 2, no greater
+ * than \c CONVEY_MAX_ALIGN, that divides \a item_bytes. If the conveyor
+ * was created with a non-NULL allocator, then the conveyor's alignment
+ * guarantee is only as strong as the allocator's alignment guarantee.
+ *
+ * The state must be \e dormant on every process, and it changes to \e working.
+ * This is a collective operation. It may check that the conveyor was correctly
+ * built, e.g., that the same parameters were supplied by every process. The
+ * return value is \c convey_OK on success, negative on failure.
  */
-int convey_begin(convey_t* c, size_t item_bytes);
+int convey_begin(convey_t* c, size_t item_bytes, size_t align);
 
 /** Enqueue the given \a item for delivery to the given \a pe.
  *
@@ -268,12 +251,11 @@ int convey_pull(convey_t* c, void* item, int64_t* from);
  *
  * This function is very similar to \c convey_pull(), but instead of copying
  * the incoming item, it returns a pointer to it, which may be faster. The
- * pointer is guaranteed to be properly aligned for the item unless the
- * conveyor was built with the \c convey_opt_NOALIGN or \c CONVEY_OPT_ALIGN()
- * option. The pointer remains valid until the next successful pull or unpull
- * operation on the conveyor; after that, the content of the item may change.
- * If \c convey_apull() fails for any reason, then it returns \c NULL and
- * does not change \a *from.
+ * pointer is aligned as determined by the most recent call to
+ * \c convey_begin(). The pointer remains valid until the next successful pull
+ * or unpull operation on the conveyor; after that, the content of the item
+ * may change. If \c convey_apull() fails for any reason, then it returns
+ * \c NULL and does not change \a *from.
  */
 void* convey_apull(convey_t* c, int64_t* from);
 
@@ -341,8 +323,8 @@ int convey_free(convey_t* c);
 * 
 * This is a collective operation that can only be performed when the state
 * is \e dormant (that is, before the first \c convey_begin, or between
-* \c convey_reset and \c convey_begin).  If \a codec is \c NULL, then
-* compression is disabled.  The return value is \c convey_OK on success,
+* \c convey_reset and \c convey_begin). If \a codec is \c NULL, then
+* compression is disabled. The return value is \c convey_OK on success,
 * \c convey_FAIL if the conveyor does not support compression, and a negative
 * value if the state is wrong or some other severe error occurs.
 */
@@ -413,7 +395,7 @@ convey_new_simple(size_t capacity, const convey_alc8r_t* alloc,
 /** Build a synchronous conveyor based on \c shmem_team_alltoallv or \c MPI_Alltoallv.
  *
  * \deprecated Twohop conveyors, even when they exist, are generally
- * dominated by tensor conveyors.  They are not currently chosen by generic
+ * dominated by tensor conveyors. They are not currently chosen by generic
  * constructors and will be removed in a future release.
  * 
  * This is a collective operation; under \c mpp_utilV4,
@@ -427,8 +409,7 @@ convey_new_simple(size_t capacity, const convey_alc8r_t* alloc,
  * \param[in] row_procs   Number of processes per row (must divide \c PROCS)
  * \param[in] alloc       Means of obtaining symmetric memory; can be \c NULL
  * \param[in] options     Supports all options except \c convey_opt_SCATTER and
- *                        \c convey_opt_COMPRESS; see enum #convey_option and
- *                        \c CONVEY_OPT_ALIGN()
+ *                        \c convey_opt_COMPRESS; see enum #convey_option
  *
  * Conveyor Features: Perhaps \c convey_STEADY, depending on \a options.
  */
@@ -466,7 +447,7 @@ __attribute__((deprecated))
  *                        values 1, 2, 4 are reasonable
  * \param[in] alloc       Means of obtaining symmetric memory; can be \c NULL
  * \param[in] options     Supports all options except \c convey_opt_SCATTER; see
- *                        enum #convey_option and \c CONVEY_OPT_ALIGN()
+ *                        enum #convey_option
  *
  * Conveyor Features: Perhaps \c convey_STEADY and/or \c convey_THRIFTY,
  * depending on the requested \a options.
@@ -480,26 +461,15 @@ convey_new_tensor(size_t capacity, int order, size_t n_local, size_t n_buffers,
 /** Build an asynchronous elastic conveyor in which each item makes \a order hops.
  *
  * This is a collective operation; under \c mpp_utilV4, the set of PEs
- * involved is determined by the current communicator. Elastic tensor
- * conveyors currently require SHMEM.
+ * involved is determined by the current communicator.
  *
- * Except for its first three arguments, this function is similar to \c
- * convey_new_tensor(). The \a atom_bytes argument determines the default
- * item size for \c convey_push(). In addition, the largest power of two
- * (up to \c CONVEY_MAX_ALIGN) dividing \a atom_bytes is the alignment
- * guaranteed by \c convey_pull() and \c convey_epull(), unless (1) this
- * alignment is overridden by a \c convey_opt_NOALIGN or \c
- * CONVEY_OPT_ALIGN() option, or (2) an item is pushed whose size is not
- * divisible by \a atom_bytes, or (3) \a alloc is non-NULL and its
- * allocation function provides weaker alignment.
- *
- * The \a monster_bytes parameter can be greater than \a buffer_bytes. In
- * this case the conveyor uses a separate mechanism, with its own large
- * buffers, for sending items of size greater than \a buffer_bytes.
+ * Except for its first two arguments, this function is similar to \c
+ * convey_new_tensor(). The \a monster_bytes parameter can be greater than
+ * \a buffer_bytes. In this case the conveyor uses a separate mechanism, with
+ * its own large buffers, for sending items of size greater than \a buffer_bytes.
  * Delivery of such large items may be less efficient, but they behave in
  * all other respects like small items.
  *
- * \param[in] atom_bytes    Helps determine alignment for \c convey_apull()
  * \param[in] buffer_bytes  Approximate size of each internal buffer
  * \param[in] monster_bytes Maximum item size for \c convey_epush()
  * \param[in] order         Number of porters (hops each item takes), 1 <= order <= 3
@@ -508,15 +478,14 @@ convey_new_tensor(size_t capacity, int order, size_t n_local, size_t n_buffers,
  *                          values 1, 2, 4 are reasonable
  * \param[in] alloc         Means of obtaining symmetric memory; can be \c NULL
  * \param[in] options       Supports all options except \c convey_opt_SCATTER and
- *                          \c convey_opt_COMPRESS; see enum #convey_option and
- *                          \c CONVEY_OPT_ALIGN()
+ *                          \c convey_opt_COMPRESS; see enum #convey_option
  *
  * Conveyor Features: Always \c convey_ELASTIC and sometimes \c convey_STEADY,
  * depending on the \a options.
  */
 
 convey_t*
-convey_new_etensor(size_t atom_bytes, size_t buffer_bytes, size_t monster_bytes,
+convey_new_etensor(size_t buffer_bytes, size_t monster_bytes,
                    int order, size_t n_local, size_t n_buffers,
                    const convey_alc8r_t* alloc, uint64_t options);
 

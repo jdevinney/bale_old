@@ -41,8 +41,6 @@
 # include <stdatomic.h>
 typedef _Atomic uint64_t atomic_uint64_t;
 #else
-# define atomic_load(p) (*(p))
-# define atomic_store(p,v) *(p) = (v)
 typedef uint64_t atomic_uint64_t;
 #endif
 
@@ -132,7 +130,7 @@ putp_scan_receipts(put_porter_t* putp)
     if (stuck[source])
       continue;
     long long disposed = putp->disposed[source];
-    uint64_t received = atomic_load(putp->received + source);
+    uint64_t received = putp->received[source];  // atomic_load
     if ((received >> 1) > disposed)
       putp->pending[k++] = source;
     else
@@ -160,7 +158,7 @@ putp_setup(porter_t* self)
     memset(putp->disposed, 0, n * sizeof(long long));
     // Mark receipts from invalid PEs as drained
     for (int i = 0; i < n; i++)
-      atomic_store(&putp->received[i], (putp->friends[i] < 0));
+      putp->received[i] = (putp->friends[i] < 0);  // atomic_store
     const int shift = self->abundance;
     memset(putp->consumed, 0, (n << shift) * sizeof(long long));
 
@@ -332,7 +330,7 @@ nbrhood_init(put_porter_t* putp, nbrhood_t* nbrhood)
   for (int i = 0; ok && i < n; i++) {
     int pe = putp->friends[i];
     if (pe >= 0) {
-      atomic_uint64_t* p = shmem_ptr(putp->received, pe);
+      atomic_uint64_t* p = shmem_ptr((uint64_t*) putp->received, pe);
       nbrhood->signal_ptrs[i] = p;
       char* q = shmem_ptr(putp->porter.recv_buffers, pe);
       nbrhood->buffer_ptrs[i] = q;
@@ -369,7 +367,7 @@ local_send(porter_t* self, int dest, uint64_t level, size_t n_bytes,
 
   // Need local address of remote 'received' array
   atomic_uint64_t* notify = nbrhood->signal_ptrs[dest] + rank;
-  atomic_store(notify, signal);
+  *notify = signal;  // atomic_store
   return true;
 }
 
@@ -498,7 +496,7 @@ nonblock_progress(porter_t* self, int dest)
       channel_t* channel = &self->channels[dest];
       porter_record_delivery(self, dest, channel->emitted);
       int pe = putp->friends[dest];
-      shmem_put64(&putp->received[rank], &signal, 1, pe);
+      shmem_put64((uint64_t*) &putp->received[rank], &signal, 1, pe);
       DEBUG_PRINT("sent signal %lu to %d\n", signal, pe);
       inflight[dest] = 0;
     }

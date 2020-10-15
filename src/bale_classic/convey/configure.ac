@@ -34,7 +34,7 @@
 ## Process this file with autoconf to produce a configure script.
 
 AC_PREREQ(2.63)
-AC_INIT([convey], [0.5.5], [bale@super.org])
+AC_INIT([convey], [0.6.0], [bale@super.org])
 AC_CONFIG_MACRO_DIR([m4])
 AC_CONFIG_SRCDIR([simple.c])
 AC_CONFIG_HEADERS([config.h])
@@ -142,7 +142,7 @@ AC_DEFUN([AX_LANG_POP_UPC], [AC_LANG_POP([C])])
 # LIBS="$MPP_UTIL_LIBS $LIBS"
 
 # Checks for typedefs, structures, and compiler characteristics.
-AC_CHECK_HEADERS([inttypes.h])
+AC_CHECK_HEADERS([inttypes.h stdalign.h])
 AC_TYPE_UINTPTR_T
 if test "x$ac_cv_c_uintptr_t" = xno; then
     AC_MSG_ERROR([type uintptr_t is not available])
