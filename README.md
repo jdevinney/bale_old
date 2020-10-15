@@ -20,7 +20,7 @@ The original bale (now called "[bale_classic](src/bale_classic/README.md)") was 
 
 ### Contents
 
-**[bale_classic](src/bale_classic/README.md)**: Built with UPC or C/SHMEM. Contains three aggregation APIs (exstack, exstack2, and conveyors) and the widest collection of apps and implementations of those apps.  Location: src/bale_classic
+**[bale_classic](src/bale_classic/README.md)**: Built with UPC or C/SHMEM. Contains three aggregation APIs (exstack, exstack2, and conveyors) and the widest collection of [apps](src/bale_classic/apps/README.md) and implementations of those apps.  Location: src/bale_classic
 
 
 
