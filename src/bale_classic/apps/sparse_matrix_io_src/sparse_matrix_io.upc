@@ -121,17 +121,40 @@ int main(int argc, char * argv[])
   sparsemat_t * readmat;
   
   for( use_model=1L; use_model < 32; use_model *=2 ) {
-    t1 = wall_seconds();
+
     switch( use_model & args.std.models_mask ) {
     case AGP_Model:
-      sprintf(model_str, "AGP");
+      sprintf(model_str, "AGP_write");
+      t1 = wall_seconds();
       write_sparse_matrix_agp(args.dir_path, inmat);
+      t1 = wall_seconds() - t1;
+      lgp_min_avg_max_d( stat, t1, THREADS );
+      bale_app_write_time(&args.std, model_str, stat->avg);
+
+      sprintf(model_str, "AGP_read");
+      t1 = wall_seconds();
       readmat = read_sparse_matrix_agp(args.dir_path, args.num_readers);
+      t1 = wall_seconds() - t1;
+      lgp_min_avg_max_d( stat, t1, THREADS );
+      bale_app_write_time(&args.std, model_str, stat->avg);
+      
       break;
     case EXSTACK_Model:
-      sprintf(model_str, "Exstack");
+      
+      sprintf(model_str, "Exstack_write");
+      t1 = wall_seconds();
       write_sparse_matrix_exstack(args.dir_path, inmat, args.std.buf_cnt);
+      t1 = wall_seconds() - t1;
+      lgp_min_avg_max_d( stat, t1, THREADS );
+      bale_app_write_time(&args.std, model_str, stat->avg);
+
+      sprintf(model_str, "Exstack_read");
+      t1 = wall_seconds();
       readmat = read_sparse_matrix_exstack(args.dir_path, args.num_readers, args.std.buf_cnt);
+      t1 = wall_seconds() - t1;
+      lgp_min_avg_max_d( stat, t1, THREADS );
+      bale_app_write_time(&args.std, model_str, stat->avg);
+      
       break;
     case EXSTACK2_Model:
       continue;
@@ -159,9 +182,7 @@ int main(int argc, char * argv[])
       clear_matrix(readmat); free(readmat);
     }
     
-    t1 = wall_seconds() - t1;
-    lgp_min_avg_max_d( stat, t1, THREADS );
-    bale_app_write_time(&args.std, model_str, stat->avg);
+
   }
   
   clear_matrix(inmat); free(inmat);
