@@ -409,7 +409,7 @@ void bale_app_write_time(std_args_t * sargs, char * model_str, double time){
     fprintf(jp,"\"%s\": \"%lf\",\n", model_str, time);
     fclose(jp);
   }else{
-    T0_fprintf(stderr, "%10s: %8.3lf\n", model_str, time);
+    T0_fprintf(stderr, "%14s: %8.3lf\n", model_str, time);
   }
 }
 
@@ -419,7 +419,7 @@ void bale_app_write_int(std_args_t * sargs, char * key, int64_t val){
     fprintf(jp,"\"%s\": \"%"PRId64"\",\n", key, val);
     fclose(jp);
   }else{
-    T0_fprintf(stderr, "%10s: %"PRId64"\n", key, val);
+    T0_fprintf(stderr, "%14s: %"PRId64"\n", key, val);
   }
 }
 
@@ -429,6 +429,6 @@ void bale_app_write_double(std_args_t * sargs, char * key, double val){
     fprintf(jp,"\"%s\": \"%lf\",\n", key, val);
     fclose(jp);
   }else{
-    T0_fprintf(stderr, "%10s: %lf\n", key, val);
+    T0_fprintf(stderr, "%14s: %lf\n", key, val);
   }
 }
