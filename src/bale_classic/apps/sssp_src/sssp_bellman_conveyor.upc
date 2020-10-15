@@ -116,7 +116,7 @@ double sssp_bellman_convey(d_array_t *dist, sparsemat_t *mat, int64_t v0)
 
   for(loop=0; loop<mat->numrows; loop++){
     changed = 0;
-    convey_begin(conv, sizeof(sssp_pkg_t));
+    convey_begin(conv, sizeof(sssp_pkg_t), 0);
     for(li=0; li < mat->lnumrows; li++)
       tent_new->lentry[li] = tent_cur->lentry[li];
 

@@ -62,7 +62,7 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
   convey_t * conv = convey_new(SIZE_MAX, 0, NULL, convey_opt_PROGRESS);
   if(conv == NULL){return(-1);}
 
-  if(convey_begin( conv, sizeof(pkg_topo_t) ) != convey_OK){return(-1);}
+  if(convey_begin( conv, sizeof(pkg_topo_t), 0 ) != convey_OK){return(-1);}
   
   /* initialize rowsum, rowcnt, and queue (queue holds degree one rows) */
   int64_t rownext, rowlast;
@@ -183,7 +183,7 @@ double toposort_matrix_convey(SHARED int64_t *rperm, SHARED int64_t *cperm, spar
   }
   
   convey_t * conv2 = convey_new(SIZE_MAX, 0, NULL, 0);
-  convey_begin( conv2, sizeof(pkg_cperm_t) );
+  convey_begin( conv2, sizeof(pkg_cperm_t), 0 );
   if(conv == NULL){return(-1);}
   pkg_cperm_t pkg2, pkg2_ptr;
 
