@@ -20,7 +20,9 @@ row and column of our new matrix and delete the row and column
 from the original matrix, we can recursively construct the new
 matrix from the bottom right corner to the top left corner.
 
-<img src="../../../../images/toposort.png" alt="picture of toposort" align=center style="height: 400px;"/>
+<img src="../../../../images/toposort.png" 
+    src="../../../images/toposort.png" 
+  alt="picture of toposort" align=center style="height: 400px;"/>
 
 A more detailed description of the algorithm is given in 
 bale_classic toposort documentation.
