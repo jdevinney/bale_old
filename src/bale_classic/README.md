@@ -76,42 +76,51 @@ There are problems with the following...
 
 #### Other Dependencies
 
-bale_classic also depends on:
-
   - argp (part of glibc)
-
   - autoconf (2.69)
-
   - automake (1.13.4)
 
-  - doxygen (optional)
+#### Optional Dependencies
 
-  - python 3.5 (for unit tests and make_bale script, python 3.7 is required for run_apps.py script)
+  - python3 (v3.5 for unit tests and make_bale script, v3.7 for run_apps.py script)
+  - pytest (unit_tests)
+  - doxygen v1.8 or greater (for documentation)
 
 ### Documentation
 
 bale_classic is documented using Doxygen. To generate the html documentation you must have 
-doxygen on your system (I recommend version 1.8.6). To generate the docs, simply change
-to the $BALEDIR directory and type:
-    `doxygen`
-Then navigate your browser to $BALEDIR/html/index.html.
+doxygen on your system. To generate the docs:
+
+```bash
+cd $BALEDIR
+doxygen
+```
+
+
+Then navigate your browser to `$BALEDIR/html/index.html`.
 
 ### Build Instructions
-We include a build script (called make_bale) to make building easier for most people. Detailed instructions are found in [INSTALL.md](INSTALL.md). Also check out some quick start instructions in [DEMO.md](DEMO.md) 
+bale_classic comes with a build script called `make_bale` to make building easier for most people. Detailed instructions are found in [INSTALL.md](INSTALL.md). Also check out some quick start instructions in [DEMO.md](DEMO.md) 
 
 ### Running
 
 All bale_classic apps have a common set of standard options. In addition, bale apps that work on matrices or graphs have a common set graph input options. Run any app with '--help' for more information.
 
-We have included a python script (run_apps.py) to make it easier to run a suite of tests in bale. Run this script with '--help' option for more information.
+We have included a python script called `run_apps.py` to make it easier to run a suite of tests in bale. Run this script with '--help' option for more information.
 
-We have also included a Jupyter notebook to enable visualization and analysis of the results of bale runs. This notebook is in plot_results.ipynb.
+We have also included a Jupyter notebook to enable visualization and analysis of the results of bale runs. This notebook is in `plot_results.ipynb`.
 
 ### Testing
-We have a unit test script that uses pytest as a harness. To run this test, first build bale, then navigate to the apps directory and run
+We have a unit test script that relies on [pytest](https://docs.pytest.org/en/stable/). To run the tests, first build bale and then:
 
-    pytest -s -P=<path/to/bale/binaries> --node_range=0,10,2 -M 15
+```bash
+cd $BALEDIR/apps
+pytest -s -P=<path/to/bale/binaries> --node_range=1,5,1 -M 15
+```
 
-If you get an error that claims that pytest cannot load the conftest.py file, We have found that deleting the
-__pycache__ directories from the apps and apps/tests directories fixes this.
+For more details run "`pytest --help`" and see the "custom options" section for bale specific options.
+
+**Note**: If you get an error that claims that pytest cannot load the conftest.py file, We have found that deleting the `__pycache__` directories from the apps and apps/tests directories fixes this. 
+
+**Note2**: Please use -M 3 for OSHMEM and SOS builds on Linux SMP (since we have found problems with exstack2 and conveyors in those environments).
 

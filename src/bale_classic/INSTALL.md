@@ -2,14 +2,17 @@ Start with the [README](README.md). Also see the [DEMO.md](DEMO.md) for instruct
 
 # Environment Configuration
 
-See the System Requirments section in [README](README.md).
+See the System Requirments section in [README](README.md). You must build bale_classic on top of UPC or SHMEM. 
 
-You can build bale on top of UPC or SHMEM. 
+#### UPC
 
-- UPC:   You should set the UPC environment variable to point to the UPC compiler and 
-        the UPCFLAGS variable to whatever options you pass to the compiler (for example:
-        UPCFLAGS="-gupc -network=ibv".
-- SHMEM: If you are using openshmem, set CC=oshcc (the openshmem compiler).
+1. Set the UPC environment variable to point to your UPC compiler. 
+2. optionally set the UPCFLAGS variable to whatever options you pass to the UPC compiler (for example: `UPCFLAGS="-gupc -network=ibv"`.
+
+#### SHMEM
+
+1. For OpenSHMEM, set `CC=oshcc` (the openshmem compiler).
+2. For cray-shmem, you should load the PrgEnv-cray module and have either the cray-shmem or cray-openshmemx module loaded.
 
 For this document, let BALEDIR = the directory containing this file.
 
@@ -36,7 +39,7 @@ To make building and installing easier, we have included a few scripts. The main
 
 1. First, in the bale_classic directory, run the **bootstrap.sh** script.
 
-2. Next, run the **make_bale** script (see below for options). This script visits each subpackage in bale and runs configure, make, and make install. The make_bale script automates the usual process, makes it easy to keep separate build and install directories for multiple platforms, and keeps these directories separate from the source directory. The default build and install directory is $BALEDIR/build_$PLATFORM. If you don't set the $PLATFORM variable, your platform will be set to "unknown". 
+2. Next, run the **make_bale** script (see below for options). This script visits each subpackage in bale and runs configure, make, and make install. The make_bale script automates the usual process, makes it easy to keep separate build and install directories for multiple platforms, and keeps these directories separate from the source directory. The default build and install directory is `$BALEDIR/build_$PLATFORM`. If you don't set the `$PLATFORM` variable, your platform will be set to "unknown". 
 
    There is one required and several important options for the make_bale script...
 
