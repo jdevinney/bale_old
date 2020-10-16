@@ -53,9 +53,10 @@ The original bale (now called "[bale_classic](src/bale_classic/README.md)") was 
 * Nov. 2020: version 3.0.0
   * Added cousins: Rust, Parallel Rust, Serial C, and Chapel to bale
   * new bale_classic features:
-    *  New graph model: Geometric graphs
+    * New graph model: Geometric graphs
     * New app: SSSP
     * replaced write_sparse_matrix with sparse_matrix_io
+    * convey-0.6.0 updates
     * arg_parse replaced getopt
     * unit tests with pytest
     * new make_bale script
