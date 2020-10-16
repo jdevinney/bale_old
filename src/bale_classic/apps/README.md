@@ -17,7 +17,7 @@ Each of the applications in bale are implemented in multiple ways to showcase th
 ### List of apps
 
 - [histo](histo_src/README.md)  -- histogram
-- [indexgather](ig_src/README.md) -- index_gater
+- [indexgather](ig_src/README.md) -- index_gather
 - [transpose_matrix](transpose_matrix_src/README.md)  -- matrix transpose
 - [randperm](randperm_src/README.md) -- random array of integers
 - [permute_matrix](permute_matrix_src/README.md) -- permute a matrix
