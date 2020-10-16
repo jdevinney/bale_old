@@ -58,7 +58,7 @@ doxygen for documentation and python3 for ``pytest`` unit testing.
 This is meant to be basic C, with a simple Makefile, so hopefully just typing 'make' will work.
 ```
     make  # make the apps
-    make test # run the unit tests
+    make test # run the unit tests (if python3 is installed)
     make doc # make the doxygen documentation
 ```
 However, we do use the argp library from the GNU standard library. 
@@ -69,12 +69,14 @@ LD_LIBRARY_PATH and LDFLAGS variables.
 
 ## Testing
 For bale 3.0 we have started using pytest for the unit testing. This requires python3.
-One can run the test specified in file ``tests/test_all.py`` by hand with the command:
+In addition to using `make test` as part of the build process,
+one can run the test specified in file ``tests/test_all.py`` by hand with the command:
 
 ```
     pytest -s
 ```
-You can also edit the file `tests/test_all.py` to add or modify the tests that are run.
+It is also easy to edit the file `tests/test_all.py` to add or modify the tests that are run.
+
 
 ## Documentation
 serial_C is documented using Doxygen. 
