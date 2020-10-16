@@ -115,7 +115,7 @@ RUN make install
 #    make -j ${NPROCS} LDFLAGS=-all-static && \
 ###
 
-# from heconn
+
 # ../configure --prefix=/usr/public/opt/openmpi-4.0.3
 # --enable-mpi-fortran=no --enable-oshmem --with-hwloc --enable-static
 # --enable-shared --with-ucx=/usr/public/opt/ucx-1.8.0
