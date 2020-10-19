@@ -68,4 +68,14 @@ RUN rm -rf ${GUPC_ARCHIVE}
 ENV PATH=${PREFIX}/bin:$PATH
 RUN adduser --disabled-password --gecos "" bale_user
 RUN echo "hello"
+
+RUN apt-get -y update \
+    && apt-get install -y --no-install-recommends \
+	vim less curl python3 python3-setuptools python3-pip
+
+RUN ln -s /usr/bin/python3 /usr/bin/python && \
+    ln -s /usr/bin/pip3 /usr/bin/pip
+
+RUN pip install pytest 
+
 CMD ["/bin/bash"]
