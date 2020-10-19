@@ -174,5 +174,18 @@ RUN cd ${PREFIX}/src/gups-shmem && \
 
 # TODO: Use a non-root user
 
+# install python etc
+RUN apt-get -y update \
+    && apt-get install -y --no-install-recommends \
+	vim less curl python3 python3-setuptools python3-pip
+
+RUN ln -s /usr/bin/python3 /usr/bin/python && \
+    ln -s /usr/bin/pip3 /usr/bin/pip
+
+# install pytest
+RUN pip install pytest 
+
+
+
 CMD ["/bin/bash"]
 

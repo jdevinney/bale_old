@@ -1,15 +1,5 @@
 # get a oshmem image in public Dockerhub
-FROM npmolino/bale_public_oshmem4.0.3:v1 
-
-
-RUN apt-get -y update \
-    && apt-get install -y --no-install-recommends \
-	vim less curl python3 python3-setuptools python3-pip
-
-RUN ln -s /usr/bin/python3 /usr/bin/python && \
-    ln -s /usr/bin/pip3 /usr/bin/pip
-
-RUN pip install pytest 
+FROM npmolino/bale_public_oshmem4.0.3_with_pytest:latest
 
 COPY . /opt/bale_private
 
