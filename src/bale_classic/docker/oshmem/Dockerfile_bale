@@ -1,17 +1,8 @@
-FROM oshmem4.0.3:latest
-
-RUN apt-get -y update \
-    && apt-get install -y --no-install-recommends \
-	pandoc vim less curl python3 python3-pip
-
-RUN ln -s /usr/bin/python3 /usr/bin/python && \
-    ln -s /usr/bin/pip3 /usr/bin/pip
-
-RUN pip install pytest 
+FROM oshmem4.0.3_with_pytest:latest
 
 COPY . /opt/bale_private
 
-WORKDIR /opt/bale_private
+WORKDIR /opt/bale_private/src/bale_classic
 
 RUN ./bootstrap.sh
 ENV CC oshcc
@@ -35,4 +26,5 @@ RUN NUM_CORES=$(grep cores /proc/cpuinfo | awk '{print $4}' | head -n 1) && \
     oshrun -n 2 build_${PLATFORM}/bin/histo -M 1 -c 2
 
 
+RUN pytest -s -p no:cacheprovider  --node_range=1,5,2 apps/
 

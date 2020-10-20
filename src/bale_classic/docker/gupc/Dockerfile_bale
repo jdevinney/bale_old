@@ -1,13 +1,4 @@
-FROM gupc:latest
-
-RUN apt-get -y update \
-    && apt-get install -y --no-install-recommends \
-	pandoc vim less curl python3 python3-pip
-
-RUN ln -s /usr/bin/python3 /usr/bin/python && \
-    ln -s /usr/bin/pip3 /usr/bin/pip
-
-RUN pip install pytest
+FROM gupc_with_pytest:latest
 
 # copy bale from host into container (the host should be sitting at the top level of bale_private)
 COPY . /opt/bale_private
