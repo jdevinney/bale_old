@@ -47,7 +47,7 @@ The original bale (now called "[bale_classic](src/bale_classic/README.md)") was 
 * Dec. 2018: version 2.0.0 
   * New apps: transpose, randperm, permute_matrix, write_sparse_matrix
 
-* Aug. 2018: version 2.1.0 
+* Sep. 2019: version 2.1.0
   * update conveyors to version 0.5.0
 
 * Nov. 2020: version 3.0.0
