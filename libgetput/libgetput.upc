@@ -40,6 +40,10 @@
  */
 
 #include "libgetput.h"
+#if __UPC_ATOMIC__
+#include <upc_atomic.h>
+#endif
+upc_atomicdomain_t * lgp_atomic_domain;
 
 /*!
  * \brief Wrapper for atomic add to help with ifdef noise
@@ -47,6 +51,7 @@
  */
 void lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   long ret;
+  int64_t oldval; 
 #if USE_SHMEM
   long lindex = index/shmem_n_pes();
   long pe = index % shmem_n_pes();
@@ -56,6 +61,8 @@ void lgp_atomic_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   _amo_aadd(&ptr[index], value);
 #elif __BERKELEY_UPC_RUNTIME__
   ret = bupc_atomicI64_fetchadd_relaxed(&ptr[index], value);
+#elif __UPC__
+ upc_atomic_relaxed(lgp_atomic_domain, NULL, UPC_ADD, &ptr[index], &value, NULL);
 #endif
 }
 
@@ -92,6 +99,8 @@ int64_t lgp_fetch_and_inc(SHARED int64_t * ptr, int64_t index) {
   ret = _amo_afadd(&ptr[index], 1L);
 #elif __BERKELEY_UPC_RUNTIME__
   ret = bupc_atomicI64_fetchadd_relaxed(&ptr[index], 1L);
+#elif __UPC__
+  upc_atomic_relaxed(lgp_atomic_domain, &ret, UPC_INC, &ptr[index], NULL, NULL);
 #endif
   return(ret);
 }
@@ -111,6 +120,8 @@ int64_t lgp_fetch_and_add(SHARED int64_t * ptr, int64_t index, int64_t value) {
   ret = _amo_afadd(&ptr[index], value);
 #elif __BERKELEY_UPC_RUNTIME__
   ret = bupc_atomicI64_fetchadd_relaxed(&ptr[index], value);
+#elif __UPC__
+  upc_atomic_relaxed(lgp_atomic_domain, &ret, UPC_ADD, &ptr[index], &value, NULL);
 #endif
   return(ret);
 }
@@ -130,6 +141,8 @@ int64_t lgp_cmp_and_swap(SHARED int64_t * ptr, int64_t index, int64_t cmp_val, i
   ret = _amo_acswap_upc(&ptr[index], cmp_val, swap_val);
 #elif __BERKELEY_UPC_RUNTIME__
   ret = bupc_atomicI64_cswap_relaxed(&ptr[index], cmp_val, swap_val);
+#elif __UPC__
+  upc_atomic_relaxed(lgp_atomic_domain, &ret, UPC_CSWAP, &ptr[index], &cmp_val, &swap_val);
 #endif
   return(ret);
 }
@@ -163,6 +176,8 @@ void lgp_init(int argc, char *argv[]) {
   T0_fprintf(stderr,"\n");
 
   setlocale(LC_NUMERIC,"");
+
+  lgp_atomic_domain = upc_all_atomicdomain_alloc(UPC_INT64, UPC_ADD | UPC_INC | UPC_MAX | UPC_MIN | UPC_CSWAP, 0);
 }
 
 /*!

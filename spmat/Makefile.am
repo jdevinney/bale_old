@@ -57,7 +57,7 @@ libspmat_la_SOURCES = $(common_sources:.c=__upc.upc)
 endif
 
 if BUILD_SHMEM
-libspmat_la_LINK = $(LINK)
+#libspmat_la_LINK = $(LINK)
 libspmat_la_SOURCES = $(common_sources:.upc=__c.c)
 libspmat_la_CPPFLAGS += -DUSE_SHMEM
 endif
