@@ -65,6 +65,7 @@ fi
 
 if test "x$with_upc" = xyes; then
 AM_PROG_UPC
+#AC_CHECK_HEADERS([upc_atomic.h])
 else
   # must define this ugly conditional to keep automake happy
   AM_CONDITIONAL(am__fastdepUPC, [test])

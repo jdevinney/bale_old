@@ -30,7 +30,7 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
 // OF THE POSSIBILITY OF SUCH DAMAGE.
 
-
+#include <stdint.h>
 #include <stdarg.h>
 #include <stdio.h>
 #if _CRAYC && __UPC__
